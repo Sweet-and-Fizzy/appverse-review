@@ -1,0 +1,4 @@
+name: Bad App
+category: Interactive Apps
+role: batch_connect
+description: Incomplete fixture app missing declared metadata.

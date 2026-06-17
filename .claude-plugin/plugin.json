@@ -1,0 +1,8 @@
+{
+  "name": "appverse-review",
+  "description": "AI-assisted review of AppVerse app submissions against the official review checklist",
+  "version": "0.1.0",
+  "author": {
+    "name": "Sweet-and-Fizzy"
+  }
+}

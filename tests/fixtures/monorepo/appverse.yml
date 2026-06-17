@@ -1,0 +1,14 @@
+description: Fixture monorepo with one complete and one incomplete app.
+maintainer:
+  name: Fixture Team
+  support_url: https://github.com/example/fixture-monorepo/issues
+shared_paths:
+  - shared
+apps:
+  - path: apps/good-app
+    name: Good App
+    description: A complete fixture app.
+    software: JupyterLab
+    app_type: batch-connect-basic
+  - path: apps/bad-app
+    name: Bad App
