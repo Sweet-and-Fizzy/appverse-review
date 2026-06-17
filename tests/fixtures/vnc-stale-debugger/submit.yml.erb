@@ -1,0 +1,30 @@
+<%
+  ppn = num_cores.to_i
+
+  cores_lookup = {
+    "standard"  => 48,
+    "hugemem"   => 48,
+    "gpu"       => 48,
+    "k80_gpu"   => 28,
+    "p100_gpu"  => 28,
+  }
+
+  max_ppn = cores_lookup.fetch(node_type, 48)
+  ppn = [ppn, max_ppn].min
+%>
+---
+batch_connect:
+  template: "vnc"
+script:
+  accounting_id: "<%= account %>"
+  queue_name: "ondemand"
+  native:
+    - "-n"
+    - "<%= ppn %>"
+<% case node_type
+   when "hugemem" %>
+    - "--constraint=hugemem"
+<% when "gpu" %>
+    - "--gpus-per-node=1"
+    - "--constraint=a100"
+<% end %>

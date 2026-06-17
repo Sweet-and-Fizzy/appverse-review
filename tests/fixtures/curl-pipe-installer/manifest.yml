@@ -1,0 +1,5 @@
+name: Custom Conda Environment
+category: Interactive Apps
+subcategory: Servers
+role: batch_connect
+description: Launch a Jupyter notebook with a user-specified Conda environment, installing packages on the fly.

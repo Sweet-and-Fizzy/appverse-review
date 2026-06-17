@@ -1,0 +1,5 @@
+name: MLflow Tracking Server
+category: Apps
+subcategory: Servers
+role: batch_connect
+description: MLflow experiment tracking UI via Singularity container and nginx reverse proxy.

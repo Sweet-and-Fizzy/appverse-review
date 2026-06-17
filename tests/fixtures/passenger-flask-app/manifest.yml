@@ -1,0 +1,4 @@
+name: Job Monitor
+icon: fa://tasks
+category: Tools
+description: Web dashboard for monitoring and managing HPC batch jobs with email alerts.

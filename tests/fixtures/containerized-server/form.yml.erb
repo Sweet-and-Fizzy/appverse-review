@@ -1,0 +1,29 @@
+---
+cluster: "eagle"
+form:
+  - csc_slurm_project
+  - csc_slurm_partition
+  - csc_cores
+  - csc_time
+  - csc_memory
+  - csc_nvme
+  - tracking_uri
+  - artifact_root
+  - mlflow_version
+attributes:
+  tracking_uri:
+    widget: text_field
+    label: "Tracking URI"
+    value: "sqlite:///mlflow.db"
+    help: "Backend store URI for experiment metadata"
+  artifact_root:
+    widget: path_selector
+    label: "Artifact storage path"
+    help: "Directory for storing model artifacts"
+  mlflow_version:
+    widget: select
+    label: "MLflow version"
+    options:
+      - ["2.10.0", "mlflow/2.10"]
+      - ["2.8.1",  "mlflow/2.8"]
+      - ["2.5.0",  "mlflow/2.5"]

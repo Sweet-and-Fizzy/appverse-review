@@ -1,0 +1,29 @@
+#!/bin/bash
+set -e
+
+source /usr/share/Modules/init/bash
+
+module purge
+module load intel/18.0.2
+module load mvapich2/2.3
+
+export DISPLAY=":${display}"
+
+# Launch Xfce desktop
+xfwm4 --daemon &
+xfsettingsd &
+xfce4-panel &
+
+# Use PBS nodefile for MPI host discovery
+HOSTS=$(cat $PBS_NODEFILE | sort -u)
+NUM_HOSTS=$(cat $PBS_NODEFILE | sort -u | wc -l)
+
+module load <%= context.version %>
+
+<% if context.version.include?("ddt") %>
+ddt --connect --np=<%= context.num_cores %> --hosts="$HOSTS" &
+<% else %>
+map --profile --np=<%= context.num_cores %> --hosts="$HOSTS" &
+<% end %>
+
+wait

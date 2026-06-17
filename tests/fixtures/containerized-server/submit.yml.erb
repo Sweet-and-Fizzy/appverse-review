@@ -1,0 +1,13 @@
+---
+batch_connect:
+  template: "basic"
+script:
+  native:
+    - "-c"
+    - "<%= csc_cores %>"
+    - "-t"
+    - "<%= csc_time %>"
+    - "--mem=<%= csc_memory %>G"
+<% if csc_nvme.to_i > 0 %>
+    - "--gres=nvme:<%= csc_nvme %>"
+<% end %>

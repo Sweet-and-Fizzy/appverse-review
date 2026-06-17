@@ -1,0 +1,3 @@
+#!/bin/bash
+export SING_IMAGE="/appl/opt/ood/${SLURM_OOD_ENV}/sing_images/nginx.sif"
+singularity_wrapper exec nginx "$@"
