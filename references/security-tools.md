@@ -13,7 +13,7 @@ normally** — tool findings supplement, never replace, the manual analysis.
 |-------|-------|
 | **Covers** | `.sh`, `.bash`, `.sh.erb` (after ERB stripping) |
 | **Detect** | `command -v shellcheck` |
-| **Install** | `brew install shellcheck` / `apt install shellcheck` |
+| **Install** | `brew install shellcheck` (macOS) / `apt install shellcheck` (Debian/Ubuntu) / `dnf install ShellCheck` (Fedora/RHEL) / `pacman -S shellcheck` (Arch) |
 | **Project** | https://www.shellcheck.net |
 | **OAT mapping** | OAT-01 (injection via unquoted variables), OAT-08 (insecure defaults) |
 
@@ -27,7 +27,7 @@ shellcheck -f json -S warning <file.sh>
 strip ERB before scanning:
 
 ```bash
-TMPFILE=$(mktemp /tmp/sc-XXXXXX.sh)
+TMPFILE=$(mktemp "${TMPDIR:-/tmp}/sc-XXXXXX.sh")
 sed 's/<%[^%]*%>/SHELLCHECK_PLACEHOLDER/g' "$TARGET" > "$TMPFILE"
 shellcheck -f json -S warning "$TMPFILE"
 rm "$TMPFILE"
@@ -51,7 +51,7 @@ finding against the original file.
 |-------|-------|
 | **Covers** | `.py` |
 | **Detect** | `command -v bandit` |
-| **Install** | `pip install bandit` |
+| **Install** | `pip install bandit` (all platforms) |
 | **Project** | https://bandit.readthedocs.io |
 | **OAT mapping** | OAT-01 (subprocess/eval/exec), OAT-02 (hardcoded passwords), OAT-05 (binding to 0.0.0.0), OAT-08 (insecure config) |
 
@@ -81,7 +81,7 @@ scan.
 |-------|-------|
 | **Covers** | Python, Ruby, JavaScript, Shell, YAML, and many more |
 | **Detect** | `command -v semgrep` |
-| **Install** | `pip install semgrep` / `brew install semgrep` |
+| **Install** | `pip install semgrep` (all platforms) / `brew install semgrep` (macOS) |
 | **Project** | https://semgrep.dev |
 | **OAT mapping** | All OAT categories depending on ruleset |
 
@@ -131,7 +131,7 @@ dependencies, just generates the lock file).
 |-------|-------|
 | **Covers** | Dependency manifests (requirements.txt, Gemfile.lock, package-lock.json), container definitions, IaC configs |
 | **Detect** | `command -v trivy` |
-| **Install** | `brew install trivy` / see https://aquasecurity.github.io/trivy |
+| **Install** | `brew install trivy` (macOS) / `apt install trivy` after adding the [Aqua repo](https://aquasecurity.github.io/trivy/latest/getting-started/installation/) (Debian/Ubuntu) / see https://aquasecurity.github.io/trivy for other platforms |
 | **Project** | https://aquasecurity.github.io/trivy |
 | **OAT mapping** | OAT-06 (container security), OAT-08 (supply chain / known CVEs) |
 
@@ -152,7 +152,7 @@ container definitions (Singularity `.def` files, Dockerfiles).
 |-------|-------|
 | **Covers** | `.rb`, `.erb` |
 | **Detect** | `command -v rubocop` |
-| **Install** | `gem install rubocop` |
+| **Install** | `gem install rubocop` (all platforms with Ruby) |
 | **Project** | https://rubocop.org |
 | **OAT mapping** | OAT-01 (eval/exec), OAT-08 (insecure defaults) |
 

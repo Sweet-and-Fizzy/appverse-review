@@ -17,6 +17,21 @@ The skills recommend; a human always makes the final call. Two checks require
 catalog access and are always left to the human reviewer: the duplicate check
 and whether the `software` value matches a catalog entry.
 
+## Prerequisites
+
+- **[Claude Code](https://claude.ai/code)** — the plugin runs inside Claude Code
+  on macOS, Linux, or Windows (via WSL)
+- **git** — required for cloning repos in reviewer mode
+- **gh** CLI (optional) — enables maintenance signals (commit recency, releases,
+  issue responsiveness). Without it, those signals are marked "not checked" and
+  the review still completes.
+- **Static analysis tools** (optional) — the security review probes for and runs
+  any of these that are installed: shellcheck (shell), bandit (Python), semgrep
+  (multi-language), npm audit (Node.js), trivy (dependencies/containers), rubocop
+  (Ruby). See [references/security-tools.md](references/security-tools.md) for
+  install instructions per platform. If none are installed the review still
+  completes normally.
+
 ## Install
 
 In [Claude Code](https://claude.ai/code):
@@ -61,7 +76,10 @@ parallel subagents and synthesizes the report and recommended decision.
 The security aspect builds a **capability profile** of what the app actually
 does, runs unsafe-pattern checks, and classifies findings under the OAT (Open
 OnDemand App Threats) taxonomy — narrow-baseline anomaly detection for Batch
-Connect apps, transparency profiling for Passenger apps.
+Connect apps, transparency profiling for Passenger apps. When static analysis
+tools are installed (shellcheck, bandit, semgrep, etc.), the security review
+runs them automatically and folds their findings into the OAT-classified report
+as corroborating or additional evidence.
 
 ## Roadmap
 

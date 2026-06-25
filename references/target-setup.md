@@ -26,7 +26,9 @@ Fetch the live annotated schema:
 
     curl -fsSL https://raw.githubusercontent.com/Sweet-and-Fizzy/ood-appverse/main/docs/appverse.yml
 
-If the fetch fails (offline), use the cached copy at
+If `curl` is not available, try `wget -qO-` with the same URL.
+
+If the fetch fails (offline or neither tool available), use the cached copy at
 `${CLAUDE_PLUGIN_ROOT}/references/appverse.yml` and note in the output that the
 cached schema was used.
 
