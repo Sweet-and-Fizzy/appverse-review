@@ -1,0 +1,80 @@
+name: AppVerse App Review
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_repo:
+        description: "GitHub repo to review (e.g. owner/repo-name)"
+        required: true
+        type: string
+      target_branch:
+        description: "Branch to review (default: repo's default branch)"
+        required: false
+        type: string
+        default: ""
+      review_aspects:
+        description: "Which aspects to review"
+        required: false
+        type: choice
+        options:
+          - all
+          - security
+          - structure
+          - quality
+          - maintenance
+        default: "all"
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout appverse-review plugin
+        uses: actions/checkout@v4
+        with:
+          path: appverse-review
+
+      - name: Checkout target repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.target_repo }}
+          ref: ${{ inputs.target_branch || '' }}
+          path: target-repo
+          fetch-depth: 1
+
+      - name: Install static analysis tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq shellcheck > /dev/null 2>&1
+          pip install --quiet bandit semgrep 2>/dev/null || true
+
+      - name: Prepare run parameters
+        id: params
+        run: |
+          if [ "${{ inputs.review_aspects }}" = "all" ]; then
+            echo "skill=review-app" >> "$GITHUB_OUTPUT"
+          else
+            echo "skill=review-${{ inputs.review_aspects }}" >> "$GITHUB_OUTPUT"
+          fi
+          REPO_SLUG=$(echo "${{ inputs.target_repo }}" | tr '/' '-')
+          echo "repo_slug=${REPO_SLUG}" >> "$GITHUB_OUTPUT"
+
+      - name: Run AppVerse review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          plugin_marketplaces: "./appverse-review/"
+          plugins: "appverse-review"
+          claude_args: "--max-turns 30"
+          prompt: |
+            Run the /appverse-review:${{ steps.params.outputs.skill }} skill
+            against https://github.com/${{ inputs.target_repo }}.
+
+            The target repo is already cloned at
+            ${{ github.workspace }}/target-repo/ — use that path instead of
+            re-cloning. This is reviewer mode.
+
+            After the review completes, write the full report to
+            ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.md.
