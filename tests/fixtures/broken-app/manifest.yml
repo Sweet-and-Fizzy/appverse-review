@@ -1,0 +1,4 @@
+name: Broken Demo App
+category: Interactive Apps
+role: batch_connect
+description: A deliberately broken fixture app for testing the review skill.

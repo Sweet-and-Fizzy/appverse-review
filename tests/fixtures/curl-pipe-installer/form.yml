@@ -1,0 +1,38 @@
+cluster: "summit"
+form:
+  - conda_env_name
+  - extra_packages
+  - pip_index_url
+  - setup_script_url
+  - bc_num_hours
+  - node_type
+  - num_cores
+attributes:
+  conda_env_name:
+    widget: text_field
+    label: "Conda environment name"
+    required: true
+    value: "base"
+    help: "Name of the Conda environment to activate or create"
+  extra_packages:
+    widget: text_area
+    label: "Additional packages to install"
+    help: "Space-separated list of packages (e.g., numpy pandas scikit-learn)"
+  pip_index_url:
+    widget: text_field
+    label: "Custom PyPI index URL"
+    help: "Leave blank for default PyPI. Use for private package repos."
+  setup_script_url:
+    widget: text_field
+    label: "Environment setup script URL"
+    help: "URL to a shell script that configures your environment (optional)"
+  node_type:
+    widget: select
+    options:
+      - ["Standard", "standard"]
+      - ["GPU (V100)", "gpu_v100"]
+  num_cores:
+    widget: number_field
+    min: 1
+    max: 42
+    value: 4

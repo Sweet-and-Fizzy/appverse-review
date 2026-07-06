@@ -1,0 +1,5 @@
+cluster: "faster"
+attributes:
+  modules: [python/3.10
+form:
+  - modules

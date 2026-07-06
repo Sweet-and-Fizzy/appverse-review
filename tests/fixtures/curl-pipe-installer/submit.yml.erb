@@ -1,0 +1,13 @@
+---
+batch_connect:
+  template: "basic"
+script:
+  native:
+    - "-n"
+    - "<%= num_cores %>"
+    - "-t"
+    - "<%= bc_num_hours %>:00:00"
+<% if node_type == "gpu_v100" %>
+    - "--partition=gpu"
+    - "--gres=gpu:v100:1"
+<% end %>

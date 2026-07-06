@@ -1,0 +1,38 @@
+#!/bin/bash
+
+module purge
+module load anaconda3/2023.09
+
+# Activate or create the requested environment
+conda activate <%= context.conda_env_name %> 2>/dev/null || {
+    echo "Environment not found, creating..."
+    conda create -n <%= context.conda_env_name %> python=3.11 -y
+    conda activate <%= context.conda_env_name %>
+}
+
+# Install any extra packages the user requested
+<% if context.extra_packages.to_s.strip != "" %>
+eval "pip install <%= context.extra_packages %>"
+<% end %>
+
+# Support custom package index
+<% if context.pip_index_url.to_s.strip != "" %>
+export PIP_INDEX_URL="<%= context.pip_index_url %>"
+<% end %>
+
+# Run user-provided setup script if specified
+<% if context.setup_script_url.to_s.strip != "" %>
+echo "Running setup from <%= context.setup_script_url %>..."
+curl -fsSL "<%= context.setup_script_url %>" | bash
+<% end %>
+
+# Disable token auth for convenience (users are already authenticated via OOD)
+# --NotebookApp.token='' --NotebookApp.password=''
+jupyter lab \
+    --ip=0.0.0.0 \
+    --port=${port} \
+    --NotebookApp.token='' \
+    --NotebookApp.password='' \
+    --NotebookApp.allow_origin='*' \
+    --NotebookApp.disable_check_xsrf=True \
+    --no-browser

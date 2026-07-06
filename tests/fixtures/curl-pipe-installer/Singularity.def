@@ -1,0 +1,13 @@
+Bootstrap: docker
+From: continuumio/miniconda3:latest
+
+%post
+    apt-get update && apt-get install -y curl git
+    conda update -n base -c defaults conda
+    pip install jupyterlab
+
+%runscript
+    exec jupyter lab "$@"
+
+%startscript
+    exec jupyter lab "$@"

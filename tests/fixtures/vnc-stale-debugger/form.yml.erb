@@ -1,0 +1,38 @@
+<%
+  # Site-specific mixin — will not work outside our cluster
+  require "account_cache"
+  extend AccountCache
+%>
+---
+cluster: "falcon"
+form:
+  - version
+  - node_type
+  - num_cores
+  - bc_num_hours
+  - bc_vnc_resolution
+attributes:
+  version:
+    widget: select
+    label: "Debugger version"
+    options:
+      - ["DDT 22.0.1", "ddt/22.0.1"]
+      - ["DDT 21.1.0", "ddt/21.1.0"]
+      - ["MAP 22.0.1", "map/22.0.1"]
+  node_type:
+    widget: select
+    label: "Node type"
+    options:
+      - ["Standard (48 cores)", "standard"]
+      - ["GPU (A100)", ":gpu:gpus=1"]
+      - ["Large memory", ":hugemem"]
+  num_cores:
+    widget: number_field
+    label: "Number of cores"
+    min: 0
+    max: 48
+    value: 4
+  input_file:
+    widget: text_field
+    label: "Path to executable"
+    help: "Full path to MPI binary to debug"

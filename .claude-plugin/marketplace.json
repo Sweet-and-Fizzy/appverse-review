@@ -1,0 +1,13 @@
+{
+  "name": "appverse-review",
+  "owner": {
+    "name": "Sweet-and-Fizzy"
+  },
+  "plugins": [
+    {
+      "name": "appverse-review",
+      "source": "./",
+      "description": "AI-assisted review of AppVerse app submissions against the official review checklist"
+    }
+  ]
+}

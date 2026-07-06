@@ -1,0 +1,5 @@
+#!/bin/bash
+export PYTHONNOUSERSITE=1
+export PATH="$PWD/deps/bin:$PATH"
+export PYTHONPATH="$PWD/deps/lib/python3.9/site-packages:$PYTHONPATH"
+exec python3.9 "$@"

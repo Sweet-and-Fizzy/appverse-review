@@ -1,0 +1,27 @@
+#!/bin/bash
+set -e
+
+SING_IMAGE="/appl/opt/ood/${SLURM_OOD_ENV}/sing_images/nginx.sif"
+MLFLOW_IMAGE="/appl/opt/ood/${SLURM_OOD_ENV}/sing_images/mlflow-server.sif"
+PATCH_BIN="/appl/opt/ood/$SLURM_OOD_ENV/soft/patch"
+
+module purge
+module load <%= context.mlflow_version %>
+
+# Generate nginx config for reverse proxy
+bash create_nginx_conf.sh
+
+# Start nginx in container
+singularity_wrapper exec \
+    --bind "$TMPDIR/nginx.conf:/etc/nginx/nginx.conf" \
+    $SING_IMAGE nginx -g "daemon off;" &
+
+# Start MLflow tracking server
+singularity_wrapper exec \
+    $MLFLOW_IMAGE mlflow server \
+    --backend-store-uri "<%= context.tracking_uri %>" \
+    --default-artifact-root "<%= context.artifact_root %>" \
+    --host 0.0.0.0 \
+    --port 5000 &
+
+wait
