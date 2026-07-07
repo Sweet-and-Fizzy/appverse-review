@@ -26,6 +26,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   review:
@@ -41,12 +42,12 @@ jobs:
           fi
 
       - name: Checkout appverse-review plugin
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: appverse-review
 
       - name: Checkout target repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: ${{ inputs.target_repo }}
           ref: ${{ inputs.target_branch || '' }}
