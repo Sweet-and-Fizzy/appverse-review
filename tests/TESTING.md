@@ -54,7 +54,7 @@ the skill catches the obvious.
 | 2 | Invalid YAML (unclosed bracket) | `form.yml:3` | Structure | FAIL — YAML parse error quoted verbatim |
 | 3 | Committed API secret | `template/script.sh.erb:2` | Security | FAIL — OAT-02 Credential Exposure, High |
 | 4 | Service bound to `0.0.0.0` | `template/script.sh.erb:4` | Security | FAIL — OAT-05 Network Exposure, Medium–High |
-| 5 | Hardcoded account + partition + absolute path | `submit.yml.erb:6–7`, `template/script.sh.erb:3` | Quality | Not portable |
+| 5 | Hardcoded account + partition + absolute path | `submit.yml.erb:5–6`, `template/script.sh.erb:3` | Quality | Not portable |
 | 6 | Stub README (title + contact only) | `README.md` | Structure + Quality | FAIL — not substantive; Documentation: Minimal |
 
 **Verify:** All 6 findings appear with evidence. Submitter-mode output ends
@@ -100,12 +100,12 @@ deeper inspection.
 | # | Defect | File | Expected aspect | Expected finding |
 |---|--------|------|-----------------|-----------------|
 | 1 | Site-specific Ruby mixin (`require "account_cache"`) | `form.yml.erb:3` | Quality | Not portable — requires site-specific code |
-| 2 | `input_file` attribute defined but not in `form:` list | `form.yml.erb:28–30` | Quality | WARN — dead code / unused attribute |
-| 3 | `num_cores` allows min 0 | `form.yml.erb:23` | Quality | WARN — can submit a 0-core job |
-| 4 | Form node_type values (`:gpu:gpus=1`, `:hugemem`) don't match submit.yml.erb case branches (`"gpu"`, `"hugemem"`) | `form.yml.erb:18–19` vs `submit.yml.erb:18–21` | Structure | WARN — broken reference; GPU/hugemem resources will never be requested |
-| 5 | `cores_lookup` has entries for `k80_gpu` and `p100_gpu` not in form options | `submit.yml.erb:9–10` | Quality | WARN — dead code |
-| 6 | Hardcoded module versions (`intel/18.0.2`, `mvapich2/2.3`) | `template/script.sh.erb:6–7` | Quality | Not portable |
-| 7 | Uses `$PBS_NODEFILE` / `$PBS_JOBID` (PBS vars on a Slurm cluster) | `template/script.sh.erb:13–14` | Quality | WARN — depends on Slurm PBS compatibility shim |
+| 2 | `input_file` attribute defined but not in `form:` list | `form.yml.erb:35–38` | Quality | WARN — dead code / unused attribute |
+| 3 | `num_cores` allows min 0 | `form.yml.erb:32` | Quality | WARN — can submit a 0-core job |
+| 4 | Form node_type values (`:gpu:gpus=1`, `:hugemem`) don't match submit.yml.erb case branches (`"gpu"`, `"hugemem"`) | `form.yml.erb:27–28` vs `submit.yml.erb:24–30` | Structure | WARN — broken reference; GPU/hugemem resources will never be requested |
+| 5 | `cores_lookup` has entries for `k80_gpu` and `p100_gpu` not in form options | `submit.yml.erb:8–9` | Quality | WARN — dead code |
+| 6 | Hardcoded module versions (`intel/18.0.2`, `mvapich2/2.3`) | `template/script.sh.erb:7–8` | Quality | Not portable |
+| 7 | Uses `$PBS_NODEFILE` (PBS var on a Slurm cluster) | `template/script.sh.erb:18–19` | Quality | WARN — depends on Slurm PBS compatibility shim |
 | 8 | Hardcoded path `/usr/share/Modules/init/bash` | `template/script.sh.erb:4` | Quality | Not portable |
 
 **Key behavior to verify:**
@@ -130,14 +130,14 @@ profiles Passenger apps and catches command injection.
 
 | # | Defect | File | Expected aspect | Expected finding |
 |---|--------|------|-----------------|-----------------|
-| 1 | Command injection via `job_id` in `cancel_job` | `app.py:34` | Security | FAIL — OAT-01, High — `f"scancel {job_id}"` with `shell=True`, job_id comes from URL path |
-| 2 | Command injection via `job_id` in `job_detail` | `app.py:42` | Security | WARN — uses list form (safer) but job_id is still unvalidated |
-| 3 | Shell script injection via `email` and `job_id` in `set_alert` | `app.py:49–57` | Security | FAIL — OAT-01, Critical — user-provided values interpolated directly into a shell script that gets executed in a loop |
-| 4 | Command injection via `days` query param in `job_history` | `app.py:69` | Security | FAIL — OAT-01, High — `f"sacct -u {user} -S now-{days}days"` with `shell=True`, `days` from query string |
-| 5 | Secret/token storage in `/tmp` | `app.py:12`, `cloud_auth/utils.py:5` | Security | WARN — OAT-02, Medium — `/tmp/$USER` is world-readable parent; scripts contain job context |
+| 1 | Command injection via `job_id` in `cancel_job` | `app.py:37` | Security | FAIL — OAT-01, High — `f"scancel {job_id}"` with `shell=True`, job_id comes from URL path |
+| 2 | Command injection via `job_id` in `job_detail` | `app.py:47–48` | Security | WARN — uses list form (safer) but job_id is still unvalidated |
+| 3 | Shell script injection via `email` and `job_id` in `set_alert` | `app.py:58–63` | Security | FAIL — OAT-01, Critical — user-provided values interpolated directly into a shell script that gets executed in a loop |
+| 4 | Command injection via `days` query param in `job_history` | `app.py:81` | Security | FAIL — OAT-01, High — `f"sacct -u {user} -S now-{days}days"` with `shell=True`, `days` from query string |
+| 5 | Secret/token storage in `/tmp` | `app.py:11`, `cloud_auth/utils.py:5` | Security | WARN — OAT-02, Medium — `/tmp/$USER` is world-readable parent; scripts contain job context |
 | 6 | Mutable default argument | `cloud_auth/utils.py:8` | Quality | WARN — `errors=[]` is a classic Python bug |
-| 7 | Hardcoded Slurm binary path | `app.py:10` | Quality | Not portable |
-| 8 | Hardcoded SMTP relay | `app.py:11` | Quality | Not portable |
+| 7 | Hardcoded Slurm binary path | `app.py:9` | Quality | Not portable |
+| 8 | Hardcoded SMTP relay | `app.py:10` | Quality | Not portable |
 | 9 | Minimal README (no install/config sections) | `README.md` | Quality | Documentation: Minimal |
 | 10 | No `form.yml` or `appverse.yml` | (absent) | Structure | FAIL — repo shape not identifiable (unless the skill recognizes Passenger apps via manifest role) |
 
@@ -164,16 +164,16 @@ portability detection, undefined variables, and container-related security.
 
 | # | Defect | File | Expected aspect | Expected finding |
 |---|--------|------|-----------------|-----------------|
-| 1 | Undefined `csc_*` form attributes (6 of them) referenced but not defined locally | `form.yml.erb:6–11` | Structure | WARN — form references attributes from external framework |
+| 1 | Undefined `csc_*` form attributes (6 of them) referenced but not defined locally | `form.yml.erb:4–9` | Structure | WARN — form references attributes from external framework |
 | 2 | `${app_port}` undefined in echo statements | `template/after.sh:3,5` | Quality | WARN — variable will expand to empty string |
 | 3 | Uses `${port}` (correct) for actual check but `${app_port}` (undefined) for logging | `template/after.sh:3–5` | Quality | WARN — inconsistency |
-| 4 | CORS set to `*` in nginx config | `template/create_nginx_conf.sh.erb:15` | Security | FAIL — OAT-05 Network Exposure, High |
+| 4 | CORS set to `*` in nginx config | `template/create_nginx_conf.sh.erb:17` | Security | FAIL — OAT-05 Network Exposure, High |
 | 5 | MLflow bound to `0.0.0.0:5000` | `template/script.sh.erb:24` | Security | FAIL — OAT-05 Network Exposure, Medium |
 | 6 | Hardcoded Singularity image paths (3 locations) | `template/script.sh.erb:4–6`, `template/bin/nginx:2` | Quality | Not portable |
 | 7 | Hardcoded CSC environment path | `template/before.sh.erb:2` | Quality | Not portable |
-| 8 | Depends on external functions (`find_port`, `create_passwd`, `singularity_wrapper`) | `template/before.sh.erb:3–4`, `template/script.sh.erb:17,22` | Quality | Not portable — requires CSC OOD utilities |
+| 8 | Depends on external functions (`find_port`, `create_passwd`, `singularity_wrapper`) | `template/before.sh.erb:4–5`, `template/script.sh.erb:15,20` | Quality | Not portable — requires CSC OOD utilities |
 | 9 | Incomplete README (no install/config sections) | `README.md` | Quality | Documentation: Minimal |
-| 10 | `tracking_uri` interpolated into server command | `template/script.sh.erb:23` | Security | WARN — user form value reaches command line (low risk since SQLite URI, but worth noting) |
+| 10 | `tracking_uri` interpolated into server command | `template/script.sh.erb:22` | Security | WARN — user form value reaches command line (low risk since SQLite URI, but worth noting) |
 
 **Key behavior to verify:**
 
@@ -199,15 +199,15 @@ exterior.
 
 | # | Defect | File | Expected aspect | Expected finding |
 |---|--------|------|-----------------|-----------------|
-| 1 | `curl -fsSL <user-url> \| bash` — arbitrary remote code execution | `template/script.sh.erb:22` | Security | FAIL — OAT-01 Arbitrary Code Execution, Critical — user provides the URL via a form field |
-| 2 | `eval "pip install <user-packages>"` — command injection via package list | `template/script.sh.erb:14` | Security | FAIL — OAT-01 Arbitrary Code Execution, High — user can inject shell commands as "package names" |
+| 1 | `curl -fsSL <user-url> \| bash` — arbitrary remote code execution | `template/script.sh.erb:26` | Security | FAIL — OAT-01 Arbitrary Code Execution, Critical — user provides the URL via a form field |
+| 2 | `eval "pip install <user-packages>"` — command injection via package list | `template/script.sh.erb:15` | Security | FAIL — OAT-01 Arbitrary Code Execution, High — user can inject shell commands as "package names" |
 | 3 | `conda activate <user-env-name>` — unquoted user input in shell | `template/script.sh.erb:7` | Security | WARN — OAT-01, Medium — env name with spaces or metacharacters could cause issues |
-| 4 | Jupyter auth disabled (`--token=''`, `--password=''`) | `template/script.sh.erb:27–28` | Security | FAIL — OAT-05 Network Exposure, High — any user on the compute node can access the notebook |
-| 5 | CORS set to `*` (`--allow_origin='*'`) | `template/script.sh.erb:29` | Security | FAIL — OAT-05 Network Exposure, High |
-| 6 | XSRF protection disabled (`--disable_check_xsrf=True`) | `template/script.sh.erb:30` | Security | FAIL — OAT-05 Network Exposure, High |
-| 7 | Jupyter bound to `0.0.0.0` | `template/script.sh.erb:26` | Security | FAIL — OAT-05 Network Exposure, Medium |
+| 4 | Jupyter auth disabled (`--token=''`, `--password=''`) | `template/script.sh.erb:34–35` | Security | FAIL — OAT-05 Network Exposure, High — any user on the compute node can access the notebook |
+| 5 | CORS set to `*` (`--allow_origin='*'`) | `template/script.sh.erb:36` | Security | FAIL — OAT-05 Network Exposure, High |
+| 6 | XSRF protection disabled (`--disable_check_xsrf=True`) | `template/script.sh.erb:37` | Security | FAIL — OAT-05 Network Exposure, High |
+| 7 | Jupyter bound to `0.0.0.0` | `template/script.sh.erb:32` | Security | FAIL — OAT-05 Network Exposure, Medium |
 | 8 | No `set -e` — errors in setup silently ignored | `template/script.sh.erb` | Quality | FAIL — no error handling |
-| 9 | Custom PyPI index URL accepted without validation | `form.yml:19`, `template/script.sh.erb:18` | Security | WARN — OAT-08 Supply Chain, Medium — user can point pip at an arbitrary package index |
+| 9 | Custom PyPI index URL accepted without validation | `form.yml:21–24`, `template/script.sh.erb:19–20` | Security | WARN — OAT-08 Supply Chain, Medium — user can point pip at an arbitrary package index |
 
 **Key behavior to verify:**
 
