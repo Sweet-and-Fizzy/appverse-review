@@ -22,6 +22,7 @@ on:
           - structure
           - quality
           - maintenance
+          - dry-run
         default: "all"
 
 permissions:
@@ -55,6 +56,7 @@ jobs:
           fetch-depth: 1
 
       - name: Install static analysis tools
+        if: inputs.review_aspects != 'dry-run'
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq shellcheck > /dev/null 2>&1
@@ -75,6 +77,7 @@ jobs:
           echo "repo_slug=${REPO_SLUG}" >> "$GITHUB_OUTPUT"
 
       - name: Run AppVerse review
+        if: inputs.review_aspects != 'dry-run'
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.MK_ANTHROPIC_API_KEY }}
@@ -150,6 +153,49 @@ jobs:
 
             After the review completes, write the full report to
             ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.md.
+
+      - name: Generate dry-run report
+        if: inputs.review_aspects == 'dry-run'
+        env:
+          TARGET_REPO: ${{ inputs.target_repo }}
+          REPO_SLUG: ${{ steps.params.outputs.repo_slug }}
+        run: |
+          REPORT_FILE="${{ github.workspace }}/review-${REPO_SLUG}.md"
+          TARGET_DIR="${{ github.workspace }}/target-repo"
+          FILE_LIST=$(find "$TARGET_DIR" -type f | sort | head -50 | sed "s|${TARGET_DIR}/|- |")
+          cat > "$REPORT_FILE" <<EOF
+          # AppVerse Review: ${TARGET_REPO} (Dry Run)
+
+          **Repository:** https://github.com/${TARGET_REPO}
+          **Mode:** dry-run
+          **Date:** $(date -u +%Y-%m-%d)
+
+          > This is a dry-run report generated to test the CI pipeline.
+          > No Claude analysis was performed.
+
+          ## Pipeline Validation
+
+          | Step | Status |
+          |---|---|
+          | Checkout plugin | PASS |
+          | Checkout target repo | PASS |
+          | Prepare parameters | PASS |
+          | Generate report file | PASS |
+          | Upload artifact | (pending) |
+
+          ## Target Repo Contents
+
+          ${FILE_LIST}
+
+          ## Notes
+
+          This report confirms the workflow runs end-to-end: inputs are
+          validated, both repos are checked out, the report file is written,
+          and the artifact upload step can find it. To run an actual review,
+          select a different aspect (all, security, structure, quality, or
+          maintenance).
+          EOF
+          echo "Dry-run report written to $REPORT_FILE"
 
       - name: List generated files
         if: always()
