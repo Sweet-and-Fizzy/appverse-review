@@ -109,10 +109,20 @@ jobs:
             After the review completes, write the full report to
             ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.md.
 
+      - name: List generated files
+        if: always()
+        run: |
+          echo "=== Workspace root ==="
+          ls -la ${{ github.workspace }}/review-*.md 2>/dev/null || echo "No review-*.md in workspace root"
+          echo "=== Temp directory ==="
+          ls -la /home/runner/work/_temp/claude-execution-output.json 2>/dev/null || echo "No execution log"
+
       - name: Upload review report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: review-${{ steps.params.outputs.repo_slug }}
-          path: review-${{ steps.params.outputs.repo_slug }}.md
+          path: |
+            ${{ github.workspace }}/review-*.md
+            /home/runner/work/_temp/claude-execution-output.json
           if-no-files-found: warn
