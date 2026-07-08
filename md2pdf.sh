@@ -25,6 +25,20 @@ FONT="Helvetica"
 FONTSIZE="10pt"
 MARGIN="0.75in"
 
+# --- typst style header (lined tables, left-aligned text, bold headers) ---
+STYLE_FILE="$(mktemp "${TMPDIR:-/tmp}/review-style.XXXXXX.typ")"
+trap 'rm -f "$STYLE_FILE"' EXIT
+cat > "$STYLE_FILE" << 'TYPST'
+#set table(
+  stroke: 0.5pt + luma(140),
+  inset: 6pt,
+)
+#set table.cell(align: left)
+#show table.cell.where(y: 0): set text(weight: "bold")
+#show figure.where(kind: table): set block(breakable: true)
+#show raw.where(block: false): set text(size: 0.78em)
+TYPST
+
 # --- collect input files ---
 if [[ $# -eq 0 ]]; then
   script_dir="$(cd "$(dirname "$0")" && pwd)"
@@ -53,6 +67,7 @@ for md in "${files[@]}"; do
 
   if pandoc "$md" \
     --pdf-engine=typst \
+    --include-in-header="$STYLE_FILE" \
     -V mainfont="$FONT" \
     -V fontsize="$FONTSIZE" \
     -V margin-top="$MARGIN" \
