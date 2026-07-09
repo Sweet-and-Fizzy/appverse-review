@@ -25,9 +25,20 @@ FONT="Helvetica"
 FONTSIZE="10pt"
 MARGIN="0.75in"
 
+# --- lua filter (auto-size table columns based on content) ---
+LUA_FILTER="$(mktemp "${TMPDIR:-/tmp}/auto-columns.XXXXXX.lua")"
+cat > "$LUA_FILTER" << 'LUA'
+function Table(tbl)
+  for i, colspec in ipairs(tbl.colspecs) do
+    tbl.colspecs[i] = {colspec[1]}
+  end
+  return tbl
+end
+LUA
+
 # --- typst style header (lined tables, left-aligned text, bold headers) ---
 STYLE_FILE="$(mktemp "${TMPDIR:-/tmp}/review-style.XXXXXX.typ")"
-trap 'rm -f "$STYLE_FILE"' EXIT
+trap 'rm -f "$STYLE_FILE" "$LUA_FILTER"' EXIT
 cat > "$STYLE_FILE" << 'TYPST'
 #set table(
   stroke: 0.5pt + luma(140),
@@ -67,6 +78,7 @@ for md in "${files[@]}"; do
 
   if pandoc "$md" \
     --pdf-engine=typst \
+    --lua-filter="$LUA_FILTER" \
     --include-in-header="$STYLE_FILE" \
     -V mainfont="$FONT" \
     -V fontsize="$FONTSIZE" \
