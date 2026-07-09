@@ -64,7 +64,11 @@ jobs:
 
       - name: Install PDF tools (pandoc + typst)
         run: |
-          pandoc --version | head -1 || sudo apt-get install -y -qq pandoc
+          if ! command -v pandoc &>/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq pandoc
+          fi
+          pandoc --version | head -1
           TYPST_VERSION="0.14.2"
           curl -fsSL "https://github.com/typst/typst/releases/download/v${TYPST_VERSION}/typst-x86_64-unknown-linux-musl.tar.xz" \
             | sudo tar -xJ --strip-components=1 -C /usr/local/bin/
