@@ -20,8 +20,14 @@ for cmd in pandoc typst; do
   fi
 done
 
-# --- defaults ---
-FONT="Helvetica"
+# --- defaults (pick a font available on the current OS) ---
+if fc-list "Helvetica" 2>/dev/null | grep -qi helvetica; then
+  FONT="Helvetica"
+elif fc-list "DejaVu Sans" 2>/dev/null | grep -qi dejavu; then
+  FONT="DejaVu Sans"
+else
+  FONT=""
+fi
 FONTSIZE="10pt"
 MARGIN="0.75in"
 
@@ -69,18 +75,21 @@ fail=0
 for md in "${files[@]}"; do
   if [[ ! -f "$md" ]]; then
     echo "SKIP: $md (not a file)"
-    ((fail++)) || true
+    fail=$((fail + 1))
     continue
   fi
 
   pdf="${md%.md}.pdf"
   name="$(basename "$md")"
 
+  font_args=()
+  [[ -n "$FONT" ]] && font_args+=(-V "mainfont=$FONT")
+
   if pandoc "$md" \
     --pdf-engine=typst \
     --lua-filter="$LUA_FILTER" \
     --include-in-header="$STYLE_FILE" \
-    -V mainfont="$FONT" \
+    "${font_args[@]}" \
     -V fontsize="$FONTSIZE" \
     -V margin-top="$MARGIN" \
     -V margin-bottom="$MARGIN" \
@@ -88,10 +97,10 @@ for md in "${files[@]}"; do
     -V margin-right="$MARGIN" \
     -o "$pdf" 2>&1; then
     echo "  OK  $name -> $(basename "$pdf")"
-    ((ok++))
+    ok=$((ok + 1))
   else
     echo "FAIL  $name"
-    ((fail++)) || true
+    fail=$((fail + 1))
   fi
 done
 
