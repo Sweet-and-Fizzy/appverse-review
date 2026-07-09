@@ -62,6 +62,14 @@ jobs:
           sudo apt-get install -y -qq shellcheck > /dev/null 2>&1
           pip install --quiet bandit semgrep 2>/dev/null || true
 
+      - name: Install PDF tools (pandoc + typst)
+        run: |
+          pandoc --version | head -1 || sudo apt-get install -y -qq pandoc
+          TYPST_VERSION="0.14.2"
+          curl -fsSL "https://github.com/typst/typst/releases/download/v${TYPST_VERSION}/typst-x86_64-unknown-linux-musl.tar.xz" \
+            | sudo tar -xJ --strip-components=1 -C /usr/local/bin/
+          typst --version
+
       - name: Prepare run parameters
         id: params
         env:
@@ -197,11 +205,21 @@ jobs:
           EOF
           echo "Dry-run report written to $REPORT_FILE"
 
+      - name: Generate PDF from review
+        if: always()
+        run: |
+          MD_FILE="${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.md"
+          if [ -f "$MD_FILE" ]; then
+            ${{ github.workspace }}/appverse-review/md2pdf.sh "$MD_FILE"
+          else
+            echo "No review markdown found, skipping PDF generation"
+          fi
+
       - name: List generated files
         if: always()
         run: |
           echo "=== Workspace root ==="
-          ls -la ${{ github.workspace }}/review-*.md 2>/dev/null || echo "No review-*.md in workspace root"
+          ls -la ${{ github.workspace }}/review-*.md ${{ github.workspace }}/review-*.pdf 2>/dev/null || echo "No review files in workspace root"
           echo "=== Temp directory ==="
           ls -la /home/runner/work/_temp/claude-execution-output.json 2>/dev/null || echo "No execution log"
 
@@ -212,5 +230,6 @@ jobs:
           name: review-${{ steps.params.outputs.repo_slug }}
           path: |
             ${{ github.workspace }}/review-*.md
+            ${{ github.workspace }}/review-*.pdf
             /home/runner/work/_temp/claude-execution-output.json
           if-no-files-found: warn
