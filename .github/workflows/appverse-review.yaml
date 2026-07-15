@@ -24,6 +24,19 @@ on:
           - maintenance
           - dry-run
         default: "all"
+      model:
+        description: "Claude model to use"
+        required: false
+        type: choice
+        options:
+          - sonnet
+          - opus
+        default: "sonnet"
+      debug:
+        description: "Show full Claude output in logs (exposes review content)"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -95,8 +108,8 @@ jobs:
           anthropic_api_key: ${{ secrets.MK_ANTHROPIC_API_KEY }}
           plugin_marketplaces: "./appverse-review/"
           plugins: "appverse-review"
-          claude_args: "--max-turns 50"
-          show_full_output: true
+          claude_args: "--max-turns 50 --model claude-${{ inputs.model }}-4-6"
+          show_full_output: ${{ inputs.debug }}
           settings: |
             {
               "permissions": {
