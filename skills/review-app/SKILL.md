@@ -43,8 +43,7 @@ one at a time, in the order above.
 # Appverse Review: <repo name>
 
 **Repository:** <url or path>  **Mode:** reviewer|submitter  **Date:** <today>
-**Reviewed commit:** `<full SHA>` (<commit date>) — all file:line references are
-against this commit
+**Reviewed commit:** `<full SHA>` (<commit date>)
 **Repo shape:** declared monorepo (N apps) | declared single app | inferred single app
 
 ## Repo-level required criteria

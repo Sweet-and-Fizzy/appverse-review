@@ -54,6 +54,9 @@ cat > "$STYLE_FILE" << 'TYPST'
 #show table.cell.where(y: 0): set text(weight: "bold")
 #show figure.where(kind: table): set block(breakable: true)
 #show raw.where(block: false): set text(size: 0.78em)
+// Links are clickable but render in body colour by default; make them look
+// like links so a reader knows to click.
+#show link: it => underline(text(fill: rgb("#0b5cad"), it))
 TYPST
 
 # --- collect input files ---
