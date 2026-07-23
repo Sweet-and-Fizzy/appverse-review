@@ -1,6 +1,6 @@
 ---
 name: review-security
-description: Security review of an AppVerse / Open OnDemand app repo — capability profile, unsafe-pattern checks, OODT threat classification. Use for the security aspect of an AppVerse review, or when asked to security-audit an OOD app.
+description: Security review of an Appverse / Open OnDemand app repo — capability profile, unsafe-pattern checks, OODT threat classification. Use for the security aspect of an Appverse review, or when asked to security-audit an OOD app.
 argument-hint: "[github-url]"
 ---
 
@@ -9,8 +9,9 @@ argument-hint: "[github-url]"
 Rubric: `${CLAUDE_PLUGIN_ROOT}/references/security-rubric.md` — read it before
 starting. It defines the capability baselines per app type, the pattern checks,
 and the OODT (Open OnDemand App Threats) taxonomy. Expand OODT on first use in
-the report, and never write it as "OAT" — that collides with OWASP's unrelated
-Automated Threats catalog.
+the report and link it to the published rubric at
+https://openondemand.connectci.org/appverse-security-rubric so readers can look
+up a code.
 
 **Setup:** Use the orchestrator's prepared target if provided; otherwise follow
 `${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` first.

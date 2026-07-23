@@ -1,6 +1,6 @@
 ---
 name: review-structure
-description: Check an AppVerse app repo's structure — required files, required metadata fields, YAML validity, standard OOD layout, broken references. Use for the structure aspect of an AppVerse review, or when asked to check an OOD app repo's structure or metadata.
+description: Check an Appverse app repo's structure — required files, required metadata fields, YAML validity, standard OOD layout, broken references. Use for the structure aspect of an Appverse review, or when asked to check an OOD app repo's structure or metadata.
 argument-hint: "[github-url]"
 ---
 

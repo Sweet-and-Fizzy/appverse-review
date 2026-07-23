@@ -1,6 +1,6 @@
 ---
 name: review-maintenance
-description: Maintenance-signal review of an AppVerse app repo — commit recency, releases, issue responsiveness, contributors, CHANGELOG, CI. Use for the maintenance aspect of an AppVerse review, or when asked whether an app repo looks actively maintained.
+description: Maintenance-signal review of an Appverse app repo — commit recency, releases, issue responsiveness, contributors, CHANGELOG, CI. Use for the maintenance aspect of an Appverse review, or when asked whether an app repo looks actively maintained.
 argument-hint: "[github-url]"
 ---
 
@@ -32,6 +32,12 @@ last-commit age and mark the other signals NOT CHECKED.
 ## Output
 
 One repo-level table — Signal / Value / Assessment (Good sign / Concern, per the
-checklist's table) — followed by a findings table per target-setup.md §4 for
-anything below the checklist's target (e.g., no activity in over 12 months, no
-releases). Apply the checklist's brand-new-app waiver where relevant and say so.
+checklist's table) — followed by a findings table per target-setup.md §4.
+
+Weight each signal the way the checklist's Maintenance Signals section frames it:
+activity within 12 months is its target for inclusion, while releases, issue
+responsiveness, contributors, CHANGELOG, and CI are good-practice indicators, not
+requirements — a missing release is a suggestion, never a failure. Apply the
+brand-new-app waiver where relevant and say so. Don't invent your own severity
+scale, and keep labels consistent with the checklist and with your other
+findings.

@@ -98,7 +98,7 @@ semgrep scan --config "p/security-audit" --json <directory>
 ```
 
 Semgrep is the most versatile tool in this list — it supports custom rules, so
-AppVerse-specific patterns (e.g., form values reaching shell interpolation in ERB)
+Appverse-specific patterns (e.g., form values reaching shell interpolation in ERB)
 could be encoded as rules in the future.
 
 ---
@@ -162,7 +162,7 @@ container definitions (Singularity `.def` files, Dockerfiles).
 rubocop --only Security -f json <directory>
 ```
 
-Lower priority for AppVerse — most OOD ERB files are config templates rather than
+Lower priority for Appverse — most OOD ERB files are config templates rather than
 full Ruby apps, so rubocop findings tend to be noisy. Useful when the app includes
 substantial Ruby code (e.g., custom initializers or Ruby-based Passenger apps).
 

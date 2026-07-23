@@ -1,8 +1,8 @@
 # appverse-review
 
-AI-assisted review of [AppVerse](https://github.com/Sweet-and-Fizzy/ood-appverse)
+AI-assisted review of [Appverse](https://github.com/Sweet-and-Fizzy/ood-appverse)
 app submissions, packaged as a Claude Code plugin. This repo is also the
-canonical home of the AppVerse [review
+canonical home of the Appverse [review
 checklist](references/review-checklist.md) and [security
 rubric](references/security-rubric.md).
 
@@ -85,8 +85,8 @@ as corroborating or additional evidence.
 
 - **Phase 2 — GitHub Action**: a workflow contributors can drop into their app
   repos so the review runs in CI on every push.
-- **Phase 3 — Drupal integration**: the AppVerse site calls the Claude API when
+- **Phase 3 — Drupal integration**: the Appverse site calls the Claude API when
   a submission reaches review and attaches the report for the human reviewer.
 - **Automated security audits**: the per-commit audit pipeline, numeric risk
-  scoring, and catalog badges described in the AppVerse security-audit proposal
+  scoring, and catalog badges described in the Appverse security-audit proposal
   consume the same [security rubric](references/security-rubric.md).

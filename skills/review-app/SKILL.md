@@ -1,17 +1,17 @@
 ---
 name: review-app
-description: Full AppVerse submission review — structure, security, quality, and maintenance — with a recommended decision and draft feedback. Use when asked to review an app submission or app repo for AppVerse, to check a repo before submitting it to AppVerse, or when given a GitHub URL of an Open OnDemand app to review.
+description: Full Appverse submission review — structure, security, quality, and maintenance — with a recommended decision and draft feedback. Use when asked to review an app submission or app repo for Appverse, to check a repo before submitting it to Appverse, or when given a GitHub URL of an Open OnDemand app to review.
 argument-hint: "[github-url]"
 ---
 
-# AppVerse App Review (orchestrator)
+# Appverse App Review (orchestrator)
 
 Produce an evidence-backed review with a recommended decision. You recommend; a
 human decides.
 
 Read first:
 - `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` (canonical criteria,
-  including the decision rules in its Step 4)
+  including the decision rules in its Step 3 (Decision))
 - `${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` (setup procedure and
   findings format)
 
@@ -40,7 +40,7 @@ one at a time, in the order above.
 ## 3. Synthesize the report
 
 ```markdown
-# AppVerse Review: <repo name>
+# Appverse Review: <repo name>
 
 **Repository:** <url or path>  **Mode:** reviewer|submitter  **Date:** <today>
 **Reviewed commit:** `<full SHA>` (<commit date>) — all file:line references are
@@ -55,17 +55,6 @@ against this commit
 | LICENSE present | PASS/FAIL | ... |
 | Repo not archived | PASS/FAIL/NOT CHECKED | ... |
 | shared_paths security review | PASS/FAIL/N-A | ... |
-
-## Maintenance signals
-
-| Signal | Value | Assessment |
-|---|---|---|
-| Last commit | ... | ... |
-| Releases | ... | ... |
-| Issues responsiveness | ... | ... |
-| Contributors | ... | ... |
-| CHANGELOG | ... | ... |
-| CI | ... | ... |
 
 ## App: <name> (<subpath>)
 
@@ -88,25 +77,57 @@ against this commit
 - Portability: <rating> — <one-line justification>
 - Code quality: <met/missed checkboxes with evidence>
 
-### Recommended decision: <Accept | Accept with suggestions | Request changes | Reject>
+| Quality finding | Type | Result | Evidence |
+|---|---|---|---|
+<!-- code-quality checkboxes AND correctness-&-polish defects (copy-paste
+     artifacts, duplicate YAML keys, wrong help text, README typos) from the
+     quality aspect, each with file:line -->
+
+**Per-app decision:** <Accept | Accept with suggestions | Request changes | Reject>
+<!-- Monorepos only: one line per app, rolled up by the Overall recommendation
+     below. Single-app repos: omit this line — the Overall recommendation is the
+     decision. -->
+
+## Maintenance signals
+
+| Signal | Value | Assessment |
+|---|---|---|
+| Last commit | ... | ... |
+| Releases | ... | ... |
+| Issues responsiveness | ... | ... |
+| Contributors | ... | ... |
+| CHANGELOG | ... | ... |
+| CI | ... | ... |
 
 ## Not checked (requires catalog access)
 - Duplicate check against the existing catalog
-- `software` value matches a catalog Software entry
+  - **Duplicate-check rationale:** _<reviewer fills in — the outcome and why,
+    per the checklist's Duplicate Check; edit before pasting into the issue or
+    email>_
+- `software` value matches a catalog Software entry — if it has no match, the
+  reviewer creates the Software entry (should it exist), corrects the value, or
+  requests changes; see the checklist's Software Entry Check
 
 ## Overall recommendation
-<one paragraph; for monorepos, summarize per-app decisions>
+<one paragraph. Single-app repos: the decision and its rationale. Monorepos:
+roll up the per-app decisions above. Draw only on findings already recorded in
+the tables — do not introduce new problems here.>
 ```
 
-Decision rules are the checklist's Step 4 table. Security findings count as
-"security concerns" for its Reject row only when tagged potentially malicious or
-when the exposure cannot be fixed without redesigning the app; a fixable
-misconfiguration — even High severity, like CORS open to all origins — points to
-Request changes, not Reject. **Any Accept must be worded as conditional on the
-human reviewer completing the duplicate/catalog checks listed under "Not
-checked".**
+Apply the decision rules in the checklist's Step 3 (Decision) table — including
+how it treats security findings and its condition that any Accept is pending the
+catalog checks under "Not checked". Follow the checklist's framing rather than a
+separate copy here.
 
 ## 4. Mode-specific ending
+
+**Derived-only rule.** The overall recommendation and the mode-specific ending
+below are summaries — every problem or fix they mention must already appear as a
+finding in a table above (required criteria, security, or the quality findings
+table). If while writing the feedback you notice a real defect that is not yet
+recorded, stop and add it to the appropriate findings table first, then
+summarize it here. A problem must never appear for the first time in the
+recommendation or the feedback message.
 
 - **Reviewer mode:** append a draft contributor feedback message using the
   checklist's feedback guidance (specific, references files, links the README

@@ -7,7 +7,7 @@
     {
       "name": "appverse-review",
       "source": "./",
-      "description": "AI-assisted review of AppVerse app submissions against the official review checklist"
+      "description": "AI-assisted review of Appverse app submissions against the official review checklist"
     }
   ]
 }

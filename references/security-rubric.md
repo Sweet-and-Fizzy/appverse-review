@@ -1,6 +1,6 @@
-# AppVerse Security Rubric
+# Appverse Security Rubric
 
-The canonical security criteria for AppVerse app review. Used by the
+The canonical security criteria for Appverse app review. Used by the
 `review-security` skill today, and by the automated audit pipeline (see the
 [security-audit proposal](https://github.com/Sweet-and-Fizzy/ood-appverse/blob/main/docs/appverse-security-audit-proposal.md))
 later. Extracted from that proposal; the proposal covers the threat model, the
@@ -84,12 +84,8 @@ These catch capabilities used unsafely, across all app types.
 
 ## OODT — Open OnDemand App Threats
 
-> **Not OWASP OAT.** These OODT codes are a taxonomy local to Appverse review,
-> describing threats specific to the Open OnDemand execution model. They are
-> unrelated to OWASP's OAT (Automated Threat) catalog — OWASP OAT-001 is
-> "Carding", OAT-008 is "Credential Stuffing", neither of which applies here.
-> Always write the codes as `OODT-NN` and expand the acronym on first use in a
-> report so readers do not conflate the two.
+> OODT is local to Appverse review and describes threats specific to the Open
+> OnDemand execution model. It is not related to OWASP's separate OAT catalog.
 
 Every finding is classified under one of these eight threat types. The risk level is
 about blast radius, not raw severity: the Per-User Nginx (PUN) architecture already

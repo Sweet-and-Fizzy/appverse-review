@@ -1,6 +1,6 @@
-# AppVerse Review
+# Appverse Review
 
-Claude Code plugin for AI-assisted review of AppVerse (Open OnDemand) app
+Claude Code plugin for AI-assisted review of Appverse (Open OnDemand) app
 submissions. Evaluates structure, security, quality, and maintenance against
 a shared rubric.
 
@@ -38,5 +38,4 @@ Before committing changes to fixtures or the testing guide:
 the review skill and the future automated audit pipeline. Changes here affect
 both systems — update carefully and check that OODT category references in
 skill files and TESTING.md stay consistent. The taxonomy is named OODT (Open
-OnDemand App Threats), deliberately distinct from OWASP's OAT catalog; never
-abbreviate it back to "OAT".
+OnDemand App Threats).

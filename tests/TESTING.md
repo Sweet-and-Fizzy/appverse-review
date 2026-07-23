@@ -1,4 +1,4 @@
-# AppVerse Review Skill — Testing Guide
+# Appverse Review Skill — Testing Guide
 
 This document describes the test fixtures, what each one targets, and the
 expected findings when the review skill runs against them. Use it to verify
