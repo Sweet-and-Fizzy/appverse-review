@@ -105,7 +105,7 @@ The README should follow the [Appverse README Template](https://github.com/tamu-
 
 Security review follows the dedicated security rubric in
 [`security-rubric.md`](security-rubric.md): build a capability profile for the
-app's type, run the pattern checks, and classify findings under the OAT taxonomy.
+app's type, run the pattern checks, and classify findings under the OODT taxonomy.
 The three legacy spot-checks (committed credentials, disabled security without
 justification, user input reaching shell commands) are all covered by the rubric's
 pattern checks.

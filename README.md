@@ -74,11 +74,11 @@ detection — monorepos are reviewed per app), then runs the four aspects as
 parallel subagents and synthesizes the report and recommended decision.
 
 The security aspect builds a **capability profile** of what the app actually
-does, runs unsafe-pattern checks, and classifies findings under the OAT (Open
+does, runs unsafe-pattern checks, and classifies findings under the OODT (Open
 OnDemand App Threats) taxonomy — narrow-baseline anomaly detection for Batch
 Connect apps, transparency profiling for Passenger apps. When static analysis
 tools are installed (shellcheck, bandit, semgrep, etc.), the security review
-runs them automatically and folds their findings into the OAT-classified report
+runs them automatically and folds their findings into the OODT-classified report
 as corroborating or additional evidence.
 
 ## Roadmap

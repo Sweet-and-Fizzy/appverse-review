@@ -66,7 +66,7 @@ are found. Baselines will be built out as more of these enter the catalog.
 
 These catch capabilities used unsafely, across all app types.
 
-| Pattern | What's wrong | Threat (OAT) |
+| Pattern | What's wrong | Threat (OODT) |
 |---------|-------------|--------------|
 | User input reaching shell commands without sanitization | Injection — breaks things even without malice | Shell Injection |
 | `eval()` or `exec()` on external input or config-supplied code | Arbitrary code execution | Shell Injection |
@@ -82,7 +82,14 @@ These catch capabilities used unsafely, across all app types.
 | Debug output to world-readable locations | Leaks paths, usernames, system info | Insecure Configuration |
 | Missing `--cleanenv` with sensitive host environment | Host variables leak into the container | Container Security |
 
-## OAT — Open OnDemand App Threats
+## OODT — Open OnDemand App Threats
+
+> **Not OWASP OAT.** These OODT codes are a taxonomy local to Appverse review,
+> describing threats specific to the Open OnDemand execution model. They are
+> unrelated to OWASP's OAT (Automated Threat) catalog — OWASP OAT-001 is
+> "Carding", OAT-008 is "Credential Stuffing", neither of which applies here.
+> Always write the codes as `OODT-NN` and expand the acronym on first use in a
+> report so readers do not conflate the two.
 
 Every finding is classified under one of these eight threat types. The risk level is
 about blast radius, not raw severity: the Per-User Nginx (PUN) architecture already
@@ -91,14 +98,14 @@ contains a lot of single-user damage, so threats that escape the user's own sand
 
 | ID | Threat | Risk Level | What it is |
 |----|--------|-----------|------------|
-| OAT-01 | Shell Injection | Self-harm (BC) / Varies (Passenger) | User input reaching shell commands without sanitization. In BC apps under the PUN model, this only affects the submitting user's own jobs. In Passenger apps, the impact depends on what the app can reach from the web server. |
-| OAT-02 | Credential Exposure | Cross-site | Hardcoded credentials in the repo, or secrets stored in plain text. Repos get cloned to every deploying site. |
-| OAT-03 | Unauthorized Access | Mostly self-harm | Paths into other users' space, or wide-open file modes on shared filesystems. |
-| OAT-04 | Data Exfiltration | Varies | Network calls in BC app ERB (no legitimate app does this), or any app sending user data to unexpected external servers. |
-| OAT-05 | Network Exposure | Cross-user | Services reachable by other users on shared compute nodes, or CORS misconfigurations that expose Passenger app endpoints. [GHSA-2cwp-8g29-9q32](https://github.com/OSC/ondemand/security/advisories/GHSA-2cwp-8g29-9q32) showed OOD's proxy leaking auth headers to app web servers. |
-| OAT-06 | Container Security | Varies | Weakening Apptainer's default isolation. (`--fakeroot` is fake root inside the container only, not real root on the host.) |
-| OAT-07 | Persistence | Cross-session | Changes that outlive the job or session — dotfile writes, cron jobs, SSH keys, executables in PATH. |
-| OAT-08 | Insecure Configuration | Varies | Security features turned off, debug output exposed, overly permissive defaults, framework protections disabled. |
+| OODT-01 | Shell Injection | Self-harm (BC) / Varies (Passenger) | User input reaching shell commands without sanitization. In BC apps under the PUN model, this only affects the submitting user's own jobs. In Passenger apps, the impact depends on what the app can reach from the web server. |
+| OODT-02 | Credential Exposure | Cross-site | Hardcoded credentials in the repo, or secrets stored in plain text. Repos get cloned to every deploying site. |
+| OODT-03 | Unauthorized Access | Mostly self-harm | Paths into other users' space, or wide-open file modes on shared filesystems. |
+| OODT-04 | Data Exfiltration | Varies | Network calls in BC app ERB (no legitimate app does this), or any app sending user data to unexpected external servers. |
+| OODT-05 | Network Exposure | Cross-user | Services reachable by other users on shared compute nodes, or CORS misconfigurations that expose Passenger app endpoints. [GHSA-2cwp-8g29-9q32](https://github.com/OSC/ondemand/security/advisories/GHSA-2cwp-8g29-9q32) showed OOD's proxy leaking auth headers to app web servers. |
+| OODT-06 | Container Security | Varies | Weakening Apptainer's default isolation. (`--fakeroot` is fake root inside the container only, not real root on the host.) |
+| OODT-07 | Persistence | Cross-session | Changes that outlive the job or session — dotfile writes, cron jobs, SSH keys, executables in PATH. |
+| OODT-08 | Insecure Configuration | Varies | Security features turned off, debug output exposed, overly permissive defaults, framework protections disabled. |
 
 ## Rating findings
 
@@ -121,4 +128,4 @@ potentially malicious, or exposures that cannot be fixed without redesigning the
 > the catalog security badges live with the
 > [security-audit proposal](https://github.com/Sweet-and-Fizzy/ood-appverse/blob/main/docs/appverse-security-audit-proposal.md),
 > not in this rubric. Both the on-demand skill and that pipeline classify findings
-> with the same OAT taxonomy and pattern checks above.
+> with the same OODT taxonomy and pattern checks above.

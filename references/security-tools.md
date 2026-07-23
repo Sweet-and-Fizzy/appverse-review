@@ -2,7 +2,7 @@
 
 Optional tools that supplement the manual security review. The review-security
 skill probes for these, runs whichever are installed, and folds their output into
-the OAT-classified findings. **If none are installed the review still completes
+the OODT-classified findings. **If none are installed the review still completes
 normally** — tool findings supplement, never replace, the manual analysis.
 
 ## Tool Lookup Table
@@ -15,7 +15,7 @@ normally** — tool findings supplement, never replace, the manual analysis.
 | **Detect** | `command -v shellcheck` |
 | **Install** | `brew install shellcheck` (macOS) / `apt install shellcheck` (Debian/Ubuntu) / `dnf install ShellCheck` (Fedora/RHEL) / `pacman -S shellcheck` (Arch) |
 | **Project** | https://www.shellcheck.net |
-| **OAT mapping** | OAT-01 (injection via unquoted variables), OAT-08 (insecure defaults) |
+| **OODT mapping** | OODT-01 (injection via unquoted variables), OODT-08 (insecure defaults) |
 
 **Run:**
 
@@ -53,7 +53,7 @@ finding against the original file.
 | **Detect** | `command -v bandit` |
 | **Install** | `pip install bandit` (all platforms) |
 | **Project** | https://bandit.readthedocs.io |
-| **OAT mapping** | OAT-01 (subprocess/eval/exec), OAT-02 (hardcoded passwords), OAT-05 (binding to 0.0.0.0), OAT-08 (insecure config) |
+| **OODT mapping** | OODT-01 (subprocess/eval/exec), OODT-02 (hardcoded passwords), OODT-05 (binding to 0.0.0.0), OODT-08 (insecure config) |
 
 **Run:**
 
@@ -83,7 +83,7 @@ scan.
 | **Detect** | `command -v semgrep` |
 | **Install** | `pip install semgrep` (all platforms) / `brew install semgrep` (macOS) |
 | **Project** | https://semgrep.dev |
-| **OAT mapping** | All OAT categories depending on ruleset |
+| **OODT mapping** | All OODT categories depending on ruleset |
 
 **Run:**
 
@@ -111,7 +111,7 @@ could be encoded as rules in the future.
 | **Detect** | `command -v npm` (plus `package.json` must exist in target) |
 | **Install** | Comes with Node.js — https://nodejs.org |
 | **Project** | https://docs.npmjs.com/cli/commands/npm-audit |
-| **OAT mapping** | OAT-08 (supply chain / known CVEs in dependencies) |
+| **OODT mapping** | OODT-08 (supply chain / known CVEs in dependencies) |
 
 **Run:**
 
@@ -133,7 +133,7 @@ dependencies, just generates the lock file).
 | **Detect** | `command -v trivy` |
 | **Install** | `brew install trivy` (macOS) / `apt install trivy` after adding the [Aqua repo](https://aquasecurity.github.io/trivy/latest/getting-started/installation/) (Debian/Ubuntu) / see https://aquasecurity.github.io/trivy for other platforms |
 | **Project** | https://aquasecurity.github.io/trivy |
-| **OAT mapping** | OAT-06 (container security), OAT-08 (supply chain / known CVEs) |
+| **OODT mapping** | OODT-06 (container security), OODT-08 (supply chain / known CVEs) |
 
 **Run:**
 
@@ -154,7 +154,7 @@ container definitions (Singularity `.def` files, Dockerfiles).
 | **Detect** | `command -v rubocop` |
 | **Install** | `gem install rubocop` (all platforms with Ruby) |
 | **Project** | https://rubocop.org |
-| **OAT mapping** | OAT-01 (eval/exec), OAT-08 (insecure defaults) |
+| **OODT mapping** | OODT-01 (eval/exec), OODT-08 (insecure defaults) |
 
 **Run:**
 
@@ -184,10 +184,10 @@ Match file types found in the in-scope files to tools:
 
 Tool findings arrive with tool-native severity (shellcheck levels, bandit
 confidence/severity, semgrep severity, CVE CVSS scores). **Do not pass these
-through as-is.** Map each finding to the OAT taxonomy using the OAT mapping
+through as-is.** Map each finding to the OODT taxonomy using the OODT mapping
 column above, then rate severity (High / Medium / Low) using the rubric's blast
 radius criteria — the same way manual findings are rated. Tool severity scores are
-useful context but OAT classification is what goes in the report.
+useful context but OODT classification is what goes in the report.
 
 Expect false positives, especially:
 - shellcheck on ERB-stripped scripts (placeholder variables trigger warnings)

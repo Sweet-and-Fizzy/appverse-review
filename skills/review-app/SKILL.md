@@ -18,8 +18,8 @@ Read first:
 ## 1. Set up the target
 
 Follow target-setup.md sections 1–3 once. You now have: mode (reviewer or
-submitter), repo path, `<owner>/<repo>` if known, repo shape, the app list with
-resolved fields, and `shared_paths`.
+submitter), repo path, `<owner>/<repo>` if known, the reviewed commit (SHA +
+date), repo shape, the app list with resolved fields, and `shared_paths`.
 
 ## 2. Run the four aspects in parallel
 
@@ -28,8 +28,9 @@ review-security, review-quality, review-maintenance. Each subagent's prompt:
 
 > Read `${CLAUDE_PLUGIN_ROOT}/skills/<aspect>/SKILL.md` and follow it exactly.
 > Prepared target (do not redo setup): repo path: <path>; mode: <mode>;
-> owner/repo: <owner/repo or unknown>; repo shape: <shape>; apps: <list of
-> path + resolved fields>; shared_paths: <list>; schema source: <live|cached>.
+> owner/repo: <owner/repo or unknown>; reviewed commit: <SHA> (<date>);
+> repo shape: <shape>; apps: <list of path + resolved fields>;
+> shared_paths: <list>; schema source: <live|cached>.
 > Return only your findings in the skill's output format. Do not make accept or
 > reject judgments.
 
@@ -42,6 +43,8 @@ one at a time, in the order above.
 # AppVerse Review: <repo name>
 
 **Repository:** <url or path>  **Mode:** reviewer|submitter  **Date:** <today>
+**Reviewed commit:** `<full SHA>` (<commit date>) — all file:line references are
+against this commit
 **Repo shape:** declared monorepo (N apps) | declared single app | inferred single app
 
 ## Repo-level required criteria
@@ -77,7 +80,7 @@ one at a time, in the order above.
 ### Security
 <capability profile: table for Batch Connect, narrative for Passenger>
 
-| Finding | OAT | Severity | Evidence |
+| Finding | OODT | Severity | Evidence |
 |---|---|---|---|
 
 ### Quality

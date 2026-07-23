@@ -20,6 +20,16 @@ own runs it itself.
   neither `appverse.yml` nor `manifest.yml` at its root, warn that this will fail
   required criteria and confirm the directory is the app repo before continuing.
 
+Record the reviewed commit — every review is pinned to it:
+
+    git -C <repo path> log -1 --format='%H %cs'
+
+This gives the full SHA and commit date. In submitter mode also note if the
+working tree is dirty (`git status --porcelain` non-empty): report the SHA with
+"+ uncommitted changes". All `file:line` evidence in findings refers to this
+commit; if the repo changes after the review, line numbers are checked against
+this SHA, not the current default branch.
+
 ## 2. Schema
 
 Fetch the live annotated schema:

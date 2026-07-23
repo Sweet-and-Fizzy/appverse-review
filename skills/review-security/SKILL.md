@@ -1,6 +1,6 @@
 ---
 name: review-security
-description: Security review of an AppVerse / Open OnDemand app repo — capability profile, unsafe-pattern checks, OAT threat classification. Use for the security aspect of an AppVerse review, or when asked to security-audit an OOD app.
+description: Security review of an AppVerse / Open OnDemand app repo — capability profile, unsafe-pattern checks, OODT threat classification. Use for the security aspect of an AppVerse review, or when asked to security-audit an OOD app.
 argument-hint: "[github-url]"
 ---
 
@@ -8,7 +8,9 @@ argument-hint: "[github-url]"
 
 Rubric: `${CLAUDE_PLUGIN_ROOT}/references/security-rubric.md` — read it before
 starting. It defines the capability baselines per app type, the pattern checks,
-and the OAT threat taxonomy.
+and the OODT (Open OnDemand App Threats) taxonomy. Expand OODT on first use in
+the report, and never write it as "OAT" — that collides with OWASP's unrelated
+Automated Threats catalog.
 
 **Setup:** Use the orchestrator's prepared target if provided; otherwise follow
 `${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` first.
@@ -48,9 +50,9 @@ and the OAT threat taxonomy.
    files. Where a tool finding from step 3 confirms or adds to a manual finding,
    cite the tool as corroborating evidence (e.g., "bandit B602: subprocess with
    shell=True"). Where a tool surfaces something the manual scan missed, add it.
-6. Classify every finding under OAT-01..08, rate severity High / Medium / Low,
+6. Classify every finding under OODT-01..08, rate severity High / Medium / Low,
    and tag it unintentional or potentially malicious, per the rubric's "Rating
-   findings" section. Use the OAT mapping from the tool lookup table to classify
+   findings" section. Use the OODT mapping from the tool lookup table to classify
    tool-originated findings.
 
 ## Output
@@ -62,7 +64,7 @@ and the OAT threat taxonomy.
   relevant install hints for the file types found.
 - The capability profile: a compact File / Capabilities / Anomalies table for
   Batch Connect apps; a short narrative for Passenger apps.
-- Findings tables per target-setup.md §4, with two extra columns: OAT class and
+- Findings tables per target-setup.md §4, with two extra columns: OODT class and
   severity. Tool-corroborated findings include the tool name and finding ID in
   the Evidence column.
 

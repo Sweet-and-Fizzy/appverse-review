@@ -10,7 +10,7 @@ a shared rubric.
 - `skills/` — one SKILL.md per review aspect plus an orchestrator
   - `review-app/` — orchestrator: runs all aspects, synthesizes report
   - `review-structure/` — required files, metadata, YAML validity, layout
-  - `review-security/` — capability profile, pattern checks, OAT classification
+  - `review-security/` — capability profile, pattern checks, OODT classification
   - `review-quality/` — documentation rating, portability, code quality
   - `review-maintenance/` — commit recency, releases, CI, CHANGELOG
 - `references/` — shared rubrics and setup procedures used by all skills
@@ -36,5 +36,7 @@ Before committing changes to fixtures or the testing guide:
 
 `references/security-rubric.md` is the canonical security criteria shared by
 the review skill and the future automated audit pipeline. Changes here affect
-both systems — update carefully and check that OAT category references in
-skill files and TESTING.md stay consistent.
+both systems — update carefully and check that OODT category references in
+skill files and TESTING.md stay consistent. The taxonomy is named OODT (Open
+OnDemand App Threats), deliberately distinct from OWASP's OAT catalog; never
+abbreviate it back to "OAT".
