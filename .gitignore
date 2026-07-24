@@ -1,2 +1,9 @@
 .DS_Store
 notes/
+
+
+# Secrets and credentials
+.env
+.env.*
+*.pem
+*.key
