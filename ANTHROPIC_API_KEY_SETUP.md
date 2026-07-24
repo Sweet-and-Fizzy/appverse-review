@@ -28,7 +28,7 @@ the GitHub Actions workflow.
 4. Make sure you are on the **Secrets** tab (not Variables — variables
    are plaintext and would expose the key in workflow logs)
 5. Click **New repository secret**
-6. Name: `MK_ANTHROPIC_API_KEY` (must match exactly — this is what the
+6. Name: `ANTHROPIC_API_KEY` (must match exactly — this is what the
    workflow references)
 7. Value: paste the `sk-ant-api03-...` key with no extra whitespace
 8. Click **Add secret**
@@ -38,7 +38,7 @@ the GitHub Actions workflow.
 | Symptom | Cause |
 |---|---|
 | `Invalid API key` / 401 error | Key is expired, revoked, or has extra whitespace |
-| Key shows as `""` in logs (not `***`) | Secret name does not match `MK_ANTHROPIC_API_KEY` |
+| Key shows as `""` in logs (not `***`) | Secret name does not match `ANTHROPIC_API_KEY` |
 | Key shows as `***` but still 401 | Key is from a different Anthropic org, or billing is inactive |
 | Stored as variable instead of secret | Used the Variables tab — move it to Secrets |
 

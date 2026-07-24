@@ -105,7 +105,7 @@ jobs:
         if: inputs.review_aspects != 'dry-run'
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.MK_ANTHROPIC_API_KEY }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           plugin_marketplaces: "./appverse-review/"
           plugins: "appverse-review"
           claude_args: "--max-turns 50 --model claude-${{ inputs.model }}-4-6"

@@ -1,4 +1,9 @@
 .DS_Store
 notes/
-docs/superpowers
+
+
+# Secrets and credentials
 .env
+.env.*
+*.pem
+*.key
