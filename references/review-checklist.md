@@ -2,6 +2,7 @@
 
 > **Related Docs:**
 > [Appverse Contributor Guide](https://openondemand.connectci.org/appverse-contributor-documentation) |
+> [Appverse Security Rubric](https://openondemand.connectci.org/appverse-security-rubric) |
 > [Appverse Best Practices](https://openondemand.connectci.org/appverse-best-practices) |
 > [Appverse README Template](https://github.com/tamu-edu/appverse_readme_template)
 
@@ -120,9 +121,10 @@ The README should follow the [Appverse README Template](https://github.com/tamu-
 
 ### 3. Security Concerns
 
-Security review follows the dedicated security rubric in
-[`security-rubric.md`](security-rubric.md): build a capability profile for the
-app's type, run the pattern checks, and classify findings under the OODT taxonomy.
+Security review follows the dedicated [Appverse Security
+Rubric](https://openondemand.connectci.org/appverse-security-rubric): build a
+capability profile for the app's type, run the pattern checks, and classify
+findings under the OODT taxonomy.
 The three legacy spot-checks (committed credentials, disabled security without
 justification, user input reaching shell commands) are all covered by the rubric's
 pattern checks.
