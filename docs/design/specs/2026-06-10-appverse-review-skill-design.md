@@ -336,29 +336,34 @@ A markdown report mirroring the checklist:
    matches the code (plan Task 2 verifies this against RepoSyncService).
 - **Submitter self-check is promoted.** Once calibrated, the contributor guide will
    encourage submitters to run the check before submitting (decided 2026-06-16).
-- **Monorepo field inheritance — DECIDED 2026-06-16 (app-developer feedback,
-   2026-06-11).** Current `RepoSyncService` (Collections branch, verified
-   2026-06-16) reads member-app fields only from `<subpath>/appverse.yml` merged
-   with the inline `apps[]` entry; `applyDeclaredApp` is never even passed the root
-   parsed `appverse.yml`, so repo-level `maintainer`/`tags` cannot reach member
-   apps. An app missing its own `maintainer.name`/`maintainer.support_url` is
-   rejected. This contradicts the schema reference, which implies a repo-level
-   maintainer covers member apps. **Decision:** implement inheritance, with
-   field-appropriate semantics —
+- **Monorepo field inheritance — DECIDED 2026-06-16, corrected 2026-06-23
+   (app-developer feedback, 2026-06-11).** Verified on the md-2724 worktree: NO
+   inheritance is implemented — `applyDeclaredApp` merges only
+   `array_replace(<subpath>/appverse.yml, inline apps[] entry)` and is never passed
+   the root yaml. **Critical correction:** there are TWO distinct tag vocabularies,
+   so the original "union the tags" decision was incoherent and is struck. Repo-level
+   `tags:` populate the monorepo's own discovery tags (`field_repo_tags`, `tags`
+   vocab); per-app `tags:` populate implementation tags
+   (`field_add_implementation_tags`, `appverse_implementation_tags` vocab) —
+   different vocabularies on different entities, not unionable. **Corrected
+   decisions:**
    - **maintainer:** inherit-or-override. App's own `maintainer` wins; otherwise it
-     inherits the repo-level `maintainer`. (Union is meaningless for a single
-     value.)
-   - **tags:** additive (union). An app's tags are merged with the repo-level tags
-     (deduplicated). No per-app opt-out syntax in v1 — YAGNI; an app that must not
-     carry an inherited tag is a documented limitation, revisit only if a real repo
-     hits it.
+     inherits the repo-level `maintainer`. (Single value — union meaningless.)
+   - **implementation tags:** add a NEW root-level field (working name TBD; not
+     `app_tags`) in the `appverse_implementation_tags` vocab, inherited additively
+     (union, dedup) into each app's implementation tags. Distinct from the repo
+     discovery `tags`, which stay repo-only and do NOT inherit. No opt-out syntax —
+     YAGNI.
+   - **Separate bug found 2026-06-23:** a single-app declared repo (root
+     `appverse.yml` with top-level metadata, no `apps[]`) creates the repo node and
+     zero apps, despite `docs/appverse.yml` SHAPE 1 documenting that flat shape as
+     supported. Fix: reuse `applyDeclaredApp` to create one app at subpath ''.
 
-   This is a `RepoSyncService::applyDeclaredApp` change on the Collections branch
-   (pass the root parsed array in; fall back for maintainer, union for tags) plus a
-   test, and a schema-reference correction — tracked as separate Collections-branch
-   work, not part of the appverse-review plugin build. The review skill reviews
-   against this intended behavior once it ships; until the code lands it should
-   note the gap rather than reject apps that rely on inheritance.
+   All of this is Drupal work on the md-2724 worktree (single-app path, maintainer
+   inheritance, new root implementation-tags field + inheritance, each with a kernel
+   test), plus doc fixes to `docs/appverse.yml` + the contributor guide. Separate
+   from the appverse-review plugin build. The review skill reviews against the
+   intended behavior.
 
 ## Relationship to the security-audit proposal
 

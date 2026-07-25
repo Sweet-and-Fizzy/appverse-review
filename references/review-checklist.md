@@ -135,7 +135,7 @@ pattern checks.
 |-------|------------------|
 | `form.yml` is valid YAML | Parses without errors |
 | `manifest.yml` is valid YAML | Parses without errors |
-| Template scripts are syntactically correct | ERB templates render, shell scripts pass shellcheck (for `.sh.erb`, strip ERB tags first — see [security-tools.md](security-tools.md)) |
+| Template scripts are syntactically correct | ERB templates render, shell scripts pass shellcheck (for `.sh.erb`, strip ERB tags first — see [security-tools.md](https://github.com/Sweet-and-Fizzy/appverse-review/blob/main/references/security-tools.md)) |
 | No obviously broken references | Module names, paths, and variables referenced in templates exist in form.yml |
 
 ## Quality Criteria
