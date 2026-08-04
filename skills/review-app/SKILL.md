@@ -98,14 +98,20 @@ one at a time, in the order above.
 | CHANGELOG | ... | ... |
 | CI | ... | ... |
 
-## Not checked (requires catalog access)
-- Duplicate check against the existing catalog
+## Catalog checks
+<!-- Query the public JSON:API — see the checklist's "Reading the catalog
+     without a login". These need no reviewer account; record what each
+     returned. List an item as not checked only if its query actually failed,
+     and say so. -->
+- Duplicate check against the existing catalog — <result>
   - **Duplicate-check rationale:** _<reviewer fills in — the outcome and why,
     per the checklist's Duplicate Check; edit before pasting into the issue or
     email>_
-- `software` value matches a catalog Software entry — if it has no match, the
-  reviewer creates the Software entry (should it exist), corrects the value, or
-  requests changes; see the checklist's Software Entry Check
+- `software` value matches a catalog Software entry — <result>. If it has no
+  match, the reviewer creates the Software entry (should it exist), corrects
+  the value, or requests changes; see the checklist's Software Entry Check
+- `app_type` and `implementation_tags` are in the catalog vocabularies —
+  <result>
 
 ## Overall recommendation
 <one paragraph. Single-app repos: the decision and its rationale. Monorepos:
@@ -114,9 +120,9 @@ the tables — do not introduce new problems here.>
 ```
 
 Apply the decision rules in the checklist's Step 3 (Decision) table — including
-how it treats security findings and its condition that any Accept is pending the
-catalog checks under "Not checked". Follow the checklist's framing rather than a
-separate copy here.
+how it treats security findings and its condition that an Accept is pending any
+catalog check that could not be run. Follow the checklist's framing rather than
+a separate copy here.
 
 ## 4. Mode-specific ending
 
