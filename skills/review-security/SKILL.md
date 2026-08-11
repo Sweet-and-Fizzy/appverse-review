@@ -16,6 +16,21 @@ up a code.
 **Setup:** Use the orchestrator's prepared target if provided; otherwise follow
 `${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` first.
 
+## Check tiers
+
+The security review consists of three tiers, distinguished by what they require:
+
+- **Tier 1 — Static.** Source-level analysis: structure, capability profile,
+  pattern checks. Runs anywhere, including CI on a submitted PR.
+- **Tier 2 — Tooling.** Static analysis tools (shellcheck, bandit, semgrep,
+  trivy, etc.). Needs installed binaries, no running app. Well suited to CI.
+- **Tier 3 — Runtime.** Boot the app and exercise it. Realistically local or on
+  a reviewer's machine.
+
+The report must state which tiers ran. A CI invocation that runs tiers 1–2
+reports tier 3 as `NOT CHECKED — requires a running app`. A thinner review
+should look thinner, not identical to a full one.
+
 ## Procedure
 
 1. Determine each app's type (Batch Connect, Passenger, dashboard, widget) from
@@ -24,7 +39,7 @@ up a code.
    `template/**`, `connection.yml`, container definitions. Passenger: the full
    application source (routes, controllers, views, config, scripts). Always
    include `shared_paths`. List binary files that cannot be audited.
-3. **Static analysis tool scan** — read the tool lookup table at
+3. **Tier 2 — Static analysis tool scan.** Read the tool lookup table at
    `${CLAUDE_PLUGIN_ROOT}/references/security-tools.md` and run available tools
    against the in-scope files. This step is **optional and best-effort**: the
    review proceeds normally if no tools are installed.
@@ -37,9 +52,10 @@ up a code.
       shellcheck.
    4. Collect tool output for use in steps 4–6. Do not block on tool failures —
       if a tool errors, note the error and continue.
-4. **Capability profile** — catalog what the code actually does: system access,
-   network calls, file reads and writes, spawned processes, dynamic code loading,
-   authentication posture.
+   5. Record the status of every relevant tool for the tool-scan summary.
+4. **Tier 1 — Capability profile.** Catalog what the code actually does: system
+   access, network calls, file reads and writes, spawned processes, dynamic code
+   loading, authentication posture.
    - Batch Connect: compare against the narrow baseline; anomalies (network calls
      from ERB, SSH-key reads, base64-decode-and-execute, writes to dotfiles or
      cron) are strong signals — flag each as a finding.
@@ -55,14 +71,30 @@ up a code.
    and tag it unintentional or potentially malicious, per the rubric's "Rating
    findings" section. Use the OODT mapping from the tool lookup table to classify
    tool-originated findings.
+7. **Tier 3 — Runtime checks** (when the app is runnable). Where the app has a
+   `config.ru` (Passenger), a test harness, or is otherwise runnable, exercise
+   security-relevant paths rather than only reading source. Library defaults,
+   framework middleware, and proxy assumptions are frequently invisible in source.
+   If the app cannot be run (CI, no runtime environment), report tier 3 as
+   `NOT CHECKED — requires a running app`.
 
 ## Output
 
-- **Tool scan summary** — which tools were available and ran, which were not
-  installed (with one-line install hint from the lookup table), and which had no
-  applicable files. If no tools were available, a single line: "No static
-  analysis tools detected — install suggestions listed below." followed by the
-  relevant install hints for the file types found.
+- **Check tiers ran** — state which tiers were executed (e.g., "Tiers 1–2;
+  tier 3 not checked — requires a running app").
+- **Tool scan summary** (required) — a table with one row per relevant tool.
+  A reader must be able to distinguish "clean scan" from "scanner not installed":
+
+  | Tool | Status | Result |
+  |---|---|---|
+  | shellcheck | ran | 2 findings (SC2086, SC2046) |
+  | semgrep | **not installed** | `pip install semgrep` |
+  | trivy | no applicable files | — |
+  | bandit | ran | clean |
+
+  If no tools were available, use the table with all rows showing "not installed"
+  plus install hints. Never omit the table — its absence is indistinguishable
+  from a clean scan.
 - The capability profile: a compact File / Capabilities / Anomalies table for
   Batch Connect apps; a short narrative for Passenger apps.
 - Findings tables per target-setup.md §4, with two extra columns: OODT class and

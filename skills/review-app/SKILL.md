@@ -66,6 +66,14 @@ one at a time, in the order above.
 | No broken references | PASS/FAIL | ... |
 
 ### Security
+
+**Check tiers:** <Tiers 1–2 | Tiers 1–3 | Tier 1 only>
+<if not all tiers: "Tier N not checked — <reason>">
+
+| Tool | Status | Result |
+|---|---|---|
+<!-- one row per relevant tool from the security aspect's tool-scan summary -->
+
 <capability profile: table for Batch Connect, narrative for Passenger>
 
 | Finding | OODT | Severity | Evidence |
