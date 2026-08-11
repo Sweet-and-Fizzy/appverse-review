@@ -27,13 +27,24 @@ only; rating is review-quality's job), and "Basic Functionality".
   Structure section.
 - `app_type` is a known value per the appverse.yml schema reference.
 - Every `manifest.yml`, `appverse.yml`, and `form.yml` parses; report parse
-  errors verbatim.
+  errors verbatim. A `form.yml.erb` cannot be YAML-parsed directly (unrendered
+  ERB is not valid YAML) — check that it exists and has balanced ERB tags
+  instead.
 - ERB templates look renderable (balanced `<%= %>` tags); shell scripts pass
   `bash -n`.
 - No broken references: variables and attributes used in `submit.yml.erb` and
-  `template/` files exist in `form.yml`.
-- Batch Connect apps have the standard layout: `form.yml`, `submit.yml.erb`,
-  `template/`.
+  `template/` files exist in `form.yml` or `form.yml.erb`.
+- Batch Connect apps have the standard layout: `form.yml` or `form.yml.erb`,
+  `submit.yml.erb`, `template/`. OOD renders `form.yml.erb` at request time,
+  so an app shipping only the `.erb` variant is complete.
+- Passenger / companion apps — substitute checks for Batch Connect structure:
+  - Rack entry point (`config.ru` or framework equivalent) exists and parses
+    (`ruby -c config.ru`)
+  - `manifest.yml` `role` matches the layout (`passenger_app` with a Rack
+    entry point, not a Batch Connect tree)
+  - Dependency manifest (`Gemfile.lock`, `package-lock.json`) present and
+    consistent with the dependency file
+  - If the repo ships a test suite, note whether it passes
 
 ## Output
 

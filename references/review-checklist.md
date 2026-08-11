@@ -100,7 +100,7 @@ Every repo, regardless of shape:
 | `maintainer.name` + `maintainer.support_url` | Both required and present. An app without a support URL gives deployers no one to contact — a missing one is a required-criteria failure |
 | `manifest.yml` at the app's subpath | Required for the app to actually run inside OOD |
 
-For Batch Connect Apps: standard OOD structure with expected files (`form.yml`, `submit.yml.erb`, `template/`)
+For Batch Connect Apps: standard OOD structure with expected files (`form.yml` or `form.yml.erb`, `submit.yml.erb`, `template/`). OOD renders `form.yml.erb` at request time, so an app shipping only the `.erb` variant is complete; shipping both is unusual and worth a look
 
 ### 2. Documentation Minimum
 
@@ -168,7 +168,7 @@ These are evaluated on a scale. An app doesn't need to be perfect, but the more 
 | Check | Status |
 |-------|--------|
 | Error handling in scripts (`set -e` or explicit checks) | |
-| No magic numbers without comments | |
+| No undocumented magic numbers or hardcoded literals (resource limits, tunables, ports, hex colors, module versions) without comments | |
 | No large blocks of duplicated code | |
 | No commented-out dead code | |
 | Input validation on form fields (min/max/required) | |

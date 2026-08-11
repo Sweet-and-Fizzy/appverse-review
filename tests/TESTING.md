@@ -33,7 +33,7 @@ fixtures since they have no remote origin. That is expected.
 |---------|----------|-------------------|-------------------|
 | [broken-app](#1-broken-app) | Batch Connect (inferred) | Basic required-criteria failures + planted secrets | Request changes or Reject |
 | [monorepo](#2-monorepo) | Declared monorepo (2 apps) | Per-app review with mixed outcomes | Mixed: Accept (good-app), Request changes (bad-app) |
-| [vnc-stale-debugger](#3-vnc-stale-debugger) | Batch Connect VNC (inferred) | Subtle quality issues behind a passing structure | Accept with suggestions or Request changes |
+| [vnc-stale-debugger](#3-vnc-stale-debugger) | Batch Connect VNC (inferred) | Subtle quality issues + correctness-&-polish defects behind a passing structure | Accept with suggestions or Request changes |
 | [passenger-flask-app](#4-passenger-flask-app) | Passenger/Flask (inferred) | Command injection in a non-Batch-Connect app | Reject or Request changes |
 | [containerized-server](#5-containerized-server) | Batch Connect basic (inferred) | Portability failures + container security | Request changes |
 | [curl-pipe-installer](#6-curl-pipe-installer) | Batch Connect basic (inferred) | Critical security behind polished documentation | Reject |
@@ -107,6 +107,9 @@ deeper inspection.
 | 6 | Hardcoded module versions (`intel/18.0.2`, `mvapich2/2.3`) | `template/script.sh.erb:7–8` | Quality | Not portable |
 | 7 | Uses `$PBS_NODEFILE` (PBS var on a Slurm cluster) | `template/script.sh.erb:18–19` | Quality | WARN — depends on Slurm PBS compatibility shim |
 | 8 | Hardcoded path `/usr/share/Modules/init/bash` | `template/script.sh.erb:4` | Quality | Not portable |
+| 9 | Copy-paste artifact: MATLAB help text in a debugger app | `form.yml.erb:32` | Quality | Correctness & polish — wrong-app reference (`"Number of cores for your MATLAB session"` in an HPC Debugger app) |
+| 10 | Duplicate YAML key: `help:` appears twice on `num_cores` | `form.yml.erb:32,34` | Quality | Correctness & polish — last-wins parsing silently drops the first `help:` value |
+| 11 | CHANGELOG describes a different app (MATLAB, not HPC Debugger) | `CHANGELOG.md` | Quality | Correctness & polish — entire changelog is from a MATLAB app template |
 
 **Key behavior to verify:**
 
@@ -234,7 +237,7 @@ categories.
 |--------|-----------|----------|-----------|-----------|-----------|-----------|
 | **Structure** | FAIL (LICENSE, YAML) | FAIL (metadata) | PASS | FAIL (no form) | WARN (ext attrs) | PASS |
 | **Security** | High (secret, 0.0.0.0) | PASS | PASS | Critical (injection) | High (CORS, 0.0.0.0) | Critical (curl\|bash, eval) |
-| **Quality** | Minimal docs, Not portable | PASS / mixed | Adequate docs, Not portable | Minimal docs, Not portable | Minimal docs, Not portable | Strong docs, meh quality |
+| **Quality** | Minimal docs, Not portable | PASS / mixed | Adequate docs, Not portable, copy-paste artifacts | Minimal docs, Not portable | Minimal docs, Not portable | Strong docs, meh quality |
 | **Maintenance** | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED |
 
 | OODT Category | Covered by |

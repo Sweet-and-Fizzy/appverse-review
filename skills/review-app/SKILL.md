@@ -30,7 +30,15 @@ review-security, review-quality, review-maintenance. Each subagent's prompt:
 > Prepared target (do not redo setup): repo path: <path>; mode: <mode>;
 > owner/repo: <owner/repo or unknown>; reviewed commit: <SHA> (<date>);
 > repo shape: <shape>; apps: <list of path + resolved fields>;
-> shared_paths: <list>; schema source: <live|cached>.
+> shared_paths: <list>; schema source: <live|cached>;
+> languages/frameworks detected: <e.g., Ruby/Sinatra, Python/Flask, shell>;
+> dependency manifests: <Gemfile.lock, package-lock.json, requirements.txt, or none>;
+> test suite: <command and result, or "none detected">.
+>
+> If a previous review of this repo is available, treat its findings as
+> context only. Verify the current state independently — a fix may be
+> incomplete, may have regressed, or may have introduced a new defect.
+>
 > Return only your findings in the skill's output format. Do not make accept or
 > reject judgments.
 
@@ -66,6 +74,14 @@ one at a time, in the order above.
 | No broken references | PASS/FAIL | ... |
 
 ### Security
+
+**Check tiers:** <Tiers 1–2 | Tiers 1–3 | Tier 1 only>
+<if not all tiers: "Tier N not checked — <reason>">
+
+| Tool | Status | Result |
+|---|---|---|
+<!-- one row per relevant tool from the security aspect's tool-scan summary -->
+
 <capability profile: table for Batch Connect, narrative for Passenger>
 
 | Finding | OODT | Severity | Evidence |
@@ -97,6 +113,13 @@ one at a time, in the order above.
 | Contributors | ... | ... |
 | CHANGELOG | ... | ... |
 | CI | ... | ... |
+
+## Review scope
+
+**Examined:** <list of files, directories, and surfaces that were reviewed>
+**Not examined:** <list of files/surfaces not reached, with reason — e.g.,
+"dashboard-plugin/ (needs a Rails host)", "runtime behavior (CI, no app
+environment)">
 
 ## Not checked (requires catalog access)
 - Duplicate check against the existing catalog
