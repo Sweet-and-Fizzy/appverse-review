@@ -78,6 +78,28 @@ should look thinner, not identical to a full one.
    If the app cannot be run (CI, no runtime environment), report tier 3 as
    `NOT CHECKED — requires a running app`.
 
+## Safe probing
+
+A security review has broader-than-usual latitude to *read* and
+narrower-than-usual latitude to *write*. Follow these rules for any runtime
+verification:
+
+- **Never verify a filesystem finding against real user data.** Set
+  `HOME` to a temporary directory for the duration of any probe. Everything
+  needed to demonstrate a deny-list bypass (`.bashrc`, `.ssh/authorized_keys`)
+  works identically against a synthetic home, and the probe becomes
+  reproducible.
+- **Probes must be reversible.** If a probe cannot be undone by deleting a temp
+  directory, do not run it. Cleanup that depends on a later shell call is not
+  reliable — a permission prompt, denied command, or killed agent leaves the
+  side effect in place.
+- **Prefer probes with no persistent effect.** A `curl` that reads a response
+  header is better than one that writes a file.
+- **Report unverified findings as unverified.** "Static reading suggests X; not
+  exercised because it would require writing outside a sandbox" is a legitimate
+  and useful finding. It is better than a confirmed finding that damaged the
+  reviewer's environment.
+
 ## Output
 
 - **Check tiers ran** — state which tiers were executed (e.g., "Tiers 1–2;

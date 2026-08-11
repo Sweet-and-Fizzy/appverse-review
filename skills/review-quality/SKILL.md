@@ -25,12 +25,28 @@ Quality), including the target-for-inclusion thresholds.
   `template/` scripts.
 - **Code quality** checkboxes, each with evidence: error handling (`set -e` or
   explicit checks), form input validation (min/max/required), no uncommented
-  magic numbers, no large duplicated blocks, no commented-out dead code, ERB
-  templates handle missing or empty values gracefully. The checklist's Code
-  Quality section says which of these are targets for inclusion and which are
-  improvement suggestions — weight each finding the way the checklist frames it,
-  rather than applying your own severity scale, and keep the labels consistent
-  with findings you record elsewhere in the review.
+  magic numbers / undocumented literals, no large duplicated blocks, no
+  commented-out dead code, ERB templates handle missing or empty values
+  gracefully. The checklist's Code Quality section says which of these are
+  targets for inclusion and which are improvement suggestions — weight each
+  finding the way the checklist frames it, rather than applying your own
+  severity scale, and keep the labels consistent with findings you record
+  elsewhere in the review.
+
+  **Magic numbers / undocumented literals** — look beyond classic bare integers.
+  In OOD apps, undocumented hardcoded values commonly appear as:
+  - Resource limits and tunables: OOM score adjustments, timeouts, memory
+    limits, CPU counts (e.g., `echo 1000 > /proc/self/oom_score_adj`)
+  - UI/desktop config: hex colors, resolution strings, panel sizes in Xfce/VNC
+    configs
+  - Ports and network addresses (especially when not the obvious default)
+  - Module versions without a comment explaining why that version
+  - Scheduler parameters: partition names, QOS values, walltime limits
+
+  A hardcoded value is fine when it is the obvious default or is explained by
+  its context (a `sleep 1` needs no comment). Flag values that a deployer at
+  another site would need to understand or change, and that have no inline
+  comment or README documentation explaining them.
 - **Correctness & polish**: discrete defects that are not one of the fixed
   checkboxes above but are still worth fixing — copy-paste artifacts from a
   template the app was cloned from (e.g. a MATLAB reference left in a SAS app's

@@ -168,7 +168,7 @@ These are evaluated on a scale. An app doesn't need to be perfect, but the more 
 | Check | Status |
 |-------|--------|
 | Error handling in scripts (`set -e` or explicit checks) | |
-| No magic numbers without comments | |
+| No undocumented magic numbers or hardcoded literals (resource limits, tunables, ports, hex colors, module versions) without comments | |
 | No large blocks of duplicated code | |
 | No commented-out dead code | |
 | Input validation on form fields (min/max/required) | |
