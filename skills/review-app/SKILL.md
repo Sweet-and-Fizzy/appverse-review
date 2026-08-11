@@ -106,6 +106,13 @@ one at a time, in the order above.
 | CHANGELOG | ... | ... |
 | CI | ... | ... |
 
+## Review scope
+
+**Examined:** <list of files, directories, and surfaces that were reviewed>
+**Not examined:** <list of files/surfaces not reached, with reason — e.g.,
+"dashboard-plugin/ (needs a Rails host)", "runtime behavior (CI, no app
+environment)">
+
 ## Not checked (requires catalog access)
 - Duplicate check against the existing catalog
   - **Duplicate-check rationale:** _<reviewer fills in — the outcome and why,
