@@ -25,7 +25,11 @@ only; rating is review-quality's job), and "Basic Functionality".
 
 - Required metadata fields for the repo shape, per the checklist's Repository
   Structure section.
-- `app_type` is a known value per the appverse.yml schema reference.
+- `app_type` and `implementation_tags` are known values. The schema names the
+  vocabularies but does not enumerate them; query the catalog's public JSON:API
+  for the current terms (see the checklist's "Reading the catalog without a
+  login"). Matching is case-insensitive. Report the terms you found, not just a
+  pass — a stale vocabulary is why this check silently drifts.
 - Every `manifest.yml`, `appverse.yml`, and `form.yml` parses; report parse
   errors verbatim.
 - ERB templates look renderable (balanced `<%= %>` tags); shell scripts pass
