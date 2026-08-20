@@ -37,14 +37,21 @@ only; rating is review-quality's job), and "Basic Functionality".
 - Batch Connect apps have the standard layout: `form.yml` or `form.yml.erb`,
   `submit.yml.erb`, `template/`. OOD renders `form.yml.erb` at request time,
   so an app shipping only the `.erb` variant is complete.
-- Passenger / companion apps — substitute checks for Batch Connect structure:
-  - Rack entry point (`config.ru` or framework equivalent) exists and parses
-    (`ruby -c config.ru`)
-  - `manifest.yml` `role` matches the layout (`passenger_app` with a Rack
-    entry point, not a Batch Connect tree)
-  - Dependency manifest (`Gemfile.lock`, `package-lock.json`) present and
-    consistent with the dependency file
-  - If the repo ships a test suite, note whether it passes
+- Passenger / companion apps — substitute checks for Batch Connect structure.
+  Detect by `manifest.yml` role (`passenger_app`) or by the presence of a
+  recognized entry point (`config.ru` for Ruby/Rack, `passenger_wsgi.py` for
+  Python/WSGI):
+  - Entry point exists and parses: `ruby -c config.ru` for Rack apps,
+    `python -c "import py_compile; py_compile.compile('passenger_wsgi.py')"` for
+    WSGI apps
+  - If `manifest.yml` has a `role` field, it matches the layout (e.g.,
+    `passenger_app` with an entry point, not a Batch Connect tree). A missing
+    `role` is a WARN, not a FAIL — the app may still work
+  - Dependency manifest (`Gemfile.lock`, `package-lock.json`, `requirements.txt`)
+    present and consistent with the dependency file
+  - If the repo ships a test suite, note whether it passes. When execution is
+    restricted (CI, untrusted repo), report as
+    `NOT CHECKED — execution restricted`
 
 ## Output
 

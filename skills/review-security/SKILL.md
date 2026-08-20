@@ -39,7 +39,22 @@ should look thinner, not identical to a full one.
    `template/**`, `connection.yml`, container definitions. Passenger: the full
    application source (routes, controllers, views, config, scripts). Always
    include `shared_paths`. List binary files that cannot be audited.
-3. **Tier 2 — Static analysis tool scan.** Read the tool lookup table at
+3. **Tier 1 — Capability profile.** Catalog what the code actually does: system
+   access, network calls, file reads and writes, spawned processes, dynamic code
+   loading, authentication posture.
+   - Batch Connect: compare against the narrow baseline; anomalies (network calls
+     from ERB, SSH-key reads, base64-decode-and-execute, writes to dotfiles or
+     cron) are strong signals — flag each as a finding.
+   - Passenger: report the full profile for transparency; flag only capabilities
+     in the rubric's "Flagged" column. Never penalize an app for its designed
+     purpose — a job composer running shell commands is its job; running them
+     with CORS open to all origins is a finding.
+4. **Tier 1 — Pattern checks.** Apply the rubric's pattern table across all
+   in-scope files. Where a tool finding from step 5 confirms or adds to a manual
+   finding, cite the tool as corroborating evidence (e.g., "bandit B602:
+   subprocess with shell=True"). Where a tool surfaces something the manual scan
+   missed, add it. (If tools have not run yet, revisit this step after step 5.)
+5. **Tier 2 — Static analysis tool scan.** Read the tool lookup table at
    `${CLAUDE_PLUGIN_ROOT}/references/security-tools.md` and run available tools
    against the in-scope files. This step is **optional and best-effort**: the
    review proceeds normally if no tools are installed.
@@ -50,39 +65,37 @@ should look thinner, not identical to a full one.
    3. Run each available tool using the commands in the lookup table. For
       `.sh.erb` files, apply the ERB preprocessing step before running
       shellcheck.
-   4. Collect tool output for use in steps 4–6. Do not block on tool failures —
-      if a tool errors, note the error and continue.
+   4. Collect tool output. Do not block on tool failures — if a tool errors,
+      note the error and continue.
    5. Record the status of every relevant tool for the tool-scan summary.
-4. **Tier 1 — Capability profile.** Catalog what the code actually does: system
-   access, network calls, file reads and writes, spawned processes, dynamic code
-   loading, authentication posture.
-   - Batch Connect: compare against the narrow baseline; anomalies (network calls
-     from ERB, SSH-key reads, base64-decode-and-execute, writes to dotfiles or
-     cron) are strong signals — flag each as a finding.
-   - Passenger: report the full profile for transparency; flag only capabilities
-     in the rubric's "Flagged" column. Never penalize an app for its designed
-     purpose — a job composer running shell commands is its job; running them
-     with CORS open to all origins is a finding.
-5. **Pattern checks** — apply the rubric's pattern table across all in-scope
-   files. Where a tool finding from step 3 confirms or adds to a manual finding,
-   cite the tool as corroborating evidence (e.g., "bandit B602: subprocess with
-   shell=True"). Where a tool surfaces something the manual scan missed, add it.
-6. Classify every finding under OODT-01..08, rate severity High / Medium / Low,
-   and tag it unintentional or potentially malicious, per the rubric's "Rating
-   findings" section. Use the OODT mapping from the tool lookup table to classify
+   6. If any tool finding is new (not already captured in step 4), add it now.
+6. **Tier 3 — Runtime checks** (when the app is runnable). Where the app has a
+   WSGI/Rack entry point (`passenger_wsgi.py`, `config.ru`), a test harness, or
+   is otherwise runnable, exercise security-relevant paths rather than only
+   reading source. Library defaults, framework middleware, and proxy assumptions
+   are frequently invisible in source. If the app cannot be run (CI, no runtime
+   environment), report tier 3 as `NOT CHECKED — requires a running app`.
+7. **Classify all findings.** After all tiers have run, classify every finding
+   under OODT-01..08, rate severity High / Medium / Low, and tag it
+   unintentional or potentially malicious, per the rubric's "Rating findings"
+   section. Use the OODT mapping from the tool lookup table to classify
    tool-originated findings.
-7. **Tier 3 — Runtime checks** (when the app is runnable). Where the app has a
-   `config.ru` (Passenger), a test harness, or is otherwise runnable, exercise
-   security-relevant paths rather than only reading source. Library defaults,
-   framework middleware, and proxy assumptions are frequently invisible in source.
-   If the app cannot be run (CI, no runtime environment), report tier 3 as
-   `NOT CHECKED — requires a running app`.
 
 ## Safe probing
 
 A security review has broader-than-usual latitude to *read* and
-narrower-than-usual latitude to *write*. Follow these rules for any runtime
-verification:
+narrower-than-usual latitude to *write*.
+
+**Tier 3 execution environment.** The target app is untrusted code — a hostile
+entry point (`config.ru`, `passenger_wsgi.py`, Gemfile hook) runs its payload on
+boot, before any probe reaches the app. Do not run tier 3 on a reviewer's
+workstation or any machine with access to real user data. Until a dedicated
+review container exists (e.g., an OOD sandbox built from the ood-demo image),
+tier 3 should run only inside a disposable VM or container with no network
+egress and no mounted user filesystems. If no isolated environment is available,
+report tier 3 as `NOT CHECKED — no isolated execution environment`.
+
+Follow these rules for any runtime verification:
 
 - **Never verify a filesystem finding against real user data.** Set
   `HOME` to a temporary directory for the duration of any probe. Everything
