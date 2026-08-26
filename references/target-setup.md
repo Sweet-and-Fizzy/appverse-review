@@ -80,7 +80,7 @@ after any prose tables (ratings, capability profiles) in the aspect's output:
   {
     "app_id":      "root",
     "rule":        "OODT-05",
-    "defect_key":  "script.sh.erb:bind-all-interfaces",
+    "defect_key":  "template/script.sh.erb:bind-all-interfaces",
     "aspect":      "security",
     "severity":    "medium",
     "result":      "FAIL",
@@ -97,7 +97,7 @@ Field definitions:
 |---|---|---|---|
 | `app_id` | Yes | Yes | `"root"` for single-app repos; subpath for monorepos |
 | `rule` | Yes | Yes | Code from `finding-codes.md` (OODT-XX, STR-XX, QUA-XX, MNT-XX) |
-| `defect_key` | Yes | Yes | `{primary_file}:{mechanism_tag}` per `finding-codes.md` |
+| `defect_key` | Yes | Yes | `{anchor}:{mechanism_tag}` per `finding-codes.md` |
 | `aspect` | Yes | No | `security`, `structure`, `quality`, or `maintenance` |
 | `severity` | Yes | No | `critical`, `high`, `medium`, `low`, or `info` |
 | `result` | Yes | No | `FAIL`, `WARN`, `PASS`, or `NOT CHECKED` |
@@ -105,9 +105,10 @@ Field definitions:
 | `evidence` | Yes | No | `file:line` plus a short quote. Every FAIL/WARN needs evidence |
 | `line` | No | No | Primary line number (integer), for tooling convenience |
 
-The stable ID is computed from the three identity fields:
-`sha256(app_id + rule + defect_key)[:16]`. See `finding-codes.md` for the
-full identity design, rule code tables, and mechanism-tag vocabularies.
+**The skill does not emit an `id` field.** The stable ID is computed
+downstream from the three identity fields (`app_id`, `rule`, `defect_key`)
+using `sha256(app_id + "\0" + rule + "\0" + defect_key)[:16]` (first 16 hex
+characters). See `finding-codes.md` for the full identity design.
 
 ### Human-readable table (alongside the JSON)
 

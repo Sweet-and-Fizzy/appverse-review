@@ -22,14 +22,27 @@ survives line shifts, LLM rewording, and aspect reclassification.
 ## Stable finding ID
 
 ```
-id = sha256(app_id + rule + defect_key)[:16]
+id = sha256("root\0OODT-05\0script.sh.erb:bind-all-interfaces")[:16]
+                ↑        ↑
+          NUL separator  NUL separator
 ```
+
+The input is the three identity fields joined by NUL (`\0`) bytes, preventing
+collisions from field-boundary ambiguity. The output is the **first 16 hex
+characters** (64 bits) of the SHA-256 digest — unique within one review, never
+globally.
+
+**The review skill does not compute IDs.** It emits the three identity fields
+(`app_id`, `rule`, `defect_key`) in each finding record. The `id` is computed
+downstream — by a post-processing script, CI pipeline, or the Drupal ingestion
+layer. This keeps the LLM out of cryptographic computation it cannot do
+reliably.
 
 | Component | In hash | Why |
 |---|---|---|
 | `app_id` | **Yes** | `"root"` for single-app repos, subpath for monorepos |
 | `rule` | **Yes** | Canonicalized code from the tables below |
-| `defect_key` | **Yes** | `{primary_file}:{mechanism_tag}` — see vocabularies |
+| `defect_key` | **Yes** | `{anchor}:{mechanism_tag}` — see below |
 | `aspect` | No | Findings move between aspects during calibration |
 | `line` | No | Shifts on every edit |
 | `summary` | No | LLM rewording across runs |
@@ -38,11 +51,14 @@ id = sha256(app_id + rule + defect_key)[:16]
 ### Defect key
 
 ```
-defect_key = "{primary_file}:{mechanism_tag}"
+defect_key = "{anchor}:{mechanism_tag}"
 ```
 
-- **`primary_file`**: the file where the finding is anchored — deterministic,
-  shifts only on file renames
+- **`anchor`**: the file or resource the finding is about — deterministic,
+  shifts only on renames. For findings in existing files, this is the
+  repo-relative path (e.g., `template/script.sh.erb`). For findings about
+  absent files or resources, this is the expected path or resource name
+  (e.g., `LICENSE`, `CHANGELOG`, `.github/workflows`)
 - **`mechanism_tag`**: selected from the vocabulary for the finding's rule code
   (see tables below). Novel findings not in the vocabulary use
   `other:{short-description}`; recurring novel tags get promoted to the
@@ -55,6 +71,9 @@ defect_key = "{primary_file}:{mechanism_tag}"
 - **Multiple findings with the same mechanism in one file** (e.g., 7 unquoted
   variables in `script.sh.erb`): treat as one finding with multiple evidence
   locations. `line` is mutable metadata carrying the list.
+- **Absent-file findings** use the expected path as the anchor
+  (e.g., `LICENSE:missing-license`, `.github/workflows:no-ci`). The anchor
+  is "what should exist," not "what does exist."
 - **Prior finding disappears but code unchanged**: flag as "prior finding not
   reproduced — verify manually" rather than auto-marking "fixed."
 

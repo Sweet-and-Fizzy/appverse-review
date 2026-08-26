@@ -138,7 +138,8 @@ findings from all four aspects, merged into one array. Each finding is a
 structured record per target-setup.md §4 — the same records the aspects
 returned, collected into one place. This block is the machine-readable
 counterpart to the human-readable tables above; every finding must appear in
-both. Compute the stable `id` for each finding per `finding-codes.md`.
+both. Do **not** include an `id` field — stable IDs are computed downstream
+from the identity fields (`app_id`, `rule`, `defect_key`).
 
 ## 4. Mode-specific ending
 
