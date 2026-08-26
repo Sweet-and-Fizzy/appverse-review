@@ -24,18 +24,44 @@ shellcheck -f json -S warning <file.sh>
 ```
 
 **ERB preprocessing:** shellcheck cannot parse ERB tags. For `.sh.erb` files,
-strip ERB before scanning:
+strip ERB before scanning. The strip must be **multi-line aware** — a
+line-oriented `sed` substitution cannot match `<% ... %>` blocks that span
+multiple lines, causing shellcheck to see leftover Ruby as shell, invent
+parse errors, and (worse) stop analysing the file at the first error, hiding
+real findings below it.
 
 ```bash
 TMPFILE=$(mktemp "${TMPDIR:-/tmp}/sc-XXXXXX.sh")
-sed 's/<%[^%]*%>/SHELLCHECK_PLACEHOLDER/g' "$TARGET" > "$TMPFILE"
+
+python3 - "$TARGET" "$TMPFILE" <<'PY'
+import re, sys
+src, dst = sys.argv[1], sys.argv[2]
+text = open(src).read()
+
+def keep_newlines(match, filler=''):
+    """Replace tag with filler + same number of newlines to preserve line numbers."""
+    return filler + '\n' * match.group(0).count('\n')
+
+text = re.sub(r'<%#.*?%>', lambda m: keep_newlines(m), text, flags=re.S)
+text = re.sub(r'<%=.*?%>', lambda m: keep_newlines(m, 'ERBVALUE'), text, flags=re.S)
+text = re.sub(r'<%.*?%>',  lambda m: keep_newlines(m), text, flags=re.S)
+open(dst, 'w').write(text)
+PY
+
 shellcheck -f json -S warning "$TMPFILE"
 rm "$TMPFILE"
 ```
 
-Note in output that ERB substitutions were replaced with placeholders — some
-shellcheck findings may be false positives due to the substitution. Review each
-finding against the original file.
+Substitution order matters: comments first (so `%>` inside a comment doesn't
+terminate something else), then `<%= %>` → `ERBVALUE` (so assignments like
+`TIMEOUT=<%= x %>` stay valid), then bare `<% %>` → empty. Newline
+preservation keeps `file:line` evidence citable against the original `.erb`.
+
+After stripping, expect residual SC2154 warnings for Batch Connect contract
+variables (`$host`, `$port`, `$password`) that the app uses but does not
+define — these are set by OOD at runtime and are not defects. A quick
+`bash -n "$TMPFILE"` before running shellcheck is a useful sanity check on
+the strip itself.
 
 **Key finding codes:**
 - SC2086: unquoted variable (injection risk in scripts that handle form values)
@@ -88,18 +114,17 @@ scan.
 **Run:**
 
 ```bash
-semgrep scan --config auto --json <directory>
+semgrep --config=p/security-audit --config=p/secrets --metrics=off --exclude vendor --exclude node_modules --json <directory>
 ```
 
-`--config auto` uses the curated community rulesets. For a faster focused scan:
+Do **not** use `--config auto` — it requires metrics to be enabled and fails
+with an opaque error when they are off (the default in many environments and
+the expected posture when scanning someone else's code). Use explicit rulesets
+instead.
 
-```bash
-semgrep scan --config "p/security-audit" --json <directory>
-```
-
-Semgrep is the most versatile tool in this list — it supports custom rules, so
-Appverse-specific patterns (e.g., form values reaching shell interpolation in ERB)
-could be encoded as rules in the future.
+For Ruby-heavy apps, add `--config=p/ruby`. Semgrep supports custom rules, so
+Appverse-specific patterns (e.g., form values reaching shell interpolation in
+ERB) could be encoded as rules in the future.
 
 ---
 
@@ -138,11 +163,14 @@ dependencies, just generates the lock file).
 **Run:**
 
 ```bash
-trivy fs --format json --scanners vuln,misconfig <directory>
+trivy fs --format json --scanners vuln,misconfig,secret --skip-dirs vendor --skip-dirs node_modules <directory>
 ```
 
-Useful for Passenger apps with dependency manifests and for apps that include
-container definitions (Singularity `.def` files, Dockerfiles).
+The `--skip-dirs` flags exclude vendored dependencies — without them, trivy
+reports CVEs in third-party code that is not the reviewed app's dependency
+tree, burying real findings in noise. Useful for Passenger apps with dependency
+manifests and for apps that include container definitions (Singularity `.def`
+files, Dockerfiles).
 
 ---
 
@@ -190,9 +218,11 @@ radius criteria — the same way manual findings are rated. Tool severity scores
 useful context but OODT classification is what goes in the report.
 
 Expect false positives, especially:
-- shellcheck on ERB-stripped scripts (placeholder variables trigger warnings)
+- shellcheck on ERB-stripped scripts (SC2154 for Batch Connect contract
+  variables like `$host`, `$port`, `$password` that are set by OOD at runtime)
 - rubocop on ERB templates (incomplete Ruby parsing)
-- semgrep with auto rules on small codebases (broad patterns, narrow context)
+- semgrep on small codebases (broad patterns, narrow context)
+- trivy/npm audit on vendored dependencies (use `--skip-dirs` / `--exclude`)
 
 When a tool finding duplicates a manually identified finding, merge them — cite
 the tool as corroborating evidence rather than listing it twice.

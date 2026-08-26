@@ -76,6 +76,8 @@ These catch capabilities used unsafely, across all app types.
 | Services bound to `0.0.0.0` or `::` | Accessible to other users on shared nodes | Network Exposure |
 | `--no-auth` or missing authentication on network services | Other users can connect | Network Exposure |
 | CORS open to all origins | Any site can make requests to the app | Network Exposure |
+| State-changing endpoints with no CSRF defense | A cross-origin page can drive writes as a logged-in user; OOD's default cookie auth attaches the session automatically | Network Exposure |
+| Authentication enforced on some routes but not all | A surface mounted outside the app's auth filter serves endpoints unauthenticated | Network Exposure |
 | `--disable-ssl` or security features turned off | Weakens security with no explanation | Insecure Configuration |
 | Default or empty passwords | Predictable credentials on exposed services | Insecure Configuration |
 | Framework security features disabled (CSP, host checking) | Removes built-in protections | Insecure Configuration |

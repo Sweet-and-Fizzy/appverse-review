@@ -1,16 +1,15 @@
 # Appverse Schema Reference (cached offline fallback)
 #
-# TODO: Replace this placeholder with the annotated appverse.yml from
-# ood-appverse/docs/appverse.yml once that file is created. At runtime,
-# the skill fetches the live version from GitHub and falls back to this
-# copy when offline.
+# Source: https://github.com/Sweet-and-Fizzy/ood-appverse/blob/main/docs/appverse.yml
+# At runtime, the skill fetches the live version from GitHub and falls back
+# to this copy when offline. Keep in sync with the live file.
 #
-# Known app_type values (from design docs):
+# Known app_type values (from live taxonomy at connectci.org):
 #   - batch-connect-basic
-#   - batch-connect-vnc
+#   - batch-connect-VNC
 #   - companion_app
-#   - widgets
-#   - dashboards
+#   - widget
+#   - dashboard
 #
 # Required fields for declared repos:
 #   - description
@@ -18,15 +17,40 @@
 #   - app_type
 #   - maintainer.name
 #   - maintainer.support_url
+#
+# Per-app required fields (after field-precedence resolution):
+#   - path (monorepo apps[] entries)
+#   - name
+#   - description
+#   - software
+#   - app_type
+#   - maintainer.name + maintainer.support_url (inherited from repo level if absent)
+#
+# Monorepo inheritance rules:
+#   - maintainer: app-level overrides repo-level (inherit-or-override)
+#   - tags: repo-level tags union into every app (additive)
+#   - shared_implementation_tags: union into every app's implementation_tags
 
 # Root-level fields
 description: "Short description of the repo or single app"
 software: "Name of the software this app launches (must match a catalog entry)"
-app_type: "One of: batch-connect-basic, batch-connect-vnc, companion_app, widgets, dashboards"
+app_type: "One of: batch-connect-basic, batch-connect-VNC, companion_app, widget, dashboard"
+title: "Display title (optional, defaults to name)"
+website: "Project homepage URL (optional)"
+docs: "Documentation URL (optional)"
 
 maintainer:
   name: "Maintainer or team name"
   support_url: "URL for support (GitHub issues page, email, etc.)"
+
+tags:
+  - "discovery tag (from the catalog's tag vocabulary)"
+
+implementation_tags:
+  - "technical tag (e.g., slurm, singularity, gpu)"
+
+shared_implementation_tags:
+  - "tags that union into every app's implementation_tags"
 
 # Monorepo fields
 shared_paths:
@@ -38,3 +62,5 @@ apps:
     description: "Per-app description (overrides root)"
     software: "Per-app software (overrides root)"
     app_type: "Per-app type (overrides root)"
+    implementation_tags:
+      - "per-app technical tags (merged with shared_implementation_tags)"
