@@ -1,11 +1,9 @@
 # Appverse Security Rubric
 
 The canonical security criteria for Appverse app review. Used by the
-`review-security` skill today, and by the automated audit pipeline (see the
-[security-audit proposal](https://github.com/Sweet-and-Fizzy/ood-appverse/blob/main/docs/appverse-security-audit-proposal.md))
-later. Extracted from that proposal; the proposal covers the threat model, the
-automated pipeline, numeric scoring, and catalog badges, while this file is the
-shared rubric both consume.
+`review-security` skill today, and by the automated audit pipeline later. This
+file is the shared rubric both consume; the threat model, the automated pipeline,
+numeric scoring, and catalog badges are defined elsewhere.
 
 Two complementary methods, both feeding the same threat classification:
 
@@ -123,7 +121,6 @@ misconfiguration — even High severity, such as CORS open to all origins — po
 potentially malicious, or exposures that cannot be fixed without redesigning the app.
 
 > The numeric severity/exploitability scoring, the commit-polling audit pipeline, and
-> the catalog security badges live with the
-> [security-audit proposal](https://github.com/Sweet-and-Fizzy/ood-appverse/blob/main/docs/appverse-security-audit-proposal.md),
-> not in this rubric. Both the on-demand skill and that pipeline classify findings
-> with the same OODT taxonomy and pattern checks above.
+> the catalog security badges are defined separately, not in this rubric. Both the
+> on-demand skill and that pipeline classify findings with the same OODT taxonomy and
+> pattern checks above.
