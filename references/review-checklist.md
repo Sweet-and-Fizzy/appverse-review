@@ -269,7 +269,7 @@ hold, correct it before it reaches the contributor.
 | **Accept** | Passes all required criteria, adequate+ documentation, partially portable+ config. Always conditional on the duplicate/catalog checks the review cannot perform — word any Accept as pending those. |
 | **Accept with suggestions** | Passes required criteria but has clear improvement areas — include specific feedback. Below-target docs or portability belongs here, not Request changes, when required criteria are otherwise met. |
 | **Request changes** | Missing required criteria but fixable — provide specific list of what to address. A fixable security misconfiguration, even High severity (e.g. CORS open to all origins), is Request changes, not Reject. |
-| **Reject** | Duplicate app, no license, abandoned/unmaintained, not an OOD app, or a security finding tagged potentially malicious or unfixable without redesigning the app. |
+| **Reject** | Duplicate app, no license, abandoned/unmaintained, not an OOD app, or a Critical-severity security finding (tagged potentially malicious or unfixable without redesigning the app — see the severity scale in `finding-codes.md`). |
 
 ### Providing Feedback
 

@@ -65,7 +65,10 @@ defect_key = "{anchor}:{mechanism_tag}"
 - **`mechanism_tag`**: selected from the vocabulary for the finding's rule code
   (see tables below). Novel findings not in the vocabulary use
   `other:{short-description}`; recurring novel tags get promoted to the
-  vocabulary
+  vocabulary. **Watch `other:` as a drift source** — two runs may pick
+  different `other:` tags for the same defect, producing different IDs.
+  When reviewing findings with `other:` tags, check whether an existing
+  vocabulary term fits; if a novel tag recurs across reviews, promote it
 
 ### Edge cases
 

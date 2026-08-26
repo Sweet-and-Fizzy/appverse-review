@@ -232,13 +232,19 @@ jobs:
         run: |
           JSON_FILE="${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.findings.json"
           if [ -f "$JSON_FILE" ]; then
+            if ! python3 -m json.tool "$JSON_FILE" > /dev/null 2>&1; then
+              echo "::warning::Findings JSON is malformed — skipping ID computation"
+              echo "First 500 chars of file:"
+              head -c 500 "$JSON_FILE"
+              exit 0
+            fi
             python3 "${{ github.workspace }}/appverse-review/references/compute-ids.py" \
               < "$JSON_FILE" > "${JSON_FILE}.tmp" \
               && mv "${JSON_FILE}.tmp" "$JSON_FILE"
             FINDING_COUNT=$(python3 -c "import json,sys; print(len(json.load(sys.stdin)))" < "$JSON_FILE")
             echo "Computed stable IDs for ${FINDING_COUNT} findings"
           else
-            echo "No findings JSON found — review may not have produced structured output"
+            echo "::warning::No findings JSON found — review may not have produced structured output"
           fi
 
       - name: Generate PDF from review

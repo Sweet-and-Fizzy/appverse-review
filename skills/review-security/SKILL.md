@@ -51,10 +51,11 @@ up a code.
    files. Where a tool finding from step 3 confirms or adds to a manual finding,
    cite the tool as corroborating evidence (e.g., "bandit B602: subprocess with
    shell=True"). Where a tool surfaces something the manual scan missed, add it.
-6. Classify every finding under OODT-01..08, rate severity High / Medium / Low,
-   and tag it unintentional or potentially malicious, per the rubric's "Rating
-   findings" section. Use the OODT mapping from the tool lookup table to classify
-   tool-originated findings.
+6. Classify every finding under OODT-01..08, rate severity
+   Critical / High / Medium / Low per the rubric's "Rating findings" section
+   and the scale in `${CLAUDE_PLUGIN_ROOT}/references/finding-codes.md`, and
+   tag it unintentional or potentially malicious. Use the OODT mapping from
+   the tool lookup table to classify tool-originated findings.
 
 ## Output
 

@@ -19,8 +19,19 @@ import hashlib
 import json
 import sys
 
+IDENTITY_FIELDS = ("app_id", "rule", "defect_key")
 
-def compute_id(finding):
+
+def compute_id(finding, index):
+    for field in IDENTITY_FIELDS:
+        if field not in finding:
+            print(
+                "error: finding #{} missing required field '{}': {}".format(
+                    index, field, json.dumps(finding, default=str)[:120]
+                ),
+                file=sys.stderr,
+            )
+            sys.exit(1)
     key = "{}\0{}\0{}".format(
         finding["app_id"],
         finding["rule"],
@@ -31,8 +42,23 @@ def compute_id(finding):
 
 def main():
     findings = json.load(sys.stdin)
-    for f in findings:
-        f["id"] = compute_id(f)
+
+    seen_ids = {}
+    for i, f in enumerate(findings):
+        fid = compute_id(f, i)
+        f["id"] = fid
+        if fid in seen_ids:
+            prior = seen_ids[fid]
+            print(
+                "warning: duplicate ID {} — finding #{} ({}) collides with "
+                "finding #{} ({})".format(
+                    fid, i, f.get("defect_key", "?"), prior[0], prior[1]
+                ),
+                file=sys.stderr,
+            )
+        else:
+            seen_ids[fid] = (i, f.get("defect_key", "?"))
+
     json.dump(findings, sys.stdout, indent=2)
     sys.stdout.write("\n")
 
