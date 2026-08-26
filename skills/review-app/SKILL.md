@@ -14,6 +14,8 @@ Read first:
   including the decision rules in its Step 3 (Decision))
 - `${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` (setup procedure and
   findings format)
+- `${CLAUDE_PLUGIN_ROOT}/references/finding-codes.md` (rule codes, defect-key
+  vocabularies, and stable ID computation)
 
 ## 1. Set up the target
 
@@ -27,12 +29,18 @@ Dispatch four subagents concurrently — one per aspect: review-structure,
 review-security, review-quality, review-maintenance. Each subagent's prompt:
 
 > Read `${CLAUDE_PLUGIN_ROOT}/skills/<aspect>/SKILL.md` and follow it exactly.
+> Read `${CLAUDE_PLUGIN_ROOT}/references/finding-codes.md` for rule codes and
+> defect-key vocabularies.
 > Prepared target (do not redo setup): repo path: <path>; mode: <mode>;
 > owner/repo: <owner/repo or unknown>; reviewed commit: <SHA> (<date>);
 > repo shape: <shape>; apps: <list of path + resolved fields>;
-> shared_paths: <list>; schema source: <live|cached>.
-> Return only your findings in the skill's output format. Do not make accept or
-> reject judgments.
+> shared_paths: <list>; schema source: <live|cached>;
+> languages/frameworks detected: <e.g., Ruby/Sinatra, Python/Flask, shell>;
+> dependency manifests: <Gemfile.lock, package-lock.json, requirements.txt, or none>;
+> test suite: <command and result, or "none detected">.
+> Return only your findings as structured finding records (per target-setup.md §4)
+> plus any prose tables the skill specifies (capability profile, ratings).
+> Do not make accept or reject judgments.
 
 If subagent dispatch is unavailable, run the four aspect skill files yourself,
 one at a time, in the order above.
@@ -48,39 +56,38 @@ one at a time, in the order above.
 
 ## Repo-level required criteria
 
-| Criterion | Result | Evidence |
+| Rule | Result | Evidence |
 |---|---|---|
-| README.md substantive | PASS/FAIL | ... |
-| LICENSE present | PASS/FAIL | ... |
-| Repo not archived | PASS/FAIL/NOT CHECKED | ... |
-| shared_paths security review | PASS/FAIL/N-A | ... |
+| STR-01 | PASS/FAIL | README.md — ... |
+| STR-01 | PASS/FAIL | LICENSE — ... |
+| — | PASS/FAIL/NOT CHECKED | Repo not archived |
+| — | PASS/FAIL/N-A | shared_paths security review |
 
 ## App: <name> (<subpath>)
 
-### Required criteria
-| Criterion | Result | Evidence |
-|---|---|---|
-| Required metadata fields | PASS/FAIL | ... |
-| YAML validity (manifest/form) | PASS/FAIL | ... |
-| Standard OOD structure | PASS/FAIL | ... |
-| No broken references | PASS/FAIL | ... |
+### Structure
+| Rule | Result | Severity | Summary | Evidence |
+|---|---|---|---|---|
+| STR-02 | PASS/FAIL | ... | Required metadata fields | ... |
+| STR-03 | PASS/FAIL | ... | YAML validity | ... |
+| STR-07 | PASS/FAIL | ... | Standard OOD structure | ... |
+| STR-04 | PASS/FAIL | ... | No broken references | ... |
 
 ### Security
 <capability profile: table for Batch Connect, narrative for Passenger>
 
-| Finding | OODT | Severity | Evidence |
-|---|---|---|---|
+| Rule | Result | Severity | Summary | Evidence |
+|---|---|---|---|---|
+| OODT-XX | FAIL/WARN | high/medium/low | <description> | file:line |
 
 ### Quality
 - Documentation: <rating> — <one-line justification>
 - Portability: <rating> — <one-line justification>
 - Code quality: <met/missed checkboxes with evidence>
 
-| Quality finding | Type | Result | Evidence |
-|---|---|---|---|
-<!-- code-quality checkboxes AND correctness-&-polish defects (copy-paste
-     artifacts, duplicate YAML keys, wrong help text, README typos) from the
-     quality aspect, each with file:line -->
+| Rule | Result | Severity | Summary | Evidence |
+|---|---|---|---|---|
+| QUA-XX | FAIL/WARN | ... | <description> | file:line |
 
 **Per-app decision:** <Accept | Accept with suggestions | Request changes | Reject>
 <!-- Monorepos only: one line per app, rolled up by the Overall recommendation
@@ -124,6 +131,15 @@ how it treats security findings and its condition that an Accept is pending any
 catalog check that could not be run. Follow the checklist's framing rather than
 a separate copy here.
 
+### Structured findings block
+
+After the Markdown report, emit a single fenced JSON block containing **all**
+findings from all four aspects, merged into one array. Each finding is a
+structured record per target-setup.md §4 — the same records the aspects
+returned, collected into one place. This block is the machine-readable
+counterpart to the human-readable tables above; every finding must appear in
+both. Compute the stable `id` for each finding per `finding-codes.md`.
+
 ## 4. Mode-specific ending
 
 **Derived-only rule.** The overall recommendation and the mode-specific ending
@@ -145,6 +161,8 @@ recommendation or the feedback message.
 
 ## 5. Wrap up
 
-- Print the full report in the conversation.
-- Offer to save it as `review-<owner>-<repo>.md` in the current directory.
+- Print the full report (Markdown + structured JSON block) in the conversation.
+- Offer to save the Markdown report as `review-<owner>-<repo>.md` and the
+  structured findings as `review-<owner>-<repo>.findings.json` in the current
+  directory.
 - Reviewer mode: remove the temp clone (`rm -rf "$TMP"`).

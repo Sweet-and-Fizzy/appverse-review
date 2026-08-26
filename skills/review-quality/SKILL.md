@@ -41,7 +41,11 @@ Quality), including the target-for-inclusion thresholds.
 
 ## Output
 
-Per app: the two ratings with one-line justifications, then a findings table per
-target-setup.md §4 covering both the code-quality checkboxes and the
-correctness-&-polish defects. Note which target-for-inclusion thresholds
-(Adequate+ docs, Partially portable+) are not met — as findings, not decisions.
+Per app: the two ratings with one-line justifications, then **structured
+findings** per target-setup.md §4 covering both the code-quality checkboxes and
+the correctness-&-polish defects. Each finding uses a QUA-XX rule code and a
+`defect_key` from the quality mechanism-tag vocabulary in
+`${CLAUDE_PLUGIN_ROOT}/references/finding-codes.md`.
+
+Note which target-for-inclusion thresholds (Adequate+ docs, Partially portable+)
+are not met — as findings (QUA-01 / QUA-02), not decisions.

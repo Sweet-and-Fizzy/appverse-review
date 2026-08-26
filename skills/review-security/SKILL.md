@@ -65,8 +65,10 @@ up a code.
   relevant install hints for the file types found.
 - The capability profile: a compact File / Capabilities / Anomalies table for
   Batch Connect apps; a short narrative for Passenger apps.
-- Findings tables per target-setup.md §4, with two extra columns: OODT class and
-  severity. Tool-corroborated findings include the tool name and finding ID in
-  the Evidence column.
+- **Structured findings** per target-setup.md §4. Each finding uses an OODT-XX
+  rule code and a `defect_key` from the security mechanism-tag vocabulary in
+  `${CLAUDE_PLUGIN_ROOT}/references/finding-codes.md`. Tool-corroborated
+  findings include the tool name and finding ID in the `summary` field. Tag each
+  finding as unintentional or potentially malicious in the `summary`.
 
 No decisions, no numeric risk scores.

@@ -32,7 +32,10 @@ last-commit age and mark the other signals NOT CHECKED.
 ## Output
 
 One repo-level table — Signal / Value / Assessment (Good sign / Concern, per the
-checklist's table) — followed by a findings table per target-setup.md §4.
+checklist's table) — followed by **structured findings** per target-setup.md §4.
+Each finding uses an MNT-XX rule code and a `defect_key` from the maintenance
+mechanism-tag vocabulary in
+`${CLAUDE_PLUGIN_ROOT}/references/finding-codes.md`.
 
 Weight each signal the way the checklist's Maintenance Signals section frames it:
 activity within 12 months is its target for inclusion, while releases, issue
