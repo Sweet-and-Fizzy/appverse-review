@@ -99,7 +99,7 @@ Field definitions:
 | `rule` | Yes | Yes | Code from `finding-codes.md` (OODT-XX, STR-XX, QUA-XX, MNT-XX) |
 | `defect_key` | Yes | Yes | `{primary_file}:{mechanism_tag}` per `finding-codes.md` |
 | `aspect` | Yes | No | `security`, `structure`, `quality`, or `maintenance` |
-| `severity` | Yes | No | `high`, `medium`, `low`, or `info` |
+| `severity` | Yes | No | `critical`, `high`, `medium`, `low`, or `info` |
 | `result` | Yes | No | `FAIL`, `WARN`, `PASS`, or `NOT CHECKED` |
 | `summary` | Yes | No | Human-readable description — display text, not identity |
 | `evidence` | Yes | No | `file:line` plus a short quote. Every FAIL/WARN needs evidence |

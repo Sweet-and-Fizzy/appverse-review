@@ -5,6 +5,20 @@ position-independent IDs. Every finding from every aspect gets a rule code;
 together with `app_id` and `defect_key`, this produces a stable ID that
 survives line shifts, LLM rewording, and aspect reclassification.
 
+## Severity levels
+
+`critical` · `high` · `medium` · `low` · `info`
+
+- **Critical** — unfixable without redesigning the feature, or tagged
+  potentially malicious. Reserved for findings that warrant a Reject
+  recommendation (e.g., `curl|bash` on user-supplied URLs, arbitrary code
+  execution by design).
+- **High** — a real vulnerability or required-criteria failure, fixable with
+  targeted changes. Warrants Request changes.
+- **Medium** — a genuine concern but lower blast radius or harder to exploit.
+- **Low** — defensive-coding gap or minor hygiene issue.
+- **Info** — maintenance signals, suggestions, positive observations.
+
 ## Stable finding ID
 
 ```
