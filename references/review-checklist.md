@@ -37,13 +37,45 @@ Document the rationale either way — the review report has a duplicate-check
 rationale field under "Not checked" for this; fill it in before pasting the
 feedback into the issue or email.
 
+### Reading the catalog without a login
+
+The catalog is a Drupal site with JSON:API enabled and readable anonymously, so
+the Software entry, the vocabularies and the published app list can all be
+checked from the command line — no reviewer account needed.
+
+Two things will make these look like an unreachable host if you get them wrong.
+Follow redirects (`-L`), or the request returns `000`. And percent-encode the
+query brackets as `%5B`/`%5D` — a URL with literal `[` is dropped before it
+reaches Drupal and yields an empty response with no status code at all.
+
+```bash
+# Does a Software entry exist for this app's `software` value?
+curl -sL -H 'Accept: application/vnd.api+json' \
+  'https://openondemand.connectci.org/jsonapi/node/appverse_software?filter%5Btitle%5D=API%20Access&fields%5Bnode--appverse_software%5D=title'
+
+# The implementation-tags vocabulary (matching is case-insensitive)
+curl -sL -H 'Accept: application/vnd.api+json' \
+  'https://openondemand.connectci.org/jsonapi/taxonomy_term/appverse_implementation_tags?fields%5Btaxonomy_term--appverse_implementation_tags%5D=name&page%5Blimit%5D=50'
+
+# Published apps, for the duplicate check
+curl -sL -H 'Accept: application/vnd.api+json' \
+  'https://openondemand.connectci.org/jsonapi/node/appverse_app?fields%5Bnode--appverse_app%5D=title&page%5Blimit%5D=100'
+```
+
+Sibling resources on the same API: `taxonomy_term--appverse_app_type`,
+`taxonomy_term--appverse_license`, `node--appverse_repo`. `GET /jsonapi` lists
+everything available.
+
+Writing still needs a login — creating a Software entry, moderating an app.
+Reading does not, so report these checks as performed rather than deferred.
+
 ### Software Entry Check
 
 The app's `software` value must match a Software entry in the catalog or the app
 won't be listed. Software is its own catalog node type, created separately from
 the app — the app form only references an existing Software entry, it cannot
-create one. If there is no matching entry, it is the reviewer's decision, not an
-automatic failure:
+create one. Query for it with the command above. If there is no matching entry,
+it is the reviewer's decision, not an automatic failure:
 
 - **Software should exist in the catalog** → create the Software entry first
   using the [Add Appverse Software form](https://openondemand.connectci.org/node/add/appverse_software)
@@ -298,12 +330,17 @@ For Monorepos: repeat the per-app criteria and decision for each entry in `apps[
 ### Maintenance Signals
 - [Active / Moderate / Inactive] — last commit, releases, CI, CHANGELOG
 
-### Not Checked (requires catalog access)
-- [ ] Duplicate check against the existing catalog
+### Catalog Checks
+- [ ] Duplicate check against the existing catalog — [outcome and rationale]
 - [ ] `software` value matches a catalog Software entry (see Software Entry Check — create the entry if the software should exist)
+- [ ] `app_type` and `implementation_tags` are in the catalog vocabularies
+
+Query these against the public JSON:API — see "Reading the catalog without a
+login". Record what each returned. If one could not be run, say which and why,
+rather than leaving it unmarked.
 
 ### Decision: [Accept / Accept with suggestions / Request changes / Reject]
-- Accept is conditional on the Not Checked items above
+- If any catalog check above could not be run, Accept is conditional on it
 
 ### Feedback
 [Specific items to address or improve — every item must already appear above]
