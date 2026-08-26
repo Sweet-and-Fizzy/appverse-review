@@ -55,7 +55,7 @@ the skill catches the obvious.
 | 3 | Committed API secret | `template/script.sh.erb:2` | Security | FAIL — OODT-02 `hardcoded-credential`, High |
 | 4 | Service bound to `0.0.0.0` | `template/script.sh.erb:4` | Security | FAIL — OODT-05 `bind-all-interfaces`, Medium–High |
 | 5 | Hardcoded account + partition + absolute path | `submit.yml.erb:5–6`, `template/script.sh.erb:3` | Quality | QUA-02 `hardcoded-account`, `hardcoded-partition`, `hardcoded-path` — Not portable |
-| 6 | Stub README (title + contact only) | `README.md` | Structure + Quality | STR-01 `missing-readme` (not substantive) + QUA-01 `docs-stub` — Minimal |
+| 6 | Stub README (title + contact only) | `README.md` | Structure + Quality | STR-01 `readme-not-substantive` + QUA-01 `docs-stub` — Minimal |
 
 **Verify:** All 6 findings appear with evidence. Submitter-mode output ends
 with a prioritized fix list, security items first.

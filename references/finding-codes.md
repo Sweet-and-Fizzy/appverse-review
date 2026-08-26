@@ -116,7 +116,7 @@ OODT-XX before hashing.
 
 | Code | Criterion |
 |---|---|
-| STR-01 | Missing required file (`LICENSE`, `README.md`, `manifest.yml`, `appverse.yml`) |
+| STR-01 | Missing or insufficient required file (`LICENSE`, `README.md`, `manifest.yml`, `appverse.yml`) |
 | STR-02 | Missing or invalid required metadata field |
 | STR-03 | YAML parse error |
 | STR-04 | Broken reference (variable, attribute, or module not defined where expected) |
@@ -127,8 +127,9 @@ OODT-XX before hashing.
 ### Mechanism tags — structure
 
 **STR-01:**
-`missing-license`, `missing-readme`, `missing-manifest`,
-`missing-appverse-yml`, `missing-form`, `missing-template-dir`
+`missing-license`, `missing-readme`, `readme-not-substantive`,
+`missing-manifest`, `missing-appverse-yml`, `missing-form`,
+`missing-template-dir`
 
 **STR-02:**
 `missing-field:{field_name}` (e.g., `missing-field:software`,
