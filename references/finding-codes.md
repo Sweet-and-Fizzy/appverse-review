@@ -34,9 +34,12 @@ globally.
 
 **The review skill does not compute IDs.** It emits the three identity fields
 (`app_id`, `rule`, `defect_key`) in each finding record. The `id` is computed
-downstream — by a post-processing script, CI pipeline, or the Drupal ingestion
-layer. This keeps the LLM out of cryptographic computation it cannot do
-reliably.
+by `compute-ids.py` (in this directory) or by the Drupal ingestion layer. This
+keeps the LLM out of cryptographic computation it cannot do reliably.
+
+```bash
+python3 references/compute-ids.py < findings.json > findings-with-ids.json
+```
 
 | Component | In hash | Why |
 |---|---|---|

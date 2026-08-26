@@ -165,5 +165,12 @@ recommendation or the feedback message.
 - Print the full report (Markdown + structured JSON block) in the conversation.
 - Offer to save the Markdown report as `review-<owner>-<repo>.md` and the
   structured findings as `review-<owner>-<repo>.findings.json` in the current
-  directory.
+  directory. After saving the JSON, compute stable IDs:
+
+      python3 "${CLAUDE_PLUGIN_ROOT}/references/compute-ids.py" \
+        < review-<owner>-<repo>.findings.json \
+        > review-<owner>-<repo>.findings.json.tmp \
+        && mv review-<owner>-<repo>.findings.json.tmp \
+              review-<owner>-<repo>.findings.json
+
 - Reviewer mode: remove the temp clone (`rm -rf "$TMP"`).
