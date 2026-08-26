@@ -22,7 +22,7 @@ survives line shifts, LLM rewording, and aspect reclassification.
 ## Stable finding ID
 
 ```
-id = sha256("root\0OODT-05\0script.sh.erb:bind-all-interfaces")[:16]
+id = sha256("root\0OODT-05\0template/script.sh.erb:bind-all-interfaces")[:16]
                 ↑        ↑
           NUL separator  NUL separator
 ```
