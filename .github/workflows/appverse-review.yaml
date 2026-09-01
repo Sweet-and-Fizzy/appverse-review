@@ -249,6 +249,16 @@ jobs:
             echo "::warning::No findings JSON found — review may not have produced structured output"
           fi
 
+      - name: Generate PDF and HTML from review
+        if: always()
+        run: |
+          MD_FILE="${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.md"
+          if [ -f "$MD_FILE" ]; then
+            ${{ github.workspace }}/appverse-review/md2pdf.sh "$MD_FILE"
+          else
+            echo "No review markdown found, skipping PDF generation"
+          fi
+
       - name: Assemble review artifact
         if: inputs.review_aspects != 'dry-run'
         run: |
@@ -286,16 +296,6 @@ jobs:
             echo "Assembled review artifact: $(wc -c < "$ARTIFACT_FILE") bytes"
           else
             echo "::warning::No metadata JSON found — cannot assemble artifact"
-          fi
-
-      - name: Generate PDF from review
-        if: always()
-        run: |
-          MD_FILE="${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.md"
-          if [ -f "$MD_FILE" ]; then
-            ${{ github.workspace }}/appverse-review/md2pdf.sh "$MD_FILE"
-          else
-            echo "No review markdown found, skipping PDF generation"
           fi
 
       - name: List generated files
