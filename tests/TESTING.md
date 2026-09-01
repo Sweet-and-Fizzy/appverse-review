@@ -50,12 +50,12 @@ the skill catches the obvious.
 
 | # | Defect | File | Expected aspect | Expected finding |
 |---|--------|------|-----------------|-----------------|
-| 1 | Missing LICENSE | (absent) | Structure | FAIL — LICENSE not present |
-| 2 | Invalid YAML (unclosed bracket) | `form.yml:3` | Structure | FAIL — YAML parse error quoted verbatim |
-| 3 | Committed API secret | `template/script.sh.erb:2` | Security | FAIL — OODT-02 Credential Exposure, High |
-| 4 | Service bound to `0.0.0.0` | `template/script.sh.erb:4` | Security | FAIL — OODT-05 Network Exposure, Medium–High |
-| 5 | Hardcoded account + partition + absolute path | `submit.yml.erb:5–6`, `template/script.sh.erb:3` | Quality | Not portable |
-| 6 | Stub README (title + contact only) | `README.md` | Structure + Quality | FAIL — not substantive; Documentation: Minimal |
+| 1 | Missing LICENSE | (absent) | Structure | FAIL — STR-01 `missing-license` |
+| 2 | Invalid YAML (unclosed bracket) | `form.yml:3` | Structure | FAIL — STR-03 `yaml-parse-error` — quoted verbatim |
+| 3 | Committed API secret | `template/script.sh.erb:2` | Security | FAIL — OODT-02 `hardcoded-credential`, High |
+| 4 | Service bound to `0.0.0.0` | `template/script.sh.erb:4` | Security | FAIL — OODT-05 `bind-all-interfaces`, Medium–High |
+| 5 | Hardcoded account + partition + absolute path | `submit.yml.erb:5–6`, `template/script.sh.erb:3` | Quality | QUA-02 `hardcoded-account`, `hardcoded-partition`, `hardcoded-path` — Not portable |
+| 6 | Stub README (title + contact only) | `README.md` | Structure + Quality | STR-01 `readme-not-substantive` + QUA-01 `docs-stub` — Minimal |
 
 **Verify:** All 6 findings appear with evidence. Submitter-mode output ends
 with a prioritized fix list, security items first.
@@ -73,8 +73,8 @@ resolution.
 
 | # | Defect | File | Expected aspect | Expected finding |
 |---|--------|------|-----------------|-----------------|
-| 1 | bad-app missing `software` | `appverse.yml` apps[1] | Structure | FAIL — required declared-repo field missing |
-| 2 | bad-app missing `app_type` | `appverse.yml` apps[1] | Structure | FAIL — required declared-repo field missing |
+| 1 | bad-app missing `software` | `appverse.yml` apps[1] | Structure | FAIL — STR-02 `missing-field:software` |
+| 2 | bad-app missing `app_type` | `appverse.yml` apps[1] | Structure | FAIL — STR-02 `missing-field:app_type` |
 
 **Key behavior to verify:**
 
@@ -99,17 +99,17 @@ deeper inspection.
 
 | # | Defect | File | Expected aspect | Expected finding |
 |---|--------|------|-----------------|-----------------|
-| 1 | Site-specific Ruby mixin (`require "account_cache"`) | `form.yml.erb:3` | Quality | Not portable — requires site-specific code |
-| 2 | `input_file` attribute defined but not in `form:` list | `form.yml.erb:37–40` | Quality | WARN — dead code / unused attribute |
-| 3 | `num_cores` allows min 0 | `form.yml.erb:33` | Quality | WARN — can submit a 0-core job |
-| 4 | Form node_type values (`:gpu:gpus=1`, `:hugemem`) don't match submit.yml.erb case branches (`"gpu"`, `"hugemem"`) | `form.yml.erb:27–28` vs `submit.yml.erb:24–30` | Structure | WARN — broken reference; GPU/hugemem resources will never be requested |
-| 5 | `cores_lookup` has entries for `k80_gpu` and `p100_gpu` not in form options | `submit.yml.erb:8–9` | Quality | WARN — dead code |
-| 6 | Hardcoded module versions (`intel/18.0.2`, `mvapich2/2.3`) | `template/script.sh.erb:7–8` | Quality | Not portable |
-| 7 | Uses `$PBS_NODEFILE` (PBS var on a Slurm cluster) | `template/script.sh.erb:18–19` | Quality | WARN — depends on Slurm PBS compatibility shim |
-| 8 | Hardcoded path `/usr/share/Modules/init/bash` | `template/script.sh.erb:4` | Quality | Not portable |
-| 9 | Copy-paste artifact: MATLAB help text in a debugger app | `form.yml.erb:32` | Quality | Correctness & polish — wrong-app reference (`"Number of cores for your MATLAB session"` in an HPC Debugger app) |
-| 10 | Duplicate YAML key: `help:` appears twice on `num_cores` | `form.yml.erb:32,35` | Quality | Correctness & polish — last-wins parsing silently drops the first `help:` value |
-| 11 | CHANGELOG describes a different app (MATLAB, not HPC Debugger) | `CHANGELOG.md` | Quality | Correctness & polish — entire changelog is from a MATLAB app template |
+| 1 | Site-specific Ruby mixin (`require "account_cache"`) | `form.yml.erb:3` | Quality | QUA-02 `site-specific-mixin` — Not portable |
+| 2 | `input_file` attribute defined but not in `form:` list | `form.yml.erb:37–40` | Quality | WARN — QUA-04 `unused-attribute:input_file` |
+| 3 | `num_cores` allows min 0 | `form.yml.erb:33` | Quality | WARN — QUA-07 `zero-minimum` |
+| 4 | Form node_type values (`:gpu:gpus=1`, `:hugemem`) don't match submit.yml.erb case branches (`"gpu"`, `"hugemem"`) | `form.yml.erb:27–28` vs `submit.yml.erb:24–30` | Structure | WARN — STR-04 `form-submit-mismatch` |
+| 5 | `cores_lookup` has entries for `k80_gpu` and `p100_gpu` not in form options | `submit.yml.erb:8–9` | Quality | WARN — QUA-04 `unreachable-lookup-entry` |
+| 6 | Hardcoded module versions (`intel/18.0.2`, `mvapich2/2.3`) | `template/script.sh.erb:7–8` | Quality | QUA-02 `hardcoded-module-version` — Not portable |
+| 7 | Uses `$PBS_NODEFILE` (PBS var on a Slurm cluster) | `template/script.sh.erb:18–19` | Quality | WARN — QUA-02 `hardcoded-cluster` (PBS assumption on Slurm) |
+| 8 | Hardcoded path `/usr/share/Modules/init/bash` | `template/script.sh.erb:4` | Quality | QUA-02 `hardcoded-path` — Not portable |
+| 9 | Copy-paste artifact: MATLAB help text in a debugger app | `form.yml.erb:32` | Quality | QUA-05 `wrong-app-reference` |
+| 10 | Duplicate YAML key: `help:` appears twice on `num_cores` | `form.yml.erb:32,35` | Quality | QUA-06 `duplicate-yaml-key:help` |
+| 11 | CHANGELOG describes a different app (MATLAB, not HPC Debugger) | `CHANGELOG.md` | Quality | QUA-05 `wrong-app-changelog` |
 
 **Key behavior to verify:**
 
@@ -133,16 +133,16 @@ profiles Passenger apps and catches command injection.
 
 | # | Defect | File | Expected aspect | Expected finding |
 |---|--------|------|-----------------|-----------------|
-| 1 | Command injection via `job_id` in `cancel_job` | `app.py:37` | Security | FAIL — OODT-01, High — `f"scancel {job_id}"` with `shell=True`, job_id comes from URL path |
-| 2 | Command injection via `job_id` in `job_detail` | `app.py:47–48` | Security | WARN — uses list form (safer) but job_id is still unvalidated |
-| 3 | Shell script injection via `email` and `job_id` in `set_alert` | `app.py:58–63` | Security | FAIL — OODT-01, Critical — user-provided values interpolated directly into a shell script that gets executed in a loop |
-| 4 | Command injection via `days` query param in `job_history` | `app.py:81` | Security | FAIL — OODT-01, High — `f"sacct -u {user} -S now-{days}days"` with `shell=True`, `days` from query string |
-| 5 | Secret/token storage in `/tmp` | `app.py:11`, `cloud_auth/utils.py:5` | Security | WARN — OODT-02, Medium — `/tmp/$USER` is world-readable parent; scripts contain job context |
-| 6 | Mutable default argument | `cloud_auth/utils.py:8` | Quality | WARN — `errors=[]` is a classic Python bug |
-| 7 | Hardcoded Slurm binary path | `app.py:9` | Quality | Not portable |
-| 8 | Hardcoded SMTP relay | `app.py:10` | Quality | Not portable |
-| 9 | Minimal README (no install/config sections) | `README.md` | Quality | Documentation: Minimal |
-| 10 | No `form.yml` or `appverse.yml`, no `role` in manifest | (absent / `manifest.yml`) | Structure | Repo shape: inferred (manifest.yml present). WARN — `manifest.yml` missing `role` field; app detected as Passenger via `passenger_wsgi.py` entry point |
+| 1 | Command injection via `job_id` in `cancel_job` | `app.py:37` | Security | FAIL — OODT-01 `command-injection`, High |
+| 2 | Command injection via `job_id` in `job_detail` | `app.py:47–48` | Security | WARN — OODT-01 `unsanitized-user-input` |
+| 3 | Shell script injection via `email` and `job_id` in `set_alert` | `app.py:58–63` | Security | FAIL — OODT-01 `eval-exec`, Critical |
+| 4 | Command injection via `days` query param in `job_history` | `app.py:81` | Security | FAIL — OODT-01 `command-injection`, High |
+| 5 | Secret/token storage in `/tmp` | `app.py:11`, `cloud_auth/utils.py:5` | Security | WARN — OODT-02 `credential-file-predictable-path`, Medium |
+| 6 | Mutable default argument | `cloud_auth/utils.py:8` | Quality | WARN — QUA-06 `other:mutable-default-arg` |
+| 7 | Hardcoded Slurm binary path | `app.py:9` | Quality | QUA-02 `hardcoded-path` — Not portable |
+| 8 | Hardcoded SMTP relay | `app.py:10` | Quality | QUA-02 `hardcoded-cluster` — Not portable |
+| 9 | Minimal README (no install/config sections) | `README.md` | Quality | QUA-01 `docs-minimal` |
+| 10 | No `form.yml` or `appverse.yml`, no `role` in manifest | (absent / `manifest.yml`) | Structure | Repo shape: inferred (manifest.yml present). WARN — STR-02 `missing-field:role`; app detected as Passenger via `passenger_wsgi.py` entry point |
 
 **Key behavior to verify:**
 
@@ -167,16 +167,16 @@ portability detection, undefined variables, and container-related security.
 
 | # | Defect | File | Expected aspect | Expected finding |
 |---|--------|------|-----------------|-----------------|
-| 1 | Undefined `csc_*` form attributes (6 of them) referenced but not defined locally | `form.yml.erb:4–9` | Structure | WARN — form references attributes from external framework |
-| 2 | `${app_port}` undefined in echo statements | `template/after.sh:3,5` | Quality | WARN — variable will expand to empty string |
-| 3 | Uses `${port}` (correct) for actual check but `${app_port}` (undefined) for logging | `template/after.sh:3–5` | Quality | WARN — inconsistency |
-| 4 | CORS set to `*` in nginx config | `template/create_nginx_conf.sh.erb:17` | Security | FAIL — OODT-05 Network Exposure, High |
-| 5 | MLflow bound to `0.0.0.0:5000` | `template/script.sh.erb:24` | Security | FAIL — OODT-05 Network Exposure, Medium |
-| 6 | Hardcoded Singularity image paths (3 locations) | `template/script.sh.erb:4–6`, `template/bin/nginx:2` | Quality | Not portable |
-| 7 | Hardcoded CSC environment path | `template/before.sh.erb:2` | Quality | Not portable |
-| 8 | Depends on external functions (`find_port`, `create_passwd`, `singularity_wrapper`) | `template/before.sh.erb:4–5`, `template/script.sh.erb:15,20` | Quality | Not portable — requires CSC OOD utilities |
-| 9 | Incomplete README (no install/config sections) | `README.md` | Quality | Documentation: Minimal |
-| 10 | `tracking_uri` interpolated into server command | `template/script.sh.erb:22` | Security | WARN — user form value reaches command line (low risk since SQLite URI, but worth noting) |
+| 1 | Undefined `csc_*` form attributes (6 of them) referenced but not defined locally | `form.yml.erb:4–9` | Structure | WARN — STR-04 `undefined-attribute:csc_*` |
+| 2 | `${app_port}` undefined in echo statements | `template/after.sh:3,5` | Quality | WARN — QUA-06 `other:undefined-variable` |
+| 3 | Uses `${port}` (correct) for actual check but `${app_port}` (undefined) for logging | `template/after.sh:3–5` | Quality | WARN — QUA-06 `other:variable-inconsistency` |
+| 4 | CORS set to `*` in nginx config | `template/create_nginx_conf.sh.erb:17` | Security | FAIL — OODT-05 `cors-wildcard`, High |
+| 5 | MLflow bound to `0.0.0.0:5000` | `template/script.sh.erb:24` | Security | FAIL — OODT-05 `bind-all-interfaces`, Medium |
+| 6 | Hardcoded Singularity image paths (3 locations) | `template/script.sh.erb:4–6`, `template/bin/nginx:2` | Quality | QUA-02 `hardcoded-path` — Not portable |
+| 7 | Hardcoded CSC environment path | `template/before.sh.erb:2` | Quality | QUA-02 `hardcoded-path` — Not portable |
+| 8 | Depends on external functions (`find_port`, `create_passwd`, `singularity_wrapper`) | `template/before.sh.erb:4–5`, `template/script.sh.erb:15,20` | Quality | QUA-02 `site-specific-mixin` — Not portable |
+| 9 | Incomplete README (no install/config sections) | `README.md` | Quality | QUA-01 `docs-minimal` |
+| 10 | `tracking_uri` interpolated into server command | `template/script.sh.erb:22` | Security | WARN — OODT-01 `unsanitized-user-input`, Low |
 
 **Key behavior to verify:**
 
@@ -202,15 +202,15 @@ exterior.
 
 | # | Defect | File | Expected aspect | Expected finding |
 |---|--------|------|-----------------|-----------------|
-| 1 | `curl -fsSL <user-url> \| bash` — arbitrary remote code execution | `template/script.sh.erb:26` | Security | FAIL — OODT-01 Arbitrary Code Execution, Critical — user provides the URL via a form field |
-| 2 | `eval "pip install <user-packages>"` — command injection via package list | `template/script.sh.erb:15` | Security | FAIL — OODT-01 Arbitrary Code Execution, High — user can inject shell commands as "package names" |
-| 3 | `conda activate <user-env-name>` — unquoted user input in shell | `template/script.sh.erb:7` | Security | WARN — OODT-01, Medium — env name with spaces or metacharacters could cause issues |
-| 4 | Jupyter auth disabled (`--token=''`, `--password=''`) | `template/script.sh.erb:34–35` | Security | FAIL — OODT-05 Network Exposure, High — any user on the compute node can access the notebook |
-| 5 | CORS set to `*` (`--allow_origin='*'`) | `template/script.sh.erb:36` | Security | FAIL — OODT-05 Network Exposure, High |
-| 6 | XSRF protection disabled (`--disable_check_xsrf=True`) | `template/script.sh.erb:37` | Security | FAIL — OODT-05 Network Exposure, High |
-| 7 | Jupyter bound to `0.0.0.0` | `template/script.sh.erb:32` | Security | FAIL — OODT-05 Network Exposure, Medium |
-| 8 | No `set -e` — errors in setup silently ignored | `template/script.sh.erb` | Quality | FAIL — no error handling |
-| 9 | Custom PyPI index URL accepted without validation | `form.yml:21–24`, `template/script.sh.erb:19–20` | Security | WARN — OODT-08 Supply Chain, Medium — user can point pip at an arbitrary package index |
+| 1 | `curl -fsSL <user-url> \| bash` — arbitrary remote code execution | `template/script.sh.erb:26` | Security | FAIL — OODT-01 `curl-pipe-exec`, Critical |
+| 2 | `eval "pip install <user-packages>"` — command injection via package list | `template/script.sh.erb:15` | Security | FAIL — OODT-01 `eval-exec`, High |
+| 3 | `conda activate <user-env-name>` — unquoted user input in shell | `template/script.sh.erb:7` | Security | WARN — OODT-01 `unquoted-variable`, Medium |
+| 4 | Jupyter auth disabled (`--token=''`, `--password=''`) | `template/script.sh.erb:34–35` | Security | FAIL — OODT-05 `disabled-auth`, High |
+| 5 | CORS set to `*` (`--allow_origin='*'`) | `template/script.sh.erb:36` | Security | FAIL — OODT-05 `cors-wildcard`, High |
+| 6 | XSRF protection disabled (`--disable_check_xsrf=True`) | `template/script.sh.erb:37` | Security | FAIL — OODT-05 `disabled-xsrf`, High |
+| 7 | Jupyter bound to `0.0.0.0` | `template/script.sh.erb:32` | Security | FAIL — OODT-05 `bind-all-interfaces`, Medium |
+| 8 | No `set -e` — errors in setup silently ignored | `template/script.sh.erb` | Quality | FAIL — QUA-03 `no-set-e` |
+| 9 | Custom PyPI index URL accepted without validation | `form.yml:21–24`, `template/script.sh.erb:19–20` | Security | WARN — OODT-08 `supply-chain-untrusted-index`, Medium |
 
 **Key behavior to verify:**
 
@@ -257,9 +257,12 @@ categories.
 
 1. Run `/appverse-review:review-app` in submitter mode inside each fixture
 2. Compare findings against the tables above — every planted defect should appear
-3. Check that severity ratings are reasonable (see Expected finding columns)
-4. Check that recommended decisions match the Expected decision column
-5. If a defect is missed or a decision is wrong, tune the relevant aspect skill
+3. Check that rule codes match the expected codes (OODT-XX, STR-XX, QUA-XX, MNT-XX)
+4. Check that `defect_key` mechanism tags match the expected vocabulary terms
+5. Check that severity ratings are reasonable (see Expected finding columns)
+6. Check that recommended decisions match the Expected decision column
+7. Verify the structured JSON block contains all findings from the tables
+8. If a defect is missed or a decision is wrong, tune the relevant aspect skill
    — not the orchestrator — then re-run
 
 When tuning against real previously-reviewed repos (see the design spec's

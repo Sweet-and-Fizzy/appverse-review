@@ -59,4 +59,7 @@ only; rating is review-quality's job), and "Basic Functionality".
 
 ## Output
 
-Findings tables per target-setup.md §4: one repo-level table, one per app.
+**Structured findings** per target-setup.md §4: one repo-level set, one per app.
+Each finding uses an STR-XX rule code and a `defect_key` from the structure
+mechanism-tag vocabulary in
+`${CLAUDE_PLUGIN_ROOT}/references/finding-codes.md`.

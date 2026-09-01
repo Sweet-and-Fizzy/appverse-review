@@ -76,10 +76,11 @@ should look thinner, not identical to a full one.
    are frequently invisible in source. If the app cannot be run (CI, no runtime
    environment), report tier 3 as `NOT CHECKED — requires a running app`.
 7. **Classify all findings.** After all tiers have run, classify every finding
-   under OODT-01..08, rate severity High / Medium / Low, and tag it
-   unintentional or potentially malicious, per the rubric's "Rating findings"
-   section. Use the OODT mapping from the tool lookup table to classify
-   tool-originated findings.
+   under OODT-01..08, rate severity
+   Critical / High / Medium / Low per the rubric's "Rating findings" section
+   and the scale in `${CLAUDE_PLUGIN_ROOT}/references/finding-codes.md`, and
+   tag it unintentional or potentially malicious. Use the OODT mapping from
+   the tool lookup table to classify tool-originated findings.
 
 ## Safe probing
 
@@ -132,8 +133,10 @@ Follow these rules for any runtime verification:
   from a clean scan.
 - The capability profile: a compact File / Capabilities / Anomalies table for
   Batch Connect apps; a short narrative for Passenger apps.
-- Findings tables per target-setup.md §4, with two extra columns: OODT class and
-  severity. Tool-corroborated findings include the tool name and finding ID in
-  the Evidence column.
+- **Structured findings** per target-setup.md §4. Each finding uses an OODT-XX
+  rule code and a `defect_key` from the security mechanism-tag vocabulary in
+  `${CLAUDE_PLUGIN_ROOT}/references/finding-codes.md`. Tool-corroborated
+  findings include the tool name and finding ID in the `summary` field. Tag each
+  finding as unintentional or potentially malicious in the `summary`.
 
 No decisions, no numeric risk scores.

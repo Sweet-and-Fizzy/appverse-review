@@ -7,10 +7,20 @@ own runs it itself.
 ## 1. Target and mode
 
 - A GitHub URL argument — delivered via `$ARGUMENTS` when the skill is invoked
-  as a slash command (`https://github.com/<owner>/<repo>`): **reviewer mode**.
-  Shallow-clone the default branch:
+  as a slash command (`https://github.com/<owner>/<repo>` or
+  `https://github.com/<owner>/<repo>/tree/<ref>`): **reviewer mode**.
 
+  **Resolve the ref to a SHA before cloning.** If the URL includes a ref
+  (branch, tag, or SHA), use it; otherwise default to the repo's default branch.
+  Resolve to a concrete commit SHA so the review is hash-matched to a known tree:
+
+      REF="${ref:-HEAD}"
+      SHA=$(gh api "repos/<owner>/<repo>/commits/$REF" --jq '.sha')
       TMP=$(mktemp -d) && git clone --depth 1 <url> "$TMP/repo"
+      git -C "$TMP/repo" checkout "$SHA"
+
+  If `gh` is unavailable, shallow-clone and read the SHA from the checkout. The
+  SHA must be recorded regardless of method.
 
   - Clone fails / repo not found: tell the user the repo may be private or
     nonexistent; suggest `gh auth login` for private repos. Stop.
@@ -24,11 +34,11 @@ Record the reviewed commit — every review is pinned to it:
 
     git -C <repo path> log -1 --format='%H %cs'
 
-This gives the full SHA and commit date. In submitter mode also note if the
-working tree is dirty (`git status --porcelain` non-empty): report the SHA with
-"+ uncommitted changes". All `file:line` evidence in findings refers to this
-commit; if the repo changes after the review, line numbers are checked against
-this SHA, not the current default branch.
+This gives the full SHA and commit date. The review artifact's `reviewed.sha`
+field is this resolved commit — it is the hash-match anchor for re-review
+and all `file:line` evidence. In submitter mode also note if the working tree
+is dirty (`git status --porcelain` non-empty): report the SHA with
+"+ uncommitted changes".
 
 ## 2. Schema
 
@@ -58,13 +68,60 @@ cached schema was used.
 ## 4. Findings format (all aspect skills)
 
 Aspects report findings, never decisions or verdicts. Output one repo-level
-findings table plus one per app:
+section plus one per app.
 
-| Criterion | Result | Evidence |
-|---|---|---|
+### Structured finding records
 
-- Result: PASS / FAIL / WARN / NOT CHECKED.
-- Evidence: `file:line` plus a short quote or description. Every FAIL/WARN needs
-  evidence.
+Each finding is a discrete record. Output findings as a fenced JSON array
+after any prose tables (ratings, capability profiles) in the aspect's output:
+
+```json
+[
+  {
+    "app_id":      "root",
+    "rule":        "OODT-05",
+    "defect_key":  "template/script.sh.erb:bind-all-interfaces",
+    "aspect":      "security",
+    "severity":    "medium",
+    "result":      "FAIL",
+    "summary":     "MLflow bound to 0.0.0.0:5000, reachable by other users",
+    "evidence":    "template/script.sh.erb:24",
+    "line":        24
+  }
+]
+```
+
+Field definitions:
+
+| Field | Required | Identity (hashed) | Description |
+|---|---|---|---|
+| `app_id` | Yes | Yes | `"root"` for single-app repos; subpath for monorepos |
+| `rule` | Yes | Yes | Code from `finding-codes.md` (OODT-XX, STR-XX, QUA-XX, MNT-XX) |
+| `defect_key` | Yes | Yes | `{anchor}:{mechanism_tag}` per `finding-codes.md` |
+| `aspect` | Yes | No | `security`, `structure`, `quality`, or `maintenance` |
+| `severity` | Yes | No | `critical`, `high`, `medium`, `low`, or `info` |
+| `result` | Yes | No | `FAIL`, `WARN`, `PASS`, or `NOT CHECKED` |
+| `summary` | Yes | No | Human-readable description — display text, not identity |
+| `evidence` | Yes | No | `file:line` plus a short quote. Every FAIL/WARN needs evidence |
+| `line` | No | No | Primary line number (integer), for tooling convenience |
+
+**The skill does not emit an `id` field.** The stable ID is computed
+downstream from the three identity fields (`app_id`, `rule`, `defect_key`)
+using `sha256(app_id + "\0" + rule + "\0" + defect_key)[:16]` (first 16 hex
+characters). See `finding-codes.md` for the full identity design.
+
+### Human-readable table (alongside the JSON)
+
+Also output the traditional table for readability — it is generated from the
+same findings, not written independently:
+
+| Rule | Result | Severity | Summary | Evidence |
+|---|---|---|---|---|
+
+### General rules
+
 - Skip vendored and build directories: `node_modules/`, `vendor/`, `dist/`,
   `.git/`.
+- Every FAIL or WARN must have `evidence` with a `file:line` reference.
+- Use the mechanism-tag vocabulary in `finding-codes.md` for `defect_key`.
+  Novel findings use `other:{short-description}`.

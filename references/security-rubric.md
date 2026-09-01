@@ -105,8 +105,20 @@ contains a lot of single-user damage, so threats that escape the user's own sand
 
 ## Rating findings
 
-For on-demand review, rate each finding's severity qualitatively — **High / Medium /
-Low** — based on blast radius (cross-user or cross-site outranks self-harm) and how
+For on-demand review, rate each finding's severity using the five-level scale defined
+in `finding-codes.md`:
+
+- **Critical** — unfixable without redesigning the feature, or tagged potentially
+  malicious (e.g., `curl|bash` on user-supplied URLs). Warrants a Reject
+  recommendation.
+- **High** — a real vulnerability, fixable with targeted changes (e.g., CORS open to
+  all origins). Warrants Request changes.
+- **Medium** — a genuine concern but lower blast radius or harder to exploit.
+- **Low** — defensive-coding gap or minor hygiene issue.
+- **Info** — positive observations or context (not used for security findings in
+  practice; available for completeness).
+
+Base the rating on blast radius (cross-user or cross-site outranks self-harm) and how
 easily it is triggered. Tag each finding as **unintentional** or **potentially
 malicious**.
 
@@ -117,7 +129,7 @@ profile; score only the unsafe usage.
 
 Severity does not mechanically determine the review decision. A fixable
 misconfiguration — even High severity, such as CORS open to all origins — points to
-"request changes," not "reject." Reserve a reject recommendation for findings tagged
+"request changes," not "reject." Reserve Critical and Reject for findings tagged
 potentially malicious, or exposures that cannot be fixed without redesigning the app.
 
 > The numeric severity/exploitability scoring, the commit-polling audit pipeline, and
