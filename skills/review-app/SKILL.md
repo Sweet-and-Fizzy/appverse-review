@@ -180,7 +180,42 @@ recommendation or the feedback message.
   required-criteria failures first (security findings at the top), then quality
   improvements, each with the file to change.
 
-## 5. Wrap up
+## 5. Emit review metadata
+
+After synthesizing the report, save a small metadata JSON alongside it. This
+is assembled into the full review artifact by `assemble-artifact.py` — the
+orchestrator does not produce the artifact directly.
+
+Save to `review-<owner>-<repo>.meta.json`:
+
+```json
+{
+  "repo_url": "<url or empty for submitter mode>",
+  "sha": "<full SHA from setup>",
+  "ref": "<branch/tag/SHA reviewed>",
+  "repo_shape": "inferred_single | declared_monorepo | declared_single",
+  "not_archived": "pass | fail",
+  "model": "<the model you are running as, e.g. claude-sonnet-4-6>",
+  "recommendation": {
+    "decision": "<Accept | Accept with suggestions | Request changes | Reject>",
+    "note": "<the Overall recommendation paragraph, verbatim>"
+  },
+  "apps": [
+    {
+      "app_id": "root",
+      "name": "<app name from manifest/appverse.yml>",
+      "decision": "<per-app decision, or same as recommendation for single-app>"
+    }
+  ]
+}
+```
+
+For monorepos, include one entry per app in the `apps` array. The `model`
+field is the Claude model ID you are running as — report it directly, do not
+guess. Token counts and cost are not available from the review session; they
+are tracked externally by the API provider.
+
+## 6. Wrap up
 
 - Print the full report (Markdown + structured JSON block) in the conversation.
 - Offer to save the Markdown report as `review-<owner>-<repo>.md` and the

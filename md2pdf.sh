@@ -44,7 +44,33 @@ LUA
 
 # --- typst style header (lined tables, left-aligned text, bold headers) ---
 STYLE_FILE="$(mktemp "${TMPDIR:-/tmp}/review-style.XXXXXX.typ")"
-trap 'rm -f "$STYLE_FILE" "$LUA_FILTER"' EXIT
+
+# --- HTML style (self-contained, stable anchors for deep-linking) ---
+HTML_CSS="$(mktemp "${TMPDIR:-/tmp}/review-style.XXXXXX.css")"
+trap 'rm -f "$STYLE_FILE" "$LUA_FILTER" "$HTML_CSS"' EXIT
+cat > "$HTML_CSS" << 'CSS'
+body { max-width: 52em; margin: 2em auto; padding: 0 1em;
+       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    Helvetica, Arial, sans-serif; font-size: 15px;
+       line-height: 1.6; color: #1a1a1a; }
+h1 { border-bottom: 2px solid #ddd; padding-bottom: 0.3em; }
+h2 { border-bottom: 1px solid #eee; padding-bottom: 0.2em; margin-top: 1.8em; }
+h3 { margin-top: 1.4em; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+th, td { border: 1px solid #ddd; padding: 6px 10px; text-align: left; }
+th { background: #f6f8fa; font-weight: 600; }
+tr:nth-child(even) { background: #fafbfc; }
+code { background: #f0f0f0; padding: 0.15em 0.35em; border-radius: 3px;
+       font-size: 0.9em; }
+pre { background: #f6f8fa; padding: 1em; border-radius: 4px; overflow-x: auto; }
+blockquote { border-left: 3px solid #ddd; margin-left: 0; padding-left: 1em;
+             color: #555; }
+a { color: #0b5cad; }
+#TOC { background: #f9f9f9; border: 1px solid #eee; padding: 1em;
+       border-radius: 4px; margin-bottom: 2em; }
+#TOC ul { list-style: none; padding-left: 1.2em; }
+#TOC > ul { padding-left: 0; }
+CSS
 cat > "$STYLE_FILE" << 'TYPST'
 #set table(
   stroke: 0.5pt + luma(140),
@@ -83,8 +109,23 @@ for md in "${files[@]}"; do
   fi
 
   pdf="${md%.md}.pdf"
+  html="${md%.md}.html"
   name="$(basename "$md")"
 
+  # --- HTML (stable anchors for deep-linking) ---
+  if pandoc "$md" \
+    --standalone \
+    --toc \
+    --css="$HTML_CSS" \
+    --self-contained \
+    --metadata title="" \
+    -o "$html" 2>&1; then
+    echo "  OK  $name -> $(basename "$html")"
+  else
+    echo "WARN  $name -> HTML failed (non-fatal)"
+  fi
+
+  # --- PDF ---
   font_args=()
   [[ -n "$FONT" ]] && font_args+=(-V "mainfont=$FONT")
 
