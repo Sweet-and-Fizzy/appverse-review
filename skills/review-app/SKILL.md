@@ -38,6 +38,11 @@ review-security, review-quality, review-maintenance. Each subagent's prompt:
 > languages/frameworks detected: <e.g., Ruby/Sinatra, Python/Flask, shell>;
 > dependency manifests: <Gemfile.lock, package-lock.json, requirements.txt, or none>;
 > test suite: <command and result, or "none detected">.
+>
+> If a previous review of this repo is available, treat its findings as
+> context only. Verify the current state independently — a fix may be
+> incomplete, may have regressed, or may have introduced a new defect.
+>
 > Return only your findings as structured finding records (per target-setup.md §4)
 > plus any prose tables the skill specifies (capability profile, ratings).
 > Do not make accept or reject judgments.
@@ -74,6 +79,14 @@ one at a time, in the order above.
 | STR-04 | PASS/FAIL | ... | No broken references | ... |
 
 ### Security
+
+**Check tiers:** <Tiers 1–2 | Tiers 1–3 | Tier 1 only>
+<if not all tiers: "Tier N not checked — <reason>">
+
+| Tool | Status | Result |
+|---|---|---|
+<!-- one row per relevant tool from the security aspect's tool-scan summary -->
+
 <capability profile: table for Batch Connect, narrative for Passenger>
 
 | Rule | Result | Severity | Summary | Evidence |
@@ -104,6 +117,13 @@ one at a time, in the order above.
 | Contributors | ... | ... |
 | CHANGELOG | ... | ... |
 | CI | ... | ... |
+
+## Review scope
+
+**Examined:** <list of files, directories, and surfaces that were reviewed>
+**Not examined:** <list of files/surfaces not reached, with reason — e.g.,
+"dashboard-plugin/ (needs a Rails host)", "runtime behavior (CI, no app
+environment)">
 
 ## Catalog checks
 <!-- Query the public JSON:API — see the checklist's "Reading the catalog

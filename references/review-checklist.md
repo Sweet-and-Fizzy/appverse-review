@@ -132,7 +132,7 @@ Every repo, regardless of shape:
 | `maintainer.name` + `maintainer.support_url` | Both required and present. An app without a support URL gives deployers no one to contact — a missing one is a required-criteria failure |
 | `manifest.yml` at the app's subpath | Required for the app to actually run inside OOD |
 
-For Batch Connect Apps: standard OOD structure with expected files (`form.yml`, `submit.yml.erb`, `template/`)
+For Batch Connect Apps: standard OOD structure with expected files (`form.yml` or `form.yml.erb`, `submit.yml.erb`, `template/`). OOD renders `form.yml.erb` at request time, so an app shipping only the `.erb` variant is complete; shipping both is unusual and worth a look
 
 ### 2. Documentation Minimum
 
@@ -165,10 +165,10 @@ pattern checks.
 
 | Check | What to Look For |
 |-------|------------------|
-| `form.yml` is valid YAML | Parses without errors |
+| `form.yml` or `form.yml.erb` is valid | `form.yml` parses without errors; `form.yml.erb` has balanced ERB tags (it cannot be YAML-parsed directly) |
 | `manifest.yml` is valid YAML | Parses without errors |
-| Template scripts are syntactically correct | ERB templates render, shell scripts pass shellcheck (for `.sh.erb`, strip ERB tags first — see [security-tools.md](https://github.com/Sweet-and-Fizzy/appverse-review/blob/main/references/security-tools.md)) |
-| No obviously broken references | Module names, paths, and variables referenced in templates exist in form.yml |
+| Template scripts are syntactically correct | ERB templates render, shell scripts pass `bash -n` (for `.sh.erb`, strip ERB tags first — see [security-tools.md](https://github.com/Sweet-and-Fizzy/appverse-review/blob/main/references/security-tools.md)). Shellcheck is a best-effort tier 2 tool — run it when available, but its absence does not fail this criterion |
+| No obviously broken references | Module names, paths, and variables referenced in templates exist in `form.yml` or `form.yml.erb` |
 
 ## Quality Criteria
 
@@ -200,7 +200,7 @@ These are evaluated on a scale. An app doesn't need to be perfect, but the more 
 | Check | Status |
 |-------|--------|
 | Error handling in scripts (`set -e` or explicit checks) | |
-| No magic numbers without comments | |
+| No undocumented magic numbers or hardcoded literals (resource limits, tunables, ports, hex colors, module versions) without comments | |
 | No large blocks of duplicated code | |
 | No commented-out dead code | |
 | Input validation on form fields (min/max/required) | |

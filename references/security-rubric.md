@@ -1,11 +1,9 @@
 # Appverse Security Rubric
 
 The canonical security criteria for Appverse app review. Used by the
-`review-security` skill today, and by the automated audit pipeline (see the
-[security-audit proposal](https://github.com/Sweet-and-Fizzy/ood-appverse/blob/main/docs/appverse-security-audit-proposal.md))
-later. Extracted from that proposal; the proposal covers the threat model, the
-automated pipeline, numeric scoring, and catalog badges, while this file is the
-shared rubric both consume.
+`review-security` skill today, and by the automated audit pipeline later. This
+file is the shared rubric both consume; the threat model, the automated pipeline,
+numeric scoring, and catalog badges are defined elsewhere.
 
 Two complementary methods, both feeding the same threat classification:
 
@@ -76,6 +74,8 @@ These catch capabilities used unsafely, across all app types.
 | Services bound to `0.0.0.0` or `::` | Accessible to other users on shared nodes | Network Exposure |
 | `--no-auth` or missing authentication on network services | Other users can connect | Network Exposure |
 | CORS open to all origins | Any site can make requests to the app | Network Exposure |
+| State-changing endpoints with no CSRF defense | A cross-origin page can drive writes as a logged-in user; OOD's default cookie auth attaches the session automatically | Network Exposure |
+| Authentication enforced on some routes but not all | A surface mounted outside the app's auth filter serves endpoints unauthenticated | Network Exposure |
 | `--disable-ssl` or security features turned off | Weakens security with no explanation | Insecure Configuration |
 | Default or empty passwords | Predictable credentials on exposed services | Insecure Configuration |
 | Framework security features disabled (CSP, host checking) | Removes built-in protections | Insecure Configuration |
@@ -133,7 +133,6 @@ misconfiguration — even High severity, such as CORS open to all origins — po
 potentially malicious, or exposures that cannot be fixed without redesigning the app.
 
 > The numeric severity/exploitability scoring, the commit-polling audit pipeline, and
-> the catalog security badges live with the
-> [security-audit proposal](https://github.com/Sweet-and-Fizzy/ood-appverse/blob/main/docs/appverse-security-audit-proposal.md),
-> not in this rubric. Both the on-demand skill and that pipeline classify findings
-> with the same OODT taxonomy and pattern checks above.
+> the catalog security badges are defined separately, not in this rubric. Both the
+> on-demand skill and that pipeline classify findings with the same OODT taxonomy and
+> pattern checks above.

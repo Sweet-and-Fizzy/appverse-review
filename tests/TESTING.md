@@ -33,7 +33,7 @@ fixtures since they have no remote origin. That is expected.
 |---------|----------|-------------------|-------------------|
 | [broken-app](#1-broken-app) | Batch Connect (inferred) | Basic required-criteria failures + planted secrets | Request changes or Reject |
 | [monorepo](#2-monorepo) | Declared monorepo (2 apps) | Per-app review with mixed outcomes | Mixed: Accept (good-app), Request changes (bad-app) |
-| [vnc-stale-debugger](#3-vnc-stale-debugger) | Batch Connect VNC (inferred) | Subtle quality issues behind a passing structure | Accept with suggestions or Request changes |
+| [vnc-stale-debugger](#3-vnc-stale-debugger) | Batch Connect VNC (inferred) | Subtle quality issues + correctness-&-polish defects behind a passing structure | Accept with suggestions or Request changes |
 | [passenger-flask-app](#4-passenger-flask-app) | Passenger/Flask (inferred) | Command injection in a non-Batch-Connect app | Reject or Request changes |
 | [containerized-server](#5-containerized-server) | Batch Connect basic (inferred) | Portability failures + container security | Request changes |
 | [curl-pipe-installer](#6-curl-pipe-installer) | Batch Connect basic (inferred) | Critical security behind polished documentation | Reject |
@@ -100,13 +100,16 @@ deeper inspection.
 | # | Defect | File | Expected aspect | Expected finding |
 |---|--------|------|-----------------|-----------------|
 | 1 | Site-specific Ruby mixin (`require "account_cache"`) | `form.yml.erb:3` | Quality | QUA-02 `site-specific-mixin` — Not portable |
-| 2 | `input_file` attribute defined but not in `form:` list | `form.yml.erb:35–38` | Quality | WARN — QUA-04 `unused-attribute:input_file` |
-| 3 | `num_cores` allows min 0 | `form.yml.erb:32` | Quality | WARN — QUA-07 `zero-minimum` |
+| 2 | `input_file` attribute defined but not in `form:` list | `form.yml.erb:37–40` | Quality | WARN — QUA-04 `unused-attribute:input_file` |
+| 3 | `num_cores` allows min 0 | `form.yml.erb:33` | Quality | WARN — QUA-07 `zero-minimum` |
 | 4 | Form node_type values (`:gpu:gpus=1`, `:hugemem`) don't match submit.yml.erb case branches (`"gpu"`, `"hugemem"`) | `form.yml.erb:27–28` vs `submit.yml.erb:24–30` | Structure | WARN — STR-04 `form-submit-mismatch` |
 | 5 | `cores_lookup` has entries for `k80_gpu` and `p100_gpu` not in form options | `submit.yml.erb:8–9` | Quality | WARN — QUA-04 `unreachable-lookup-entry` |
 | 6 | Hardcoded module versions (`intel/18.0.2`, `mvapich2/2.3`) | `template/script.sh.erb:7–8` | Quality | QUA-02 `hardcoded-module-version` — Not portable |
 | 7 | Uses `$PBS_NODEFILE` (PBS var on a Slurm cluster) | `template/script.sh.erb:18–19` | Quality | WARN — QUA-02 `hardcoded-cluster` (PBS assumption on Slurm) |
 | 8 | Hardcoded path `/usr/share/Modules/init/bash` | `template/script.sh.erb:4` | Quality | QUA-02 `hardcoded-path` — Not portable |
+| 9 | Copy-paste artifact: MATLAB help text in a debugger app | `form.yml.erb:32` | Quality | QUA-05 `wrong-app-reference` |
+| 10 | Duplicate YAML key: `help:` appears twice on `num_cores` | `form.yml.erb:32,35` | Quality | QUA-06 `duplicate-yaml-key:help` |
+| 11 | CHANGELOG describes a different app (MATLAB, not HPC Debugger) | `CHANGELOG.md` | Quality | QUA-05 `wrong-app-changelog` |
 
 **Key behavior to verify:**
 
@@ -139,12 +142,12 @@ profiles Passenger apps and catches command injection.
 | 7 | Hardcoded Slurm binary path | `app.py:9` | Quality | QUA-02 `hardcoded-path` — Not portable |
 | 8 | Hardcoded SMTP relay | `app.py:10` | Quality | QUA-02 `hardcoded-cluster` — Not portable |
 | 9 | Minimal README (no install/config sections) | `README.md` | Quality | QUA-01 `docs-minimal` |
-| 10 | No `form.yml` or `appverse.yml` | (absent) | Structure | FAIL — STR-01 `missing-form` (unless the skill recognizes Passenger apps via manifest role) |
+| 10 | No `form.yml` or `appverse.yml`, no `role` in manifest | (absent / `manifest.yml`) | Structure | Repo shape: inferred (manifest.yml present). WARN — STR-02 `missing-field:role`; app detected as Passenger via `passenger_wsgi.py` entry point |
 
 **Key behavior to verify:**
 
-- The security skill profiles this as a Passenger app (no `role` in manifest,
-  or tool/dashboard type)
+- The security skill profiles this as a Passenger app (detected via
+  `passenger_wsgi.py` entry point; `manifest.yml` has no `role` field — WARN)
 - subprocess usage is *reported* in the capability profile but not flagged on
   its own — a job management tool is expected to call Slurm commands
 - The *way* subprocess is used (unvalidated user input + `shell=True`) IS
@@ -234,7 +237,7 @@ categories.
 |--------|-----------|----------|-----------|-----------|-----------|-----------|
 | **Structure** | FAIL (LICENSE, YAML) | FAIL (metadata) | PASS | FAIL (no form) | WARN (ext attrs) | PASS |
 | **Security** | High (secret, 0.0.0.0) | PASS | PASS | Critical (injection) | High (CORS, 0.0.0.0) | Critical (curl\|bash, eval) |
-| **Quality** | Minimal docs, Not portable | PASS / mixed | Adequate docs, Not portable | Minimal docs, Not portable | Minimal docs, Not portable | Strong docs, meh quality |
+| **Quality** | Minimal docs, Not portable | PASS / mixed | Adequate docs, Not portable, copy-paste artifacts | Minimal docs, Not portable | Minimal docs, Not portable | Strong docs, meh quality |
 | **Maintenance** | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED |
 
 | OODT Category | Covered by |
