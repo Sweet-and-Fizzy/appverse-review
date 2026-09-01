@@ -181,8 +181,10 @@ jobs:
                ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.md
             2. Write the structured findings JSON array to
                ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.findings.json
-               (the fenced JSON block from the report, saved as a standalone file).
                Do NOT include an `id` field — IDs are computed in a later step.
+            3. Write the review metadata JSON to
+               ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.meta.json
+               (see review-app/SKILL.md §5 for the format).
 
       - name: Generate dry-run report
         if: inputs.review_aspects == 'dry-run'
@@ -247,7 +249,7 @@ jobs:
             echo "::warning::No findings JSON found — review may not have produced structured output"
           fi
 
-      - name: Generate PDF from review
+      - name: Generate PDF and HTML from review
         if: always()
         run: |
           MD_FILE="${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.md"
@@ -257,11 +259,50 @@ jobs:
             echo "No review markdown found, skipping PDF generation"
           fi
 
+      - name: Assemble review artifact
+        if: inputs.review_aspects != 'dry-run'
+        run: |
+          SLUG="${{ steps.params.outputs.repo_slug }}"
+          WS="${{ github.workspace }}"
+          META_FILE="${WS}/review-${SLUG}.meta.json"
+          FINDINGS_FILE="${WS}/review-${SLUG}.findings.json"
+          MD_FILE="${WS}/review-${SLUG}.md"
+          PDF_FILE="${WS}/review-${SLUG}.pdf"
+          HTML_FILE="${WS}/review-${SLUG}.html"
+          ARTIFACT_FILE="${WS}/review-${SLUG}.artifact.json"
+          PLUGIN_VERSION=$(python3 -c "import json; print(json.load(open('${WS}/appverse-review/.claude-plugin/plugin.json'))['version'])")
+
+          if [ -f "$META_FILE" ]; then
+            FINDINGS_ARG=""
+            if [ -f "$FINDINGS_FILE" ]; then
+              FINDINGS_ARG="--findings $FINDINGS_FILE"
+            fi
+            PDF_ARG=""
+            if [ -f "$PDF_FILE" ]; then
+              PDF_ARG="--pdf $PDF_FILE"
+            fi
+            HTML_ARG=""
+            if [ -f "$HTML_FILE" ]; then
+              HTML_ARG="--html $HTML_FILE"
+            fi
+            python3 "${WS}/appverse-review/references/assemble-artifact.py" \
+              --meta "$META_FILE" \
+              $FINDINGS_ARG \
+              --md "$MD_FILE" \
+              $PDF_ARG \
+              $HTML_ARG \
+              --plugin-version "$PLUGIN_VERSION" \
+              > "$ARTIFACT_FILE"
+            echo "Assembled review artifact: $(wc -c < "$ARTIFACT_FILE") bytes"
+          else
+            echo "::warning::No metadata JSON found — cannot assemble artifact"
+          fi
+
       - name: List generated files
         if: always()
         run: |
           echo "=== Workspace root ==="
-          ls -la ${{ github.workspace }}/review-*.md ${{ github.workspace }}/review-*.pdf ${{ github.workspace }}/review-*.findings.json 2>/dev/null || echo "No review files in workspace root"
+          ls -la ${{ github.workspace }}/review-*.md ${{ github.workspace }}/review-*.pdf ${{ github.workspace }}/review-*.html ${{ github.workspace }}/review-*.json 2>/dev/null || echo "No review files in workspace root"
           echo "=== Temp directory ==="
           ls -la /home/runner/work/_temp/claude-execution-output.json 2>/dev/null || echo "No execution log"
 
@@ -273,6 +314,9 @@ jobs:
           path: |
             ${{ github.workspace }}/review-*.md
             ${{ github.workspace }}/review-*.pdf
+            ${{ github.workspace }}/review-*.html
             ${{ github.workspace }}/review-*.findings.json
+            ${{ github.workspace }}/review-*.meta.json
+            ${{ github.workspace }}/review-*.artifact.json
             /home/runner/work/_temp/claude-execution-output.json
           if-no-files-found: warn
