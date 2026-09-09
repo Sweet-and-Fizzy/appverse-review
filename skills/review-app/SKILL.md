@@ -216,6 +216,14 @@ recorded, stop and add it to the appropriate findings table first, then
 summarize it here. A problem must never appear for the first time in the
 recommendation or the feedback message.
 
+**Inclusion floor.** Every finding at Low severity or above, and every failed
+required (gate) criterion, must be represented in the Draft Feedback.
+Info-level polish (e.g. an undocumented hex constant) may be summarized in one
+line or omitted. The feedback is a prioritized note, not a copy of the
+findings table — but it must not silently drop a real fix-item. (This
+complements the Derived-only rule: feedback ⊆ findings, and now fix-level
+findings ⊆ feedback.)
+
 - **Reviewer mode:** append a draft contributor feedback message using the
   checklist's feedback guidance (specific, references files, links the README
   template or best-practices guide where relevant). Plain prose paragraphs,
