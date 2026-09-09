@@ -70,6 +70,21 @@ one at a time, in the order above.
 
 ## App: <name> (<subpath>)
 
+### Signals
+
+| Dimension | Level | Evidence |
+|---|---|---|
+| Security | Low / Medium / High | <one-line phrase from the security findings> |
+| Portability | Low / Medium / High | <one-line phrase> |
+| Documentation | Low / Medium / High | <one-line phrase> |
+
+<!-- DERIVE the level from the aspect ratings, do not invent it:
+     Security: no findings = Low; low-severity only = Medium; any Medium/High finding = High.
+     Portability: Portable = Low; Partially portable = Medium; Not portable = High.
+     Documentation: Strong/Exemplary = Low; Adequate = Medium; Minimal = High.
+     Low = good/low-concern; High = most to read. Never invert; never style High as a hazard.
+     Monorepo: one Signals block PER app. No repo-level signal aggregate. -->
+
 ### Structure
 | Rule | Result | Severity | Summary | Evidence |
 |---|---|---|---|---|
@@ -93,14 +108,21 @@ one at a time, in the order above.
 |---|---|---|---|---|
 | OODT-XX | FAIL/WARN | high/medium/low | <description> | file:line |
 
-### Quality
-- Documentation: <rating> — <one-line justification>
-- Portability: <rating> — <one-line justification>
-- Code quality: <met/missed checkboxes with evidence>
+### Portability
+- Rating: <Not portable | Partially portable | Portable> — <one-line justification>
+<!-- Portability findings, each with file:line -->
 
-| Rule | Result | Severity | Summary | Evidence |
-|---|---|---|---|---|
-| QUA-XX | FAIL/WARN | ... | <description> | file:line |
+### Documentation
+- Rating: <Minimal | Adequate | Strong | Exemplary> — <one-line justification>
+<!-- Documentation findings, each with file:line -->
+
+### Code Quality
+<!-- code-quality checkboxes AND correctness-&-polish defects (copy-paste artifacts,
+     duplicate YAML keys, wrong help text, README typos), each with file:line.
+     Code Quality is a findings category that feeds the decision rubric — it is NOT a signal dimension. -->
+
+| Finding | Type | Result | Evidence |
+|---|---|---|---|
 
 **Per-app decision:** <Accept | Accept with suggestions | Request changes | Reject>
 <!-- Monorepos only: one line per app, rolled up by the Overall recommendation
@@ -117,6 +139,11 @@ one at a time, in the order above.
 | Contributors | ... | ... |
 | CHANGELOG | ... | ... |
 | CI | ... | ... |
+
+| Dimension | Level | Evidence |
+|---|---|---|
+| Upkeep (repo-level) | Low / Medium / High | <one-line phrase> |
+<!-- Upkeep: active within 12mo + 2+ good-practice signals = Low; active within 12mo = Medium; inactive > 12mo = High. -->
 
 ## Review scope
 
