@@ -130,9 +130,10 @@ string; if unavailable, write `unknown`.
 |---|---|---|---|
 
 **Per-app decision:** <Accept | Accept with suggestions | Request changes | Reject>
-<!-- Monorepos only: one line per app, rolled up by the Overall recommendation
-     below. Single-app repos: omit this line — the Overall recommendation is the
-     decision. -->
+<!-- This is a decision, derived from the required criteria and finding
+     properties above — not from the Signals block. Monorepos only: one line
+     per app, rolled up by the Overall recommendation below. Single-app repos:
+     omit this line — the Overall recommendation is the decision. -->
 
 ## Maintenance signals
 
@@ -173,15 +174,27 @@ environment)">
   <result>
 
 ## Overall recommendation
+
+The recommendation is the reviewer's decision, derived from the required
+(gate) criteria and finding properties — NOT from the signal levels. Signals
+describe the app for a deployer; they do not gate listing. A High signal never
+forces a reject.
+
 <one paragraph. Single-app repos: the decision and its rationale. Monorepos:
 roll up the per-app decisions above. Draw only on findings already recorded in
 the tables — do not introduce new problems here.>
 ```
 
-Apply the decision rules in the checklist's Step 3 (Decision) table — including
-how it treats security findings and its condition that an Accept is pending any
-catalog check that could not be run. Follow the checklist's framing rather than
-a separate copy here.
+Apply the decision rubric below (from the checklist's Step 3):
+
+| Outcome | Criteria |
+|---------|----------|
+| **Accept** | Passes all required criteria, adequate+ documentation, partially portable+ config. Always conditional on the duplicate/catalog checks the review cannot perform — word any Accept as pending those. |
+| **Accept with suggestions** | Passes required criteria but has clear improvement areas. A below-target Documentation or Portability rating belongs here, not Request changes, when required criteria are otherwise met. |
+| **Request changes** | Missing a required (gate) criterion but fixable. A fixable security misconfiguration, even High severity (e.g. CORS open to all origins), is Request changes, not Reject. |
+| **Reject** | Duplicate app, no license, abandoned/unmaintained, not an OOD app, or a security finding tagged potentially malicious or unfixable without redesigning the app. |
+
+Follow the checklist's framing (Step 3) rather than a separate copy here.
 
 ### Structured findings block
 
