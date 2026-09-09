@@ -59,13 +59,11 @@ string; if unavailable, write `unknown`.
 ```markdown
 # Appverse Review: <repo name>
 
-**Reviewed:** `<full SHA>` (<commit date>) · **Reviewed with:** appverse-review @ <plugin version> (`<appverse-review HEAD short SHA, captured at run time>`) · **Rubric:** https://openondemand.connectci.org/appverse-security-rubric
+**Repository:** <url or path>  **Mode:** reviewer|submitter  **Date:** <today>
+**Reviewed commit:** `<full SHA>` (<commit date>)  **Repo shape:** declared monorepo (N apps) | declared single app | inferred single app
+**Reviewed with:** appverse-review @ <plugin version> (`<appverse-review HEAD short SHA, captured at run time>`) · **Rubric:** https://openondemand.connectci.org/appverse-security-rubric
 
 > _Disclaimer: This is an automated review with human curation. It is provided without warranty of any kind and does not certify the app as secure or fit for any purpose. A listing is not an endorsement._
-
-**Repository:** <url or path>  **Mode:** reviewer|submitter  **Date:** <today>
-**Reviewed commit:** `<full SHA>` (<commit date>)
-**Repo shape:** declared monorepo (N apps) | declared single app | inferred single app
 
 ## Repo-level required criteria
 
