@@ -52,8 +52,16 @@ one at a time, in the order above.
 
 ## 3. Synthesize the report
 
+Capture the appverse-review plugin's own HEAD short-SHA at run time (e.g.
+`git -C ${CLAUDE_PLUGIN_ROOT} rev-parse --short HEAD`) for the provenance
+string; if unavailable, write `unknown`.
+
 ```markdown
 # Appverse Review: <repo name>
+
+**Reviewed:** `<full SHA>` (<commit date>) · **Reviewed with:** appverse-review @ <plugin version> (`<appverse-review HEAD short SHA, captured at run time>`) · **Rubric:** https://openondemand.connectci.org/appverse-security-rubric
+
+> _Disclaimer: This is an automated review with human curation. It is provided without warranty of any kind and does not certify the app as secure or fit for any purpose. A listing is not an endorsement._
 
 **Repository:** <url or path>  **Mode:** reviewer|submitter  **Date:** <today>
 **Reviewed commit:** `<full SHA>` (<commit date>)
@@ -66,7 +74,6 @@ one at a time, in the order above.
 | STR-01 | PASS/FAIL | README.md — ... |
 | STR-01 | PASS/FAIL | LICENSE — ... |
 | — | PASS/FAIL/NOT CHECKED | Repo not archived |
-| — | PASS/FAIL/N-A | shared_paths security review |
 
 ## App: <name> (<subpath>)
 

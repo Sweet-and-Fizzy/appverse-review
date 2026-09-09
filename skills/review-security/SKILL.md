@@ -39,6 +39,9 @@ should look thinner, not identical to a full one.
    `template/**`, `connection.yml`, container definitions. Passenger: the full
    application source (routes, controllers, views, config, scripts). Always
    include `shared_paths`. List binary files that cannot be audited.
+   If the app declares `shared_paths`, include those directories in the
+   security review scope. `shared_paths` is scope input, not a pass/fail
+   criterion.
 3. **Tier 1 — Capability profile.** Catalog what the code actually does: system
    access, network calls, file reads and writes, spawned processes, dynamic code
    loading, authentication posture.
@@ -133,6 +136,9 @@ Follow these rules for any runtime verification:
   from a clean scan.
 - The capability profile: a compact File / Capabilities / Anomalies table for
   Batch Connect apps; a short narrative for Passenger apps.
+
+### Findings
+
 - **Structured findings** per target-setup.md §4. Each finding uses an OODT-XX
   rule code and a `defect_key` from the security mechanism-tag vocabulary in
   `${CLAUDE_PLUGIN_ROOT}/references/finding-codes.md`. Tool-corroborated
