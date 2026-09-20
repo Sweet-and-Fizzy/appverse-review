@@ -113,6 +113,13 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # With a token supplied the action skips its OIDC app-token exchange.
+          # That exchange refuses any workflow file that differs from the
+          # default branch and the action then exits "success" without running,
+          # so a workflow change could never be tested from a branch. The job
+          # token is also read-only (permissions: contents: read), which is all
+          # a review of an untrusted repo should hold.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           plugin_marketplaces: "./appverse-review/"
           plugins: "appverse-review"
           claude_args: "--max-turns 100 --model claude-${{ inputs.model }}-4-6"
@@ -341,3 +348,29 @@ jobs:
             ${{ github.workspace }}/review-*.artifact.json
             /home/runner/work/_temp/claude-execution-output.json
           if-no-files-found: warn
+
+      # Last, so the diagnostics above are uploaded either way. Every earlier
+      # step tolerates a missing file with a warning, which let a run that did
+      # no work finish green; consumers polling the run conclusion need red.
+      - name: Verify review outputs
+        if: always() && inputs.review_aspects != 'dry-run'
+        env:
+          REVIEW_ASPECTS: ${{ inputs.review_aspects }}
+          PREFIX: ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}
+        run: |
+          required="md"
+          if [ "$REVIEW_ASPECTS" = "all" ]; then
+            required="md findings.json meta.json artifact.json"
+          fi
+          missing=0
+          for ext in $required; do
+            if [ ! -s "${PREFIX}.${ext}" ]; then
+              echo "::error::Review output missing or empty: review-<slug>.${ext}"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "The review did not produce its outputs. See the 'Run AppVerse review' step log."
+            exit 1
+          fi
+          echo "All required review outputs present: ${required}"
