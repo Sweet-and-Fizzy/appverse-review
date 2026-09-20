@@ -30,7 +30,42 @@ from collections import defaultdict
 from datetime import datetime, timezone
 
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
+
+SOLID = "solid"
+SOME_NOTES = "some_notes"
+NEEDS_ATTENTION = "needs_attention"
+
+SEVERITY_ORDER = ["critical", "high", "medium", "low", "info"]
+SECURITY_ATTENTION_SEVERITIES = {"critical", "high", "medium"}
+
+GRADE_LEVELS = {
+    "documentation": {
+        "minimal": NEEDS_ATTENTION,
+        "adequate": SOME_NOTES,
+        "strong": SOLID,
+        "exemplary": SOLID,
+    },
+    "portability": {
+        "not_portable": NEEDS_ATTENTION,
+        "partially_portable": SOME_NOTES,
+        "portable": SOLID,
+    },
+}
+
+# A below-threshold finding beside a top grade means the aspect skill
+# contradicted itself.
+GRADE_RULES = {"documentation": "QUA-01", "portability": "QUA-02"}
+
+# The report states signals as Low/Medium/High; the artifact level is the
+# machine value behind each.
+REPORTED_SIGNAL_LEVELS = {
+    "low": SOLID,
+    "medium": SOME_NOTES,
+    "high": NEEDS_ATTENTION,
+}
+
+MAINTENANCE_ANCHOR = "#maintenance-signals"
 
 REPO_CRITERIA_MECHANISMS = {
     "missing-license": "license",
@@ -80,6 +115,97 @@ def derive_app_criteria(app_findings):
     return criteria
 
 
+def _warn(message):
+    print("warning: {}".format(message), file=sys.stderr)
+
+
+def _anchor(slug, app_index):
+    # Every app repeats the same report headings; pandoc de-duplicates the
+    # second and later occurrences as slug-1, slug-2, ...
+    if app_index == 0:
+        return "#{}".format(slug)
+    return "#{}-{}".format(slug, app_index)
+
+
+def _normalize_grade(grade):
+    return str(grade).lower().strip().replace(" ", "_").replace("-", "_")
+
+
+def derive_security_indicator(app_findings, app_index):
+    # Findings carry no category field, so security findings are the OODT- rules.
+    severities = [
+        str(f.get("severity", "")).lower()
+        for f in app_findings
+        if f.get("rule", "").startswith("OODT-")
+    ]
+    if not severities:
+        level = SOLID
+        summary = "No security findings"
+    else:
+        if any(s in SECURITY_ATTENTION_SEVERITIES for s in severities):
+            level = NEEDS_ATTENTION
+        else:
+            level = SOME_NOTES
+        labels = SEVERITY_ORDER + sorted(set(severities) - set(SEVERITY_ORDER))
+        summary = ", ".join(
+            "{} {}".format(severities.count(s), s.capitalize())
+            for s in labels
+            if s in severities
+        )
+    return {"level": level, "summary": summary, "anchor": _anchor("security", app_index)}
+
+
+def derive_grade_indicator(axis, app_id, assessments, app_findings, app_index):
+    grade = assessments.get(axis)
+    level = GRADE_LEVELS[axis].get(_normalize_grade(grade))
+    if level is None:
+        _warn("app '{}': unrecognized {} grade '{}'; indicator omitted".format(
+            app_id, axis, grade))
+        return None
+    rule = GRADE_RULES[axis]
+    if level == SOLID and any(f.get("rule") == rule for f in app_findings):
+        _warn("app '{}': {} finding present but {} grade is '{}'".format(
+            app_id, rule, axis, grade))
+    return {
+        "level": level,
+        "summary": assessments.get("{}_summary".format(axis), ""),
+        "anchor": _anchor(axis, app_index),
+    }
+
+
+def derive_maintenance_indicator(assessment, repo_findings):
+    summary = assessment.get("summary", "")
+    stale = any(f.get("rule") == "MNT-01" for f in repo_findings)
+    waived = bool(assessment.get("waiver_brand_new"))
+    if stale:
+        level = NEEDS_ATTENTION
+        if waived:
+            _warn("MNT-01 finding contradicts the brand-new-app waiver; MNT-01 wins")
+    elif waived:
+        level = SOME_NOTES
+        if "waiver" not in summary.lower():
+            summary = "{} (brand-new-app waiver)".format(summary).strip()
+    elif assessment.get("active_within_12mo"):
+        # No open issues leaves issues_responded null, which counts in favor.
+        good_signals = sum(
+            1 for name, value in assessment.get("signals", {}).items()
+            if value is True or (name == "issues_responded" and value is None)
+        )
+        level = SOLID if good_signals >= 2 else SOME_NOTES
+    else:
+        level = NEEDS_ATTENTION
+    return {"level": level, "summary": summary, "anchor": MAINTENANCE_ANCHOR}
+
+
+def cross_check_reported(scope, reported, indicators):
+    for axis, stated in (reported or {}).items():
+        expected = REPORTED_SIGNAL_LEVELS.get(str(stated).lower().strip())
+        computed = indicators.get(axis, {}).get("level")
+        if expected and computed and expected != computed:
+            _warn("{}: report states {} signal '{}' but computed level is {}".format(
+                scope, axis, stated, computed))
+
+
 def split_findings_by_app(findings):
     by_app = defaultdict(list)
     repo_level = []
@@ -112,7 +238,8 @@ def assemble(meta, findings, md_path, pdf_path, html_path, plugin_version):
         recommendation["decision"] = normalize_decision(recommendation["decision"])
 
     apps = []
-    for app_meta in meta.get("apps", []):
+    apps_without_assessments = []
+    for app_index, app_meta in enumerate(meta.get("apps", [])):
         app_id = app_meta.get("app_id", "root")
         app_f = app_findings_map.get(app_id, [])
         app_entry = {
@@ -123,7 +250,43 @@ def assemble(meta, findings, md_path, pdf_path, html_path, plugin_version):
         }
         if "decision" in app_meta:
             app_entry["decision"] = normalize_decision(app_meta["decision"])
+
+        # Indicators are all-or-nothing per app: without the quality grades a
+        # lone security level would read as a complete assessment.
+        assessments = app_meta.get("assessments")
+        if assessments:
+            indicators = {"security": derive_security_indicator(app_f, app_index)}
+            for axis in ("portability", "documentation"):
+                indicator = derive_grade_indicator(axis, app_id, assessments, app_f, app_index)
+                if indicator:
+                    indicators[axis] = indicator
+            cross_check_reported(
+                "app '{}'".format(app_id), app_meta.get("reported_signals"), indicators)
+            app_entry["indicators"] = indicators
+        else:
+            apps_without_assessments.append(app_id)
         apps.append(app_entry)
+
+    if apps_without_assessments:
+        _warn("no assessments in meta for app(s) {}; indicators omitted".format(
+            ", ".join(apps_without_assessments)))
+
+    repo_level = {
+        "findings": repo_findings,
+        "criteria": repo_criteria,
+    }
+    maintenance_assessment = meta.get("maintenance_assessment")
+    if maintenance_assessment:
+        repo_indicators = {
+            "maintenance": derive_maintenance_indicator(maintenance_assessment, repo_findings),
+        }
+        cross_check_reported(
+            "repo",
+            {"maintenance": maintenance_assessment.get("reported_signal")},
+            repo_indicators)
+        repo_level["indicators"] = repo_indicators
+    else:
+        _warn("no maintenance_assessment in meta; repo-level indicators omitted")
 
     if not apps and app_findings_map:
         for app_id, app_f in app_findings_map.items():
@@ -145,10 +308,7 @@ def assemble(meta, findings, md_path, pdf_path, html_path, plugin_version):
             "repo_shape": meta.get("repo_shape", "unknown"),
         },
         "recommendation": recommendation,
-        "repo_level": {
-            "findings": repo_findings,
-            "criteria": repo_criteria,
-        },
+        "repo_level": repo_level,
         "apps": apps,
         "artifacts": {
             "report_md": md_path or "",
