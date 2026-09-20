@@ -43,8 +43,10 @@ review-security, review-quality, review-maintenance. Each subagent's prompt:
 > context only. Verify the current state independently — a fix may be
 > incomplete, may have regressed, or may have introduced a new defect.
 >
-> Return only your findings as structured finding records (per target-setup.md §4)
-> plus any prose tables the skill specifies (capability profile, ratings).
+> Return your findings as structured finding records (per target-setup.md §4),
+> any prose tables the skill specifies (capability profile, ratings), and any
+> fenced JSON block the skill's Output section specifies (the quality aspect's
+> assessments block, the maintenance aspect's maintenance assessment block).
 > Do not make accept or reject judgments.
 
 If subagent dispatch is unavailable, run the four aspect skill files yourself,
