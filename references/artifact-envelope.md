@@ -104,7 +104,7 @@ stderr and still assemble.
   },
 
   "repo_level": {
-    "findings": [ /* maintenance findings (MNT-XX) */ ],
+    "findings": [ /* maintenance findings (MNT-XX) and repo-wide findings */ ],
     "criteria": {
       "license": "pass | fail",
       "readme_substantive": "pass | fail",
@@ -155,10 +155,17 @@ stderr and still assemble.
 
 - **`recommendation`** is the tool's suggestion, never the human verdict. The
   `decision` is normalized to snake_case by `assemble-artifact.py`.
-- **`repo_level.findings`** contains maintenance findings only — maintenance is
-  a repo-level signal, not per-app.
+- **`repo_level.findings`** contains the maintenance findings (maintenance is a
+  repo-level signal, not per-app) and any finding whose `app_id` names no app in
+  `apps[]`. In a monorepo the apps are subpaths, so a repo-wide finding filed
+  under `root` — a `shared_paths` entry that does not exist, say — lands here.
+  An unmatched `app_id` other than `root` also lands here, with a stderr
+  warning, since it is probably a typo. Every finding in `findings.json` appears
+  in the artifact exactly once.
 - **`apps[].findings`** contains structure, security, and quality findings,
   filtered by `app_id`.
+- **`artifacts`** holds filenames, not paths. The reports travel beside the
+  artifact; the directory they were written to during the run is dropped.
 - **`apps[].criteria`** is derived from findings by `assemble-artifact.py` —
   an STR-03 FAIL sets `yaml_valid: "fail"`, etc. The orchestrator does not
   produce criteria directly.

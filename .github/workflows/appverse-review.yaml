@@ -106,6 +106,7 @@ jobs:
             echo "target_sha=$(git -C target-repo rev-parse HEAD)"
             echo "target_commit_date=$(git -C target-repo log -1 --format=%cs)"
             echo "plugin_sha=$(git -C appverse-review rev-parse --short HEAD)"
+            echo "plugin_version=$(python3 -c "import json; print(json.load(open('appverse-review/.claude-plugin/plugin.json'))['version'])")"
           } >> "$GITHUB_OUTPUT"
 
       - name: Run AppVerse review
@@ -195,7 +196,9 @@ jobs:
             These values are already resolved; use them as given rather
             than running git for them:
             - Reviewed commit: ${{ steps.params.outputs.target_sha }} (${{ steps.params.outputs.target_commit_date }})
-            - appverse-review plugin commit: ${{ steps.params.outputs.plugin_sha }}
+            - appverse-review plugin: version ${{ steps.params.outputs.plugin_version }}, commit ${{ steps.params.outputs.plugin_sha }}
+              (so the report's "Reviewed with" line reads
+              appverse-review @ ${{ steps.params.outputs.plugin_version }} (`${{ steps.params.outputs.plugin_sha }}`))
 
             This is a non-interactive run: the session ends the moment your
             turn ends, and any sub-agent still running is abandoned with its

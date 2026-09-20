@@ -413,6 +413,52 @@ check "unknown grade: documentation indicator omitted" "False" "$DOCS_UNKNOWN"
 grep -q "excellent" "$TMP/warn10.txt" && GRADEWARN=yes || GRADEWARN=no
 check "unknown grade named on stderr" "yes" "$GRADEWARN"
 
+# --- Test 11: no finding is lost ---
+echo ""
+echo "Test 11: findings whose app_id matches no app"
+# In a monorepo the apps are subpaths, so a repo-wide structure finding carries
+# app_id "root" and matches none of them. It belongs at repo level; it must not
+# vanish between findings.json and the artifact.
+cat > "$TMP/findings-orphan.json" << 'EOF'
+[
+  {"app_id":"app-a","rule":"OODT-08","defect_key":"Gemfile.lock:known-cve","aspect":"security","severity":"low","result":"WARN","summary":"Old excon","evidence":"Gemfile.lock:9"},
+  {"app_id":"root","rule":"STR-04","defect_key":"app-templates/:other:missing-shared-path-dir","aspect":"structure","severity":"medium","result":"FAIL","summary":"shared_paths entry does not exist","evidence":"appverse.yml:43"},
+  {"app_id":"apps/typo","rule":"QUA-03","defect_key":"template/run.sh.erb:no-set-e","aspect":"quality","severity":"low","result":"WARN","summary":"No error handling","evidence":"template/run.sh.erb:1"},
+  {"app_id":"root","rule":"MNT-03","defect_key":"CHANGELOG:no-changelog","aspect":"maintenance","severity":"info","result":"WARN","summary":"No CHANGELOG","evidence":"(no file)"}
+]
+EOF
+ART11=$(python3 "$ASSEMBLE" --meta "$TMP/meta-ind.json" --findings "$TMP/findings-orphan.json" --md "r.md" --plugin-version "0.3.0" 2> "$TMP/warn11.txt")
+
+TOTAL_OUT=$(echo "$ART11" | jget "len(d['repo_level']['findings']) + sum(len(a['findings']) for a in d['apps'])")
+check "4 findings in, 4 findings out" "4" "$TOTAL_OUT"
+
+ORPHAN_RULES=$(echo "$ART11" | jget "sorted(f['rule'] for f in d['repo_level']['findings'])")
+check "unmatched findings land at repo level" "['MNT-03', 'QUA-03', 'STR-04']" "$ORPHAN_RULES"
+
+APP_A_RULES=$(echo "$ART11" | jget "[f['rule'] for f in d['apps'][0]['findings']]")
+check "matched finding stays with its app" "['OODT-08']" "$APP_A_RULES"
+
+grep -q "apps/typo" "$TMP/warn11.txt" && ORPHANWARN=yes || ORPHANWARN=no
+check "unmatched app_id named on stderr" "yes" "$ORPHANWARN"
+# "root" in a monorepo is the normal home of a repo-wide finding, not a mistake;
+# warning on it would fire on every monorepo and teach people to ignore stderr.
+grep -q "'root'" "$TMP/warn11.txt" && ROOTWARN=yes || ROOTWARN=no
+check "repo-wide 'root' findings do not warn" "no" "$ROOTWARN"
+
+# --- Test 12: report paths are filenames ---
+echo ""
+echo "Test 12: report paths"
+# CI passes absolute runner paths; a consumer finds the reports beside the
+# artifact, so only the filename means anything outside the run.
+ART12=$(python3 "$ASSEMBLE" --meta "$TMP/meta-ind.json" --findings "$TMP/findings-ind.json" \
+  --md "/home/runner/work/x/review-o-r.md" --pdf "/home/runner/work/x/review-o-r.pdf" --html "sub/dir/review-o-r.html" \
+  --plugin-version "0.3.0" 2> "$TMP/warn12.txt")
+check "report_md is a filename" "review-o-r.md" "$(echo "$ART12" | jget "d['artifacts']['report_md']")"
+check "report_pdf is a filename" "review-o-r.pdf" "$(echo "$ART12" | jget "d['artifacts']['report_pdf']")"
+check "report_html is a filename" "review-o-r.html" "$(echo "$ART12" | jget "d['artifacts']['report_html']")"
+ART12B=$(python3 "$ASSEMBLE" --meta "$TMP/meta-ind.json" --findings "$TMP/findings-ind.json" --md "r.md" --plugin-version "0.3.0" 2> /dev/null)
+check "omitted report path stays empty" "" "$(echo "$ART12B" | jget "d['artifacts']['report_pdf']")"
+
 echo ""
 echo "Done: $pass passed, $fail failed."
 [ "$fail" -eq 0 ]

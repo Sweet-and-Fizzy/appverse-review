@@ -25,6 +25,7 @@ If --plugin-version is omitted, it defaults to "unknown".
 
 import argparse
 import json
+import os
 import sys
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -271,6 +272,18 @@ def assemble(meta, findings, md_path, pdf_path, html_path, plugin_version):
         _warn("no assessments in meta for app(s) {}; indicators omitted".format(
             ", ".join(apps_without_assessments)))
 
+    # A finding whose app_id names no app in meta would otherwise be in neither
+    # list. In a monorepo that is every repo-wide finding filed under "root",
+    # which is expected; any other unmatched id is probably a typo.
+    if apps:
+        known_app_ids = {app["app_id"] for app in apps}
+        for app_id, app_f in app_findings_map.items():
+            if app_id not in known_app_ids:
+                if app_id != "root":
+                    _warn("{} finding(s) with app_id '{}' match no app in meta; "
+                          "kept at repo level".format(len(app_f), app_id))
+                repo_findings.extend(app_f)
+
     repo_level = {
         "findings": repo_findings,
         "criteria": repo_criteria,
@@ -310,10 +323,12 @@ def assemble(meta, findings, md_path, pdf_path, html_path, plugin_version):
         "recommendation": recommendation,
         "repo_level": repo_level,
         "apps": apps,
+        # Filenames only: the reports travel beside the artifact, and the path
+        # they had on the machine that ran the review means nothing elsewhere.
         "artifacts": {
-            "report_md": md_path or "",
-            "report_pdf": pdf_path or "",
-            "report_html": html_path or "",
+            "report_md": os.path.basename(md_path or ""),
+            "report_pdf": os.path.basename(pdf_path or ""),
+            "report_html": os.path.basename(html_path or ""),
         },
         "run_meta": {
             "model": meta.get("model", "unknown"),
