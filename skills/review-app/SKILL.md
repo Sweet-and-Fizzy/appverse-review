@@ -52,12 +52,18 @@ one at a time, in the order above.
 
 ## 3. Synthesize the report
 
+Capture the appverse-review plugin's own HEAD short-SHA at run time (e.g.
+`git -C ${CLAUDE_PLUGIN_ROOT} rev-parse --short HEAD`) for the provenance
+string; if unavailable, write `unknown`.
+
 ```markdown
 # Appverse Review: <repo name>
 
 **Repository:** <url or path>  **Mode:** reviewer|submitter  **Date:** <today>
-**Reviewed commit:** `<full SHA>` (<commit date>)
-**Repo shape:** declared monorepo (N apps) | declared single app | inferred single app
+**Reviewed commit:** `<full SHA>` (<commit date>)  **Repo shape:** declared monorepo (N apps) | declared single app | inferred single app
+**Reviewed with:** appverse-review @ <plugin version> (`<appverse-review HEAD short SHA, captured at run time>`) · **Rubric:** https://openondemand.connectci.org/appverse-security-rubric
+
+> _Disclaimer: This is an automated review with human curation. It is provided without warranty of any kind and does not certify the app as secure or fit for any purpose. A listing is not an endorsement._
 
 ## Repo-level required criteria
 
@@ -66,9 +72,23 @@ one at a time, in the order above.
 | STR-01 | PASS/FAIL | README.md — ... |
 | STR-01 | PASS/FAIL | LICENSE — ... |
 | — | PASS/FAIL/NOT CHECKED | Repo not archived |
-| — | PASS/FAIL/N-A | shared_paths security review |
 
 ## App: <name> (<subpath>)
+
+### Signals
+
+| Dimension | Level | Evidence |
+|---|---|---|
+| Security | Low / Medium / High | <one-line phrase from the security findings> |
+| Portability | Low / Medium / High | <one-line phrase> |
+| Documentation | Low / Medium / High | <one-line phrase> |
+
+<!-- DERIVE the level from the aspect ratings, do not invent it:
+     Security: no findings = Low; low-severity only = Medium; any Medium/High finding = High.
+     Portability: Portable = Low; Partially portable = Medium; Not portable = High.
+     Documentation: Strong/Exemplary = Low; Adequate = Medium; Minimal = High.
+     Low = good/low-concern; High = most to read. Never invert; never style High as a hazard.
+     Monorepo: one Signals block PER app. No repo-level signal aggregate. -->
 
 ### Structure
 | Rule | Result | Severity | Summary | Evidence |
@@ -93,19 +113,27 @@ one at a time, in the order above.
 |---|---|---|---|---|
 | OODT-XX | FAIL/WARN | high/medium/low | <description> | file:line |
 
-### Quality
-- Documentation: <rating> — <one-line justification>
-- Portability: <rating> — <one-line justification>
-- Code quality: <met/missed checkboxes with evidence>
+### Portability
+- Rating: <Not portable | Partially portable | Portable> — <one-line justification>
+<!-- Portability findings, each with file:line -->
 
-| Rule | Result | Severity | Summary | Evidence |
-|---|---|---|---|---|
-| QUA-XX | FAIL/WARN | ... | <description> | file:line |
+### Documentation
+- Rating: <Minimal | Adequate | Strong | Exemplary> — <one-line justification>
+<!-- Documentation findings, each with file:line -->
+
+### Code Quality
+<!-- code-quality checkboxes AND correctness-&-polish defects (copy-paste artifacts,
+     duplicate YAML keys, wrong help text, README typos), each with file:line.
+     Code Quality is a findings category that feeds the decision rubric — it is NOT a signal dimension. -->
+
+| Finding | Type | Result | Evidence |
+|---|---|---|---|
 
 **Per-app decision:** <Accept | Accept with suggestions | Request changes | Reject>
-<!-- Monorepos only: one line per app, rolled up by the Overall recommendation
-     below. Single-app repos: omit this line — the Overall recommendation is the
-     decision. -->
+<!-- This is a decision, derived from the required criteria and finding
+     properties above — not from the Signals block. Monorepos only: one line
+     per app, rolled up by the Overall recommendation below. Single-app repos:
+     omit this line — the Overall recommendation is the decision. -->
 
 ## Maintenance signals
 
@@ -117,6 +145,11 @@ one at a time, in the order above.
 | Contributors | ... | ... |
 | CHANGELOG | ... | ... |
 | CI | ... | ... |
+
+| Dimension | Level | Evidence |
+|---|---|---|
+| Upkeep (repo-level) | Low / Medium / High | <one-line phrase> |
+<!-- Upkeep: active within 12mo + 2+ good-practice signals = Low; active within 12mo = Medium; inactive > 12mo = High. -->
 
 ## Review scope
 
@@ -141,15 +174,27 @@ environment)">
   <result>
 
 ## Overall recommendation
+
+The recommendation is the reviewer's decision, derived from the required
+(gate) criteria and finding properties — NOT from the signal levels. Signals
+describe the app for a deployer; they do not gate listing. A High signal never
+forces a reject.
+
 <one paragraph. Single-app repos: the decision and its rationale. Monorepos:
 roll up the per-app decisions above. Draw only on findings already recorded in
 the tables — do not introduce new problems here.>
 ```
 
-Apply the decision rules in the checklist's Step 3 (Decision) table — including
-how it treats security findings and its condition that an Accept is pending any
-catalog check that could not be run. Follow the checklist's framing rather than
-a separate copy here.
+Apply the decision rubric below (from the checklist's Step 3):
+
+| Outcome | Criteria |
+|---------|----------|
+| **Accept** | Passes all required criteria, adequate+ documentation, partially portable+ config. Always conditional on the duplicate/catalog checks the review cannot perform — word any Accept as pending those. |
+| **Accept with suggestions** | Passes required criteria but has clear improvement areas. A below-target Documentation or Portability rating belongs here, not Request changes, when required criteria are otherwise met. |
+| **Request changes** | Missing a required (gate) criterion but fixable. A fixable security misconfiguration, even High severity (e.g. CORS open to all origins), is Request changes, not Reject. |
+| **Reject** | Duplicate app, no license, abandoned/unmaintained, not an OOD app, or a security finding tagged potentially malicious or unfixable without redesigning the app. |
+
+Follow the checklist's framing (Step 3) rather than a separate copy here.
 
 ### Structured findings block
 
@@ -170,6 +215,14 @@ table). If while writing the feedback you notice a real defect that is not yet
 recorded, stop and add it to the appropriate findings table first, then
 summarize it here. A problem must never appear for the first time in the
 recommendation or the feedback message.
+
+**Inclusion floor.** Every finding at Low severity or above, and every failed
+required (gate) criterion, must be represented in the Draft Feedback.
+Info-level polish (e.g. an undocumented hex constant) may be summarized in one
+line or omitted. The feedback is a prioritized note, not a copy of the
+findings table — but it must not silently drop a real fix-item. (This
+complements the Derived-only rule: feedback ⊆ findings, and now fix-level
+findings ⊆ feedback.)
 
 - **Reviewer mode:** append a draft contributor feedback message using the
   checklist's feedback guidance (specific, references files, links the README
