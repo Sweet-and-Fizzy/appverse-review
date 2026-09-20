@@ -1,5 +1,7 @@
 .DS_Store
 notes/
+.conscience/
+__pycache__/
 
 
 # Secrets and credentials

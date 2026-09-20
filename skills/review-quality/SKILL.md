@@ -65,3 +65,22 @@ the correctness-&-polish defects. Each finding uses a QUA-XX rule code and a
 
 Note which target-for-inclusion thresholds (Adequate+ docs, Partially portable+)
 are not met — as findings (QUA-01 / QUA-02), not decisions.
+
+Then one **assessments block** per app, as a fenced JSON block:
+
+```json
+{
+  "app_id": "<app_id>",
+  "assessments": {
+    "documentation": "minimal | adequate | strong | exemplary",
+    "documentation_summary": "<the one-line justification>",
+    "portability": "not_portable | partially_portable | portable",
+    "portability_summary": "<the one-line justification>"
+  }
+}
+```
+
+These are the two ratings above restated — same rating, same justification.
+The block exists because a rating that meets its target produces no finding, so
+the findings array alone cannot tell Strong from Adequate. Field definitions:
+`${CLAUDE_PLUGIN_ROOT}/references/artifact-envelope.md` ("Indicator inputs").

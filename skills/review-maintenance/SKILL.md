@@ -44,3 +44,40 @@ requirements — a missing release is a suggestion, never a failure. Apply the
 brand-new-app waiver where relevant and say so. Don't invent your own severity
 scale, and keep labels consistent with the checklist and with your other
 findings.
+
+Then one **maintenance assessment block**, as a fenced JSON block:
+
+```json
+{
+  "maintenance_assessment": {
+    "active_within_12mo": true,
+    "waiver_brand_new": false,
+    "signals": {
+      "releases": true,
+      "changelog": false,
+      "ci": true,
+      "multiple_contributors": true,
+      "issues_responded": null
+    },
+    "summary": "<one-line evidence phrase, e.g. Active, 3 releases, CI green>"
+  }
+}
+```
+
+| Field | Value |
+|---|---|
+| `active_within_12mo` | `true` when the last push or commit is within 12 months |
+| `waiver_brand_new` | `true` only when you are applying the checklist's brand-new-app waiver |
+| `signals.releases` | `true` when the repo has at least one release |
+| `signals.changelog` | `true` when a CHANGELOG is present and current |
+| `signals.ci` | `true` when CI configuration is present |
+| `signals.multiple_contributors` | `true` when there is more than one contributor |
+| `signals.issues_responded` | `true` when open issues have responses; `null` when there are no open issues |
+
+A signal marked NOT CHECKED is `false`, and the `summary` names the signals that
+were not checked. `null` is reserved for `issues_responded` with no open issues:
+it counts in the repo's favor, so it must not stand in for "could not verify".
+
+When `active_within_12mo` is `false` and no waiver applies, the findings include
+MNT-01. Field definitions:
+`${CLAUDE_PLUGIN_ROOT}/references/artifact-envelope.md` ("Indicator inputs").

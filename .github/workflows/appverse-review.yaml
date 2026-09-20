@@ -100,15 +100,30 @@ jobs:
           fi
           REPO_SLUG=$(echo "$TARGET_REPO" | tr '/' '-')
           echo "repo_slug=${REPO_SLUG}" >> "$GITHUB_OUTPUT"
+          # Resolved here rather than by the model: the review's Bash allowlist
+          # has no rule that matches `git -C <path> ...`.
+          {
+            echo "target_sha=$(git -C target-repo rev-parse HEAD)"
+            echo "target_commit_date=$(git -C target-repo log -1 --format=%cs)"
+            echo "plugin_sha=$(git -C appverse-review rev-parse --short HEAD)"
+            echo "plugin_version=$(python3 -c "import json; print(json.load(open('appverse-review/.claude-plugin/plugin.json'))['version'])")"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Run AppVerse review
         if: inputs.review_aspects != 'dry-run'
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # With a token supplied the action skips its OIDC app-token exchange.
+          # That exchange refuses any workflow file that differs from the
+          # default branch and the action then exits "success" without running,
+          # so a workflow change could never be tested from a branch. The job
+          # token is also read-only (permissions: contents: read), which is all
+          # a review of an untrusted repo should hold.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           plugin_marketplaces: "./appverse-review/"
           plugins: "appverse-review"
-          claude_args: "--max-turns 50 --model claude-${{ inputs.model }}-4-6"
+          claude_args: "--max-turns 100 --model claude-${{ inputs.model }}-4-6"
           show_full_output: ${{ inputs.debug }}
           settings: |
             {
@@ -142,9 +157,15 @@ jobs:
                   "Bash(cd:*)",
                   "Bash(for:*)",
                   "Bash(touch:*)",
+                  "WebFetch(domain:openondemand.connectci.org)",
+                  "WebFetch(domain:raw.githubusercontent.com)",
                   "Read",
                   "Write",
                   "Edit"
+                ],
+                "deny": [
+                  "Task(run_in_background:true)",
+                  "Agent(run_in_background:true)"
                 ]
               }
             }
@@ -172,9 +193,19 @@ jobs:
             ${{ github.workspace }}/target-repo/ — use that path instead of
             re-cloning. This is reviewer mode.
 
-            IMPORTANT: Do NOT end your turn until you have written the
-            final report file. If you spawn sub-agents, wait for ALL of
-            them to complete and synthesize their results before ending.
+            These values are already resolved; use them as given rather
+            than running git for them:
+            - Reviewed commit: ${{ steps.params.outputs.target_sha }} (${{ steps.params.outputs.target_commit_date }})
+            - appverse-review plugin: version ${{ steps.params.outputs.plugin_version }}, commit ${{ steps.params.outputs.plugin_sha }}
+              (so the report's "Reviewed with" line reads
+              appverse-review @ ${{ steps.params.outputs.plugin_version }} (`${{ steps.params.outputs.plugin_sha }}`))
+
+            This is a non-interactive run: the session ends the moment your
+            turn ends, and any sub-agent still running is abandoned with its
+            work lost. Launch sub-agents in the foreground
+            (run_in_background: false) so each call returns its result to
+            you; background launches are denied here. Your turn ends only
+            after the three files below are written.
 
             After the review completes:
             1. Write the full report to
@@ -320,3 +351,29 @@ jobs:
             ${{ github.workspace }}/review-*.artifact.json
             /home/runner/work/_temp/claude-execution-output.json
           if-no-files-found: warn
+
+      # Last, so the diagnostics above are uploaded either way. Every earlier
+      # step tolerates a missing file with a warning, which let a run that did
+      # no work finish green; consumers polling the run conclusion need red.
+      - name: Verify review outputs
+        if: always() && inputs.review_aspects != 'dry-run'
+        env:
+          REVIEW_ASPECTS: ${{ inputs.review_aspects }}
+          PREFIX: ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}
+        run: |
+          required="md"
+          if [ "$REVIEW_ASPECTS" = "all" ]; then
+            required="md findings.json meta.json artifact.json"
+          fi
+          missing=0
+          for ext in $required; do
+            if [ ! -s "${PREFIX}.${ext}" ]; then
+              echo "::error::Review output missing or empty: review-<slug>.${ext}"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "The review did not produce its outputs. See the 'Run AppVerse review' step log."
+            exit 1
+          fi
+          echo "All required review outputs present: ${required}"

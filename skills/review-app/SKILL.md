@@ -43,8 +43,10 @@ review-security, review-quality, review-maintenance. Each subagent's prompt:
 > context only. Verify the current state independently — a fix may be
 > incomplete, may have regressed, or may have introduced a new defect.
 >
-> Return only your findings as structured finding records (per target-setup.md §4)
-> plus any prose tables the skill specifies (capability profile, ratings).
+> Return your findings as structured finding records (per target-setup.md §4),
+> any prose tables the skill specifies (capability profile, ratings), and any
+> fenced JSON block the skill's Output section specifies (the quality aspect's
+> assessments block, the maintenance aspect's maintenance assessment block).
 > Do not make accept or reject judgments.
 
 If subagent dispatch is unavailable, run the four aspect skill files yourself,
@@ -84,11 +86,15 @@ string; if unavailable, write `unknown`.
 | Documentation | Low / Medium / High | <one-line phrase> |
 
 <!-- DERIVE the level from the aspect ratings, do not invent it:
-     Security: no findings = Low; low-severity only = Medium; any Medium/High finding = High.
+     Security: count OODT findings only. None = Low; Low or Info severity only = Medium;
+       any Medium, High, or Critical = High.
      Portability: Portable = Low; Partially portable = Medium; Not portable = High.
      Documentation: Strong/Exemplary = Low; Adequate = Medium; Minimal = High.
      Low = good/low-concern; High = most to read. Never invert; never style High as a hazard.
-     Monorepo: one Signals block PER app. No repo-level signal aggregate. -->
+     Monorepo: one Signals block PER app. No repo-level signal aggregate.
+     These are the rules in ${CLAUDE_PLUGIN_ROOT}/references/artifact-envelope.md
+     ("Indicators"). assemble-artifact.py computes the same levels from the
+     findings and grades, and warns when a level written here disagrees. -->
 
 ### Structure
 | Rule | Result | Severity | Summary | Evidence |
@@ -149,7 +155,11 @@ string; if unavailable, write `unknown`.
 | Dimension | Level | Evidence |
 |---|---|---|
 | Upkeep (repo-level) | Low / Medium / High | <one-line phrase> |
-<!-- Upkeep: active within 12mo + 2+ good-practice signals = Low; active within 12mo = Medium; inactive > 12mo = High. -->
+<!-- Upkeep, first match wins: an MNT-01 finding = High; brand-new-app waiver
+     applied = Medium (say so in the evidence phrase); active within 12mo + 2+
+     good-practice signals = Low; active within 12mo = Medium; otherwise High.
+     No open issues counts as a good-practice signal. The artifact calls this
+     dimension `maintenance`. -->
 
 ## Review scope
 
@@ -184,6 +194,13 @@ forces a reject.
 roll up the per-app decisions above. Draw only on findings already recorded in
 the tables — do not introduce new problems here.>
 ```
+
+Every `## App:` section has all six subsection headings, in the order shown
+(Signals, Structure, Security, Portability, Documentation, Code Quality). Under
+a heading with nothing to report, write `No findings.` List the apps in the same
+order here and in the metadata JSON (§5). The artifact's indicators deep-link to
+these headings by position, so a missing heading or a reordered app sends a
+reader to the wrong app's section.
 
 Apply the decision rubric below (from the checklist's Step 3):
 
@@ -257,11 +274,42 @@ Save to `review-<owner>-<repo>.meta.json`:
     {
       "app_id": "root",
       "name": "<app name from manifest/appverse.yml>",
-      "decision": "<per-app decision, or same as recommendation for single-app>"
+      "decision": "<per-app decision, or same as recommendation for single-app>",
+      "assessments": {
+        "documentation": "minimal | adequate | strong | exemplary",
+        "documentation_summary": "<one-line evidence phrase>",
+        "portability": "not_portable | partially_portable | portable",
+        "portability_summary": "<one-line evidence phrase>"
+      },
+      "reported_signals": {
+        "security": "Low | Medium | High",
+        "portability": "Low | Medium | High",
+        "documentation": "Low | Medium | High"
+      }
     }
-  ]
+  ],
+  "maintenance_assessment": {
+    "active_within_12mo": true,
+    "waiver_brand_new": false,
+    "signals": {
+      "releases": true,
+      "changelog": false,
+      "ci": true,
+      "multiple_contributors": true,
+      "issues_responded": null
+    },
+    "summary": "<one-line evidence phrase>",
+    "reported_signal": "Low | Medium | High"
+  }
 }
 ```
+
+`assessments` is the quality aspect's assessments block for that app and
+`maintenance_assessment` is the maintenance aspect's block — copy each as the
+aspect emitted it, without re-grading. `reported_signals` and `reported_signal`
+are the levels you wrote in the report's Signals blocks and Upkeep row. Field
+definitions: `${CLAUDE_PLUGIN_ROOT}/references/artifact-envelope.md`
+("Indicator inputs"). If an aspect did not run, leave its block out.
 
 For monorepos, include one entry per app in the `apps` array. The `model`
 field is the Claude model ID you are running as — report it directly, do not
