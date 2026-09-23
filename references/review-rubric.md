@@ -86,6 +86,7 @@ Every repo, regardless of shape:
 | `LICENSE` exists | Open source license present (MIT recommended) |
 | Repo shape is identifiable | Root `appverse.yml` (declared) or root `manifest.yml` (inferred) — see Repo shapes |
 | Repo is not archived on GitHub | An archived repo cannot be maintained |
+| Repository is public and accessible | A private or inaccessible repo cannot be listed; the catalog links to it |
 
 README and LICENSE are checked once at repo level. In a monorepo the apps share
 them; an app-level README at a subpath is welcome but is not required by this
@@ -105,7 +106,7 @@ several:
 |-------|------------------|
 | `description` | Present |
 | `software` | Present (checked here). It must also match a catalog Software entry to be listed — see the Reviewer Process, Software entry check, for what to do when it doesn't |
-| `app_type` | A known value (see the [appverse.yml reference](https://github.com/Sweet-and-Fizzy/ood-appverse/blob/main/docs/appverse.yml)) |
+| `app_type` | A known value in the catalog's app-type vocabulary; likewise every `implementation_tags` entry must be a known value (see the [appverse.yml reference](https://github.com/Sweet-and-Fizzy/ood-appverse/blob/main/docs/appverse.yml) and the Reviewer Process, "Reading the catalog without a login") |
 | `maintainer.name` + `maintainer.support_url` | Both required and present. An app without a support URL gives deployers no one to contact — a missing one fails this gate |
 | `manifest.yml` at the app's subpath | Required for the app to actually run inside OOD |
 

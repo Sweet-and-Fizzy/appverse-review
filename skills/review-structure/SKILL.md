@@ -23,8 +23,8 @@ yours; README depth is review-quality's job.
 
 ## Per-app checks (use the resolved field set from setup)
 
-- Required metadata fields for the repo shape, per the rubric's Repository
-  Structure section.
+- Required metadata fields for the repo shape, per the rubric's "Repository
+  structure" section.
 - `app_type` and `implementation_tags` are known values. The schema names the
   vocabularies but does not enumerate them; query the catalog's public JSON:API
   for the current terms (see the Reviewer Process doc,

@@ -11,7 +11,7 @@ This repo is also the canonical home of the Appverse
 
 ## Who this is for
 
-- **Reviewers** — run a complete checklist review of a submitted repo and get a
+- **Reviewers** — run a complete rubric-based review of a submitted repo and get a
   structured report, a recommended decision, and a draft feedback message.
 - **Contributors** — check your own app repo before submitting and get a
   prioritized fix list.

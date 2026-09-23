@@ -227,7 +227,7 @@ complements the Derived-only rule: feedback ⊆ findings, and now fix-level
 findings ⊆ feedback.)
 
 - **Reviewer mode:** append a draft contributor feedback message using the
-  Reviewer Process's feedback guidance (Step 4) (specific, references files, links the README
+  Reviewer Process's Step 4 feedback guidance (specific, references files, links the README
   template or best-practices guide where relevant). Plain prose paragraphs,
   ready to paste into a Drupal moderation comment or GitHub issue. Label it
   "Draft feedback — edit before sending."

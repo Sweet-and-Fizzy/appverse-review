@@ -32,13 +32,15 @@ since the report was run, get a fresh report before doing anything else.
 ## Step 1: Gate the app
 
 Decide whether this app belongs in the catalog at all, before reading about its
-quality.
+quality. These are catalog-suitability screens; the two that are hard requirements
+(public repository, open source license) are also gate criteria in the rubric's
+Structure section, where the automated review checks them.
 
 Ask these questions first, before evaluating quality:
 
 | Question | If No... |
 |----------|----------|
-| Does this app serve software not already in the catalog? | See "Duplicate Check" below |
+| Does this app serve software not already in the catalog? | See "Duplicate check" below |
 | Is the repository public and accessible? | Cannot be included — public repo required |
 | Does it have an open source license? | Cannot be included — license required |
 | Is there a maintainer who will respond to issues? | Flag as a risk — orphaned apps hurt the catalog |
@@ -137,7 +139,7 @@ taking them on trust. Spot-check that:
    documentation level, portability, and any copy-paste artifacts or typos.
 4. Upkeep signals are current — last commit, releases, CI, CHANGELOG.
 5. The duplicate check is settled — the review cannot see the catalog, so this is
-   the reviewer's to confirm (see Duplicate Check above).
+   the reviewer's to confirm (see Duplicate check above).
 
 Trust the report's structure but verify its substance; if a finding does not
 hold, correct it before it reaches the contributor.
