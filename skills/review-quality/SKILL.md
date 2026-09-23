@@ -6,9 +6,11 @@ argument-hint: "[github-url]"
 
 # Quality Review (aspect)
 
-Criteria: `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` — section
-"Quality Criteria" (Documentation Quality, Configuration Portability, Code
-Quality), including the target-for-inclusion thresholds.
+Criteria: `${CLAUDE_PLUGIN_ROOT}/references/review-rubric.md` — sections
+"Portability", "Documentation", and "Code Quality", including the
+target-for-inclusion thresholds and the named checks (`check: …`) in each.
+Run every named check in those sections and record a finding for each one
+that fails, with `file:line` evidence.
 
 **Setup:** Use the orchestrator's prepared target if provided; otherwise follow
 `${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` first.
@@ -16,7 +18,7 @@ Quality), including the target-for-inclusion thresholds.
 ## Per-app assessment
 
 - **Documentation**: rate Minimal / Adequate / Strong / Exemplary against the
-  checklist's documentation table and its four README questions (what does it
+  rubric's Documentation table and its four README questions (what does it
   launch, what must be installed, how to deploy, what to customize). One-line
   justification citing README sections present or missing.
 - **Configuration portability**: rate Not portable / Partially portable /
@@ -27,9 +29,9 @@ Quality), including the target-for-inclusion thresholds.
   explicit checks), form input validation (min/max/required), no uncommented
   magic numbers / undocumented literals, no large duplicated blocks, no
   commented-out dead code, ERB templates handle missing or empty values
-  gracefully. The checklist's Code Quality section says which of these are
+  gracefully. The rubric's Code Quality section says which of these are
   targets for inclusion and which are improvement suggestions — weight each
-  finding the way the checklist frames it, rather than applying your own
+  finding the way the rubric frames it, rather than applying your own
   severity scale, and keep the labels consistent with findings you record
   elsewhere in the review.
 

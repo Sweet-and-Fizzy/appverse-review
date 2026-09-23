@@ -6,9 +6,9 @@ argument-hint: "[github-url]"
 
 # Structure Review (aspect)
 
-Criteria: `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` — sections
-"Repository Structure", "Documentation Minimum" (the substantive-README gate
-only; rating is review-quality's job), and "Basic Functionality".
+Criteria: `${CLAUDE_PLUGIN_ROOT}/references/review-rubric.md` — sections
+"Repo shapes" and "Structure (gate criteria)". The substantive-README gate is
+yours; README depth is review-quality's job.
 
 **Setup:** Use the orchestrator's prepared target if provided; otherwise follow
 `${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` first.
@@ -23,11 +23,12 @@ only; rating is review-quality's job), and "Basic Functionality".
 
 ## Per-app checks (use the resolved field set from setup)
 
-- Required metadata fields for the repo shape, per the checklist's Repository
+- Required metadata fields for the repo shape, per the rubric's Repository
   Structure section.
 - `app_type` and `implementation_tags` are known values. The schema names the
   vocabularies but does not enumerate them; query the catalog's public JSON:API
-  for the current terms (see the checklist's "Reading the catalog without a
+  for the current terms (see the Reviewer Process doc,
+  `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`, "Reading the catalog without a
   login"). Matching is case-insensitive. Report the terms you found, not just a
   pass — a stale vocabulary is why this check silently drifts.
 - Every `manifest.yml`, `appverse.yml`, and `form.yml` parses; report parse

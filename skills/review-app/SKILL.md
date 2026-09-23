@@ -10,8 +10,10 @@ Produce an evidence-backed review with a recommended decision. You recommend; a
 human decides.
 
 Read first:
-- `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` (canonical criteria,
-  including the decision rules in its Step 3 (Decision))
+- `${CLAUDE_PLUGIN_ROOT}/references/review-rubric.md` (canonical criteria,
+  including the decision rules in its "Decision rubric" section)
+- `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` (the Reviewer
+  Process: catalog checks, feedback curation)
 - `${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` (setup procedure and
   findings format)
 - `${CLAUDE_PLUGIN_ROOT}/references/finding-codes.md` (rule codes, defect-key
@@ -61,7 +63,7 @@ string; if unavailable, write `unknown`.
 
 **Repository:** <url or path>  **Mode:** reviewer|submitter  **Date:** <today>
 **Reviewed commit:** `<full SHA>` (<commit date>)  **Repo shape:** declared monorepo (N apps) | declared single app | inferred single app
-**Reviewed with:** appverse-review @ <plugin version> (`<appverse-review HEAD short SHA, captured at run time>`) · **Rubric:** https://openondemand.connectci.org/appverse-security-rubric
+**Reviewed with:** appverse-review @ <plugin version> (`<appverse-review HEAD short SHA, captured at run time>`) · **Rubric:** https://openondemand.connectci.org/appverse-review-rubric
 
 > _Disclaimer: This is an automated review with human curation. It is provided without warranty of any kind and does not certify the app as secure or fit for any purpose. A listing is not an endorsement._
 
@@ -159,17 +161,17 @@ string; if unavailable, write `unknown`.
 environment)">
 
 ## Catalog checks
-<!-- Query the public JSON:API — see the checklist's "Reading the catalog
+<!-- Query the public JSON:API — see the Reviewer Process's "Reading the catalog
      without a login". These need no reviewer account; record what each
      returned. List an item as not checked only if its query actually failed,
      and say so. -->
 - Duplicate check against the existing catalog — <result>
   - **Duplicate-check rationale:** _<reviewer fills in — the outcome and why,
-    per the checklist's Duplicate Check; edit before pasting into the issue or
+    per the Reviewer Process's Duplicate check; edit before pasting into the issue or
     email>_
 - `software` value matches a catalog Software entry — <result>. If it has no
   match, the reviewer creates the Software entry (should it exist), corrects
-  the value, or requests changes; see the checklist's Software Entry Check
+  the value, or requests changes; see the Reviewer Process's Software entry check
 - `app_type` and `implementation_tags` are in the catalog vocabularies —
   <result>
 
@@ -185,7 +187,7 @@ roll up the per-app decisions above. Draw only on findings already recorded in
 the tables — do not introduce new problems here.>
 ```
 
-Apply the decision rubric below (from the checklist's Step 3):
+Apply the decision rubric below (from the rubric's "Decision rubric" section):
 
 | Outcome | Criteria |
 |---------|----------|
@@ -194,7 +196,7 @@ Apply the decision rubric below (from the checklist's Step 3):
 | **Request changes** | Missing a required (gate) criterion but fixable. A fixable security misconfiguration, even High severity (e.g. CORS open to all origins), is Request changes, not Reject. |
 | **Reject** | Duplicate app, no license, abandoned/unmaintained, not an OOD app, or a security finding tagged potentially malicious or unfixable without redesigning the app. |
 
-Follow the checklist's framing (Step 3) rather than a separate copy here.
+Follow the rubric's framing rather than a separate copy here.
 
 ### Structured findings block
 
@@ -225,7 +227,7 @@ complements the Derived-only rule: feedback ⊆ findings, and now fix-level
 findings ⊆ feedback.)
 
 - **Reviewer mode:** append a draft contributor feedback message using the
-  checklist's feedback guidance (specific, references files, links the README
+  Reviewer Process's feedback guidance (Step 4) (specific, references files, links the README
   template or best-practices guide where relevant). Plain prose paragraphs,
   ready to paste into a Drupal moderation comment or GitHub issue. Label it
   "Draft feedback — edit before sending."

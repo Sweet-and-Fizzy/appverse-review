@@ -88,7 +88,7 @@ defect_key = "{anchor}:{mechanism_tag}"
 ## Security — OODT codes
 
 Security uses the existing OODT-01..08 taxonomy from
-`security-rubric.md`. Canonicalize any legacy OAT-XX references to
+the Security section of `review-rubric.md`. Canonicalize any legacy OAT-XX references to
 OODT-XX before hashing.
 
 | Code | Threat |
