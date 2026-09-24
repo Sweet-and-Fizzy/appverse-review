@@ -29,7 +29,7 @@ The security review consists of three tiers, distinguished by what they require:
   a reviewer's machine.
 
 The report must state which tiers ran. A CI invocation that runs tiers 1–2
-reports tier 3 as `NOT CHECKED — requires a running app`. A thinner review
+reports tier 3 as `NOT CHECKED — no isolated execution environment`. A thinner review
 should look thinner, not identical to a full one.
 
 ## Procedure
@@ -80,7 +80,7 @@ should look thinner, not identical to a full one.
    is otherwise runnable, exercise security-relevant paths rather than only
    reading source. Library defaults, framework middleware, and proxy assumptions
    are frequently invisible in source. If the app cannot be run (CI, no runtime
-   environment), report tier 3 as `NOT CHECKED — requires a running app`.
+   environment), report tier 3 as `NOT CHECKED — no isolated execution environment`.
 7. **Classify all findings.** After all tiers have run, classify every finding
    under OODT-01..08, rate severity
    Critical / High / Medium / Low per the rubric's "Rating findings" section
@@ -123,7 +123,7 @@ Follow these rules for any runtime verification:
 ## Output
 
 - **Check tiers ran** — state which tiers were executed (e.g., "Tiers 1–2;
-  tier 3 not checked — requires a running app").
+  tier 3 not checked — no isolated execution environment").
 - **Tool scan summary** (required) — a table with one row per relevant tool.
   A reader must be able to distinguish "clean scan" from "scanner not installed":
 

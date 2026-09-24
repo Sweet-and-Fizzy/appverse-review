@@ -6,8 +6,16 @@ fix-item and must be represented in the feedback section of the report:
 
   1. its defect_key is listed in a trailing HTML comment
        <!-- feedback-covers: key1, key2, ... -->
-  2. if its evidence starts with a file path, that path (or its basename)
-     appears in the feedback prose as a whole token.
+  2. if its evidence starts with a file path, that path appears in the
+     feedback prose as a whole token. For a root-level finding
+     (app_id == "root") the path's basename also satisfies this; for a
+     finding scoped to a specific app (app_id != "root", e.g. a monorepo
+     subpath) only the full evidence path counts, since the basename alone
+     is ambiguous across apps. A path is recognized either by a file
+     extension (a dot) or, for extensionless files like LICENSE or
+     Dockerfile, by evidence of the form "NAME:<digit>" — the colon must
+     immediately follow the name, with no space, so "GitHub releases API: 0"
+     is not mistaken for a path.
 
     python3 references/check-feedback-floor.py review-<slug>.findings.json review-<slug>.md
 
@@ -26,7 +34,10 @@ SECTION_HEADINGS = (
     re.compile(r"^##\s+Fix before submitting", re.IGNORECASE),
 )
 COVERS = re.compile(r"<!--\s*feedback-covers:\s*(.*?)\s*-->", re.DOTALL)
-PATH_PREFIX = re.compile(r"^([A-Za-z0-9_./\-]+\.[A-Za-z0-9_.]+)(?::|\s|$)")
+PATH_PREFIX = re.compile(
+    r"^([A-Za-z0-9_./\-]+\.[A-Za-z0-9_.]+)(?::|\s|$)"  # has a file extension
+    r"|^([A-Za-z0-9_./\-]+)(?=:\d)"                    # extensionless, e.g. LICENSE:1
+)
 
 
 def feedback_section(report_text):
@@ -57,7 +68,9 @@ def feedback_section(report_text):
 
 def evidence_path(evidence):
     m = PATH_PREFIX.match(str(evidence or "").strip())
-    return m.group(1) if m else None
+    if not m:
+        return None
+    return m.group(1) if m.group(1) is not None else m.group(2)
 
 
 def token_in_prose(candidate, prose):
@@ -102,8 +115,10 @@ def main(argv):
             missing.append((f, "not in feedback-covers"))
             continue
         path = evidence_path(f.get("evidence"))
-        if path and not any(token_in_prose(c, prose) for c in (path, os.path.basename(path))):
-            missing.append((f, "file not named in feedback"))
+        if path:
+            candidates = (path, os.path.basename(path)) if f.get("app_id") == "root" else (path,)
+            if not any(token_in_prose(c, prose) for c in candidates):
+                missing.append((f, "file not named in feedback"))
     for f, reason in missing:
         print("MISSING {} {} ({})".format(f.get("rule", "?"), f.get("defect_key", "?"), reason))
     print("feedback floor: {}/{} fix-items covered".format(len(fix_items) - len(missing), len(fix_items)))

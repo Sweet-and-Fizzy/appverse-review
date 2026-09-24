@@ -71,6 +71,7 @@ string; if unavailable, write `unknown`.
 
 | Rule | Result | Evidence |
 |---|---|---|
+| — | PASS/FAIL | Repository public and accessible (the clone succeeded) |
 | STR-01 | PASS/FAIL | README.md — ... |
 | STR-01 | PASS/FAIL | LICENSE — ... |
 | — | PASS/FAIL/NOT CHECKED | Repo not archived |
@@ -222,9 +223,10 @@ recommendation or the feedback message.
 every finding whose `result` is FAIL or WARN and whose `severity` is Low or
 above. Each of these is a fix-item and must be named in the feedback with the
 file it lives in; group related items in one paragraph where that reads
-better. Info-level polish may be summarized in one line or omitted. End the
-feedback section with a single HTML comment listing the `defect_key` of every
-fix-item you covered:
+better. Info-level polish may be summarized in one line or omitted. Write the
+feedback first. Then end the section with a single HTML comment that lists
+the `defect_key` of every fix-item the prose above addresses; it is a
+checksum of what you wrote, not a list to satisfy:
 
     <!-- feedback-covers: submit.yml.erb:unsanitized-input, template/script.sh.erb:no-error-handling -->
 

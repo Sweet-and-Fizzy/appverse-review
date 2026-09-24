@@ -162,6 +162,9 @@ The draft feedback in the report is the tool's first pass. Make it yours:
   belong in the feedback. Info-level polish can be summarized or left out.
 - Be specific: name the file and line, say what to change, and link an example
   where one exists.
+- The draft ends with an HTML comment `<!-- feedback-covers: … -->` listing
+  the finding keys it addresses. It is machine-checked. If you add a
+  fix-item to the feedback, add its key; if you remove one, remove the key.
 
 **Good feedback:**
 > The README lists prerequisites but doesn't include installation steps. Please add a section showing how to clone and deploy the app (see [ProteinStructure-OOD](https://github.com/EpiGenomicsCode/ProteinStructure-OOD) for an example).

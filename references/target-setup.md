@@ -62,10 +62,10 @@ cached schema was used.
   `<subpath>/manifest.yml` (name/description fallback only). Record any
   `shared_paths` for repo-level review.
 - Root `manifest.yml` only → **inferred repo**, one app at the repo root.
-- Neither, or root appverse.yml fails to parse → record as a required-criteria
+- Neither, or root appverse.yml fails to parse → record as a gate-criterion
   failure and continue (do not abort). Report YAML parse errors verbatim.
 - Archived on GitHub (`gh api repos/<owner>/<repo> --jq .archived`) → automatic
-  required-criteria failure; still complete the review.
+  gate-criterion failure; still complete the review.
 
 ## 4. Findings format (all aspect skills)
 

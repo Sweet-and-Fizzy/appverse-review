@@ -33,7 +33,10 @@ that fails, with `file:line` evidence.
   explicit checks), form input validation (min/max/required), no uncommented
   magic numbers / undocumented literals, no large duplicated blocks, no
   commented-out dead code, ERB templates handle missing or empty values
-  gracefully. The rubric's Code Quality section says which of these are
+  gracefully. Record each as its own rule: QUA-03 error handling, QUA-07 input
+  validation, QUA-08 magic numbers, QUA-09 duplicated blocks, QUA-04 dead code,
+  QUA-10 ERB missing/empty values (codes in finding-codes.md). The rubric's
+  Code Quality section says which of these are
   targets for inclusion and which are improvement suggestions — weight each
   finding the way the rubric frames it, rather than applying your own
   severity scale, and keep the labels consistent with findings you record

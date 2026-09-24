@@ -77,7 +77,7 @@ identifiable shape and fails the Structure gate below.
 
 ## Structure (gate criteria)
 
-All of these are pass / fail. Every one must pass for the app to be listed.
+All of these are gates: every one must pass for the app to be listed. The tool records each as PASS or FAIL; where it could not confirm a row it records WARN or NOT CHECKED, and the reviewer settles that row in Step 3 of the Reviewer Process before deciding (see "How to read this rubric").
 
 ### Repository structure
 

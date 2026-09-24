@@ -1469,7 +1469,7 @@ if __name__ == "__main__":
 ```bash
 chmod +x references/check-feedback-floor.py && bash tests/test-feedback-floor.sh
 ```
-Expected: `Done: 14 passed, 0 failed.`
+Expected: `Done: 22 passed, 0 failed.`
 
 - [ ] **Step 5: Run it against the regenerated ood-sas review (expected to FAIL — no coverage line yet)**
 
@@ -1566,7 +1566,7 @@ Append to the end of `reviews/review-fasrc-ood-sas-planb.md` (untracked) a `<!--
 - [ ] **Step 7: Tests and commit**
 
 ```bash
-bash tests/test-feedback-floor.sh | tail -1     # 14 passed
+bash tests/test-feedback-floor.sh | tail -1     # 22 passed
 bash tests/test-docs-spine.sh | tail -1         # 32 passed
 git add skills/review-app/SKILL.md .github/workflows/appverse-review.yaml references/artifact-envelope.md README.md references/
 git commit -m "feat: derive the Draft Feedback from fix-items and gate it in CI; report heading says gate criteria"

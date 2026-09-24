@@ -15,6 +15,9 @@ yours; README depth is review-quality's job.
 
 ## Repo-level checks
 
+- Repository is public and accessible: the clone in setup succeeded. If it did
+  not, this is the failed gate to report (see target-setup.md) and no other
+  check can run.
 - `README.md` exists and is substantive: not the unfilled template (placeholder
   text like "Key feature 1"), not just a title and contact line.
 - `LICENSE` exists and contains an open-source license.

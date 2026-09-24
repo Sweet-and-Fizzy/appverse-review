@@ -13,7 +13,7 @@ survives line shifts, LLM rewording, and aspect reclassification.
   potentially malicious. Reserved for findings that warrant a Reject
   recommendation (e.g., `curl|bash` on user-supplied URLs, arbitrary code
   execution by design).
-- **High** — a real vulnerability or required-criteria failure, fixable with
+- **High** — a real vulnerability or gate-criterion failure, fixable with
   targeted changes. Warrants Request changes.
 - **Medium** — a genuine concern but lower blast radius or harder to exploit.
 - **Low** — defensive-coding gap or minor hygiene issue.

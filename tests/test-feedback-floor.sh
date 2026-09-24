@@ -76,4 +76,51 @@ sed 's#template/script.sh.erb\.#template/myscript.sh.erb.#' "$TMP/ok.md" > "$TMP
 check "exit 1" 1 "$(run "$TMP/findings.json" "$TMP/superstring.md")"
 check "names the finding with reason" 1 "$(grep -c 'MISSING QUA-03 template/script.sh.erb:no-error-handling (file not named in feedback)' "$TMP/out")"
 
+echo "Test 11: monorepo evidence requires the full app-scoped path, not just the basename"
+cat > "$TMP/monorepo.json" <<'EOF'
+[
+ {"app_id":"apps/a","rule":"QUA-06","defect_key":"apps/a/form.yml:duplicate-key","aspect":"quality","severity":"low","result":"FAIL","summary":"x","evidence":"apps/a/form.yml:3"},
+ {"app_id":"apps/b","rule":"QUA-06","defect_key":"apps/b/form.yml:duplicate-key","aspect":"quality","severity":"low","result":"FAIL","summary":"x","evidence":"apps/b/form.yml:3"}
+]
+EOF
+cat > "$TMP/monorepo-basename.md" <<'EOF'
+# Appverse Review: x
+## Overall recommendation
+Accept with suggestions.
+## Draft feedback — edit before sending
+form.yml has a duplicate key in both apps; please fix it.
+<!-- feedback-covers: apps/a/form.yml:duplicate-key, apps/b/form.yml:duplicate-key -->
+EOF
+check "basename alone fails for both apps" \
+  "1|2" \
+  "$(run "$TMP/monorepo.json" "$TMP/monorepo-basename.md")|$(grep -c '(file not named in feedback)' "$TMP/out")"
+sed -e 's#form\.yml has a duplicate key in both apps; please fix it\.#apps/a/form.yml and apps/b/form.yml each have a duplicate key; please fix them.#' \
+  "$TMP/monorepo-basename.md" > "$TMP/monorepo-fullpath.md"
+check "full app-scoped paths pass" \
+  "0|feedback floor: 2/2 fix-items covered" \
+  "$(run "$TMP/monorepo.json" "$TMP/monorepo-fullpath.md")|$(tail -1 "$TMP/out")"
+
+echo "Test 12: extensionless evidence paths (LICENSE:1, Dockerfile:5) are recognized as file paths"
+cat > "$TMP/extensionless.json" <<'EOF'
+[
+ {"app_id":"root","rule":"STR-02","defect_key":"LICENSE:missing-license","aspect":"structure","severity":"high","result":"FAIL","summary":"x","evidence":"LICENSE:1"}
+]
+EOF
+cat > "$TMP/no-license-word.md" <<'EOF'
+# Appverse Review: x
+## Overall recommendation
+Request changes.
+## Draft feedback — edit before sending
+Please add an open-source license to the repo.
+<!-- feedback-covers: LICENSE:missing-license -->
+EOF
+check "missing LICENSE token fails" \
+  "1|(file not named in feedback)" \
+  "$(run "$TMP/extensionless.json" "$TMP/no-license-word.md")|$(grep -o '(file not named in feedback)' "$TMP/out")"
+sed 's#Please add an open-source license to the repo\.#Please add an open-source LICENSE to the repo.#' \
+  "$TMP/no-license-word.md" > "$TMP/with-license-word.md"
+check "naming LICENSE passes" \
+  "0|feedback floor: 1/1 fix-items covered" \
+  "$(run "$TMP/extensionless.json" "$TMP/with-license-word.md")|$(tail -1 "$TMP/out")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
