@@ -163,11 +163,7 @@ review looks thinner rather than identical to a full one:
   reviewer's machine. A CI run reports it as `NOT CHECKED — requires a running
   app`.
 
-Two complementary methods feed the same classification. The **capability
-profile** catalogs what the app does (system access, network calls, file
-reads and writes, spawned processes, dynamic code loading, authentication
-posture) and compares it with the baseline for the app's type below. The
-**pattern checks** catch capabilities used unsafely, regardless of app type.
+Two complementary methods feed the same classification:
 
 - **Capability profiling** catalogs what an app does — what system access it needs,
   what network calls it makes, what files it reads and writes, what processes it
@@ -402,7 +398,7 @@ not on each app.
 
 | Signal | Good Sign | Concern |
 |--------|-----------|---------|
-| Last commit | Within 12 months | Over 2 years ago |
+| Last commit | Within 12 months | Over 12 months ago |
 | Releases | Tagged releases with versioning | No releases |
 | Issues | Responded to | Open issues with no response |
 | Contributors | Multiple | Single contributor with no activity |
@@ -433,9 +429,9 @@ individual findings, never from the signal levels.
 
 | Outcome | Criteria |
 |---------|----------|
-| **Accept** | Passes all required criteria, adequate+ documentation, partially portable+ config. Always conditional on the duplicate/catalog checks the review cannot perform — word any Accept as pending those. |
-| **Accept with suggestions** | Passes required criteria but has clear improvement areas — include specific feedback. Below-target docs or portability belongs here, not Request changes, when required criteria are otherwise met. |
-| **Request changes** | Missing required criteria but fixable — provide specific list of what to address. A fixable security misconfiguration, even High severity (e.g. CORS open to all origins), is Request changes, not Reject. |
+| **Accept** | Passes all gate criteria, adequate+ documentation, partially portable+ config. Always conditional on the duplicate/catalog checks the review cannot perform — word any Accept as pending those. |
+| **Accept with suggestions** | Passes gate criteria but has clear improvement areas — include specific feedback. Below-target docs or portability belongs here, not Request changes, when the gate criteria are otherwise met. |
+| **Request changes** | Missing a gate criterion but fixable — provide specific list of what to address. A fixable security misconfiguration, even High severity (e.g. CORS open to all origins), is Request changes, not Reject. |
 | **Reject** | Duplicate app, no license, abandoned/unmaintained, not an OOD app, or a Critical-severity security finding (tagged potentially malicious or unfixable without redesigning the app — see the severity scale in `finding-codes.md`). |
 
 Any Accept is conditional on the catalog checks the automated review cannot
