@@ -20,11 +20,15 @@ that fails, with `file:line` evidence.
 - **Documentation**: rate Minimal / Adequate / Strong / Exemplary against the
   rubric's Documentation table and its four README questions (what does it
   launch, what must be installed, how to deploy, what to customize). One-line
-  justification citing README sections present or missing.
+  justification citing README sections present or missing. Flag as QUA-01 a
+  README that references another institution's paths, cluster names, or
+  module names without saying they must change.
 - **Configuration portability**: rate Not portable / Partially portable /
   Portable. Look for hardcoded cluster names, partitions, accounts, absolute
-  site paths, and module versions in `submit.yml.erb`, `form.yml`, and
-  `template/` scripts.
+  site paths, and module versions in `submit.yml.erb`, `form.yml`,
+  `form.yml.erb`, and `template/` scripts. Site-specific values documented in
+  the README's configuration table count toward Partially portable;
+  undocumented ones count against it.
 - **Code quality** checkboxes, each with evidence: error handling (`set -e` or
   explicit checks), form input validation (min/max/required), no uncommented
   magic numbers / undocumented literals, no large duplicated blocks, no

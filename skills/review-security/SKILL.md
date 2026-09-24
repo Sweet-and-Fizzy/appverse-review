@@ -48,7 +48,9 @@ should look thinner, not identical to a full one.
    loading, authentication posture.
    - Batch Connect: compare against the narrow baseline; anomalies (network calls
      from ERB, SSH-key reads, base64-decode-and-execute, writes to dotfiles or
-     cron) are strong signals — flag each as a finding.
+     cron) are strong signals — flag each as a finding. Record any binary file
+     under `template/` as a finding (OODT-04, tag `binary-in-template`) in
+     addition to listing it as unauditable.
    - Passenger: report the full profile for transparency; flag only capabilities
      in the rubric's "Flagged" column. Never penalize an app for its designed
      purpose — a job composer running shell commands is its job; running them

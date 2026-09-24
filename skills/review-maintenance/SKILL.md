@@ -23,6 +23,12 @@ With the `gh` CLI:
     gh api repos/<owner>/<repo>/contributors --jq 'length'
     gh api 'repos/<owner>/<repo>/issues?state=open&per_page=5' --jq '.[].comments'
 
+The fetched `archived` value confirms review-structure's not-archived gate
+rather than producing a second, separately worded finding.
+
+A repo with no open issues is neutral on issue responsiveness: report it as
+neither a good sign nor a concern.
+
 In the working tree: CHANGELOG file present and current; CI configuration
 present (`.github/workflows/`, or equivalent).
 

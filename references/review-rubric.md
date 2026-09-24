@@ -45,7 +45,10 @@ is the Documentation signal. Same file, two different legs.
 
 Each finding the automated review records carries a rule code (`STR-`, `OODT-`,
 `QUA-`, `MNT-`), a severity, and `file:line` evidence. The severity scale is
-defined in the plugin's `finding-codes.md`.
+defined in the plugin's `finding-codes.md`. Each finding also carries a
+result: FAIL means the criterion is not met; WARN means the tool could not
+confirm it or the defect is advisory — on a gate row, a WARN is for the
+reviewer to settle in Step 3 of the Process, not an automatic pass.
 
 ## Repo shapes
 
@@ -86,7 +89,7 @@ Every repo, regardless of shape:
 | `LICENSE` exists | Open source license present (MIT recommended) |
 | Repo shape is identifiable | Root `appverse.yml` (declared) or root `manifest.yml` (inferred) — see Repo shapes |
 | Repo is not archived on GitHub | An archived repo cannot be maintained |
-| Repository is public and accessible | A private or inaccessible repo cannot be listed; the catalog links to it |
+| Repository is public and accessible | A private or inaccessible repo cannot be listed; the catalog links to it. The review verifies this by cloning — an unreachable repo stops the review before any finding is recorded, and the report says so. |
 
 README and LICENSE are checked once at repo level. In a monorepo the apps share
 them; an app-level README at a subpath is welcome but is not required by this
@@ -106,7 +109,7 @@ several:
 |-------|------------------|
 | `description` | Present |
 | `software` | Present (checked here). It must also match a catalog Software entry to be listed — see the Reviewer Process, Software entry check, for what to do when it doesn't |
-| `app_type` | A known value in the catalog's app-type vocabulary; likewise every `implementation_tags` entry must be a known value (see the [appverse.yml reference](https://github.com/Sweet-and-Fizzy/ood-appverse/blob/main/docs/appverse.yml) and the Reviewer Process, "Reading the catalog without a login") |
+| `app_type` | A known value in the catalog's app-type vocabulary; likewise every `implementation_tags` entry must be a known value (see the [appverse.yml reference](https://github.com/Sweet-and-Fizzy/ood-appverse/blob/main/docs/appverse.yml) and the Reviewer Process, "Reading the catalog without a login"). The tool reports the vocabulary terms it found, not just a pass/fail |
 | `maintainer.name` + `maintainer.support_url` | Both required and present. An app without a support URL gives deployers no one to contact — a missing one fails this gate |
 | `manifest.yml` at the app's subpath | Required for the app to actually run inside OOD |
 
@@ -122,7 +125,7 @@ Passenger and companion apps substitute their own layout check: an entry point
 that exists and parses (`config.ru` for Ruby/Rack, `passenger_wsgi.py` for
 Python/WSGI), a `manifest.yml` `role` consistent with that layout, and a
 dependency manifest (`Gemfile.lock`, `package-lock.json`, `requirements.txt`)
-consistent with the dependency file.
+consistent with the dependency file (`STR-08` if missing or inconsistent).
 
 ### Validity
 
@@ -159,9 +162,10 @@ review looks thinner rather than identical to a full one:
 - **Tier 2 — Tooling.** Static analysis tools (shellcheck, bandit, semgrep,
   trivy, and others per the plugin's `security-tools.md`). Needs installed
   binaries, not a running app. Best-effort: the review proceeds without them.
-- **Tier 3 — Runtime.** Boot the app and exercise it. Realistically only on a
-  reviewer's machine. A CI run reports it as `NOT CHECKED — requires a running
-  app`.
+- **Tier 3 — Runtime.** Boot the app and exercise it, only in an isolated,
+  disposable environment (never on a reviewer's own machine or a shared host).
+  Reported as `NOT CHECKED — no isolated execution environment` when none is
+  available, which is the usual case.
 
 Two complementary methods feed the same classification:
 
@@ -370,9 +374,9 @@ target for the first two.
 | Error handling in scripts (`set -e` or explicit checks) | Target for inclusion |
 | Input validation on form fields (min/max/required) | Target for inclusion |
 | No undocumented magic numbers or hardcoded literals (resource limits, tunables, ports, hex colors, module versions) without comments | Suggestion |
-| No large blocks of duplicated code | Suggestion |
+| No large blocks of duplicated code (`QUA-09`) | Suggestion |
 | No commented-out dead code | Suggestion |
-| ERB templates handle missing/empty values gracefully | Suggestion |
+| ERB templates handle missing/empty values gracefully (`QUA-10`) | Suggestion |
 
 **Correctness and polish** defects are also Code Quality findings: copy-paste
 artifacts from the template an app was cloned from (a MATLAB reference in a
@@ -403,7 +407,7 @@ not on each app.
 | Issues | Responded to | Open issues with no response |
 | Contributors | Multiple | Single contributor with no activity |
 | CHANGELOG | Present and current | Missing |
-| CI/CD | A workflow that lints shell/ERB or validates the YAML (`.github/workflows/` or equivalent) | None |
+| CI/CD | A CI workflow is present (ideally one that lints shell/ERB or validates the YAML) | None |
 
 **Upkeep signal:** active within 12 months and two or more good-practice
 signals = Low; active within 12 months = Medium; inactive over 12 months =
@@ -432,7 +436,7 @@ individual findings, never from the signal levels.
 | **Accept** | Passes all gate criteria, adequate+ documentation, partially portable+ config. Always conditional on the duplicate/catalog checks the review cannot perform — word any Accept as pending those. |
 | **Accept with suggestions** | Passes gate criteria but has clear improvement areas — include specific feedback. Below-target docs or portability belongs here, not Request changes, when the gate criteria are otherwise met. |
 | **Request changes** | Missing a gate criterion but fixable — provide specific list of what to address. A fixable security misconfiguration, even High severity (e.g. CORS open to all origins), is Request changes, not Reject. |
-| **Reject** | Duplicate app, no license, abandoned/unmaintained, not an OOD app, or a Critical-severity security finding (tagged potentially malicious or unfixable without redesigning the app — see the severity scale in `finding-codes.md`). |
+| **Reject** | Duplicate app, no license, abandoned/unmaintained, not an OOD app, or a Critical-severity security finding (tagged potentially malicious or unfixable without redesigning the app — see the severity scale in `finding-codes.md`). "Not an OOD app" is a reviewer-only trigger — no automated check produces it. |
 
 Any Accept is conditional on the catalog checks the automated review cannot
 perform (duplicate check, Software entry, vocabulary terms); the Reviewer

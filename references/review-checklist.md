@@ -27,7 +27,14 @@ the feedback, and makes the call. The review recommends; a human decides.
 Apps awaiting review appear in the Manage Appverse Apps view in Drupal: [openondemand.connectci.org/appverse/manage-apps](https://openondemand.connectci.org/appverse/manage-apps). The view shows the submitter's name and email so you can follow up with questions, the moderation state, and a link to edit the app node.
 
 The report is generated against a specific commit. If the repo has moved on
-since the report was run, get a fresh report before doing anything else.
+since the report was run, get a fresh report before doing anything else. A
+prior review's findings are context only, not a shortcut — every finding is
+re-verified against the current commit.
+
+Contributors can run the same review on their own repo before submitting (the
+tool's submitter mode). It applies this rubric unchanged and ends with a "Fix
+before submitting" list instead of draft feedback; a submission that arrives
+with that list already worked through is the fast path.
 
 ## Step 1: Gate the app
 

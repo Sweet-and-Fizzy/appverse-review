@@ -24,7 +24,9 @@ yours; README depth is review-quality's job.
 ## Per-app checks (use the resolved field set from setup)
 
 - Required metadata fields for the repo shape, per the rubric's "Repository
-  structure" section.
+  structure" section. For declared repos that includes `description`,
+  `software`, `app_type`, `maintainer.name`, and `maintainer.support_url`; a
+  missing field is a gate failure (STR-02, `missing-field:<name>`).
 - `app_type` and `implementation_tags` are known values. The schema names the
   vocabularies but does not enumerate them; query the catalog's public JSON:API
   for the current terms (see the Reviewer Process doc,
@@ -36,7 +38,8 @@ yours; README depth is review-quality's job.
   ERB is not valid YAML) — check that it exists and has balanced ERB tags
   instead.
 - ERB templates look renderable (balanced `<%= %>` tags); shell scripts pass
-  `bash -n`.
+  `bash -n` (for `.sh.erb`, strip ERB tags first — see the recipe in
+  `${CLAUDE_PLUGIN_ROOT}/references/security-tools.md`).
 - No broken references: variables and attributes used in `submit.yml.erb` and
   `template/` files exist in `form.yml` or `form.yml.erb`.
 - Batch Connect apps have the standard layout: `form.yml` or `form.yml.erb`,
@@ -53,7 +56,8 @@ yours; README depth is review-quality's job.
     `passenger_app` with an entry point, not a Batch Connect tree). A missing
     `role` is a WARN, not a FAIL — the app may still work
   - Dependency manifest (`Gemfile.lock`, `package-lock.json`, `requirements.txt`)
-    present and consistent with the dependency file
+    present and consistent with the dependency file (STR-08,
+    `dependency-manifest-inconsistent`)
   - If the repo ships a test suite, note whether it passes. When execution is
     restricted (CI, untrusted repo), report as
     `NOT CHECKED — execution restricted`
