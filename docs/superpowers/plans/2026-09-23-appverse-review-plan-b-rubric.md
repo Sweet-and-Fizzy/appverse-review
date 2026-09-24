@@ -1251,3 +1251,334 @@ Open `/appverse-review-rubric`: title "Appverse Review Rubric", left rail lists 
 **Placeholder scan.** `<ticket>` and `<number>` are runtime parameters the executor fills from the Jira ticket and PR numbers created in Tasks 5–7; every other step carries its content. The verbatim markers cite exact line ranges of existing files and Tasks 2–3 each include a grep that fails the task if a marker survives.
 
 **Consistency.** Section names used by skills in Task 4 (`Repo shapes`, `Structure (gate criteria)`, `Security`, `Portability`, `Documentation`, `Code Quality`, `Upkeep`, `Decision rubric`) match the H2s asserted by Test 2 in Task 1 and written in Task 2. Named-check labels in Task 4 and Task 5 match Task 2 and Test 7. Node ids (11932, 12246) and slugs match across Tasks 6–8. The process doc's H2s in Task 3 match Test 3.
+
+---
+
+# Addendum (2026-09-23): closing Bill's behavioral asks on this branch
+
+Tasks 1–5 delivered the structure. Three of Bill's asks are about behavior and were still open: the Draft Feedback silently drops fix-items (D1), the tool/doc coverage was asserted rather than audited, and the report still uses two retired words. Tasks 9–11 close them on the same branch.
+
+## Additional Global Constraints
+
+- The inclusion floor, verbatim from `review-app/SKILL.md`: "Every finding at Low severity or above, and every failed required (gate) criterion, must be represented in the Draft Feedback. Info-level polish may be summarized in one line or omitted."
+- A finding "is represented" when (a) its `defect_key` is listed in a trailing HTML comment `<!-- feedback-covers: key1, key2, … -->` at the end of the feedback section, and (b) if its `evidence` begins with a file path, that path (full, or its basename) appears in the feedback prose. Findings with `result` PASS or NOT CHECKED, or `severity` info, are exempt.
+- The feedback section heading is `## Draft feedback — edit before sending` (reviewer mode) or `## Fix before submitting` (submitter mode); the check must accept either.
+- CI must go red, not warn, when the floor is not met (same policy PR 43 set for missing outputs).
+- The `## Maintenance signals` report heading is NOT renamed on this branch: `#maintenance-signals` is the anchor constant in PR 43's assembler. Rename it together with that constant after PR 43 merges.
+
+---
+
+### Task 9: `check-feedback-floor.py` with tests (TDD)
+
+**Files:**
+- Create: `references/check-feedback-floor.py`
+- Create: `tests/test-feedback-floor.sh`
+
+**Interfaces:**
+- Produces: `python3 references/check-feedback-floor.py <findings.json> <report.md>` → exit 0 and prints `feedback floor: N/N fix-items covered`; exit 1 and prints one `MISSING <rule> <defect_key> (<reason>)` line per uncovered finding plus a final `feedback floor: K/N fix-items covered`. Exit 2 on unreadable inputs or no feedback section.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `tests/test-feedback-floor.sh`:
+
+```bash
+#!/usr/bin/env bash
+# Test check-feedback-floor.py: the Draft Feedback must name every Low+ FAIL/WARN finding.
+set -uo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+CHECK="$SCRIPT_DIR/references/check-feedback-floor.py"
+TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+pass=0; fail=0
+check() { local name="$1" expected="$2" actual="$3"
+  if [ "$expected" = "$actual" ]; then echo "  PASS  $name"; pass=$((pass+1)); else echo "  FAIL  $name: expected '$expected', got '$actual'"; fail=$((fail+1)); fi; }
+run() { python3 "$CHECK" "$1" "$2" > "$TMP/out" 2>&1; echo $?; }
+
+cat > "$TMP/findings.json" <<'EOF'
+[
+ {"app_id":"root","rule":"OODT-01","defect_key":"submit.yml.erb:unsanitized-input","aspect":"security","severity":"low","result":"WARN","summary":"x","evidence":"submit.yml.erb:15-19"},
+ {"app_id":"root","rule":"QUA-03","defect_key":"template/script.sh.erb:no-error-handling","aspect":"quality","severity":"low","result":"FAIL","summary":"x","evidence":"template/script.sh.erb:1"},
+ {"app_id":"root","rule":"QUA-05","defect_key":"template/script.sh.erb:dead-code","aspect":"quality","severity":"info","result":"WARN","summary":"x","evidence":"template/script.sh.erb:30"},
+ {"app_id":"root","rule":"OODT-04","defect_key":"root:tier3","aspect":"security","severity":"medium","result":"NOT CHECKED","summary":"x","evidence":"n/a"},
+ {"app_id":"root","rule":"MNT-03","defect_key":"root:changelog-wrong-app","aspect":"maintenance","severity":"low","result":"WARN","summary":"CHANGELOG describes another app","evidence":"CHANGELOG.md:11"},
+ {"app_id":"root","rule":"MNT-02","defect_key":"root:no-releases","aspect":"maintenance","severity":"low","result":"WARN","summary":"0 tagged releases","evidence":"GitHub releases API: 0"}
+]
+EOF
+
+echo "Test 1: fully covered feedback passes"
+cat > "$TMP/ok.md" <<'EOF'
+# Appverse Review: x
+## Overall recommendation
+Accept with suggestions.
+## Draft feedback — edit before sending
+Please validate the free-text fields in submit.yml.erb. Add set -e to template/script.sh.erb.
+CHANGELOG.md describes a different app; please rewrite it. Consider tagging a release.
+<!-- feedback-covers: submit.yml.erb:unsanitized-input, template/script.sh.erb:no-error-handling, root:changelog-wrong-app, root:no-releases -->
+EOF
+check "exit 0" 0 "$(run "$TMP/findings.json" "$TMP/ok.md")"
+check "reports 4/4" "feedback floor: 4/4 fix-items covered" "$(tail -1 "$TMP/out")"
+
+echo "Test 2: a Low finding missing from the coverage line fails"
+sed 's/, root:no-releases//' "$TMP/ok.md" > "$TMP/missing-key.md"
+check "exit 1" 1 "$(run "$TMP/findings.json" "$TMP/missing-key.md")"
+check "names the finding" 1 "$(grep -c 'MISSING MNT-02 root:no-releases' "$TMP/out")"
+check "reports 3/4" "feedback floor: 3/4 fix-items covered" "$(tail -1 "$TMP/out")"
+
+echo "Test 3: key listed but file never named in prose fails"
+sed 's#Add set -e to template/script.sh.erb.#Add set -e to the job script.#' "$TMP/ok.md" > "$TMP/missing-path.md"
+check "exit 1" 1 "$(run "$TMP/findings.json" "$TMP/missing-path.md")"
+check "names the finding with reason" 1 "$(grep -c 'MISSING QUA-03 template/script.sh.erb:no-error-handling (file not named in feedback)' "$TMP/out")"
+
+echo "Test 4: basename is enough"
+sed 's#template/script.sh.erb\.#script.sh.erb.#' "$TMP/ok.md" > "$TMP/basename.md"
+check "exit 0" 0 "$(run "$TMP/findings.json" "$TMP/basename.md")"
+
+echo "Test 5: submitter-mode heading accepted"
+sed 's/^## Draft feedback — edit before sending$/## Fix before submitting/' "$TMP/ok.md" > "$TMP/submitter.md"
+check "exit 0" 0 "$(run "$TMP/findings.json" "$TMP/submitter.md")"
+
+echo "Test 6: no feedback section is exit 2"
+grep -v -e '^## Draft feedback' -e 'feedback-covers' "$TMP/ok.md" > "$TMP/nosection.md"
+check "exit 2" 2 "$(run "$TMP/findings.json" "$TMP/nosection.md")"
+
+echo "Test 7: no coverage line is exit 1 with every fix-item missing"
+grep -v 'feedback-covers' "$TMP/ok.md" > "$TMP/nocover.md"
+check "exit 1" 1 "$(run "$TMP/findings.json" "$TMP/nocover.md")"
+check "reports 0/4" "feedback floor: 0/4 fix-items covered" "$(tail -1 "$TMP/out")"
+
+echo "Test 8: no fix-items at all passes with 0/0"
+echo '[{"app_id":"root","rule":"QUA-05","defect_key":"a:b","aspect":"quality","severity":"info","result":"WARN","summary":"x","evidence":"a:1"}]' > "$TMP/none.json"
+check "exit 0" 0 "$(run "$TMP/none.json" "$TMP/ok.md")"
+check "reports 0/0" "feedback floor: 0/0 fix-items covered" "$(tail -1 "$TMP/out")"
+
+echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
+```
+
+- [ ] **Step 2: Run it to verify it fails**
+
+```bash
+chmod +x tests/test-feedback-floor.sh && bash tests/test-feedback-floor.sh
+```
+Expected: every check fails (python cannot open the script → exit 2 everywhere); `Done: 0 passed, 15 failed.`
+
+- [ ] **Step 3: Write the script**
+
+Create `references/check-feedback-floor.py`:
+
+```python
+#!/usr/bin/env python3
+"""Check the Draft Feedback against the inclusion floor.
+
+Every finding with result FAIL or WARN and severity low or above is a
+fix-item and must be represented in the feedback section of the report:
+
+  1. its defect_key is listed in a trailing HTML comment
+       <!-- feedback-covers: key1, key2, ... -->
+  2. if its evidence starts with a file path, that path (or its basename)
+     appears in the feedback prose.
+
+    python3 references/check-feedback-floor.py review-<slug>.findings.json review-<slug>.md
+
+Exit 0 when every fix-item is covered, 1 when any is missing, 2 when an
+input cannot be read or the report has no feedback section.
+"""
+import json
+import os
+import re
+import sys
+
+FIX_SEVERITIES = {"critical", "high", "medium", "low"}
+FIX_RESULTS = {"FAIL", "WARN"}
+SECTION_HEADINGS = (
+    re.compile(r"^##\s+Draft feedback", re.IGNORECASE),
+    re.compile(r"^##\s+Fix before submitting", re.IGNORECASE),
+)
+COVERS = re.compile(r"<!--\s*feedback-covers:\s*(.*?)\s*-->", re.DOTALL)
+PATH_PREFIX = re.compile(r"^([A-Za-z0-9_./\-]+\.[A-Za-z0-9_.]+)(?::|\s|$)")
+
+
+def feedback_section(report_text):
+    lines = report_text.splitlines()
+    start = None
+    for i, line in enumerate(lines):
+        if any(h.match(line) for h in SECTION_HEADINGS):
+            start = i + 1
+            break
+    if start is None:
+        return None
+    body = []
+    for line in lines[start:]:
+        if line.startswith("## "):
+            break
+        body.append(line)
+    return "\n".join(body)
+
+
+def evidence_path(evidence):
+    m = PATH_PREFIX.match(str(evidence or "").strip())
+    return m.group(1) if m else None
+
+
+def main(argv):
+    if len(argv) != 3:
+        print("usage: check-feedback-floor.py <findings.json> <report.md>", file=sys.stderr)
+        return 2
+    try:
+        with open(argv[1]) as f:
+            findings = json.load(f)
+        with open(argv[2]) as f:
+            report = f.read()
+    except (OSError, ValueError) as e:
+        print("error: {}".format(e), file=sys.stderr)
+        return 2
+    section = feedback_section(report)
+    if section is None:
+        print("error: no '## Draft feedback' or '## Fix before submitting' section", file=sys.stderr)
+        return 2
+    m = COVERS.search(section)
+    covered = set()
+    if m:
+        covered = {k.strip() for k in m.group(1).split(",") if k.strip()}
+    prose = COVERS.sub("", section)
+
+    fix_items = [
+        f for f in findings
+        if str(f.get("result", "")).upper() in FIX_RESULTS
+        and str(f.get("severity", "")).lower() in FIX_SEVERITIES
+    ]
+    missing = []
+    for f in fix_items:
+        key = f.get("defect_key", "")
+        if key not in covered:
+            missing.append((f, "not in feedback-covers"))
+            continue
+        path = evidence_path(f.get("evidence"))
+        if path and path not in prose and os.path.basename(path) not in prose:
+            missing.append((f, "file not named in feedback"))
+    for f, reason in missing:
+        print("MISSING {} {} ({})".format(f.get("rule", "?"), f.get("defect_key", "?"), reason))
+    print("feedback floor: {}/{} fix-items covered".format(len(fix_items) - len(missing), len(fix_items)))
+    return 1 if missing else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
+```
+
+- [ ] **Step 4: Run the tests**
+
+```bash
+chmod +x references/check-feedback-floor.py && bash tests/test-feedback-floor.sh
+```
+Expected: `Done: 15 passed, 0 failed.`
+
+- [ ] **Step 5: Run it against the regenerated ood-sas review (expected to FAIL — no coverage line yet)**
+
+```bash
+python3 references/check-feedback-floor.py reviews/review-fasrc-ood-sas-planb.findings.json reviews/review-fasrc-ood-sas-planb.md; echo "exit $?"
+```
+Expected: exit 1, `feedback floor: 0/N fix-items covered` (the review predates the coverage line). Record N in the report; Task 10 makes this pass.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add references/check-feedback-floor.py tests/test-feedback-floor.sh
+git commit -m "feat: check-feedback-floor.py verifies every Low+ fix-item reaches the Draft Feedback"
+```
+
+---
+
+### Task 10: Orchestrator derivation step, CI gate, and the report heading
+
+**Files:**
+- Modify: `skills/review-app/SKILL.md` (the "Inclusion floor" paragraph; the "## 6. Wrap up" list; the report template heading `## Repo-level required criteria`)
+- Modify: `.github/workflows/appverse-review.yaml` (new step after "Compute stable finding IDs")
+- Modify: `references/artifact-envelope.md` (one row in the file table)
+- Modify: `reviews/review-fasrc-ood-sas-planb.md` (untracked; add the coverage line so the check passes on the reference review)
+
+**Interfaces:**
+- Consumes: `check-feedback-floor.py` CLI from Task 9.
+
+- [ ] **Step 1: Replace the Inclusion-floor paragraph in `skills/review-app/SKILL.md`**
+
+Replace the paragraph that begins `**Inclusion floor.**` (ends `…fix-level findings ⊆ feedback.)`) with:
+
+```markdown
+**Inclusion floor — derive, don't recall.** Before writing the feedback, list
+every finding whose `result` is FAIL or WARN and whose `severity` is Low or
+above. Each of these is a fix-item and must be named in the feedback with the
+file it lives in; group related items in one paragraph where that reads
+better. Info-level polish may be summarized in one line or omitted. End the
+feedback section with a single HTML comment listing the `defect_key` of every
+fix-item you covered:
+
+    <!-- feedback-covers: submit.yml.erb:unsanitized-input, template/script.sh.erb:no-error-handling -->
+
+`check-feedback-floor.py` (wrap-up, and CI) fails the review when a fix-item's
+key is absent from that line or its file is not named in the prose. (This
+complements the Derived-only rule: feedback ⊆ findings, and fix-items ⊆
+feedback.)
+```
+
+- [ ] **Step 2: Add the check to the wrap-up**
+
+In `## 6. Wrap up`, after the bullet that computes stable IDs (the one ending `review-<owner>-<repo>.findings.json`), add:
+
+```markdown
+- Then check the feedback floor and fix the feedback until it passes:
+
+      python3 "${CLAUDE_PLUGIN_ROOT}/references/check-feedback-floor.py" \
+        review-<owner>-<repo>.findings.json review-<owner>-<repo>.md
+```
+
+- [ ] **Step 3: Rename the report heading**
+
+In the report template inside `skills/review-app/SKILL.md`, change `## Repo-level required criteria` to `## Repo-level gate criteria`. Do not touch `## Maintenance signals` (see the addendum constraint). Then grep the whole repo for `required criteria` and update any remaining prose that refers to the retired bucket (`README.md`, `references/`, `skills/`) to say "gate criteria"; leave `tests/TESTING.md` and `docs/` alone.
+
+- [ ] **Step 4: CI step**
+
+In `.github/workflows/appverse-review.yaml`, directly after the "Compute stable finding IDs" step, add:
+
+```yaml
+      - name: Check the feedback floor
+        if: inputs.review_aspects == 'all'
+        run: |
+          WS="${{ github.workspace }}"
+          SLUG="${{ steps.params.outputs.repo_slug }}"
+          if [ -s "$WS/review-${SLUG}.findings.json" ] && [ -s "$WS/review-${SLUG}.md" ]; then
+            if ! python3 "$WS/appverse-review/references/check-feedback-floor.py" \
+                 "$WS/review-${SLUG}.findings.json" "$WS/review-${SLUG}.md"; then
+              echo "::error::Draft Feedback omits fix-level findings (see MISSING lines above)"
+              exit 1
+            fi
+          else
+            echo "::warning::findings JSON or report missing — feedback floor not checked"
+          fi
+```
+
+- [ ] **Step 5: Document the script**
+
+In `references/artifact-envelope.md`, in the table of scripts (the one listing `compute-ids.py` and `assemble-artifact.py`), add a row: `| \`check-feedback-floor.py\` | findings JSON + report MD | exit status: every Low+ fix-item named in the Draft Feedback |`.
+
+- [ ] **Step 6: Make the reference review pass**
+
+Append to the end of `reviews/review-fasrc-ood-sas-planb.md` (untracked) a `<!-- feedback-covers: … -->` line listing the `defect_key` of every finding in its findings JSON with result FAIL/WARN and severity Low or above (derive the list with `python3 -c`, do not type it), then run the check. If it reports a file not named in the prose, add that file name to the relevant feedback sentence. Expected: exit 0, `feedback floor: N/N fix-items covered`.
+
+- [ ] **Step 7: Tests and commit**
+
+```bash
+bash tests/test-feedback-floor.sh | tail -1     # 15 passed
+bash tests/test-docs-spine.sh | tail -1         # 32 passed
+git add skills/review-app/SKILL.md .github/workflows/appverse-review.yaml references/artifact-envelope.md README.md references/
+git commit -m "feat: derive the Draft Feedback from fix-items and gate it in CI; report heading says gate criteria"
+```
+
+---
+
+### Task 11: Coverage-audit fixes
+
+**Files:** determined by the audit at `.superpowers/sdd/2026-09-23-appverse-review-plan-b-rubric/coverage-audit.md` (must-fix and should-fix lists). Typically `references/review-rubric.md` rows and one-line additions to `skills/review-*/SKILL.md`.
+
+- [ ] **Step 1:** Apply every must-fix item exactly as the audit words it (add the rubric row / add the skill instruction / align the wording), citing the audit line in the commit body.
+- [ ] **Step 2:** Apply should-fix items that are one-line wording alignments. Leave items the audit classifies as how-detail.
+- [ ] **Step 3:** `bash tests/test-docs-spine.sh` still 32/32; `grep -c "OODT-0[1-8]" tests/TESTING.md` unchanged.
+- [ ] **Step 4:** Commit: `docs: close coverage gaps between the rubric and the aspect skills (audit)`.
