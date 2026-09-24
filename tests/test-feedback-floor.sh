@@ -66,4 +66,14 @@ echo '[{"app_id":"root","rule":"QUA-05","defect_key":"a:b","aspect":"quality","s
 check "exit 0" 0 "$(run "$TMP/none.json" "$TMP/ok.md")"
 check "reports 0/0" "feedback floor: 0/0 fix-items covered" "$(tail -1 "$TMP/out")"
 
+echo "Test 9: a '##' line inside a fenced code block does not end the section"
+awk '/<!-- feedback-covers:/ { print "```"; print "## a comment inside a snippet"; print "```" } { print }' "$TMP/ok.md" > "$TMP/fenced.md"
+check "exit 0" 0 "$(run "$TMP/findings.json" "$TMP/fenced.md")"
+check "reports 4/4" "feedback floor: 4/4 fix-items covered" "$(tail -1 "$TMP/out")"
+
+echo "Test 10: a superstring of the path does not satisfy the token-boundary match"
+sed 's#template/script.sh.erb\.#template/myscript.sh.erb.#' "$TMP/ok.md" > "$TMP/superstring.md"
+check "exit 1" 1 "$(run "$TMP/findings.json" "$TMP/superstring.md")"
+check "names the finding with reason" 1 "$(grep -c 'MISSING QUA-03 template/script.sh.erb:no-error-handling (file not named in feedback)' "$TMP/out")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

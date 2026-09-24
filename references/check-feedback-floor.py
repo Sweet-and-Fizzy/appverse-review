@@ -7,7 +7,7 @@ fix-item and must be represented in the feedback section of the report:
   1. its defect_key is listed in a trailing HTML comment
        <!-- feedback-covers: key1, key2, ... -->
   2. if its evidence starts with a file path, that path (or its basename)
-     appears in the feedback prose.
+     appears in the feedback prose as a whole token.
 
     python3 references/check-feedback-floor.py review-<slug>.findings.json review-<slug>.md
 
@@ -32,15 +32,24 @@ PATH_PREFIX = re.compile(r"^([A-Za-z0-9_./\-]+\.[A-Za-z0-9_.]+)(?::|\s|$)")
 def feedback_section(report_text):
     lines = report_text.splitlines()
     start = None
+    in_fence = False
     for i, line in enumerate(lines):
-        if any(h.match(line) for h in SECTION_HEADINGS):
+        if line.startswith("```"):
+            in_fence = not in_fence
+            continue
+        if not in_fence and any(h.match(line) for h in SECTION_HEADINGS):
             start = i + 1
             break
     if start is None:
         return None
     body = []
+    in_fence = False
     for line in lines[start:]:
-        if line.startswith("## "):
+        if line.startswith("```"):
+            in_fence = not in_fence
+            body.append(line)
+            continue
+        if not in_fence and line.startswith("## "):
             break
         body.append(line)
     return "\n".join(body)
@@ -49,6 +58,14 @@ def feedback_section(report_text):
 def evidence_path(evidence):
     m = PATH_PREFIX.match(str(evidence or "").strip())
     return m.group(1) if m else None
+
+
+def token_in_prose(candidate, prose):
+    # '.' is excluded from the boundary class: paths routinely end a
+    # sentence ("...in submit.yml.erb.") and '.' is also a valid path
+    # character, so treating it as non-boundary would reject that case.
+    pattern = r"(?<![A-Za-z0-9_/-])" + re.escape(candidate) + r"(?![A-Za-z0-9_/-])"
+    return re.search(pattern, prose) is not None
 
 
 def main(argv):
@@ -85,7 +102,7 @@ def main(argv):
             missing.append((f, "not in feedback-covers"))
             continue
         path = evidence_path(f.get("evidence"))
-        if path and path not in prose and os.path.basename(path) not in prose:
+        if path and not any(token_in_prose(c, prose) for c in (path, os.path.basename(path))):
             missing.append((f, "file not named in feedback"))
     for f, reason in missing:
         print("MISSING {} {} ({})".format(f.get("rule", "?"), f.get("defect_key", "?"), reason))
