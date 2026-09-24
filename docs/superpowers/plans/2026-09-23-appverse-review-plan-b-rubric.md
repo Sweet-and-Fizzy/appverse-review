@@ -1576,9 +1576,29 @@ git commit -m "feat: derive the Draft Feedback from fix-items and gate it in CI;
 
 ### Task 11: Coverage-audit fixes
 
-**Files:** determined by the audit at `.superpowers/sdd/2026-09-23-appverse-review-plan-b-rubric/coverage-audit.md` (must-fix and should-fix lists). Typically `references/review-rubric.md` rows and one-line additions to `skills/review-*/SKILL.md`.
+**Files:** `references/review-rubric.md`, `references/review-checklist.md`, `references/finding-codes.md`, `references/target-setup.md`, `skills/review-structure/SKILL.md`, `skills/review-security/SKILL.md`, `skills/review-quality/SKILL.md`, `skills/review-maintenance/SKILL.md`. The audit is at `.superpowers/sdd/2026-09-23-appverse-review-plan-b-rubric/coverage-audit.md`; its section 5 gives file:line for every item below.
 
-- [ ] **Step 1:** Apply every must-fix item exactly as the audit words it (add the rubric row / add the skill instruction / align the wording), citing the audit line in the commit body.
-- [ ] **Step 2:** Apply should-fix items that are one-line wording alignments. Leave items the audit classifies as how-detail.
-- [ ] **Step 3:** `bash tests/test-docs-spine.sh` still 32/32; `grep -c "OODT-0[1-8]" tests/TESTING.md` unchanged.
-- [ ] **Step 4:** Commit: `docs: close coverage gaps between the rubric and the aspect skills (audit)`.
+**Rulings on the audit's must-fix list (apply exactly these):**
+
+- **M1 public repo:** do not add a rule code. In the rubric's "Repository is public and accessible" row, change the second cell to: `A private or inaccessible repo cannot be listed; the catalog links to it. The review verifies this by cloning — an unreachable repo stops the review before any finding is recorded, and the report says so.` In `references/target-setup.md` where an unreachable repo says "Stop", add: `Report this as the failed gate "Repository is public and accessible" rather than as an error.`
+- **M2 maintainer fields:** in `skills/review-structure/SKILL.md` per-app checks, extend the "Required metadata fields" bullet: `For declared repos that includes \`description\`, \`software\`, \`app_type\`, \`maintainer.name\`, and \`maintainer.support_url\`; a missing field is a gate failure (STR-02, \`missing-field:<name>\`).` Use the STR code finding-codes.md already assigns to missing metadata; if the tag vocabulary lacks `missing-field:{name}`, add it there.
+- **M3 security derivation comment in review-app:** DO NOT EDIT. PR 43 rewrites that exact comment block; editing it here would conflict. Note it in the commit body.
+- **M4 missing QUA codes:** in `references/finding-codes.md`, add two rule codes following the existing QUA numbering (next free numbers): one for "large duplicated code block" with tag `duplicated-block`, one for "ERB template does not handle a missing or empty value" with tag `erb-missing-value-unhandled`. Add one sentence to the rubric's Code Quality table rows so each names its code.
+- **M5:** add mechanism tag `partial-auth-coverage` under OODT-05 in `finding-codes.md`.
+- **M6:** in `skills/review-maintenance/SKILL.md` signals section add: `A repo with no open issues is neutral on issue responsiveness: report it as neither a good sign nor a concern.`
+- **M7 CI row:** weaken the rubric, do not add a check. Change the Upkeep table's CI/CD "Good Sign" cell to `A CI workflow is present (ideally one that lints shell/ERB or validates the YAML)`.
+- **M8 tier 3:** rewrite the rubric's Tier 3 bullet to match the security skill: `**Tier 3 — Runtime.** Boot the app and exercise it, only in an isolated, disposable environment (never on a reviewer's own machine or a shared host). Reported as \`NOT CHECKED — no isolated execution environment\` when none is available, which is the usual case.`
+- **M9:** in `skills/review-quality/SKILL.md` Documentation bullet add: `Flag as QUA-01 a README that references another institution's paths, cluster names, or module names without saying they must change.`
+- **M10:** in `skills/review-security/SKILL.md` capability-profile step (Batch Connect) add: `Record any binary file under \`template/\` as a finding (OODT-04, tag \`binary-in-template\`) in addition to listing it as unauditable.` Add the tag under OODT-04 in `finding-codes.md`.
+- **M11:** add a rule code in `finding-codes.md` for "Passenger dependency manifest missing or inconsistent with the dependency file" (next free STR number, tag `dependency-manifest-inconsistent`) and name it in the rubric's Passenger paragraph.
+- **M12 WARN:** in the rubric's "How to read this rubric", after the sentence about rule code / severity / evidence, add: `Each finding also carries a result: FAIL means the criterion is not met; WARN means the tool could not confirm it or the defect is advisory — on a gate row, a WARN is for the reviewer to settle in Step 3 of the Process, not an automatic pass.`
+- **M13 submitter mode:** in `references/review-checklist.md` "Before you start", add a paragraph: `Contributors can run the same review on their own repo before submitting (the tool's submitter mode). It applies this rubric unchanged and ends with a "Fix before submitting" list instead of draft feedback; a submission that arrives with that list already worked through is the fast path.`
+
+**Should-fix items to apply (one-liners):** S3 (ERB-strip pointer next to `bash -n` in review-structure), S5 (`form.yml.erb` in the quality skill's portability look-list), S12 (README-documented site values count toward Partially portable, in the quality skill's portability bullet), S13 (rubric decision row: note "not an OOD app" is a reviewer-only trigger), S14 (maintenance skill: use the fetched `archived` value to confirm structure's not-archived gate, one sentence), S17 (rubric `app_type` row: the tool reports the vocabulary terms it found), S18 (Process doc "Before you start": prior reviews are context only; every finding is re-verified against the current commit).
+
+**Leave, and list in the PR body as known drift:** S1 (done in Task 10), S2, S4, S6 (PR 43 territory), S7, S8, S9, S10, S11, S15, S16, S19, S20.
+
+- [ ] **Step 1:** Apply the must-fix rulings above, one file at a time, locating each edit by the audit's file:line and the quoted text.
+- [ ] **Step 2:** Apply the seven should-fix one-liners.
+- [ ] **Step 3:** `bash tests/test-docs-spine.sh` still 32/32; `bash tests/test-feedback-floor.sh` still 14/14; `grep -c "OODT-0[1-8]" tests/TESTING.md` unchanged (26). New rule codes are additive; do not renumber any existing code.
+- [ ] **Step 4:** Commit: `docs: close coverage gaps between the rubric and the aspect skills (audit M1–M13 minus M3; S3,S5,S12,S13,S14,S17,S18)`, with the M3 note in the body.
