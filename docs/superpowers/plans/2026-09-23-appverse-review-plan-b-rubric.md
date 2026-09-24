@@ -987,14 +987,14 @@ Then, from the main portal checkout (never raw `git worktree add`):
 ```bash
 cd ~/Sites/connectci/cyberteam_drupal
 git fetch origin
-git branch md-<ticket> origin/md-dev
-vendor/bin/robo tree:new md-<ticket>
+git branch md-2873 origin/md-dev
+vendor/bin/robo tree:new md-2873
 ```
 
 `tree:new` has left the DB empty on this machine before (its inner import runs inside the container). If `ddev drush status` in the new worktree shows no DB, finish it by hand:
 
 ```bash
-cd ~/Sites/connectci/worktrees/md-<ticket>
+cd ~/Sites/connectci/worktrees/md-2873
 ddev import-db --file=backups/site.sql.gz
 ddev drush cset --input-format=yaml jsonapi_extras.settings validate_configuration_integrity false -y
 ddev drush deploy -y
@@ -1065,7 +1065,7 @@ class DocSyncMapTest extends UnitTestCase {
 - [ ] **Step 3: Run it and confirm it fails**
 
 ```bash
-cd ~/Sites/connectci/worktrees/md-<ticket>
+cd ~/Sites/connectci/worktrees/md-2873
 ddev exec "cd web/modules/custom/ood_software && ../../../../vendor/bin/phpunit tests/src/Unit/Service/DocSyncMapTest.php"
 ```
 
@@ -1095,7 +1095,7 @@ Same command as Step 3. Expected: 3 tests, 0 failures.
 
 ```bash
 git add web/modules/custom/ood_software/src/Service/DocSyncService.php web/modules/custom/ood_software/tests/src/Unit/Service/DocSyncMapTest.php
-git commit -m "D8-<ticket>: sync the Review Rubric into node 12246 in place of the Security Rubric"
+git commit -m "D8-2873: sync the Review Rubric into node 12246 in place of the Security Rubric"
 ```
 
 ---
@@ -1126,7 +1126,7 @@ Import and check it renders (presentation only, no automated test):
 
 ```bash
 ddev drush cim -y
-ddev drush uli --uri=https://md-<ticket>.ddev.site
+ddev drush uli --uri=https://md-2873.ddev.site
 ```
 
 Open `/appverse/manage-repos` as the admin and confirm the sentence and both links.
@@ -1150,9 +1150,9 @@ If the path mapping into the container is awkward, copy the file into the worktr
 
 ```bash
 git add web/sites/default/config/default/views.view.my_appverse.yml
-git commit -m "D8-<ticket>: link both reviewer docs from the Manage Repos intro"
-git push -u origin md-<ticket>
-gh pr create --base md-dev --title "D8-<ticket>: publish the Appverse Review Rubric, retire the Security Rubric page" --body-file - <<'EOF'
+git commit -m "D8-2873: link both reviewer docs from the Manage Repos intro"
+git push -u origin md-2873
+gh pr create --base md-dev --title "D8-2873: publish the Appverse Review Rubric, retire the Security Rubric page" --body-file - <<'EOF'
 ## Why
 appverse-review is splitting its reviewer docs into a Reviewer Process page and a general Review Rubric (Sweet-and-Fizzy/appverse-review PR <number>). The portal syncs those docs from GitHub and links to them.
 
