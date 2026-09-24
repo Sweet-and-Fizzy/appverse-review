@@ -28,7 +28,7 @@ own runs it itself.
 - No argument: **submitter mode**. Review the current working tree. Derive
   `<owner>/<repo>` from `git remote get-url origin` if available. If the tree has
   neither `appverse.yml` nor `manifest.yml` at its root, warn that this will fail
-  required criteria and confirm the directory is the app repo before continuing.
+  gate criteria and confirm the directory is the app repo before continuing.
 
 Record the reviewed commit — every review is pinned to it:
 

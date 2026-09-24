@@ -14,12 +14,13 @@ The orchestrator (`review-app/SKILL.md`) emits three files:
 | `review-<slug>.findings.json` | Aspect skills (LLM) | Structured finding records |
 | `review-<slug>.meta.json` | Orchestrator (LLM) | Review context + recommendation |
 
-Two scripts then process these:
+Scripts then process these:
 
 | Script | Input | Output |
 |---|---|---|
 | `compute-ids.py` | findings JSON | findings JSON with stable `id` fields |
 | `assemble-artifact.py` | meta JSON + findings JSON + file paths | **artifact JSON** (this contract) |
+| `check-feedback-floor.py` | findings JSON + report MD | exit status: every Low+ fix-item named in the Draft Feedback |
 
 The LLM produces the judgment; the scripts produce the structure.
 

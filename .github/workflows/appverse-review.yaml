@@ -249,6 +249,21 @@ jobs:
             echo "::warning::No findings JSON found — review may not have produced structured output"
           fi
 
+      - name: Check the feedback floor
+        if: inputs.review_aspects == 'all'
+        run: |
+          WS="${{ github.workspace }}"
+          SLUG="${{ steps.params.outputs.repo_slug }}"
+          if [ -s "$WS/review-${SLUG}.findings.json" ] && [ -s "$WS/review-${SLUG}.md" ]; then
+            if ! python3 "$WS/appverse-review/references/check-feedback-floor.py" \
+                 "$WS/review-${SLUG}.findings.json" "$WS/review-${SLUG}.md"; then
+              echo "::error::Draft Feedback omits fix-level findings (see MISSING lines above)"
+              exit 1
+            fi
+          else
+            echo "::warning::findings JSON or report missing — feedback floor not checked"
+          fi
+
       - name: Generate PDF and HTML from review
         if: always()
         run: |

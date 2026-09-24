@@ -67,7 +67,7 @@ string; if unavailable, write `unknown`.
 
 > _Disclaimer: This is an automated review with human curation. It is provided without warranty of any kind and does not certify the app as secure or fit for any purpose. A listing is not an endorsement._
 
-## Repo-level required criteria
+## Repo-level gate criteria
 
 | Rule | Result | Evidence |
 |---|---|---|
@@ -132,7 +132,7 @@ string; if unavailable, write `unknown`.
 |---|---|---|---|
 
 **Per-app decision:** <Accept | Accept with suggestions | Request changes | Reject>
-<!-- This is a decision, derived from the required criteria and finding
+<!-- This is a decision, derived from the gate criteria and finding
      properties above — not from the Signals block. Monorepos only: one line
      per app, rolled up by the Overall recommendation below. Single-app repos:
      omit this line — the Overall recommendation is the decision. -->
@@ -191,8 +191,8 @@ Apply the decision rubric below (from the rubric's "Decision rubric" section):
 
 | Outcome | Criteria |
 |---------|----------|
-| **Accept** | Passes all required criteria, adequate+ documentation, partially portable+ config. Always conditional on the duplicate/catalog checks the review cannot perform — word any Accept as pending those. |
-| **Accept with suggestions** | Passes required criteria but has clear improvement areas. A below-target Documentation or Portability rating belongs here, not Request changes, when required criteria are otherwise met. |
+| **Accept** | Passes all gate criteria, adequate+ documentation, partially portable+ config. Always conditional on the duplicate/catalog checks the review cannot perform — word any Accept as pending those. |
+| **Accept with suggestions** | Passes gate criteria but has clear improvement areas. A below-target Documentation or Portability rating belongs here, not Request changes, when gate criteria are otherwise met. |
 | **Request changes** | Missing a required (gate) criterion but fixable. A fixable security misconfiguration, even High severity (e.g. CORS open to all origins), is Request changes, not Reject. |
 | **Reject** | Duplicate app, no license, abandoned/unmaintained, not an OOD app, or a security finding tagged potentially malicious or unfixable without redesigning the app. |
 
@@ -212,19 +212,26 @@ from the identity fields (`app_id`, `rule`, `defect_key`).
 
 **Derived-only rule.** The overall recommendation and the mode-specific ending
 below are summaries — every problem or fix they mention must already appear as a
-finding in a table above (required criteria, security, or the quality findings
+finding in a table above (gate criteria, security, or the quality findings
 table). If while writing the feedback you notice a real defect that is not yet
 recorded, stop and add it to the appropriate findings table first, then
 summarize it here. A problem must never appear for the first time in the
 recommendation or the feedback message.
 
-**Inclusion floor.** Every finding at Low severity or above, and every failed
-required (gate) criterion, must be represented in the Draft Feedback.
-Info-level polish (e.g. an undocumented hex constant) may be summarized in one
-line or omitted. The feedback is a prioritized note, not a copy of the
-findings table — but it must not silently drop a real fix-item. (This
-complements the Derived-only rule: feedback ⊆ findings, and now fix-level
-findings ⊆ feedback.)
+**Inclusion floor — derive, don't recall.** Before writing the feedback, list
+every finding whose `result` is FAIL or WARN and whose `severity` is Low or
+above. Each of these is a fix-item and must be named in the feedback with the
+file it lives in; group related items in one paragraph where that reads
+better. Info-level polish may be summarized in one line or omitted. End the
+feedback section with a single HTML comment listing the `defect_key` of every
+fix-item you covered:
+
+    <!-- feedback-covers: submit.yml.erb:unsanitized-input, template/script.sh.erb:no-error-handling -->
+
+`check-feedback-floor.py` (wrap-up, and CI) fails the review when a fix-item's
+key is absent from that line or its file is not named in the prose. (This
+complements the Derived-only rule: feedback ⊆ findings, and fix-items ⊆
+feedback.)
 
 - **Reviewer mode:** append a draft contributor feedback message using the
   Reviewer Process's Step 4 feedback guidance (specific, references files, links the README
@@ -232,7 +239,7 @@ findings ⊆ feedback.)
   ready to paste into a Drupal moderation comment or GitHub issue. Label it
   "Draft feedback — edit before sending."
 - **Submitter mode:** append a prioritized "Fix before submitting" list instead —
-  required-criteria failures first (security findings at the top), then quality
+  gate-criteria failures first (security findings at the top), then quality
   improvements, each with the file to change.
 
 ## 5. Emit review metadata
@@ -282,5 +289,10 @@ are tracked externally by the API provider.
         > review-<owner>-<repo>.findings.json.tmp \
         && mv review-<owner>-<repo>.findings.json.tmp \
               review-<owner>-<repo>.findings.json
+
+- Then check the feedback floor and fix the feedback until it passes:
+
+      python3 "${CLAUDE_PLUGIN_ROOT}/references/check-feedback-floor.py" \
+        review-<owner>-<repo>.findings.json review-<owner>-<repo>.md
 
 - Reviewer mode: remove the temp clone (`rm -rf "$TMP"`).
