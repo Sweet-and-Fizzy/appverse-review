@@ -1066,10 +1066,10 @@ class DocSyncMapTest extends UnitTestCase {
 
 ```bash
 cd ~/Sites/connectci/worktrees/md-2873
-ddev exec "cd web/modules/custom/ood_software && ../../../../vendor/bin/phpunit tests/src/Unit/Service/DocSyncMapTest.php"
+ddev exec "vendor/bin/phpunit -c web/core web/modules/custom/ood_software/tests/src/Unit/Service/DocSyncMapTest.php"
 ```
 
-Expected: `testRubricReplacesSecurityRubric` fails on `assertArrayHasKey` (rubric URL not present); the other two pass.
+Expected: `testRubricReplacesSecurityRubric` fails on `assertArrayHasKey` (rubric URL not present); the other two pass. (`-c web/core` is required: Drupal core's phpunit config supplies the bootstrap that registers the `Drupal\Tests` namespace; the portal CLAUDE.md's cd-into-module form does not work here. This is the invocation the portal's CI action uses.)
 
 - [ ] **Step 4: Change the map**
 
