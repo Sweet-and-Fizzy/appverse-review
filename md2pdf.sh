@@ -47,7 +47,8 @@ STYLE_FILE="$(mktemp "${TMPDIR:-/tmp}/review-style.XXXXXX.typ")"
 
 # --- HTML style (self-contained, stable anchors for deep-linking) ---
 HTML_CSS="$(mktemp "${TMPDIR:-/tmp}/review-style.XXXXXX.css")"
-trap 'rm -f "$STYLE_FILE" "$LUA_FILTER" "$HTML_CSS"' EXIT
+NO_JSON="$(mktemp "${TMPDIR:-/tmp}/no-json.XXXXXX.md")"
+trap 'rm -f "$STYLE_FILE" "$LUA_FILTER" "$HTML_CSS" "$NO_JSON"' EXIT
 cat > "$HTML_CSS" << 'CSS'
 body { max-width: 52em; margin: 2em auto; padding: 0 1em;
        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -112,8 +113,17 @@ for md in "${files[@]}"; do
   html="${md%.md}.html"
   name="$(basename "$md")"
 
+  # --- strip structured-findings JSON blocks (```json fenced) before
+  #     rendering; the JSON is for tooling, not for the human-facing
+  #     HTML/PDF renderings ---
+  awk '
+    /^```json[ \t]*$/ { skip=1; next }
+    skip && /^```[ \t]*$/ { skip=0; next }
+    !skip { print }
+  ' "$md" > "$NO_JSON"
+
   # --- HTML (stable anchors for deep-linking) ---
-  if pandoc "$md" \
+  if pandoc "$NO_JSON" \
     --standalone \
     --toc \
     --css="$HTML_CSS" \
@@ -129,7 +139,7 @@ for md in "${files[@]}"; do
   font_args=()
   [[ -n "$FONT" ]] && font_args+=(-V "mainfont=$FONT")
 
-  if pandoc "$md" \
+  if pandoc "$NO_JSON" \
     --pdf-engine=typst \
     --lua-filter="$LUA_FILTER" \
     --include-in-header="$STYLE_FILE" \
