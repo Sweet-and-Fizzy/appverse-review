@@ -20,7 +20,15 @@ that fails, with `file:line` evidence.
 - **Documentation**: rate Minimal / Adequate / Strong / Exemplary against the
   rubric's Documentation table and its four README questions (what does it
   launch, what must be installed, how to deploy, what to customize). One-line
-  justification citing README sections present or missing. Flag as QUA-01 a
+  justification citing README sections present or missing. Before rating,
+  write one evidence line per rung requirement (what it launches,
+  prerequisites, installation, configuration, known limitations,
+  troubleshooting, screenshots, environment variables, info panel,
+  architecture) naming the README section and line that satisfies it, or
+  "none". A heading whose body is the README template's placeholder text
+  counts as none. Rungs are cumulative: the rating is the highest rung whose
+  requirements, and every lower rung's, all have evidence; never claim a
+  rung with a "none" line. Flag as QUA-01 a
   README that references another institution's paths, cluster names, or
   module names without saying they must change.
 - **Configuration portability**: rate Not portable / Partially portable /
@@ -35,7 +43,11 @@ that fails, with `file:line` evidence.
   commented-out dead code, ERB templates handle missing or empty values
   gracefully. Record each as its own rule: QUA-03 error handling, QUA-07 input
   validation, QUA-08 magic numbers, QUA-09 duplicated blocks, QUA-04 dead code,
-  QUA-10 ERB missing/empty values (codes in finding-codes.md). The rubric's
+  QUA-10 ERB missing/empty values (codes in finding-codes.md). Every checkbox
+  and named check gets a result row even when clean (PASS with evidence) or
+  unexaminable (NOT CHECKED with the reason). An unmet target for inclusion —
+  error handling, input validation — is recorded as FAIL, not WARN;
+  suggestions that are unmet are WARN. The rubric's
   Code Quality section says which of these are
   targets for inclusion and which are improvement suggestions — weight each
   finding the way the rubric frames it, rather than applying your own
@@ -66,11 +78,14 @@ that fails, with `file:line` evidence.
 
 ## Output
 
-Per app: the two ratings with one-line justifications, then **structured
-findings** per target-setup.md §4 covering both the code-quality checkboxes and
+Per app: the two ratings with one-line justifications and the Documentation
+evidence lines, then **structured findings** per target-setup.md §4 covering
+both the code-quality checkboxes and
 the correctness-&-polish defects. Each finding uses a QUA-XX rule code and a
 `defect_key` from the quality mechanism-tag vocabulary in
 `${CLAUDE_PLUGIN_ROOT}/references/finding-codes.md`.
+
+Result values are exactly FAIL, WARN, PASS, NOT CHECKED; "Info" is a severity, never a result.
 
 Note which target-for-inclusion thresholds (Adequate+ docs, Partially portable+)
 are not met — as findings (QUA-01 / QUA-02), not decisions.

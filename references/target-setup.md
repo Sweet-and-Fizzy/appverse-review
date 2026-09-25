@@ -86,6 +86,7 @@ after any prose tables (ratings, capability profiles) in the aspect's output:
     "aspect":      "security",
     "severity":    "medium",
     "result":      "FAIL",
+    "tag":         "unintentional",
     "summary":     "MLflow bound to 0.0.0.0:5000, reachable by other users",
     "evidence":    "template/script.sh.erb:24",
     "line":        24
@@ -106,6 +107,7 @@ Field definitions:
 | `summary` | Yes | No | Human-readable description — display text, not identity |
 | `evidence` | Yes | No | `file:line` plus a short quote. Every FAIL/WARN needs evidence |
 | `line` | No | No | Primary line number (integer), for tooling convenience |
+| `tag` | Security only | No | `unintentional` or `potentially-malicious` |
 
 **The skill does not emit an `id` field.** The stable ID is computed
 downstream from the three identity fields (`app_id`, `rule`, `defect_key`)

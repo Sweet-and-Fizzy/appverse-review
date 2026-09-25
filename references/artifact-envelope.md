@@ -35,7 +35,7 @@ The LLM produces the judgment; the scripts produce the structure.
     "sha":          "6a4183c…",
     "ref":          "main",
     "at":           "2026-08-27T14:00:00Z",
-    "tool_version": "appverse-review@0.3.0",
+    "tool_version": "appverse-review@0.4.0",
     "repo_shape":   "inferred_single | declared_monorepo | declared_single"
   },
 

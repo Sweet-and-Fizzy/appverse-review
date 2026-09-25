@@ -146,6 +146,8 @@ Follow these rules for any runtime verification:
   rule code and a `defect_key` from the security mechanism-tag vocabulary in
   `${CLAUDE_PLUGIN_ROOT}/references/finding-codes.md`. Tool-corroborated
   findings include the tool name and finding ID in the `summary` field. Tag each
-  finding as unintentional or potentially malicious in the `summary`.
+  finding in a `tag` field on the record, value `unintentional` or
+  `potentially-malicious`, and repeat it in the report's Tag column, written
+  as *potentially malicious* in the column.
 
 No decisions, no numeric risk scores.

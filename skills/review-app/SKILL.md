@@ -63,7 +63,7 @@ string; if unavailable, write `unknown`.
 
 **Repository:** <url or path>  **Mode:** reviewer|submitter  **Date:** <today>
 **Reviewed commit:** `<full SHA>` (<commit date>)  **Repo shape:** declared monorepo (N apps) | declared single app | inferred single app
-**Reviewed with:** appverse-review @ <plugin version> (`<appverse-review HEAD short SHA, captured at run time>`) · **Rubric:** https://openondemand.connectci.org/appverse-review-rubric
+**Reviewed with:** appverse-review @ <plugin version> (`<appverse-review HEAD short SHA, captured at run time>`, https://github.com/Sweet-and-Fizzy/appverse-review) · **Model:** <the model id you are running as, the same value written to meta.json> · **Rubric:** https://openondemand.connectci.org/appverse-review-rubric
 
 > _Disclaimer: This is an automated review with human curation. It is provided without warranty of any kind and does not certify the app as secure or fit for any purpose. A listing is not an endorsement._
 
@@ -75,6 +75,23 @@ string; if unavailable, write `unknown`.
 | STR-01 | PASS/FAIL | README.md — ... |
 | STR-01 | PASS/FAIL | LICENSE — ... |
 | — | PASS/FAIL/NOT CHECKED | Repo not archived |
+<!-- Result values everywhere are exactly PASS, FAIL, WARN, NOT CHECKED. "Info" is a severity, never a result. -->
+
+## Upkeep
+
+| Signal | Value | Assessment |
+|---|---|---|
+| Last commit | ... | ... |
+| Releases | ... | ... |
+| Issues responsiveness | ... | ... |
+| Contributors | ... | ... |
+| CHANGELOG | ... | ... |
+| CI | ... | ... |
+
+| Dimension | Level | Evidence |
+|---|---|---|
+| Upkeep (repo-level) | Low / Medium / High | <one-line phrase> |
+<!-- Upkeep: active within 12mo + 2+ good-practice signals = Low; active within 12mo = Medium; inactive > 12mo = High. -->
 
 ## App: <name> (<subpath>)
 
@@ -96,12 +113,14 @@ string; if unavailable, write `unknown`.
 ### Structure
 | Rule | Result | Severity | Summary | Evidence |
 |---|---|---|---|---|
-| STR-02 | PASS/FAIL | ... | Required metadata fields | ... |
-| STR-03 | PASS/FAIL | ... | YAML validity | ... |
-| STR-07 | PASS/FAIL | ... | Standard OOD structure | ... |
-| STR-04 | PASS/FAIL | ... | No broken references | ... |
+| STR-02 | PASS/FAIL/WARN/NOT CHECKED | ... | Required metadata fields | ... |
+| STR-03 | PASS/FAIL/WARN/NOT CHECKED | ... | YAML validity | ... |
+| STR-07 | PASS/FAIL/WARN/NOT CHECKED | ... | Standard OOD structure | ... |
+| STR-04 | PASS/FAIL/WARN/NOT CHECKED | ... | No broken references | ... |
 
 ### Security
+
+Findings are classified under OODT (Open OnDemand App Threats); codes are defined in the rubric's Security section.
 
 **Check tiers:** <Tiers 1–2 | Tiers 1–3 | Tier 1 only>
 <if not all tiers: "Tier N not checked — <reason>">
@@ -112,9 +131,11 @@ string; if unavailable, write `unknown`.
 
 <capability profile: table for Batch Connect, narrative for Passenger>
 
-| Rule | Result | Severity | Summary | Evidence |
-|---|---|---|---|---|
-| OODT-XX | FAIL/WARN | high/medium/low | <description> | file:line |
+#### Findings
+
+| Rule | Result | Severity | Tag | Summary | Evidence |
+|---|---|---|---|---|---|
+| OODT-XX | FAIL/WARN | critical/high/medium/low | unintentional / potentially malicious | <description> | file:line |
 
 ### Portability
 - Rating: <Not portable | Partially portable | Portable> — <one-line justification>
@@ -122,37 +143,38 @@ string; if unavailable, write `unknown`.
 
 ### Documentation
 - Rating: <Minimal | Adequate | Strong | Exemplary> — <one-line justification>
-<!-- Documentation findings, each with file:line -->
+- Evidence per rung (a heading whose body is template placeholder text counts as none):
+  what it launches: <…>; prerequisites: <…>; installation: <README section + line, or none>;
+  configuration: <…>; known limitations: <…>;
+  troubleshooting: <…>; screenshots: <…>; environment variables: <…>;
+  info panel: <…>; architecture: <…>
+<!-- The rating is the highest rung with every requirement satisfied above.
+     Never claim a rung whose evidence line says none. Documentation findings, each with file:line -->
 
 ### Code Quality
-<!-- code-quality checkboxes AND correctness-&-polish defects (copy-paste artifacts,
-     duplicate YAML keys, wrong help text, README typos), each with file:line.
-     Code Quality is a findings category that feeds the decision rubric — it is NOT a signal dimension. -->
+<!-- One row per check, ALWAYS, in this order; PASS with evidence when clean,
+     NOT CHECKED with the reason when it could not be examined. Never omit a
+     row: silence reads as clean. Then one row per correctness-&-polish
+     finding (copy-paste artifacts, duplicate YAML keys, wrong help text,
+     README typos). Code Quality is a findings category that feeds the
+     decision rubric — it is NOT a signal dimension. -->
 
-| Finding | Type | Result | Evidence |
-|---|---|---|---|
+| Check | Rule | Result | Severity | Summary | Evidence |
+|---|---|---|---|---|---|
+| Error handling in scripts | QUA-03 | PASS/FAIL/WARN/NOT CHECKED | ... | ... | file:line |
+| Input validation on form fields (`check: numeric-field-bounds`) | QUA-07 | ... | ... | ... | ... |
+| Magic numbers / undocumented literals | QUA-08 | ... | ... | ... | ... |
+| Duplicated code blocks | QUA-09 | ... | ... | ... | ... |
+| Commented-out dead code | QUA-04 | ... | ... | ... | ... |
+| ERB handles missing/empty values | QUA-10 | ... | ... | ... | ... |
+| Desktop/panel icon matches target OS (`check: icon-matches-target-os`) | QUA-06 | ... | ... | ... | ... |
+| <correctness & polish finding> | QUA-05/QUA-06 | FAIL/WARN | ... | ... | file:line |
 
 **Per-app decision:** <Accept | Accept with suggestions | Request changes | Reject>
 <!-- This is a decision, derived from the gate criteria and finding
      properties above — not from the Signals block. Monorepos only: one line
      per app, rolled up by the Overall recommendation below. Single-app repos:
      omit this line — the Overall recommendation is the decision. -->
-
-## Maintenance signals
-
-| Signal | Value | Assessment |
-|---|---|---|
-| Last commit | ... | ... |
-| Releases | ... | ... |
-| Issues responsiveness | ... | ... |
-| Contributors | ... | ... |
-| CHANGELOG | ... | ... |
-| CI | ... | ... |
-
-| Dimension | Level | Evidence |
-|---|---|---|
-| Upkeep (repo-level) | Low / Medium / High | <one-line phrase> |
-<!-- Upkeep: active within 12mo + 2+ good-practice signals = Low; active within 12mo = Medium; inactive > 12mo = High. -->
 
 ## Review scope
 
@@ -187,6 +209,8 @@ forces a reject.
 roll up the per-app decisions above. Draw only on findings already recorded in
 the tables — do not introduce new problems here.>
 ```
+
+The repo-level sections come first: gate criteria, then Upkeep; the per-app sections follow, each with the six subsection headings in the order shown (Signals, Structure, Security, Portability, Documentation, Code Quality). Under a heading with nothing to report, write `No findings.`
 
 Apply the decision rubric below (from the rubric's "Decision rubric" section):
 
@@ -231,9 +255,12 @@ checksum of what you wrote, not a list to satisfy:
     <!-- feedback-covers: submit.yml.erb:unsanitized-input, template/script.sh.erb:no-error-handling -->
 
 `check-feedback-floor.py` (wrap-up, and CI) fails the review when a fix-item's
-key is absent from that line or its file is not named in the prose. (This
-complements the Derived-only rule: feedback ⊆ findings, and fix-items ⊆
-feedback.)
+key is absent from that line, its file is not named in the prose, or the
+paragraph that names the file gives neither a line number from the finding's
+evidence nor a word from its defect key. Write the defect in plain words for
+the contributor; the check is looking for the file and either the line or
+what is wrong, not jargon. (This complements the Derived-only rule: feedback
+⊆ findings, and fix-items ⊆ feedback.)
 
 - **Reviewer mode:** append a draft contributor feedback message using the
   Reviewer Process's Step 4 feedback guidance (specific, references files, links the README
