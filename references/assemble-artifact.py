@@ -75,6 +75,19 @@ def _resolve_result(finding):
     return "fail"
 
 
+def _resolve_meta_value(meta_key, raw):
+    key = raw.strip().upper() if isinstance(raw, str) else raw
+    if key in RESULT_TO_CRITERION:
+        return RESULT_TO_CRITERION[key]
+    print(
+        "warning: meta {}: unrecognized value '{}', counted as fail".format(
+            meta_key, raw
+        ),
+        file=sys.stderr,
+    )
+    return "fail"
+
+
 def _worsen(criteria, key, value):
     current = criteria.get(key, "pass")
     if CRITERION_PRECEDENCE.index(value) < CRITERION_PRECEDENCE.index(current):
@@ -88,7 +101,10 @@ def derive_repo_criteria(findings, meta):
     }
     archived = meta.get("not_archived")
     if archived is not None:
-        criteria["not_archived"] = archived
+        criteria["not_archived"] = _resolve_meta_value("not_archived", archived)
+    public = meta.get("public")
+    if public is not None:
+        criteria["public"] = _resolve_meta_value("public", public)
     for f in findings:
         tag = _mechanism_tag(f)
         if tag in REPO_CRITERIA_MECHANISMS:

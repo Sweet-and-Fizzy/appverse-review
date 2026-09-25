@@ -204,6 +204,75 @@ EOF
 ARTIFACT_R6B=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result6b.json" --md "r.md" --plugin-version "0.3.0")
 check "case6: readme_substantive fail" "fail" "$(echo "$ARTIFACT_R6B" | python3 -c "import json,sys; print(json.load(sys.stdin)['repo_level']['criteria']['readme_substantive'])")"
 
+# Case 7: meta-sourced gates (not_archived, public) go through the same enum
+cat > "$TMP/meta-result7a.json" << 'EOF'
+{
+  "repo_url": "https://github.com/test/app",
+  "sha": "abc123", "ref": "main",
+  "repo_shape": "inferred_single",
+  "not_archived": "WARN",
+  "model": "claude-sonnet-4-6",
+  "recommendation": {"decision": "Accept", "note": "All gates pass."},
+  "apps": [{"app_id": "root", "name": "Test App", "decision": "Accept"}]
+}
+EOF
+ARTIFACT_R7A=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result7a.json" --md "r.md" --plugin-version "0.3.0")
+check "case7a: not_archived WARN -> warn" "warn" "$(echo "$ARTIFACT_R7A" | python3 -c "import json,sys; print(json.load(sys.stdin)['repo_level']['criteria']['not_archived'])")"
+
+cat > "$TMP/meta-result7b.json" << 'EOF'
+{
+  "repo_url": "https://github.com/test/app",
+  "sha": "abc123", "ref": "main",
+  "repo_shape": "inferred_single",
+  "not_archived": "maybe",
+  "model": "claude-sonnet-4-6",
+  "recommendation": {"decision": "Accept", "note": "All gates pass."},
+  "apps": [{"app_id": "root", "name": "Test App", "decision": "Accept"}]
+}
+EOF
+ARTIFACT_R7B=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result7b.json" --md "r.md" --plugin-version "0.3.0" 2>"$TMP/stderr7b.txt")
+check "case7b: not_archived maybe -> fail" "fail" "$(echo "$ARTIFACT_R7B" | python3 -c "import json,sys; print(json.load(sys.stdin)['repo_level']['criteria']['not_archived'])")"
+STDERR7B=$(cat "$TMP/stderr7b.txt")
+case "$STDERR7B" in
+  *"unrecognized"*) check "case7b: stderr warns unrecognized" "yes" "yes" ;;
+  *) check "case7b: stderr warns unrecognized" "yes" "no ($STDERR7B)" ;;
+esac
+
+cat > "$TMP/meta-result7c.json" << 'EOF'
+{
+  "repo_url": "https://github.com/test/app",
+  "sha": "abc123", "ref": "main",
+  "repo_shape": "inferred_single",
+  "not_archived": "pass",
+  "public": "pass",
+  "model": "claude-sonnet-4-6",
+  "recommendation": {"decision": "Accept", "note": "All gates pass."},
+  "apps": [{"app_id": "root", "name": "Test App", "decision": "Accept"}]
+}
+EOF
+ARTIFACT_R7C=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result7c.json" --md "r.md" --plugin-version "0.3.0")
+check "case7c: public pass -> pass" "pass" "$(echo "$ARTIFACT_R7C" | python3 -c "import json,sys; print(json.load(sys.stdin)['repo_level']['criteria']['public'])")"
+
+ARTIFACT_R7D=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --md "r.md" --plugin-version "0.3.0")
+check "case7d: no public in meta -> no public key" "False" "$(echo "$ARTIFACT_R7D" | python3 -c "import json,sys; print('public' in json.load(sys.stdin)['repo_level']['criteria'])")"
+
+# Case 8: regression probes -- lower-case and padded result values resolve correctly
+cat > "$TMP/findings-result8a.json" << 'EOF'
+[
+  {"app_id":"root","rule":"STR-01","defect_key":"LICENSE:missing-license","result":"pass","severity":"info","summary":"lower-case pass","evidence":"LICENSE"}
+]
+EOF
+ARTIFACT_R8A=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result8a.json" --md "r.md" --plugin-version "0.3.0")
+check "case8a: lower-case 'pass' resolves to pass" "pass" "$(echo "$ARTIFACT_R8A" | python3 -c "import json,sys; print(json.load(sys.stdin)['repo_level']['criteria']['license'])")"
+
+cat > "$TMP/findings-result8b.json" << 'EOF'
+[
+  {"app_id":"root","rule":"STR-01","defect_key":"LICENSE:missing-license","result":"  FAIL  ","severity":"high","summary":"padded FAIL","evidence":"(no file)"}
+]
+EOF
+ARTIFACT_R8B=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result8b.json" --md "r.md" --plugin-version "0.3.0")
+check "case8b: padded '  FAIL  ' resolves to fail" "fail" "$(echo "$ARTIFACT_R8B" | python3 -c "import json,sys; print(json.load(sys.stdin)['repo_level']['criteria']['license'])")"
+
 echo ""
 echo "Done: $pass passed, $fail failed."
 [ "$fail" -eq 0 ]

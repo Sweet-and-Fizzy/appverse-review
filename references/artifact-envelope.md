@@ -49,7 +49,8 @@ The LLM produces the judgment; the scripts produce the structure.
     "criteria": {
       "license": "pass | fail | warn | not_checked",
       "readme_substantive": "pass | fail | warn | not_checked",
-      "not_archived": "pass | fail"
+      "not_archived": "pass | fail",
+      "public": "pass | fail | warn | not_checked"
     }
   },
 
@@ -94,6 +95,14 @@ The LLM produces the judgment; the scripts produce the structure.
   WARN → warn (the tool could not confirm the gate; the reviewer settles it),
   NOT CHECKED → not_checked, PASS → pass. The worst result wins when several
   records map to one criterion.
+- **`repo_level.criteria.not_archived`** and **`repo_level.criteria.public`**
+  are meta-sourced, not findings-sourced — the orchestrator writes them
+  directly into `not_archived` / `public` in meta.json (`pass | fail`), and
+  `assemble-artifact.py` normalizes each through the same enum as findings
+  (`pass | fail | warn | not_checked`, case-insensitive, whitespace-stripped;
+  unrecognized counts as `fail` with a stderr warning). `public` is the
+  clone succeeded; fail when the repo is private or unreachable. `public`
+  is omitted from `criteria` when meta.json doesn't set it.
 - **`run_meta.model`** is the Claude model ID reported by the orchestrator.
   Token counts and USD cost are not available from the review session (the
   CI action sanitizes usage data); they are tracked externally by the API
