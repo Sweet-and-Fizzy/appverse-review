@@ -16,6 +16,13 @@ fix-item and must be represented in the feedback section of the report:
      Dockerfile, by evidence of the form "NAME:<digit>" — the colon must
      immediately follow the name, with no space, so "GitHub releases API: 0"
      is not mistaken for a path.
+  3. when a path was recognized in step 2, the prose also names the defect,
+     not just the file: either the primary line number from its evidence
+     appears as ":<n>" or "line <n>" or "lines <n>" immediately after the
+     file name or anywhere in the same paragraph as the file name, OR every
+     word of the mechanism tag (the part of defect_key after the last ":",
+     hyphens split into words, a trailing "{qualifier}" after a second colon
+     ignored) appears in that paragraph, case-insensitive.
 
     python3 references/check-feedback-floor.py review-<slug>.findings.json review-<slug>.md
 
@@ -81,6 +88,47 @@ def token_in_prose(candidate, prose):
     return re.search(pattern, prose) is not None
 
 
+def paragraphs(prose):
+    return [p for p in re.split(r"\n\s*\n", prose) if p.strip()]
+
+
+def paragraph_naming(candidates, prose):
+    """The paragraph(s) in which any of `candidates` appears as a whole token."""
+    return [p for p in paragraphs(prose) if any(token_in_prose(c, p) for c in candidates)]
+
+
+def primary_line_number(evidence):
+    """First integer after the path's trailing colon, e.g. "15" from
+    "submit.yml.erb:15-19" or "63" from "form.yml:63"."""
+    m = re.search(r":(\d+)", str(evidence or ""))
+    return m.group(1) if m else None
+
+
+def mechanism_words(defect_key):
+    """Words of the mechanism tag (defect_key after the last ':'), hyphens
+    split into words, a trailing '{qualifier}' after a second colon ignored."""
+    tag = str(defect_key or "").rsplit(":", 1)[-1]
+    tag = tag.split(":", 1)[0]  # drop a trailing {qualifier} after a second colon
+    return [w for w in re.split(r"-", tag) if w]
+
+
+def defect_named(candidates, evidence, defect_key, named_paragraphs):
+    line = primary_line_number(evidence)
+    line_patterns = [r"(?i)\blines?\s+" + re.escape(line) + r"(?!\d)"] if line else []
+    if line:
+        for c in candidates:
+            line_patterns.append(re.escape(c) + r":" + re.escape(line) + r"(?!\d)")
+
+    words = mechanism_words(defect_key)
+
+    for p in named_paragraphs:
+        if any(re.search(pat, p) for pat in line_patterns):
+            return True
+        if words and all(re.search(r"(?i)\b" + re.escape(w) + r"\b", p) for w in words):
+            return True
+    return False
+
+
 def main(argv):
     if len(argv) != 3:
         print("usage: check-feedback-floor.py <findings.json> <report.md>", file=sys.stderr)
@@ -117,8 +165,12 @@ def main(argv):
         path = evidence_path(f.get("evidence"))
         if path:
             candidates = (path, os.path.basename(path)) if f.get("app_id") == "root" else (path,)
-            if not any(token_in_prose(c, prose) for c in candidates):
+            named_paragraphs = paragraph_naming(candidates, prose)
+            if not named_paragraphs:
                 missing.append((f, "file not named in feedback"))
+                continue
+            if not defect_named(candidates, f.get("evidence"), f.get("defect_key", ""), named_paragraphs):
+                missing.append((f, "defect not described in feedback"))
     for f, reason in missing:
         print("MISSING {} {} ({})".format(f.get("rule", "?"), f.get("defect_key", "?"), reason))
     print("feedback floor: {}/{} fix-items covered".format(len(fix_items) - len(missing), len(fix_items)))
