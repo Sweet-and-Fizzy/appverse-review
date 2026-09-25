@@ -6,11 +6,12 @@ argument-hint: "[github-url]"
 
 # Security Review (aspect)
 
-Rubric: `${CLAUDE_PLUGIN_ROOT}/references/security-rubric.md` — read it before
-starting. It defines the capability baselines per app type, the pattern checks,
-and the OODT (Open OnDemand App Threats) taxonomy. Expand OODT on first use in
-the report and link it to the published rubric at
-https://openondemand.connectci.org/appverse-security-rubric so readers can look
+Rubric: `${CLAUDE_PLUGIN_ROOT}/references/review-rubric.md` — section
+"Security". Read it before starting. It defines the check tiers, the
+capability baselines per app type, the pattern checks, and the OODT (Open
+OnDemand App Threats) taxonomy. Expand OODT on first use in the report and
+link it to the published rubric at
+https://openondemand.connectci.org/appverse-review-rubric so readers can look
 up a code.
 
 **Setup:** Use the orchestrator's prepared target if provided; otherwise follow
@@ -28,7 +29,7 @@ The security review consists of three tiers, distinguished by what they require:
   a reviewer's machine.
 
 The report must state which tiers ran. A CI invocation that runs tiers 1–2
-reports tier 3 as `NOT CHECKED — requires a running app`. A thinner review
+reports tier 3 as `NOT CHECKED — no isolated execution environment`. A thinner review
 should look thinner, not identical to a full one.
 
 ## Procedure
@@ -47,7 +48,9 @@ should look thinner, not identical to a full one.
    loading, authentication posture.
    - Batch Connect: compare against the narrow baseline; anomalies (network calls
      from ERB, SSH-key reads, base64-decode-and-execute, writes to dotfiles or
-     cron) are strong signals — flag each as a finding.
+     cron) are strong signals — flag each as a finding. Record any binary file
+     under `template/` as a finding (OODT-04, tag `binary-in-template`) in
+     addition to listing it as unauditable.
    - Passenger: report the full profile for transparency; flag only capabilities
      in the rubric's "Flagged" column. Never penalize an app for its designed
      purpose — a job composer running shell commands is its job; running them
@@ -77,7 +80,7 @@ should look thinner, not identical to a full one.
    is otherwise runnable, exercise security-relevant paths rather than only
    reading source. Library defaults, framework middleware, and proxy assumptions
    are frequently invisible in source. If the app cannot be run (CI, no runtime
-   environment), report tier 3 as `NOT CHECKED — requires a running app`.
+   environment), report tier 3 as `NOT CHECKED — no isolated execution environment`.
 7. **Classify all findings.** After all tiers have run, classify every finding
    under OODT-01..08, rate severity
    Critical / High / Medium / Low per the rubric's "Rating findings" section
@@ -120,7 +123,7 @@ Follow these rules for any runtime verification:
 ## Output
 
 - **Check tiers ran** — state which tiers were executed (e.g., "Tiers 1–2;
-  tier 3 not checked — requires a running app").
+  tier 3 not checked — no isolated execution environment").
 - **Tool scan summary** (required) — a table with one row per relevant tool.
   A reader must be able to distinguish "clean scan" from "scanner not installed":
 

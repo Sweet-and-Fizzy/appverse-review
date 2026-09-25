@@ -6,9 +6,9 @@ argument-hint: "[github-url]"
 
 # Maintenance Review (aspect)
 
-Criteria: `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` — section
-"Maintenance Signals", including its target-for-inclusion line and the
-brand-new-app waiver.
+Criteria: `${CLAUDE_PLUGIN_ROOT}/references/review-rubric.md` — section
+"Upkeep", including its target-for-inclusion line and the brand-new-app
+waiver.
 
 **Setup:** Use the orchestrator's prepared target if provided; otherwise follow
 `${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` first. This aspect needs
@@ -23,6 +23,12 @@ With the `gh` CLI:
     gh api repos/<owner>/<repo>/contributors --jq 'length'
     gh api 'repos/<owner>/<repo>/issues?state=open&per_page=5' --jq '.[].comments'
 
+The fetched `archived` value confirms review-structure's not-archived gate
+rather than producing a second, separately worded finding.
+
+A repo with no open issues is neutral on issue responsiveness: report it as
+neither a good sign nor a concern.
+
 In the working tree: CHANGELOG file present and current; CI configuration
 present (`.github/workflows/`, or equivalent).
 
@@ -32,15 +38,15 @@ last-commit age and mark the other signals NOT CHECKED.
 ## Output
 
 One repo-level table — Signal / Value / Assessment (Good sign / Concern, per the
-checklist's table) — followed by **structured findings** per target-setup.md §4.
+rubric's table) — followed by **structured findings** per target-setup.md §4.
 Each finding uses an MNT-XX rule code and a `defect_key` from the maintenance
 mechanism-tag vocabulary in
 `${CLAUDE_PLUGIN_ROOT}/references/finding-codes.md`.
 
-Weight each signal the way the checklist's Maintenance Signals section frames it:
+Weight each signal the way the rubric's Upkeep section frames it:
 activity within 12 months is its target for inclusion, while releases, issue
 responsiveness, contributors, CHANGELOG, and CI are good-practice indicators, not
 requirements — a missing release is a suggestion, never a failure. Apply the
 brand-new-app waiver where relevant and say so. Don't invent your own severity
-scale, and keep labels consistent with the checklist and with your other
+scale, and keep labels consistent with the rubric and with your other
 findings.

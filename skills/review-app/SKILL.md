@@ -10,8 +10,10 @@ Produce an evidence-backed review with a recommended decision. You recommend; a
 human decides.
 
 Read first:
-- `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` (canonical criteria,
-  including the decision rules in its Step 3 (Decision))
+- `${CLAUDE_PLUGIN_ROOT}/references/review-rubric.md` (canonical criteria,
+  including the decision rules in its "Decision rubric" section)
+- `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` (the Reviewer
+  Process: catalog checks, feedback curation)
 - `${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` (setup procedure and
   findings format)
 - `${CLAUDE_PLUGIN_ROOT}/references/finding-codes.md` (rule codes, defect-key
@@ -61,14 +63,15 @@ string; if unavailable, write `unknown`.
 
 **Repository:** <url or path>  **Mode:** reviewer|submitter  **Date:** <today>
 **Reviewed commit:** `<full SHA>` (<commit date>)  **Repo shape:** declared monorepo (N apps) | declared single app | inferred single app
-**Reviewed with:** appverse-review @ <plugin version> (`<appverse-review HEAD short SHA, captured at run time>`) · **Rubric:** https://openondemand.connectci.org/appverse-security-rubric
+**Reviewed with:** appverse-review @ <plugin version> (`<appverse-review HEAD short SHA, captured at run time>`) · **Rubric:** https://openondemand.connectci.org/appverse-review-rubric
 
 > _Disclaimer: This is an automated review with human curation. It is provided without warranty of any kind and does not certify the app as secure or fit for any purpose. A listing is not an endorsement._
 
-## Repo-level required criteria
+## Repo-level gate criteria
 
 | Rule | Result | Evidence |
 |---|---|---|
+| — | PASS/FAIL | Repository public and accessible (the clone succeeded) |
 | STR-01 | PASS/FAIL | README.md — ... |
 | STR-01 | PASS/FAIL | LICENSE — ... |
 | — | PASS/FAIL/NOT CHECKED | Repo not archived |
@@ -130,7 +133,7 @@ string; if unavailable, write `unknown`.
 |---|---|---|---|
 
 **Per-app decision:** <Accept | Accept with suggestions | Request changes | Reject>
-<!-- This is a decision, derived from the required criteria and finding
+<!-- This is a decision, derived from the gate criteria and finding
      properties above — not from the Signals block. Monorepos only: one line
      per app, rolled up by the Overall recommendation below. Single-app repos:
      omit this line — the Overall recommendation is the decision. -->
@@ -159,17 +162,17 @@ string; if unavailable, write `unknown`.
 environment)">
 
 ## Catalog checks
-<!-- Query the public JSON:API — see the checklist's "Reading the catalog
+<!-- Query the public JSON:API — see the Reviewer Process's "Reading the catalog
      without a login". These need no reviewer account; record what each
      returned. List an item as not checked only if its query actually failed,
      and say so. -->
 - Duplicate check against the existing catalog — <result>
   - **Duplicate-check rationale:** _<reviewer fills in — the outcome and why,
-    per the checklist's Duplicate Check; edit before pasting into the issue or
+    per the Reviewer Process's Duplicate check; edit before pasting into the issue or
     email>_
 - `software` value matches a catalog Software entry — <result>. If it has no
   match, the reviewer creates the Software entry (should it exist), corrects
-  the value, or requests changes; see the checklist's Software Entry Check
+  the value, or requests changes; see the Reviewer Process's Software entry check
 - `app_type` and `implementation_tags` are in the catalog vocabularies —
   <result>
 
@@ -185,16 +188,16 @@ roll up the per-app decisions above. Draw only on findings already recorded in
 the tables — do not introduce new problems here.>
 ```
 
-Apply the decision rubric below (from the checklist's Step 3):
+Apply the decision rubric below (from the rubric's "Decision rubric" section):
 
 | Outcome | Criteria |
 |---------|----------|
-| **Accept** | Passes all required criteria, adequate+ documentation, partially portable+ config. Always conditional on the duplicate/catalog checks the review cannot perform — word any Accept as pending those. |
-| **Accept with suggestions** | Passes required criteria but has clear improvement areas. A below-target Documentation or Portability rating belongs here, not Request changes, when required criteria are otherwise met. |
+| **Accept** | Passes all gate criteria, adequate+ documentation, partially portable+ config. Always conditional on the duplicate/catalog checks the review cannot perform — word any Accept as pending those. |
+| **Accept with suggestions** | Passes gate criteria but has clear improvement areas. A below-target Documentation or Portability rating belongs here, not Request changes, when gate criteria are otherwise met. |
 | **Request changes** | Missing a required (gate) criterion but fixable. A fixable security misconfiguration, even High severity (e.g. CORS open to all origins), is Request changes, not Reject. |
 | **Reject** | Duplicate app, no license, abandoned/unmaintained, not an OOD app, or a security finding tagged potentially malicious or unfixable without redesigning the app. |
 
-Follow the checklist's framing (Step 3) rather than a separate copy here.
+Follow the rubric's framing rather than a separate copy here.
 
 ### Structured findings block
 
@@ -210,27 +213,35 @@ from the identity fields (`app_id`, `rule`, `defect_key`).
 
 **Derived-only rule.** The overall recommendation and the mode-specific ending
 below are summaries — every problem or fix they mention must already appear as a
-finding in a table above (required criteria, security, or the quality findings
+finding in a table above (gate criteria, security, or the quality findings
 table). If while writing the feedback you notice a real defect that is not yet
 recorded, stop and add it to the appropriate findings table first, then
 summarize it here. A problem must never appear for the first time in the
 recommendation or the feedback message.
 
-**Inclusion floor.** Every finding at Low severity or above, and every failed
-required (gate) criterion, must be represented in the Draft Feedback.
-Info-level polish (e.g. an undocumented hex constant) may be summarized in one
-line or omitted. The feedback is a prioritized note, not a copy of the
-findings table — but it must not silently drop a real fix-item. (This
-complements the Derived-only rule: feedback ⊆ findings, and now fix-level
-findings ⊆ feedback.)
+**Inclusion floor — derive, don't recall.** Before writing the feedback, list
+every finding whose `result` is FAIL or WARN and whose `severity` is Low or
+above. Each of these is a fix-item and must be named in the feedback with the
+file it lives in; group related items in one paragraph where that reads
+better. Info-level polish may be summarized in one line or omitted. Write the
+feedback first. Then end the section with a single HTML comment that lists
+the `defect_key` of every fix-item the prose above addresses; it is a
+checksum of what you wrote, not a list to satisfy:
+
+    <!-- feedback-covers: submit.yml.erb:unsanitized-input, template/script.sh.erb:no-error-handling -->
+
+`check-feedback-floor.py` (wrap-up, and CI) fails the review when a fix-item's
+key is absent from that line or its file is not named in the prose. (This
+complements the Derived-only rule: feedback ⊆ findings, and fix-items ⊆
+feedback.)
 
 - **Reviewer mode:** append a draft contributor feedback message using the
-  checklist's feedback guidance (specific, references files, links the README
+  Reviewer Process's Step 4 feedback guidance (specific, references files, links the README
   template or best-practices guide where relevant). Plain prose paragraphs,
   ready to paste into a Drupal moderation comment or GitHub issue. Label it
   "Draft feedback — edit before sending."
 - **Submitter mode:** append a prioritized "Fix before submitting" list instead —
-  required-criteria failures first (security findings at the top), then quality
+  gate-criteria failures first (security findings at the top), then quality
   improvements, each with the file to change.
 
 ## 5. Emit review metadata
@@ -280,5 +291,10 @@ are tracked externally by the API provider.
         > review-<owner>-<repo>.findings.json.tmp \
         && mv review-<owner>-<repo>.findings.json.tmp \
               review-<owner>-<repo>.findings.json
+
+- Then check the feedback floor and fix the feedback until it passes:
+
+      python3 "${CLAUDE_PLUGIN_ROOT}/references/check-feedback-floor.py" \
+        review-<owner>-<repo>.findings.json review-<owner>-<repo>.md
 
 - Reviewer mode: remove the temp clone (`rm -rf "$TMP"`).

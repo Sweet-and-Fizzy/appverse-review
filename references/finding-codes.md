@@ -13,7 +13,7 @@ survives line shifts, LLM rewording, and aspect reclassification.
   potentially malicious. Reserved for findings that warrant a Reject
   recommendation (e.g., `curl|bash` on user-supplied URLs, arbitrary code
   execution by design).
-- **High** — a real vulnerability or required-criteria failure, fixable with
+- **High** — a real vulnerability or gate-criterion failure, fixable with
   targeted changes. Warrants Request changes.
 - **Medium** — a genuine concern but lower blast radius or harder to exploit.
 - **Low** — defensive-coding gap or minor hygiene issue.
@@ -88,7 +88,7 @@ defect_key = "{anchor}:{mechanism_tag}"
 ## Security — OODT codes
 
 Security uses the existing OODT-01..08 taxonomy from
-`security-rubric.md`. Canonicalize any legacy OAT-XX references to
+the Security section of `review-rubric.md`. Canonicalize any legacy OAT-XX references to
 OODT-XX before hashing.
 
 | Code | Threat |
@@ -116,12 +116,12 @@ OODT-XX before hashing.
 `permissive-file-mode`, `path-traversal`, `other-user-files`
 
 **OODT-04:**
-`unexpected-network-call`, `data-to-external-server`
+`unexpected-network-call`, `data-to-external-server`, `binary-in-template`
 
 **OODT-05:**
 `bind-all-interfaces`, `cors-wildcard`, `disabled-auth`,
 `disabled-xsrf`, `unescaped-output-html`, `unescaped-output-javascript`,
-`token-in-process-list`, `cdn-without-sri`
+`token-in-process-list`, `cdn-without-sri`, `partial-auth-coverage`
 
 **OODT-06:**
 `missing-cleanenv`, `fakeroot-misuse`, `privileged-container`,
@@ -148,6 +148,7 @@ OODT-XX before hashing.
 | STR-05 | Unbalanced or malformed ERB tags |
 | STR-06 | Shell script syntax error (`bash -n` failure) |
 | STR-07 | Non-standard app layout (missing expected directories or entry point) |
+| STR-08 | Passenger dependency manifest missing or inconsistent with the dependency file |
 
 ### Mechanism tags — structure
 
@@ -158,7 +159,8 @@ OODT-XX before hashing.
 
 **STR-02:**
 `missing-field:{field_name}` (e.g., `missing-field:software`,
-`missing-field:app_type`, `missing-field:role`)
+`missing-field:app_type`, `missing-field:role`,
+`missing-field:maintainer.support_url`)
 
 **STR-03:**
 `yaml-parse-error`
@@ -176,6 +178,9 @@ OODT-XX before hashing.
 **STR-07:**
 `missing-entry-point`, `missing-submit-yml`, `layout-mismatch`
 
+**STR-08:**
+`dependency-manifest-inconsistent`
+
 ---
 
 ## Quality — QUA codes
@@ -190,6 +195,8 @@ OODT-XX before hashing.
 | QUA-06 | Correctness defect (duplicate YAML key, broken help text, wrong value) |
 | QUA-07 | Missing input validation |
 | QUA-08 | Magic number or undocumented literal |
+| QUA-09 | Large duplicated code block |
+| QUA-10 | ERB template does not handle a missing or empty value |
 
 ### Mechanism tags — quality
 
@@ -219,6 +226,12 @@ OODT-XX before hashing.
 
 **QUA-08:**
 `magic-number`, `undocumented-resource-limit`, `undocumented-hex-color`
+
+**QUA-09:**
+`duplicated-block`
+
+**QUA-10:**
+`erb-missing-value-unhandled`
 
 ---
 

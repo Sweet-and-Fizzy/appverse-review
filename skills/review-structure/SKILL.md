@@ -6,15 +6,18 @@ argument-hint: "[github-url]"
 
 # Structure Review (aspect)
 
-Criteria: `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` — sections
-"Repository Structure", "Documentation Minimum" (the substantive-README gate
-only; rating is review-quality's job), and "Basic Functionality".
+Criteria: `${CLAUDE_PLUGIN_ROOT}/references/review-rubric.md` — sections
+"Repo shapes" and "Structure (gate criteria)". The substantive-README gate is
+yours; README depth is review-quality's job.
 
 **Setup:** Use the orchestrator's prepared target if provided; otherwise follow
 `${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` first.
 
 ## Repo-level checks
 
+- Repository is public and accessible: the clone in setup succeeded. If it did
+  not, this is the failed gate to report (see target-setup.md) and no other
+  check can run.
 - `README.md` exists and is substantive: not the unfilled template (placeholder
   text like "Key feature 1"), not just a title and contact line.
 - `LICENSE` exists and contains an open-source license.
@@ -23,11 +26,14 @@ only; rating is review-quality's job), and "Basic Functionality".
 
 ## Per-app checks (use the resolved field set from setup)
 
-- Required metadata fields for the repo shape, per the checklist's Repository
-  Structure section.
+- Required metadata fields for the repo shape, per the rubric's "Repository
+  structure" section. For declared repos that includes `description`,
+  `software`, `app_type`, `maintainer.name`, and `maintainer.support_url`; a
+  missing field is a gate failure (STR-02, `missing-field:<name>`).
 - `app_type` and `implementation_tags` are known values. The schema names the
   vocabularies but does not enumerate them; query the catalog's public JSON:API
-  for the current terms (see the checklist's "Reading the catalog without a
+  for the current terms (see the Reviewer Process doc,
+  `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`, "Reading the catalog without a
   login"). Matching is case-insensitive. Report the terms you found, not just a
   pass — a stale vocabulary is why this check silently drifts.
 - Every `manifest.yml`, `appverse.yml`, and `form.yml` parses; report parse
@@ -35,7 +41,8 @@ only; rating is review-quality's job), and "Basic Functionality".
   ERB is not valid YAML) — check that it exists and has balanced ERB tags
   instead.
 - ERB templates look renderable (balanced `<%= %>` tags); shell scripts pass
-  `bash -n`.
+  `bash -n` (for `.sh.erb`, strip ERB tags first — see the recipe in
+  `${CLAUDE_PLUGIN_ROOT}/references/security-tools.md`).
 - No broken references: variables and attributes used in `submit.yml.erb` and
   `template/` files exist in `form.yml` or `form.yml.erb`.
 - Batch Connect apps have the standard layout: `form.yml` or `form.yml.erb`,
@@ -52,7 +59,8 @@ only; rating is review-quality's job), and "Basic Functionality".
     `passenger_app` with an entry point, not a Batch Connect tree). A missing
     `role` is a WARN, not a FAIL — the app may still work
   - Dependency manifest (`Gemfile.lock`, `package-lock.json`, `requirements.txt`)
-    present and consistent with the dependency file
+    present and consistent with the dependency file (STR-08,
+    `dependency-manifest-inconsistent`)
   - If the repo ships a test suite, note whether it passes. When execution is
     restricted (CI, untrusted repo), report as
     `NOT CHECKED — execution restricted`
