@@ -259,6 +259,7 @@ Save to `review-<owner>-<repo>.meta.json`:
   "ref": "<branch/tag/SHA reviewed>",
   "repo_shape": "inferred_single | declared_monorepo | declared_single",
   "not_archived": "pass | fail",
+  "public": "pass | fail",
   "model": "<the model you are running as, e.g. claude-sonnet-4-6>",
   "recommendation": {
     "decision": "<Accept | Accept with suggestions | Request changes | Reject>",

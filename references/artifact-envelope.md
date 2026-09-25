@@ -28,7 +28,7 @@ The LLM produces the judgment; the scripts produce the structure.
 
 ```json
 {
-  "schema_version": "1.0",
+  "schema_version": "1.0.1",
 
   "reviewed": {
     "repo_url":     "https://github.com/owner/app",
@@ -47,9 +47,10 @@ The LLM produces the judgment; the scripts produce the structure.
   "repo_level": {
     "findings": [ /* maintenance findings (MNT-XX) */ ],
     "criteria": {
-      "license": "pass | fail",
-      "readme_substantive": "pass | fail",
-      "not_archived": "pass | fail"
+      "license": "pass | fail | warn | not_checked",
+      "readme_substantive": "pass | fail | warn | not_checked",
+      "not_archived": "pass | fail | warn | not_checked",
+      "public": "pass | fail | warn | not_checked"
     }
   },
 
@@ -60,10 +61,10 @@ The LLM produces the judgment; the scripts produce the structure.
       "decision": "accept | accept_with_suggestions | request_changes | reject",
       "findings": [ /* structure + security + quality findings */ ],
       "criteria": {
-        "metadata":   "pass | fail",
-        "yaml_valid": "pass | fail",
-        "structure":  "pass | fail",
-        "references": "pass | fail"
+        "metadata":   "pass | fail | warn | not_checked",
+        "yaml_valid": "pass | fail | warn | not_checked",
+        "structure":  "pass | fail | warn | not_checked",
+        "references": "pass | fail | warn | not_checked"
       }
     }
   ],
@@ -90,7 +91,18 @@ The LLM produces the judgment; the scripts produce the structure.
   filtered by `app_id`.
 - **`apps[].criteria`** is derived from findings by `assemble-artifact.py` —
   an STR-03 FAIL sets `yaml_valid: "fail"`, etc. The orchestrator does not
-  produce criteria directly.
+  produce criteria directly. Values follow the record's result: FAIL → fail,
+  WARN → warn (the tool could not confirm the gate; the reviewer settles it),
+  NOT CHECKED → not_checked, PASS → pass. The worst result wins when several
+  records map to one criterion.
+- **`repo_level.criteria.not_archived`** and **`repo_level.criteria.public`**
+  are meta-sourced, not findings-sourced — the orchestrator writes them
+  directly into `not_archived` / `public` in meta.json (`pass | fail`), and
+  `assemble-artifact.py` normalizes each through the same enum as findings
+  (`pass | fail | warn | not_checked`, case-insensitive, whitespace-stripped;
+  unrecognized counts as `fail` with a stderr warning). `public` is the
+  clone succeeded; fail when the repo is private or unreachable. `public`
+  is omitted from `criteria` when meta.json doesn't set it.
 - **`run_meta.model`** is the Claude model ID reported by the orchestrator.
   Token counts and USD cost are not available from the review session (the
   CI action sanitizes usage data); they are tracked externally by the API
@@ -110,3 +122,7 @@ The LLM produces the judgment; the scripts produce the structure.
 The `schema_version` field is semver. Consumers pin to a major version.
 Breaking changes (field removals, type changes) bump the major. Additive
 changes (new optional fields like `indicators`) bump the minor.
+
+| Version | Change |
+|---|---|
+| 1.0.1 | criteria values gain warn and not_checked; PASS records no longer flip a criterion to fail. |
