@@ -36,8 +36,8 @@ EOF
 
 cat > "$TMP/findings.json" << 'EOF'
 [
-  {"app_id":"root","rule":"STR-01","defect_key":"LICENSE:missing-license","severity":"high","summary":"Missing LICENSE","evidence":"(no file)"},
-  {"app_id":"root","rule":"STR-03","defect_key":"form.yml:yaml-parse-error","severity":"high","summary":"Broken YAML","evidence":"form.yml:3"},
+  {"app_id":"root","rule":"STR-01","defect_key":"LICENSE:missing-license","result":"FAIL","severity":"high","summary":"Missing LICENSE","evidence":"(no file)"},
+  {"app_id":"root","rule":"STR-03","defect_key":"form.yml:yaml-parse-error","result":"FAIL","severity":"high","summary":"Broken YAML","evidence":"form.yml:3"},
   {"app_id":"root","rule":"OODT-02","defect_key":"script.sh.erb:hardcoded-credential","severity":"high","summary":"Hardcoded token","evidence":"script.sh.erb:2"},
   {"app_id":"root","rule":"MNT-03","defect_key":"CHANGELOG:no-changelog","severity":"info","summary":"No CHANGELOG","evidence":"(no file)"}
 ]
