@@ -155,4 +155,95 @@ sed 's#Please take another look at form.yml\.#Please take another look at form.y
 check "exit 0" 0 "$(run "$TMP/version.json" "$TMP/line-number.md")"
 check "reports 1/1" "feedback floor: 1/1 fix-items covered" "$(tail -1 "$TMP/out")"
 
+echo "Test 15b: synonym-tolerant defect rule accepts correct prose the old word-for-word rule rejected"
+cat > "$TMP/synonyms.json" <<'EOF'
+[
+ {"app_id":"root","rule":"QUA-03","defect_key":"template/script.sh.erb:missing-shebang","aspect":"quality","severity":"low","result":"FAIL","summary":"x","evidence":"template/script.sh.erb:1"},
+ {"app_id":"root","rule":"MNT-03","defect_key":"CHANGELOG.md:wrong-app-changelog","aspect":"maintenance","severity":"low","result":"WARN","summary":"x","evidence":"CHANGELOG.md:1"}
+]
+EOF
+cat > "$TMP/synonyms.md" <<'EOF'
+# Appverse Review: x
+## Overall recommendation
+Accept with suggestions.
+## Draft feedback — edit before sending
+template/script.sh.erb has no shebang line; please add one.
+CHANGELOG.md is still MATLAB's changelog; please rewrite it for this app.
+<!-- feedback-covers: template/script.sh.erb:missing-shebang, CHANGELOG.md:wrong-app-changelog -->
+EOF
+check "exit 0" 0 "$(run "$TMP/synonyms.json" "$TMP/synonyms.md")"
+check "reports 2/2" "feedback floor: 2/2 fix-items covered" "$(tail -1 "$TMP/out")"
+
+echo "Test 15c: a mechanism tag with no distinctive word after stopwords (no-ci) falls back to evidence with no line number, satisfied by file name alone"
+cat > "$TMP/noci.json" <<'EOF'
+[
+ {"app_id":"root","rule":"MNT-04","defect_key":".github/workflows:no-ci","aspect":"maintenance","severity":"low","result":"FAIL","summary":"x","evidence":".github/workflows: absent"}
+]
+EOF
+cat > "$TMP/noci.md" <<'EOF'
+# Appverse Review: x
+## Overall recommendation
+Accept with suggestions.
+## Draft feedback — edit before sending
+Please add a .github/workflows directory with a CI configuration.
+<!-- feedback-covers: .github/workflows:no-ci -->
+EOF
+check "exit 0" 0 "$(run "$TMP/noci.json" "$TMP/noci.md")"
+check "reports 1/1" "feedback floor: 1/1 fix-items covered" "$(tail -1 "$TMP/out")"
+
+echo "Test 16: a structured-findings JSON block after the feedback section must not rescue a missing fix-item"
+cat > "$TMP/with-json.md" <<'EOF'
+# Appverse Review: x
+## Overall recommendation
+Accept with suggestions.
+## Draft feedback — edit before sending
+CHANGELOG.md is still MATLAB's changelog; please rewrite it for this app.
+form.yml hardcodes a module version at line 63; please make it configurable.
+<!-- feedback-covers: submit.yml.erb:unsanitized-input, template/script.sh.erb:no-error-handling, root:changelog-wrong-app, root:no-releases, form.yml:hardcoded-module-version -->
+
+```json
+[
+ {"defect_key": "submit.yml.erb:unsanitized-input", "evidence": "template/script.sh.erb:1"},
+ {"defect_key": "template/script.sh.erb:no-error-handling", "evidence": "template/script.sh.erb:1"},
+ {"defect_key": "root:changelog-wrong-app", "evidence": "template/script.sh.erb:1"},
+ {"defect_key": "root:no-releases", "evidence": "template/script.sh.erb:1"},
+ {"defect_key": "form.yml:hardcoded-module-version", "evidence": "template/script.sh.erb:1"}
+]
+```
+EOF
+check "exit 1" 1 "$(run "$TMP/findings.json" "$TMP/with-json.md")"
+check "names the finding missing from prose" 1 \
+  "$(grep -c 'MISSING QUA-03 template/script.sh.erb:no-error-handling (file not named in feedback)' "$TMP/out")"
+
+echo "Test 17: file named in one paragraph, its tag word only in a different paragraph fails"
+cat > "$TMP/wrong-paragraph.md" <<'EOF'
+# Appverse Review: x
+## Overall recommendation
+Accept with suggestions.
+## Draft feedback — edit before sending
+Please take another look at form.yml.
+
+Elsewhere, something is hardcoded and should be configurable via a module version setting.
+<!-- feedback-covers: form.yml:hardcoded-module-version -->
+EOF
+check "exit 1" 1 "$(run "$TMP/version.json" "$TMP/wrong-paragraph.md")"
+check "names the finding with the new reason" 1 \
+  "$(grep -c 'MISSING QUA-02 form.yml:hardcoded-module-version (defect not described in feedback)' "$TMP/out")"
+
+echo "Test 18: mechanism_words takes the tag after the anchor, handling a qualifier and an other: prefix"
+qualifier_words="$(python3 -c "
+import importlib.util
+spec = importlib.util.spec_from_file_location('cff', '$CHECK')
+cff = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(cff)
+print(','.join(cff.mechanism_words('form.yml:duplicate-yaml-key:custom_num_cores.help')))
+print(','.join(cff.mechanism_words('x:other:icon-mismatch')))
+")"
+check "qualifier dropped, words from duplicate-yaml-key" \
+  "$(printf 'duplicate,yaml')" \
+  "$(echo "$qualifier_words" | sed -n '1p')"
+check "other: prefix stripped, words from icon-mismatch" \
+  "$(printf 'icon,mismatch')" \
+  "$(echo "$qualifier_words" | sed -n '2p')"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

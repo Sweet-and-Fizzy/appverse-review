@@ -147,6 +147,7 @@ Follow these rules for any runtime verification:
   `${CLAUDE_PLUGIN_ROOT}/references/finding-codes.md`. Tool-corroborated
   findings include the tool name and finding ID in the `summary` field. Tag each
   finding in a `tag` field on the record, value `unintentional` or
-  `potentially-malicious`, and repeat it in the report's Tag column.
+  `potentially-malicious`, and repeat it in the report's Tag column, written
+  as *potentially malicious* in the column.
 
 No decisions, no numeric risk scores.

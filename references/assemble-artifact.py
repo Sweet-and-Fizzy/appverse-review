@@ -16,7 +16,7 @@ Usage:
         --md    review-owner-repo.md \\
         [--pdf  review-owner-repo.pdf] \\
         [--html review-owner-repo.html] \\
-        [--plugin-version 0.3.0] \\
+        [--plugin-version 0.4.0] \\
         > review-owner-repo.artifact.json
 
 If --findings is omitted, the artifact is emitted with empty findings arrays.

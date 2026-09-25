@@ -117,8 +117,8 @@ for md in "${files[@]}"; do
   #     rendering; the JSON is for tooling, not for the human-facing
   #     HTML/PDF renderings ---
   awk '
-    /^```json[ \t]*$/ { skip=1; next }
-    skip && /^```[ \t]*$/ { skip=0; next }
+    /^```json[ \t\r]*$/ { skip=1; next }
+    skip && /^```[ \t\r]*$/ { skip=0; next }
     !skip { print }
   ' "$md" > "$NO_JSON"
 

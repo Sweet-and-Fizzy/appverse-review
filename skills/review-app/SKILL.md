@@ -114,9 +114,9 @@ string; if unavailable, write `unknown`.
 | Rule | Result | Severity | Summary | Evidence |
 |---|---|---|---|---|
 | STR-02 | PASS/FAIL/WARN/NOT CHECKED | ... | Required metadata fields | ... |
-| STR-03 | PASS/FAIL | ... | YAML validity | ... |
-| STR-07 | PASS/FAIL | ... | Standard OOD structure | ... |
-| STR-04 | PASS/FAIL | ... | No broken references | ... |
+| STR-03 | PASS/FAIL/WARN/NOT CHECKED | ... | YAML validity | ... |
+| STR-07 | PASS/FAIL/WARN/NOT CHECKED | ... | Standard OOD structure | ... |
+| STR-04 | PASS/FAIL/WARN/NOT CHECKED | ... | No broken references | ... |
 
 ### Security
 
@@ -144,7 +144,8 @@ Findings are classified under OODT (Open OnDemand App Threats); codes are define
 ### Documentation
 - Rating: <Minimal | Adequate | Strong | Exemplary> — <one-line justification>
 - Evidence per rung (a heading whose body is template placeholder text counts as none):
-  installation: <README section + line, or none>; configuration: <…>; known limitations: <…>;
+  what it launches: <…>; prerequisites: <…>; installation: <README section + line, or none>;
+  configuration: <…>; known limitations: <…>;
   troubleshooting: <…>; screenshots: <…>; environment variables: <…>;
   info panel: <…>; architecture: <…>
 <!-- The rating is the highest rung with every requirement satisfied above.
@@ -160,7 +161,7 @@ Findings are classified under OODT (Open OnDemand App Threats); codes are define
 
 | Check | Rule | Result | Severity | Summary | Evidence |
 |---|---|---|---|---|---|
-| Error handling in scripts | QUA-03 | PASS/FAIL/NOT CHECKED | ... | ... | file:line |
+| Error handling in scripts | QUA-03 | PASS/FAIL/WARN/NOT CHECKED | ... | ... | file:line |
 | Input validation on form fields (`check: numeric-field-bounds`) | QUA-07 | ... | ... | ... | ... |
 | Magic numbers / undocumented literals | QUA-08 | ... | ... | ... | ... |
 | Duplicated code blocks | QUA-09 | ... | ... | ... | ... |
@@ -254,9 +255,12 @@ checksum of what you wrote, not a list to satisfy:
     <!-- feedback-covers: submit.yml.erb:unsanitized-input, template/script.sh.erb:no-error-handling -->
 
 `check-feedback-floor.py` (wrap-up, and CI) fails the review when a fix-item's
-key is absent from that line or its file is not named in the prose. (This
-complements the Derived-only rule: feedback ⊆ findings, and fix-items ⊆
-feedback.)
+key is absent from that line, its file is not named in the prose, or the
+paragraph that names the file gives neither a line number from the finding's
+evidence nor a word from its defect key. Write the defect in plain words for
+the contributor; the check is looking for the file and either the line or
+what is wrong, not jargon. (This complements the Derived-only rule: feedback
+⊆ findings, and fix-items ⊆ feedback.)
 
 - **Reviewer mode:** append a draft contributor feedback message using the
   Reviewer Process's Step 4 feedback guidance (specific, references files, links the README

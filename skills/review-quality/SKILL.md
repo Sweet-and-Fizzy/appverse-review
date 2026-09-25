@@ -21,12 +21,14 @@ that fails, with `file:line` evidence.
   rubric's Documentation table and its four README questions (what does it
   launch, what must be installed, how to deploy, what to customize). One-line
   justification citing README sections present or missing. Before rating,
-  write one evidence line per rung requirement (installation, configuration,
-  known limitations, troubleshooting, screenshots, environment variables,
-  info panel, architecture) naming the README section and line that satisfies
-  it, or "none". A heading whose body is the README template's placeholder
-  text counts as none. The rating is the highest rung whose requirements all
-  have evidence; never claim a rung with a "none" line. Flag as QUA-01 a
+  write one evidence line per rung requirement (what it launches,
+  prerequisites, installation, configuration, known limitations,
+  troubleshooting, screenshots, environment variables, info panel,
+  architecture) naming the README section and line that satisfies it, or
+  "none". A heading whose body is the README template's placeholder text
+  counts as none. Rungs are cumulative: the rating is the highest rung whose
+  requirements, and every lower rung's, all have evidence; never claim a
+  rung with a "none" line. Flag as QUA-01 a
   README that references another institution's paths, cluster names, or
   module names without saying they must change.
 - **Configuration portability**: rate Not portable / Partially portable /
@@ -76,8 +78,9 @@ that fails, with `file:line` evidence.
 
 ## Output
 
-Per app: the two ratings with one-line justifications, then **structured
-findings** per target-setup.md §4 covering both the code-quality checkboxes and
+Per app: the two ratings with one-line justifications and the Documentation
+evidence lines, then **structured findings** per target-setup.md §4 covering
+both the code-quality checkboxes and
 the correctness-&-polish defects. Each finding uses a QUA-XX rule code and a
 `defect_key` from the quality mechanism-tag vocabulary in
 `${CLAUDE_PLUGIN_ROOT}/references/finding-codes.md`.
