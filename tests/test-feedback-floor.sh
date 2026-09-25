@@ -230,7 +230,7 @@ check "exit 1" 1 "$(run "$TMP/version.json" "$TMP/wrong-paragraph.md")"
 check "names the finding with the new reason" 1 \
   "$(grep -c 'MISSING QUA-02 form.yml:hardcoded-module-version (defect not described in feedback)' "$TMP/out")"
 
-echo "Test 18: mechanism_words takes the tag after the anchor, handling a qualifier and an other: prefix"
+echo "Test 18: mechanism_words takes the tag after the anchor; a qualifier's words are the distinctive words, an other: prefix uses its remainder"
 qualifier_words="$(python3 -c "
 import importlib.util
 spec = importlib.util.spec_from_file_location('cff', '$CHECK')
@@ -239,11 +239,41 @@ spec.loader.exec_module(cff)
 print(','.join(cff.mechanism_words('form.yml:duplicate-yaml-key:custom_num_cores.help')))
 print(','.join(cff.mechanism_words('x:other:icon-mismatch')))
 ")"
-check "qualifier dropped, words from duplicate-yaml-key" \
-  "$(printf 'duplicate,yaml')" \
+check "qualifier IS the distinctive part: words from custom_num_cores.help" \
+  "$(printf 'custom,num,cores,help')" \
   "$(echo "$qualifier_words" | sed -n '1p')"
 check "other: prefix stripped, words from icon-mismatch" \
   "$(printf 'icon,mismatch')" \
   "$(echo "$qualifier_words" | sed -n '2p')"
+
+echo "Test 19: a qualified defect_key is covered when the prose names the qualifier's topic, distinct from the unqualified base tag"
+cat > "$TMP/testing-table.json" <<'EOF'
+[
+ {"app_id":"root","rule":"QUA-06","defect_key":"README.md:readme-inconsistency:testing-table","aspect":"quality","severity":"low","result":"WARN","summary":"x","evidence":"README.md:182-184 vs :201"}
+]
+EOF
+cat > "$TMP/testing-table-covered.md" <<'EOF'
+# Appverse Review: x
+## Overall recommendation
+Accept with suggestions.
+## Draft feedback — edit before sending
+README.md's testing table lists Rocky only.
+<!-- feedback-covers: README.md:readme-inconsistency:testing-table -->
+EOF
+check "exit 0" 0 "$(run "$TMP/testing-table.json" "$TMP/testing-table-covered.md")"
+check "reports 1/1" "feedback floor: 1/1 fix-items covered" "$(tail -1 "$TMP/out")"
+
+echo "Test 20: the same qualified defect_key is not covered when the prose names the file but not the qualifier's topic"
+cat > "$TMP/testing-table-uncovered.md" <<'EOF'
+# Appverse Review: x
+## Overall recommendation
+Accept with suggestions.
+## Draft feedback — edit before sending
+README.md says Rocky.
+<!-- feedback-covers: README.md:readme-inconsistency:testing-table -->
+EOF
+check "exit 1" 1 "$(run "$TMP/testing-table.json" "$TMP/testing-table-uncovered.md")"
+check "names the finding with the new reason" 1 \
+  "$(grep -c 'MISSING QUA-06 README.md:readme-inconsistency:testing-table (defect not described in feedback)' "$TMP/out")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

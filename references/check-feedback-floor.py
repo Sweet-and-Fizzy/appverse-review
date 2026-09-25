@@ -22,17 +22,29 @@ fix-item and must be represented in the feedback section of the report:
      range's endpoints, plus any ":N", "line N", or "lines N-M" form) appears
      in that paragraph, OR at least one distinctive word of the mechanism tag
      appears there. The mechanism tag is the part of defect_key after the
-     anchor (the first ":"); if it starts with "other:" the distinctive words
-     come from the remainder, otherwise any trailing ":{qualifier}" is
-     dropped first. The tag is split on hyphens into words, stopwords {no,
-     not, missing, other, wrong, bad, un, non, app, key, value, file} and
-     bare 1-2 letter fragments are dropped, and both the remaining tag words
-     and the prose are compared with hyphens/underscores stripped,
-     case-insensitive (so "hardcoded" matches "hard-coded"). If no
-     distinctive word survives the filter (e.g. tag "no-ci" — "no" is a
-     stopword, "ci" is too short), rule 3 falls back to the line-number
-     check alone; if the evidence also has no line number, rule 3 is
-     considered satisfied (rules 1 and 2 still apply).
+     anchor (the first ":"). If it starts with "other:", the distinctive
+     words come from the remainder, hyphen-split. Otherwise, if it carries a
+     ":{qualifier}", the qualifier IS the distinctive part by definition —
+     its words (split on hyphens, dots, and underscores, e.g.
+     "custom_num_cores.help" -> custom, num, cores, help) are used instead of
+     the base tag's words. With no qualifier, the tag's own words are used
+     (hyphen-split). Stopwords {no, not, missing, other, wrong, bad, un, non,
+     app, key, value, file} and bare 1-2 letter fragments are then dropped,
+     and both the remaining tag words and the prose are compared with
+     hyphens/underscores stripped, case-insensitive (so "hardcoded" matches
+     "hard-coded"). If no distinctive word survives the filter (e.g. tag
+     "no-ci" — "no" is a stopword, "ci" is too short), rule 3 falls back to
+     the line-number check alone; if the evidence also has no line number,
+     rule 3 is considered satisfied (rules 1 and 2 still apply).
+
+     Known limit: when a qualified and an unqualified finding share the same
+     base tag and anchor (e.g. "README.md:readme-inconsistency" and
+     "README.md:readme-inconsistency:testing-table"), the floor checks each
+     independently against the qualifier's own words. If the feedback prose
+     mentions the qualifier's topic without actually describing the mismatch
+     (e.g. naming "testing table" without saying what's inconsistent about
+     it), rule 3 can still pass on the topic word alone — the floor verifies
+     the defect is *named*, not that the description is complete.
 
     python3 references/check-feedback-floor.py review-<slug>.findings.json review-<slug>.md
 
@@ -162,20 +174,27 @@ def line_named(candidates, evidence, prose):
 def mechanism_words(defect_key):
     """Distinctive words of the mechanism tag: the part of defect_key after
     the anchor (the first ':'). If that starts with 'other:', the words come
-    from the remainder; otherwise a trailing ':{qualifier}' is dropped. The
-    tag is split on hyphens, and stopwords are dropped. Returns words with
-    hyphens/underscores already stripped, for comparison against
-    similarly-normalized prose."""
+    from the remainder, hyphen-split. Otherwise, if it carries a
+    ':{qualifier}', the qualifier is the distinctive part by definition — its
+    words (split on hyphens, dots, AND underscores, e.g.
+    'custom_num_cores.help' -> custom, num, cores, help) are used instead of
+    the base tag's. With no qualifier, the tag's own words are used
+    (hyphen-split). Stopwords and bare 1-2 letter fragments are then dropped.
+    Returns words with hyphens/underscores already stripped, for comparison
+    against similarly-normalized prose."""
     key = str(defect_key or "")
     if ":" not in key:
         tag = key
     else:
         tag = key.split(":", 1)[1]
     if tag.startswith("other:"):
-        tag = tag[len("other:"):]
+        words = re.split(r"[-]", tag[len("other:"):])
+    elif ":" in tag:
+        qualifier = tag.split(":", 1)[1]
+        words = re.split(r"[-._]", qualifier)
     else:
-        tag = tag.split(":", 1)[0]  # drop a trailing {qualifier}
-    words = [w for w in re.split(r"[-_]", tag) if w]
+        words = re.split(r"[-]", tag)
+    words = [w for w in words if w]
     # Drop stopwords and bare 1-2 letter fragments (e.g. "ci" from "no-ci")
     # — too short to be a distinctive, recognizable word in prose.
     return [w for w in words if w.lower() not in STOPWORDS and len(w) > 2]
