@@ -30,7 +30,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.0.1"
 
 REPO_CRITERIA_MECHANISMS = {
     "missing-license": "license",
@@ -45,10 +45,40 @@ PER_APP_CRITERIA_RULES = {
     "STR-07": "structure",
 }
 
+RESULT_TO_CRITERION = {
+    "FAIL": "fail",
+    "WARN": "warn",
+    "NOT CHECKED": "not_checked",
+    "NOT_CHECKED": "not_checked",
+    "PASS": "pass",
+}
+
+CRITERION_PRECEDENCE = ["fail", "warn", "not_checked", "pass"]
+
 
 def _mechanism_tag(finding):
     dk = finding.get("defect_key", "")
     return dk.split(":")[-1] if ":" in dk else ""
+
+
+def _resolve_result(finding):
+    raw = finding.get("result")
+    key = raw.strip().upper() if isinstance(raw, str) else raw
+    if key in RESULT_TO_CRITERION:
+        return RESULT_TO_CRITERION[key]
+    print(
+        "warning: finding {} {}: unrecognized result '{}', counted as fail".format(
+            finding.get("rule", ""), finding.get("defect_key", ""), raw
+        ),
+        file=sys.stderr,
+    )
+    return "fail"
+
+
+def _worsen(criteria, key, value):
+    current = criteria.get(key, "pass")
+    if CRITERION_PRECEDENCE.index(value) < CRITERION_PRECEDENCE.index(current):
+        criteria[key] = value
 
 
 def derive_repo_criteria(findings, meta):
@@ -62,7 +92,7 @@ def derive_repo_criteria(findings, meta):
     for f in findings:
         tag = _mechanism_tag(f)
         if tag in REPO_CRITERIA_MECHANISMS:
-            criteria[REPO_CRITERIA_MECHANISMS[tag]] = "fail"
+            _worsen(criteria, REPO_CRITERIA_MECHANISMS[tag], _resolve_result(f))
     return criteria
 
 
@@ -76,7 +106,7 @@ def derive_app_criteria(app_findings):
     for f in app_findings:
         rule = f.get("rule", "")
         if rule in PER_APP_CRITERIA_RULES:
-            criteria[PER_APP_CRITERIA_RULES[rule]] = "fail"
+            _worsen(criteria, PER_APP_CRITERIA_RULES[rule], _resolve_result(f))
     return criteria
 
 
