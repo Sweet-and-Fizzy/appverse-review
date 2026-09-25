@@ -49,7 +49,7 @@ The LLM produces the judgment; the scripts produce the structure.
     "criteria": {
       "license": "pass | fail | warn | not_checked",
       "readme_substantive": "pass | fail | warn | not_checked",
-      "not_archived": "pass | fail",
+      "not_archived": "pass | fail | warn | not_checked",
       "public": "pass | fail | warn | not_checked"
     }
   },
