@@ -355,7 +355,7 @@ ANCHOR=$(echo "$ART4" | jget "d['apps'][0]['indicators']['security']['anchor']")
 check "security anchor fragment" "#security" "$ANCHOR"
 
 MAINT_ANCHOR=$(echo "$ART4" | jget "d['repo_level']['indicators']['maintenance']['anchor']")
-check "maintenance anchor fragment" "#maintenance-signals" "$MAINT_ANCHOR"
+check "maintenance anchor fragment" "#upkeep" "$MAINT_ANCHOR"
 
 # The report has no "Quality" heading any more: docs and portability each have
 # their own section, so each indicator links to its own.
@@ -422,6 +422,16 @@ WAIVED_SUM=$(echo "$ART6" | jget "'waiver' in d['repo_level']['indicators']['mai
 check "waiver named in maintenance summary" "True" "$WAIVED_SUM"
 grep -q "QUA-01" "$TMP/warn6.txt" && XWARN=yes || XWARN=no
 check "cross-check warns on QUA-01 vs strong docs" "yes" "$XWARN"
+# Since row-per-check reporting, a clean check is a QUA-01 record with result
+# PASS. That is agreement with a strong grade, not a contradiction.
+cat > "$TMP/findings-x-pass.json" << 'EOF'
+[
+  {"app_id":"root","rule":"QUA-01","defect_key":"README.md:docs-minimal","aspect":"quality","severity":"info","result":"PASS","summary":"README covers all four deployment questions","evidence":"README.md:1"}
+]
+EOF
+python3 "$ASSEMBLE" --meta "$TMP/meta-x.json" --findings "$TMP/findings-x-pass.json" --md "r.md" --plugin-version "0.3.0" > /dev/null 2> "$TMP/warn6b.txt"
+grep -q "QUA-01" "$TMP/warn6b.txt" && XPASSWARN=yes || XPASSWARN=no
+check "QUA-01 with result PASS beside strong docs does not warn" "no" "$XPASSWARN"
 
 # --- Test 8: security severity boundaries ---
 echo ""

@@ -16,7 +16,7 @@ Usage:
         --md    review-owner-repo.md \\
         [--pdf  review-owner-repo.pdf] \\
         [--html review-owner-repo.html] \\
-        [--plugin-version 0.3.0] \\
+        [--plugin-version 0.4.0] \\
         > review-owner-repo.artifact.json
 
 If --findings is omitted, the artifact is emitted with empty findings arrays.
@@ -66,7 +66,7 @@ REPORTED_SIGNAL_LEVELS = {
     "high": NEEDS_ATTENTION,
 }
 
-MAINTENANCE_ANCHOR = "#maintenance-signals"
+MAINTENANCE_ANCHOR = "#upkeep"
 
 REPO_CRITERIA_MECHANISMS = {
     "missing-license": "license",
@@ -221,7 +221,7 @@ def derive_grade_indicator(axis, app_id, assessments, app_findings, app_index):
             app_id, axis, grade))
         return None
     rule = GRADE_RULES[axis]
-    if level == SOLID and any(f.get("rule") == rule for f in app_findings):
+    if level == SOLID and any(f.get("rule") == rule and _asserted(f) for f in app_findings):
         _warn("app '{}': {} finding present but {} grade is '{}'".format(
             app_id, rule, axis, grade))
     return {

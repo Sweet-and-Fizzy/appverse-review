@@ -198,7 +198,7 @@ jobs:
             - Reviewed commit: ${{ steps.params.outputs.target_sha }} (${{ steps.params.outputs.target_commit_date }})
             - appverse-review plugin: version ${{ steps.params.outputs.plugin_version }}, commit ${{ steps.params.outputs.plugin_sha }}
               (so the report's "Reviewed with" line reads
-              appverse-review @ ${{ steps.params.outputs.plugin_version }} (`${{ steps.params.outputs.plugin_sha }}`))
+              appverse-review @ ${{ steps.params.outputs.plugin_version }} (`${{ steps.params.outputs.plugin_sha }}`, https://github.com/Sweet-and-Fizzy/appverse-review))
 
             This is a non-interactive run: the session ends the moment your
             turn ends, and any sub-agent still running is abandoned with its

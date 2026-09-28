@@ -96,7 +96,7 @@ stderr and still assemble.
     "sha":          "6a4183c…",
     "ref":          "main",
     "at":           "2026-08-27T14:00:00Z",
-    "tool_version": "appverse-review@0.3.0",
+    "tool_version": "appverse-review@0.4.0",
     "repo_shape":   "inferred_single | declared_monorepo | declared_single"
   },
 
@@ -117,7 +117,7 @@ stderr and still assemble.
       "maintenance": {
         "level":   "solid | some_notes | needs_attention",
         "summary": "Active, 3 releases, CI green",
-        "anchor":  "#maintenance-signals"
+        "anchor":  "#upkeep"
       }
     }
   },
@@ -239,7 +239,7 @@ rules, the same split as stable IDs and criteria.
   may let a human reviewer override it; the artifact records only the tool's
   value.
 - **Anchors.** Per-app anchors are `#security`, `#portability`, and
-  `#documentation`; the repo-level anchor is `#maintenance-signals`. Every app
+  `#documentation`; the repo-level anchor is `#upkeep` (the report's `## Upkeep` heading). Every app
   section repeats the same headings and pandoc de-duplicates repeats by
   appending `-1`, `-2`, …, so the app at index *n* in `apps[]` gets
   `#security-n` (no suffix for the first). This holds under pandoc's `markdown`
@@ -249,7 +249,8 @@ rules, the same split as stable IDs and criteria.
 
 `assemble-artifact.py` warns on stderr, and still emits the artifact, when:
 indicator inputs are missing; a grade is not in the vocabulary; a QUA-01 or
-QUA-02 finding sits beside a grade that maps to `solid`; an MNT-01 finding
+QUA-02 record with result FAIL or WARN sits beside a grade that maps to `solid`
+(a PASS record is agreement, not contradiction); an MNT-01 finding
 accompanies the waiver; a `reported_signals` level disagrees with the computed
 one; or an optional input has the wrong shape (a `signals` block or
 `reported_signals` that is not an object), which is skipped.

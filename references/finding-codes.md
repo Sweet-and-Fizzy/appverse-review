@@ -69,6 +69,16 @@ defect_key = "{anchor}:{mechanism_tag}"
   different `other:` tags for the same defect, producing different IDs.
   When reviewing findings with `other:` tags, check whether an existing
   vocabulary term fits; if a novel tag recurs across reviews, promote it
+  to the vocabulary.
+- **Qualified tags.** Where the vocabulary shows a `{qualifier}` (e.g.
+  `duplicate-yaml-key:{key_name}`, `readme-inconsistency:{topic}`), the
+  qualifier is required and is the full dotted attribute path or the topic
+  word or hyphenated phrase (e.g. `testing-table`), lower-case;
+  `duplicate-yaml-key:custom_num_cores.help`, never
+  `duplicate-yaml-key:help`. For tags with a `{qualifier}`, two defects of
+  that kind in one file produce two distinct keys; tags without a qualifier
+  keep the existing rule (one finding per file per mechanism, with multiple
+  evidence locations).
 
 ### Edge cases
 
@@ -219,7 +229,7 @@ OODT-XX before hashing.
 
 **QUA-06:**
 `duplicate-yaml-key:{key_name}`, `wrong-help-text`,
-`incorrect-default`, `readme-inconsistency`
+`incorrect-default`, `readme-inconsistency:{topic}`, `readme-typo`
 
 **QUA-07:**
 `missing-min-max`, `missing-required`, `zero-minimum`
