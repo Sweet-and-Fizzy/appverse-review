@@ -87,9 +87,12 @@ defect_key = "{anchor}:{mechanism_tag}"
 - **Multiple findings with the same mechanism in one file** (e.g., 7 unquoted
   variables in `script.sh.erb`): treat as one finding with multiple evidence
   locations. `line` is mutable metadata carrying the list.
-- **Absent-file findings** use the expected path as the anchor
-  (e.g., `LICENSE:missing-license`, `.github/workflows:no-ci`). The anchor
-  is "what should exist," not "what does exist."
+- **Absent-file and repo-level findings** use a fixed pseudo-anchor, never a
+  free-text one. The allowed set is exactly: `LICENSE`, `README.md`,
+  `CHANGELOG`, `CHANGELOG.md`, `.github/workflows`, `releases`, `issues`,
+  `contributors`, `commits`, `root`. Case-sensitive: `RELEASES` and
+  `github/commits` are invalid. Anything else must be a repo-relative path
+  that exists in the reviewed tree. `check-keys.py` enforces this.
 - **Prior finding disappears but code unchanged**: flag as "prior finding not
   reproduced — verify manually" rather than auto-marking "fixed."
 
@@ -229,10 +232,10 @@ OODT-XX before hashing.
 
 **QUA-06:**
 `duplicate-yaml-key:{key_name}`, `wrong-help-text`,
-`incorrect-default`, `readme-inconsistency:{topic}`, `readme-typo`
+`incorrect-default`, `readme-inconsistency:{topic}`, `readme-typo`, `icon-os-mismatch`
 
 **QUA-07:**
-`missing-min-max`, `missing-required`, `zero-minimum`
+`missing-min-max`, `missing-required`, `zero-minimum`, `missing-pattern`
 
 **QUA-08:**
 `magic-number`, `undocumented-resource-limit`, `undocumented-hex-color`

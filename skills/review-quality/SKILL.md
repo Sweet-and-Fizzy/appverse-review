@@ -43,7 +43,7 @@ that fails, with `file:line` evidence.
   commented-out dead code, ERB templates handle missing or empty values
   gracefully. Record each as its own rule: QUA-03 error handling, QUA-07 input
   validation, QUA-08 magic numbers, QUA-09 duplicated blocks, QUA-04 dead code,
-  QUA-10 ERB missing/empty values (codes in finding-codes.md). Every checkbox
+  QUA-10 ERB missing/empty values (codes in finding-codes.md). Use the vocabulary tags, not `other:`, for the recurring cases: a free-text field with no `pattern` is QUA-07 `missing-pattern`; an icon that does not match the README's target OS is QUA-06 `icon-os-mismatch`; an unguarded interpolation is QUA-10 `erb-missing-value-unhandled`. Every checkbox
   and named check gets a result row even when clean (PASS with evidence) or
   unexaminable (NOT CHECKED with the reason). An unmet target for inclusion —
   error handling, input validation — is recorded as FAIL, not WARN;
