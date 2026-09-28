@@ -162,8 +162,19 @@ def derive_app_criteria(app_findings):
     return criteria
 
 
+class AssembleError(Exception):
+    """Input the assembler will not build an artifact from."""
+
+
 def _warn(message):
     print("warning: {}".format(message), file=sys.stderr)
+
+
+def _asserted(finding):
+    # FAIL and WARN records assert a defect. PASS confirms a gate and NOT CHECKED
+    # reports a skipped check; neither is evidence of a problem, so neither may
+    # move a level. A record without a result counts as asserted, as it always has.
+    return _resolve_result(finding) in ("fail", "warn")
 
 
 def _anchor(slug, app_index):
@@ -180,11 +191,9 @@ def _normalize_grade(grade):
 
 def derive_security_indicator(app_findings, app_index):
     # Findings carry no category field, so security findings are the OODT- rules.
-    severities = [
-        str(f.get("severity", "")).lower()
-        for f in app_findings
-        if f.get("rule", "").startswith("OODT-")
-    ]
+    security = [f for f in app_findings if f.get("rule", "").startswith("OODT-")]
+    severities = [str(f.get("severity", "")).lower() for f in security if _asserted(f)]
+    not_checked = sum(1 for f in security if _resolve_result(f) == "not_checked")
     if not severities:
         level = SOLID
         summary = "No security findings"
@@ -199,6 +208,8 @@ def derive_security_indicator(app_findings, app_index):
             for s in labels
             if s in severities
         )
+    if not_checked:
+        summary = "{}; {} not checked".format(summary, not_checked)
     return {"level": level, "summary": summary, "anchor": _anchor("security", app_index)}
 
 
@@ -222,8 +233,13 @@ def derive_grade_indicator(axis, app_id, assessments, app_findings, app_index):
 
 def derive_maintenance_indicator(assessment, repo_findings):
     summary = assessment.get("summary", "")
-    stale = any(f.get("rule") == "MNT-01" for f in repo_findings)
+    stale = any(f.get("rule") == "MNT-01" and _asserted(f) for f in repo_findings)
     waived = bool(assessment.get("waiver_brand_new"))
+    signals = assessment.get("signals")
+    if not isinstance(signals, dict):
+        if signals is not None:
+            _warn("maintenance_assessment.signals is not an object; treated as empty")
+        signals = {}
     if stale:
         level = NEEDS_ATTENTION
         if waived:
@@ -233,11 +249,9 @@ def derive_maintenance_indicator(assessment, repo_findings):
         if "waiver" not in summary.lower():
             summary = "{} (brand-new-app waiver)".format(summary).strip()
     elif assessment.get("active_within_12mo"):
-        # No open issues leaves issues_responded null, which counts in favor.
-        good_signals = sum(
-            1 for name, value in assessment.get("signals", {}).items()
-            if value is True or (name == "issues_responded" and value is None)
-        )
+        # No open issues leaves issues_responded null: no evidence either way,
+        # so it counts neither for nor against.
+        good_signals = sum(1 for value in signals.values() if value is True)
         level = SOLID if good_signals >= 2 else SOME_NOTES
     else:
         level = NEEDS_ATTENTION
@@ -245,7 +259,12 @@ def derive_maintenance_indicator(assessment, repo_findings):
 
 
 def cross_check_reported(scope, reported, indicators):
-    for axis, stated in (reported or {}).items():
+    if reported is None:
+        return
+    if not isinstance(reported, dict):
+        _warn("{}: reported_signals is not an object; cross-check skipped".format(scope))
+        return
+    for axis, stated in reported.items():
         expected = REPORTED_SIGNAL_LEVELS.get(str(stated).lower().strip())
         computed = indicators.get(axis, {}).get("level")
         if expected and computed and expected != computed:
@@ -320,15 +339,21 @@ def assemble(meta, findings, md_path, pdf_path, html_path, plugin_version):
 
     # A finding whose app_id names no app in meta would otherwise be in neither
     # list. In a monorepo that is every repo-wide finding filed under "root",
-    # which is expected; any other unmatched id is probably a typo.
+    # which is expected and kept at repo level. Any other unmatched id is a
+    # spelling mismatch between findings.json and meta.apps; filing those
+    # findings anywhere else would leave their real app with a solid security
+    # level and all-pass criteria it did not earn, so refuse to assemble.
     if apps:
         known_app_ids = {app["app_id"] for app in apps}
-        for app_id, app_f in app_findings_map.items():
-            if app_id not in known_app_ids:
-                if app_id != "root":
-                    _warn("{} finding(s) with app_id '{}' match no app in meta; "
-                          "kept at repo level".format(len(app_f), app_id))
-                repo_findings.extend(app_f)
+        unmatched = sorted(a for a in app_findings_map if a not in known_app_ids and a != "root")
+        if unmatched:
+            raise AssembleError(
+                "findings carry app_id(s) {} that match no app in meta ({}); "
+                "fix the app_id or meta.apps before assembling".format(
+                    ", ".join("'{}'".format(a) for a in unmatched),
+                    ", ".join("'{}'".format(a) for a in sorted(known_app_ids))))
+        if "root" not in known_app_ids:
+            repo_findings.extend(app_findings_map.get("root", []))
 
     repo_level = {
         "findings": repo_findings,
@@ -397,15 +422,22 @@ def main():
     with open(args.meta) as f:
         meta = json.load(f)
 
+    # A findings file that is named but will not load is an error, not "no
+    # findings": assembling without it would claim solid security for every app.
     findings = []
     if args.findings:
         try:
             with open(args.findings) as f:
                 findings = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError) as e:
-            print("warning: could not load findings: {}".format(e), file=sys.stderr)
+        except (OSError, json.JSONDecodeError) as e:
+            print("error: could not load findings {}: {}".format(args.findings, e), file=sys.stderr)
+            sys.exit(1)
 
-    artifact = assemble(meta, findings, args.md, args.pdf, args.html, args.plugin_version)
+    try:
+        artifact = assemble(meta, findings, args.md, args.pdf, args.html, args.plugin_version)
+    except AssembleError as e:
+        print("error: {}".format(e), file=sys.stderr)
+        sys.exit(1)
     json.dump(artifact, sys.stdout, indent=2)
     sys.stdout.write("\n")
 

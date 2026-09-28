@@ -81,8 +81,9 @@ Then one **maintenance assessment block**, as a fenced JSON block:
 | `signals.issues_responded` | `true` when open issues have responses; `null` when there are no open issues |
 
 A signal marked NOT CHECKED is `false`, and the `summary` names the signals that
-were not checked. `null` is reserved for `issues_responded` with no open issues:
-it counts in the repo's favor, so it must not stand in for "could not verify".
+were not checked. `null` is reserved for `issues_responded` with no open issues.
+It is neutral — there was nothing to respond to, so it is evidence neither way —
+and it is not a stand-in for "could not verify", which is `false`.
 
 When `active_within_12mo` is `false` and no waiver applies, the findings include
 MNT-01. Field definitions:

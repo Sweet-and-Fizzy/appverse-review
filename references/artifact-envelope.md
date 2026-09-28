@@ -72,9 +72,10 @@ the skills that produce them refer here.
   alone cannot tell `strong` from `adequate`. Grades are normalized for case,
   spaces, and hyphens (`"Partially portable"` is accepted).
 - **`maintenance_assessment`** (repo-level, from the maintenance aspect).
-  `issues_responded: null` means the repo has no open issues to respond to, and
-  counts in the repo's favor. `waiver_brand_new` marks an app too new to have a
-  history worth judging.
+  `issues_responded: null` means the repo has no open issues to respond to. That
+  is no evidence of responsiveness either way, so it counts neither for nor
+  against: a quiet repo needs two of the other four signals to reach `solid`.
+  `waiver_brand_new` marks an app too new to have a history worth judging.
 - **`reported_signals`** / **`reported_signal`** are optional: the Low / Medium /
   High levels the report's Signals block states. They are used only to
   cross-check the report against the computed levels and are never copied into
@@ -161,9 +162,12 @@ stderr and still assemble.
   repo-level signal, not per-app) and any finding whose `app_id` names no app in
   `apps[]`. In a monorepo the apps are subpaths, so a repo-wide finding filed
   under `root` — a `shared_paths` entry that does not exist, say — lands here.
-  An unmatched `app_id` other than `root` also lands here, with a stderr
-  warning, since it is probably a typo. Every finding in `findings.json` appears
-  in the artifact exactly once.
+  Any other `app_id` that matches no app is a spelling mismatch between
+  `findings.json` and `meta.apps` (`apps/foo/` against `apps/foo`); the
+  assembler refuses it (exit 1, the ids named on stderr) rather than file the
+  findings elsewhere, which would leave their real app with a `solid` security
+  level and all-pass criteria it did not earn. Every finding in `findings.json`
+  appears in the artifact exactly once.
 - **`apps[].findings`** contains structure, security, and quality findings,
   filtered by `app_id`.
 - **`artifacts`** holds filenames, not paths. The reports travel beside the
@@ -210,6 +214,13 @@ rules, the same split as stable IDs and criteria.
   high-severity structure finding (a missing LICENSE) does not move the security
   level. The summary is a mechanical count in severity order, e.g.
   `1 Medium, 1 Low`, or `No security findings`.
+- **Levels follow the record's `result`.** Only `FAIL` and `WARN` records assert
+  a defect. A `PASS` record confirms a check and a `NOT CHECKED` record reports
+  a skipped one (the security skill files tier 3 that way); neither moves a
+  level, whatever its severity. Not-checked security records are counted in the
+  summary — `No security findings; 1 not checked` — so a `solid` level never
+  hides a skipped tier. An MNT-01 record with result `PASS` does not mark the
+  repo stale. A record with no `result` counts as asserted, as it always has.
 - **Maintenance precedence:** an MNT-01 finding wins over the waiver (and warns,
   since the two contradict each other). When the waiver applies, the summary
   names it.
@@ -239,8 +250,13 @@ rules, the same split as stable IDs and criteria.
 `assemble-artifact.py` warns on stderr, and still emits the artifact, when:
 indicator inputs are missing; a grade is not in the vocabulary; a QUA-01 or
 QUA-02 finding sits beside a grade that maps to `solid`; an MNT-01 finding
-accompanies the waiver; or a `reported_signals` level disagrees with the
-computed one.
+accompanies the waiver; a `reported_signals` level disagrees with the computed
+one; or an optional input has the wrong shape (a `signals` block or
+`reported_signals` that is not an object), which is skipped.
+
+It exits 1 and emits nothing when the input cannot be trusted: a `--findings`
+file that is missing or will not parse (assembling without it would claim
+`solid` security for every app), or a finding whose `app_id` matches no app.
 
 ## Versioning
 

@@ -89,8 +89,9 @@ string; if unavailable, write `unknown`.
 | Documentation | Low / Medium / High | <one-line phrase> |
 
 <!-- DERIVE the level from the aspect ratings, do not invent it:
-     Security: count OODT findings only. None = Low; Low or Info severity only = Medium;
-       any Medium, High, or Critical = High.
+     Security: count OODT findings with result FAIL or WARN only (a PASS or
+       NOT CHECKED record is not a finding). None = Low; Low or Info severity
+       only = Medium; any Medium, High, or Critical = High.
      Portability: Portable = Low; Partially portable = Medium; Not portable = High.
      Documentation: Strong/Exemplary = Low; Adequate = Medium; Minimal = High.
      Low = good/low-concern; High = most to read. Never invert; never style High as a hazard.
@@ -161,7 +162,9 @@ string; if unavailable, write `unknown`.
 <!-- Upkeep, first match wins: an MNT-01 finding = High; brand-new-app waiver
      applied = Medium (say so in the evidence phrase); active within 12mo + 2+
      good-practice signals = Low; active within 12mo = Medium; otherwise High.
-     No open issues counts as a good-practice signal. The artifact calls this
+     No open issues is neutral: it is not one of the good-practice signals.
+     Only FAIL/WARN records count as findings here — a PASS or NOT CHECKED
+     MNT-01 record does not make the repo stale. The artifact calls this
      dimension `maintenance`. -->
 
 ## Review scope

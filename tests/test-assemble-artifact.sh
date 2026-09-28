@@ -507,16 +507,25 @@ EOF
 }
 ONE_SIGNAL_NO_ISSUES='{"releases": true, "changelog": false, "ci": false, "multiple_contributors": false, "issues_responded": false}'
 ONE_SIGNAL_NULL_ISSUES='{"releases": true, "changelog": false, "ci": false, "multiple_contributors": false, "issues_responded": null}'
+TWO_SIGNALS_NULL_ISSUES='{"releases": true, "changelog": true, "ci": false, "multiple_contributors": false, "issues_responded": null}'
 NO_SIGNALS='{"releases": false, "changelog": false, "ci": false, "multiple_contributors": false, "issues_responded": false}'
 MNT01='[{"app_id":"root","rule":"MNT-01","defect_key":"(repo):stale-repo","aspect":"maintenance","severity":"medium","result":"FAIL","summary":"Last commit 14 months ago","evidence":"(git log)"}]'
+MNT01_PASS='[{"app_id":"root","rule":"MNT-01","defect_key":"(repo):stale-repo","aspect":"maintenance","severity":"medium","result":"PASS","summary":"Last commit 2 months ago","evidence":"(git log)"}]'
 
 check "active + 1 signal -> some_notes" "some_notes" "$(maint_level true false "$ONE_SIGNAL_NO_ISSUES" '[]')"
-check "null issues_responded counts as a signal -> solid" "solid" "$(maint_level true false "$ONE_SIGNAL_NULL_ISSUES" '[]')"
+# No open issues is no evidence of responsiveness either way: null is neutral,
+# so a quiet repo still needs two of the other four signals to reach solid.
+check "null issues_responded is neutral: 1 signal + null -> some_notes" "some_notes" "$(maint_level true false "$ONE_SIGNAL_NULL_ISSUES" '[]')"
+check "null issues_responded is neutral: 2 signals + null -> solid" "solid" "$(maint_level true false "$TWO_SIGNALS_NULL_ISSUES" '[]')"
 check "inactive, no waiver -> needs_attention" "needs_attention" "$(maint_level false false "$NO_SIGNALS" '[]')"
 
 check "MNT-01 wins over brand-new waiver" "needs_attention" "$(maint_level false true "$NO_SIGNALS" "$MNT01")"
 grep -qi "waiver" "$TMP/warn8.txt" && CONFLICT=yes || CONFLICT=no
 check "MNT-01 + waiver contradiction warns on stderr" "yes" "$CONFLICT"
+# A PASS-result MNT-01 record says the gate was confirmed, not that the repo is stale.
+check "MNT-01 with result PASS does not force needs_attention" "solid" "$(maint_level true false "$TWO_SIGNALS_NULL_ISSUES" "$MNT01_PASS")"
+# The block is optional: a null signals block must not crash the assembler.
+check "null signals block -> some_notes, no crash" "some_notes" "$(maint_level true false 'null' '[]')"
 
 # --- Test 10: report-vs-artifact signal cross-check ---
 echo ""
@@ -592,27 +601,39 @@ cat > "$TMP/findings-orphan.json" << 'EOF'
 [
   {"app_id":"app-a","rule":"OODT-08","defect_key":"Gemfile.lock:known-cve","aspect":"security","severity":"low","result":"WARN","summary":"Old excon","evidence":"Gemfile.lock:9"},
   {"app_id":"root","rule":"STR-04","defect_key":"app-templates/:other:missing-shared-path-dir","aspect":"structure","severity":"medium","result":"FAIL","summary":"shared_paths entry does not exist","evidence":"appverse.yml:43"},
-  {"app_id":"apps/typo","rule":"QUA-03","defect_key":"template/run.sh.erb:no-set-e","aspect":"quality","severity":"low","result":"WARN","summary":"No error handling","evidence":"template/run.sh.erb:1"},
   {"app_id":"root","rule":"MNT-03","defect_key":"CHANGELOG:no-changelog","aspect":"maintenance","severity":"info","result":"WARN","summary":"No CHANGELOG","evidence":"(no file)"}
 ]
 EOF
 ART11=$(python3 "$ASSEMBLE" --meta "$TMP/meta-ind.json" --findings "$TMP/findings-orphan.json" --md "r.md" --plugin-version "0.3.0" 2> "$TMP/warn11.txt")
 
 TOTAL_OUT=$(echo "$ART11" | jget "len(d['repo_level']['findings']) + sum(len(a['findings']) for a in d['apps'])")
-check "4 findings in, 4 findings out" "4" "$TOTAL_OUT"
+check "3 findings in, 3 findings out" "3" "$TOTAL_OUT"
 
 ORPHAN_RULES=$(echo "$ART11" | jget "sorted(f['rule'] for f in d['repo_level']['findings'])")
-check "unmatched findings land at repo level" "['MNT-03', 'QUA-03', 'STR-04']" "$ORPHAN_RULES"
+check "repo-wide 'root' findings land at repo level" "['MNT-03', 'STR-04']" "$ORPHAN_RULES"
 
 APP_A_RULES=$(echo "$ART11" | jget "[f['rule'] for f in d['apps'][0]['findings']]")
 check "matched finding stays with its app" "['OODT-08']" "$APP_A_RULES"
 
-grep -q "apps/typo" "$TMP/warn11.txt" && ORPHANWARN=yes || ORPHANWARN=no
-check "unmatched app_id named on stderr" "yes" "$ORPHANWARN"
 # "root" in a monorepo is the normal home of a repo-wide finding, not a mistake;
 # warning on it would fire on every monorepo and teach people to ignore stderr.
 grep -q "'root'" "$TMP/warn11.txt" && ROOTWARN=yes || ROOTWARN=no
 check "repo-wide 'root' findings do not warn" "no" "$ROOTWARN"
+
+# Any other unmatched app_id is a spelling mismatch between findings.json and
+# meta.apps. Routing those findings elsewhere would leave their real app with a
+# solid security level and all-pass criteria it did not earn, so the assembler
+# refuses instead: a red run beats a confident wrong artifact.
+cat > "$TMP/findings-typo.json" << 'EOF'
+[
+  {"app_id":"app-a/","rule":"OODT-02","defect_key":"script.sh.erb:hardcoded-credential","aspect":"security","severity":"high","result":"FAIL","summary":"Hardcoded token","evidence":"script.sh.erb:2"}
+]
+EOF
+if python3 "$ASSEMBLE" --meta "$TMP/meta-ind.json" --findings "$TMP/findings-typo.json" --md "r.md" --plugin-version "0.3.0" > "$TMP/art-typo.json" 2> "$TMP/warn-typo.txt"; then TYPO_RC=0; else TYPO_RC=$?; fi
+check "unmatched non-root app_id: exit status non-zero" "1" "$TYPO_RC"
+grep -q "app-a/" "$TMP/warn-typo.txt" && TYPOWARN=yes || TYPOWARN=no
+check "unmatched non-root app_id named on stderr" "yes" "$TYPOWARN"
+check "unmatched non-root app_id: no artifact written" "0" "$(wc -c < "$TMP/art-typo.json" | tr -d ' ')"
 
 # --- Test 13: report paths are filenames ---
 echo ""
@@ -627,6 +648,55 @@ check "report_pdf is a filename" "review-o-r.pdf" "$(echo "$ART12" | jget "d['ar
 check "report_html is a filename" "review-o-r.html" "$(echo "$ART12" | jget "d['artifacts']['report_html']")"
 ART12B=$(python3 "$ASSEMBLE" --meta "$TMP/meta-ind.json" --findings "$TMP/findings-ind.json" --md "r.md" --plugin-version "0.3.0" 2> /dev/null)
 check "omitted report path stays empty" "" "$(echo "$ART12B" | jget "d['artifacts']['report_pdf']")"
+
+# --- Test 14: indicators honor the finding's result ---
+echo ""
+echo "Test 14: indicators honor the finding's result"
+# The security skill reports tier 3 as NOT CHECKED, and the structure skill
+# emits PASS records for confirmed gates. Neither is a defect, so neither may
+# move a level; only FAIL and WARN records do.
+cat > "$TMP/findings-result.json" << 'EOF'
+[
+  {"app_id":"app-a","rule":"OODT-01","defect_key":"template/script.sh.erb:eval-exec","aspect":"security","severity":"medium","result":"NOT CHECKED","summary":"Tier 3 requires a running app","evidence":"(not run)"},
+  {"app_id":"app-b","rule":"OODT-02","defect_key":"script.sh.erb:hardcoded-credential","aspect":"security","severity":"high","result":"PASS","summary":"No credentials in templates","evidence":"template/"},
+  {"app_id":"app-b","rule":"OODT-08","defect_key":"Gemfile.lock:known-cve","aspect":"security","severity":"low","result":"WARN","summary":"Old excon","evidence":"Gemfile.lock:9"}
+]
+EOF
+ART14=$(python3 "$ASSEMBLE" --meta "$TMP/meta-ind.json" --findings "$TMP/findings-result.json" --md "r.md" --plugin-version "0.3.0" 2> "$TMP/warn14.txt")
+check "NOT CHECKED medium OODT record leaves security solid" "solid" "$(echo "$ART14" | jget "d['apps'][0]['indicators']['security']['level']")"
+check "NOT CHECKED records are named in the summary" "No security findings; 1 not checked" "$(echo "$ART14" | jget "d['apps'][0]['indicators']['security']['summary']")"
+check "PASS high OODT record does not move the level; WARN low does" "some_notes" "$(echo "$ART14" | jget "d['apps'][1]['indicators']['security']['level']")"
+check "PASS records are not counted in the summary" "1 Low" "$(echo "$ART14" | jget "d['apps'][1]['indicators']['security']['summary']")"
+
+# --- Test 15: optional inputs with the wrong shape ---
+echo ""
+echo "Test 15: optional inputs with the wrong shape"
+# reported_signals is optional; a list where an object was expected must not
+# take the whole run down with it.
+python3 - "$TMP/meta-ind.json" "$TMP/meta-badshape.json" << 'EOF'
+import json, sys
+m = json.load(open(sys.argv[1]))
+m["apps"][0]["reported_signals"] = ["Low", "Medium", "High"]
+m["maintenance_assessment"]["signals"] = None
+json.dump(m, open(sys.argv[2], "w"))
+EOF
+if python3 "$ASSEMBLE" --meta "$TMP/meta-badshape.json" --findings "$TMP/findings-ind.json" --md "r.md" --plugin-version "0.3.0" > "$TMP/art15.json" 2> "$TMP/warn15.txt"; then RC15=0; else RC15=$?; fi
+check "list-shaped reported_signals + null signals: exit 0" "0" "$RC15"
+check "…and the indicators are still derived" "needs_attention" "$(jget "d['apps'][0]['indicators']['security']['level']" < "$TMP/art15.json")"
+grep -qi "reported_signals" "$TMP/warn15.txt" && SHAPEWARN=yes || SHAPEWARN=no
+check "…and the bad shape is named on stderr" "yes" "$SHAPEWARN"
+
+# --- Test 16: malformed findings.json ---
+echo ""
+echo "Test 16: malformed findings.json"
+# A findings file that will not parse used to become "no findings", and the
+# artifact then claimed solid security for every app.
+printf '[{"app_id": "app-a", "rule": "OODT-01"' > "$TMP/findings-broken.json"
+if python3 "$ASSEMBLE" --meta "$TMP/meta-ind.json" --findings "$TMP/findings-broken.json" --md "r.md" --plugin-version "0.3.0" > "$TMP/art16.json" 2> "$TMP/warn16.txt"; then RC16=0; else RC16=$?; fi
+check "malformed findings: exit status non-zero" "1" "$RC16"
+check "malformed findings: no artifact written" "0" "$(wc -c < "$TMP/art16.json" | tr -d ' ')"
+if python3 "$ASSEMBLE" --meta "$TMP/meta-ind.json" --findings "$TMP/does-not-exist.json" --md "r.md" --plugin-version "0.3.0" > /dev/null 2> "$TMP/warn16b.txt"; then RC16B=0; else RC16B=$?; fi
+check "findings path given but missing: exit status non-zero" "1" "$RC16B"
 
 echo ""
 echo "Done: $pass passed, $fail failed."
