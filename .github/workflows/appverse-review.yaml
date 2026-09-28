@@ -1,5 +1,10 @@
 name: AppVerse App Review
 
+# The run list API does not return dispatch inputs, so a caller that needs to
+# find its run afterwards (the portal's poll loop) reads them from the run
+# title instead. Hand dispatches leave correlation_id empty.
+run-name: "Review ${{ inputs.target_repo }} · ${{ inputs.review_aspects }} · ${{ inputs.correlation_id }}"
+
 on:
   workflow_dispatch:
     inputs:
@@ -37,6 +42,11 @@ on:
         required: false
         type: boolean
         default: false
+      correlation_id:
+        description: "Opaque id echoed in the run title so the dispatcher can find this run (portal sets it; leave empty by hand)"
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
