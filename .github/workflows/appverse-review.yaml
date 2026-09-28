@@ -32,6 +32,14 @@ on:
           - sonnet
           - opus
         default: "sonnet"
+      gateway_base_url:
+        description: "Experiment: Anthropic-format LLM gateway base URL (e.g. a LiteLLM proxy). Empty = Anthropic API."
+        required: false
+        default: ""
+      model_id:
+        description: "Experiment: model id passed verbatim to --model when gateway_base_url is set (e.g. ccs/Qwen/Qwen3.6-35B-A3B-FP8)"
+        required: false
+        default: ""
       debug:
         description: "Show full Claude output in logs (exposes review content)"
         required: false
@@ -109,11 +117,22 @@ jobs:
             echo "plugin_version=$(python3 -c "import json; print(json.load(open('appverse-review/.claude-plugin/plugin.json'))['version'])")"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Point Claude Code at the gateway (experiment)
+        if: inputs.review_aspects != 'dry-run' && inputs.gateway_base_url != ''
+        run: |
+          if [ -z "${{ inputs.model_id }}" ]; then
+            echo "::error::model_id is required when gateway_base_url is set"; exit 1
+          fi
+          echo "ANTHROPIC_BASE_URL=${{ inputs.gateway_base_url }}" >> "$GITHUB_ENV"
+          echo "Gateway: ${{ inputs.gateway_base_url }}  model: ${{ inputs.model_id }}"
+
       - name: Run AppVerse review
         if: inputs.review_aspects != 'dry-run'
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Experiment path: when a gateway is given, the gateway key replaces the
+          # Anthropic key and ANTHROPIC_BASE_URL (below) points Claude Code at it.
+          anthropic_api_key: ${{ inputs.gateway_base_url != '' && secrets.LLM_GATEWAY_KEY || secrets.ANTHROPIC_API_KEY }}
           # With a token supplied the action skips its OIDC app-token exchange.
           # That exchange refuses any workflow file that differs from the
           # default branch and the action then exits "success" without running,
@@ -123,7 +142,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           plugin_marketplaces: "./appverse-review/"
           plugins: "appverse-review"
-          claude_args: "--max-turns 100 --model claude-${{ inputs.model }}-4-6"
+          claude_args: "--max-turns 100 --model ${{ inputs.gateway_base_url != '' && inputs.model_id || format('claude-{0}-4-6', inputs.model) }}"
           show_full_output: ${{ inputs.debug }}
           settings: |
             {
