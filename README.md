@@ -107,7 +107,10 @@ for the workflow definition. It supports:
 - `workflow_dispatch` with configurable inputs (target repo, branch, aspects, model)
 - Dry-run mode for pipeline testing without API costs
 - PDF generation via pandoc + typst
-- Machine-readable `review-summary.json` output for downstream integration
+- Machine-readable `review-<slug>.artifact.json` for downstream integration —
+  the schema 1.1 envelope described in
+  [`references/artifact-envelope.md`](references/artifact-envelope.md), with
+  stable finding IDs and per-app indicator levels
 
 ## Project layout
 
