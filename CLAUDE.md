@@ -32,10 +32,12 @@ Before committing changes to fixtures or the testing guide:
 3. Check that no referenced variable, function, or pattern has been renamed
    or removed without updating the guide
 
-## Security Rubric
+## Review Rubric
 
-`references/security-rubric.md` is the canonical security criteria shared by
-the review skill and the future automated audit pipeline. Changes here affect
-both systems — update carefully and check that OODT category references in
-skill files and TESTING.md stay consistent. The taxonomy is named OODT (Open
-OnDemand App Threats).
+`references/review-rubric.md` is the canonical review criteria shared by the
+review skills, the published reviewer docs (synced to the portal by
+DocSync), and the future automated audit pipeline. Its Security section holds
+the OODT (Open OnDemand App Threats) taxonomy. Changes here affect all of
+them — update carefully and check that OODT category references in skill
+files and TESTING.md stay consistent. `references/review-checklist.md` is the
+Reviewer Process doc; it contains no criteria definitions.

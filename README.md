@@ -6,12 +6,12 @@ Evaluates structure, security, quality, and maintenance against a shared rubric
 and produces an evidence-backed report with a recommended decision.
 
 This repo is also the canonical home of the Appverse
-[review checklist](references/review-checklist.md) and
-[security rubric](references/security-rubric.md).
+[reviewer process](references/review-checklist.md) and
+[review rubric](references/review-rubric.md).
 
 ## Who this is for
 
-- **Reviewers** — run a complete checklist review of a submitted repo and get a
+- **Reviewers** — run a complete rubric-based review of a submitted repo and get a
   structured report, a recommended decision, and a draft feedback message.
 - **Contributors** — check your own app repo before submitting and get a
   prioritized fix list.
@@ -120,8 +120,8 @@ skills/
   review-quality/        Documentation rating, portability, code quality
   review-maintenance/    Commit recency, releases, CI, CHANGELOG
 references/
-  review-checklist.md    Canonical review rubric
-  security-rubric.md     OODT taxonomy
+  review-checklist.md    Reviewer Process (work-ordered; published as the reviewer page)
+  review-rubric.md       Review Rubric: gate criteria, signal dimensions, OODT taxonomy, decision rules
   security-tools.md      Static analysis tool lookup
   target-setup.md        Shared setup procedure (mode detection, schema load)
   appverse.yml           Cached schema reference (offline fallback)
@@ -167,9 +167,9 @@ calibration procedure.
 Contributions are welcome. The review rubric and security taxonomy are
 designed to evolve as the Appverse catalog grows:
 
-- **Rubric changes** — edit [references/review-checklist.md](references/review-checklist.md)
+- **Rubric changes** — edit [references/review-rubric.md](references/review-rubric.md)
   and update the corresponding skill files
-- **Security taxonomy** — edit [references/security-rubric.md](references/security-rubric.md)
+- **Security taxonomy** — edit the Security section of [references/review-rubric.md](references/review-rubric.md)
   and update OODT references in skill files and [tests/TESTING.md](tests/TESTING.md)
 - **New fixtures** — add to [tests/fixtures/](tests/fixtures/) and document
   expected findings in [tests/TESTING.md](tests/TESTING.md)

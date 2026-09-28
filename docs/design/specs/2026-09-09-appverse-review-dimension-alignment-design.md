@@ -51,6 +51,9 @@ The four changes share a *vocabulary* (the spine), not a *deliverable*. They are
 Ships independently. **Sequencing caveat:** if A ships before B, the live checklist still uses Required/Quality while the new report uses dimensions — transiently inconsistent (an inverted version of Bill's complaint). So land B-then-A or both together; A-alone is acceptable only briefly.
 
 ### Plan B — checklist split + rubric + Drupal (cross-repo lockstep unit)
+
+> **Plan-time decision (2026-09-23):** the rubric reuses portal node 12246 (retitled, re-aliased to `/appverse-review-rubric`) rather than a new node. `redirect.settings.yml` has `auto_redirect: true`, so the alias change creates the 301 from `/appverse-security-rubric` automatically. See `docs/superpowers/plans/2026-09-23-appverse-review-plan-b-rubric.md`.
+
 1. **Checklist split:** `review-checklist.md` → **Reviewer Process** doc, reordered to work-order (gate the app → open report → verify → curate → decide). Criteria definitions move out to the Rubric.
 2. **General Rubric:** repurpose `security-rubric.md`'s content into a general Review Rubric on the spine (Structure gates, four signal dimensions with derivation, Code Quality findings, and the decision rubric). Security stays the deepest section (genuinely — don't force parity).
 3. **Enumerated named-checks (3b)** in the Rubric — see 3b for the mechanism requirement.

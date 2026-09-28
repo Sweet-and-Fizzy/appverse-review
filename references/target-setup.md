@@ -23,12 +23,14 @@ own runs it itself.
   SHA must be recorded regardless of method.
 
   - Clone fails / repo not found: tell the user the repo may be private or
-    nonexistent; suggest `gh auth login` for private repos. Stop.
+    nonexistent; suggest `gh auth login` for private repos. Stop. Report this
+    as the failed gate "Repository is public and accessible" rather than as
+    an error.
   - URL is not a github.com repo URL: say only GitHub repos are supported. Stop.
 - No argument: **submitter mode**. Review the current working tree. Derive
   `<owner>/<repo>` from `git remote get-url origin` if available. If the tree has
   neither `appverse.yml` nor `manifest.yml` at its root, warn that this will fail
-  required criteria and confirm the directory is the app repo before continuing.
+  gate criteria and confirm the directory is the app repo before continuing.
 
 Record the reviewed commit — every review is pinned to it:
 
@@ -60,10 +62,10 @@ cached schema was used.
   `<subpath>/manifest.yml` (name/description fallback only). Record any
   `shared_paths` for repo-level review.
 - Root `manifest.yml` only → **inferred repo**, one app at the repo root.
-- Neither, or root appverse.yml fails to parse → record as a required-criteria
+- Neither, or root appverse.yml fails to parse → record as a gate-criterion
   failure and continue (do not abort). Report YAML parse errors verbatim.
 - Archived on GitHub (`gh api repos/<owner>/<repo> --jq .archived`) → automatic
-  required-criteria failure; still complete the review.
+  gate-criterion failure; still complete the review.
 
 ## 4. Findings format (all aspect skills)
 

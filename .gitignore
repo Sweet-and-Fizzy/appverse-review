@@ -2,6 +2,7 @@
 notes/
 .conscience/
 __pycache__/
+reviews/
 
 
 # Secrets and credentials

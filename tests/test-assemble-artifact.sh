@@ -52,8 +52,8 @@ EOF
 
 cat > "$TMP/findings.json" << 'EOF'
 [
-  {"app_id":"root","rule":"STR-01","defect_key":"LICENSE:missing-license","severity":"high","summary":"Missing LICENSE","evidence":"(no file)"},
-  {"app_id":"root","rule":"STR-03","defect_key":"form.yml:yaml-parse-error","severity":"high","summary":"Broken YAML","evidence":"form.yml:3"},
+  {"app_id":"root","rule":"STR-01","defect_key":"LICENSE:missing-license","result":"FAIL","severity":"high","summary":"Missing LICENSE","evidence":"(no file)"},
+  {"app_id":"root","rule":"STR-03","defect_key":"form.yml:yaml-parse-error","result":"FAIL","severity":"high","summary":"Broken YAML","evidence":"form.yml:3"},
   {"app_id":"root","rule":"OODT-02","defect_key":"script.sh.erb:hardcoded-credential","severity":"high","summary":"Hardcoded token","evidence":"script.sh.erb:2"},
   {"app_id":"root","rule":"MNT-03","defect_key":"CHANGELOG:no-changelog","severity":"info","summary":"No CHANGELOG","evidence":"(no file)"}
 ]
@@ -116,9 +116,178 @@ ARTIFACT3=$(echo '[]' | python3 "$ASSEMBLE" --meta "$TMP/meta.json" --md "r.md" 
 EMPTY_REPO=$(echo "$ARTIFACT3" | python3 -c "import json,sys; print(len(json.load(sys.stdin)['repo_level']['findings']))")
 check "empty findings: repo_level has 0 findings" "0" "$EMPTY_REPO"
 
-# --- Test 4: indicator derivation ---
+# --- Test 4: result field honored ---
 echo ""
-echo "Test 4: indicator derivation"
+echo "Test 4: result field honored"
+
+# Case 1: PASS records only for STR-01 (license), STR-02, STR-03, STR-04, STR-07 -> every criterion pass
+cat > "$TMP/meta-result1.json" << 'EOF'
+{
+  "repo_url": "https://github.com/test/app",
+  "sha": "abc123", "ref": "main",
+  "repo_shape": "inferred_single",
+  "not_archived": "pass",
+  "model": "claude-sonnet-4-6",
+  "recommendation": {"decision": "Accept", "note": "All gates pass."},
+  "apps": [{"app_id": "root", "name": "Test App", "decision": "Accept"}]
+}
+EOF
+
+cat > "$TMP/findings-result1.json" << 'EOF'
+[
+  {"app_id":"root","rule":"STR-01","defect_key":"LICENSE:missing-license","result":"PASS","severity":"info","summary":"LICENSE present","evidence":"LICENSE"},
+  {"app_id":"root","rule":"STR-02","defect_key":"manifest.yml:missing-field:name","result":"PASS","severity":"info","summary":"metadata ok","evidence":"manifest.yml"},
+  {"app_id":"root","rule":"STR-03","defect_key":"form.yml:yaml-parse-error","result":"PASS","severity":"info","summary":"yaml valid","evidence":"form.yml"},
+  {"app_id":"root","rule":"STR-04","defect_key":"submit.yml.erb:form-submit-mismatch","result":"PASS","severity":"info","summary":"references ok","evidence":"submit.yml.erb"},
+  {"app_id":"root","rule":"STR-07","defect_key":"form.yml:missing-form","result":"PASS","severity":"info","summary":"structure ok","evidence":"form.yml"}
+]
+EOF
+
+ARTIFACT_R1=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result1.json" --md "r.md" --plugin-version "0.3.0")
+check "case1: license pass" "pass" "$(echo "$ARTIFACT_R1" | python3 -c "import json,sys; print(json.load(sys.stdin)['repo_level']['criteria']['license'])")"
+check "case1: metadata pass" "pass" "$(echo "$ARTIFACT_R1" | python3 -c "import json,sys; print(json.load(sys.stdin)['apps'][0]['criteria']['metadata'])")"
+check "case1: yaml_valid pass" "pass" "$(echo "$ARTIFACT_R1" | python3 -c "import json,sys; print(json.load(sys.stdin)['apps'][0]['criteria']['yaml_valid'])")"
+check "case1: references pass" "pass" "$(echo "$ARTIFACT_R1" | python3 -c "import json,sys; print(json.load(sys.stdin)['apps'][0]['criteria']['references'])")"
+check "case1: structure pass" "pass" "$(echo "$ARTIFACT_R1" | python3 -c "import json,sys; print(json.load(sys.stdin)['apps'][0]['criteria']['structure'])")"
+
+# Case 2: STR-03 WARN -> yaml_valid = warn; other criteria pass
+cat > "$TMP/findings-result2.json" << 'EOF'
+[
+  {"app_id":"root","rule":"STR-03","defect_key":"form.yml:yaml-parse-error","result":"WARN","severity":"low","summary":"yaml has a warning","evidence":"form.yml"}
+]
+EOF
+ARTIFACT_R2=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result2.json" --md "r.md" --plugin-version "0.3.0")
+check "case2: yaml_valid warn" "warn" "$(echo "$ARTIFACT_R2" | python3 -c "import json,sys; print(json.load(sys.stdin)['apps'][0]['criteria']['yaml_valid'])")"
+check "case2: metadata pass" "pass" "$(echo "$ARTIFACT_R2" | python3 -c "import json,sys; print(json.load(sys.stdin)['apps'][0]['criteria']['metadata'])")"
+check "case2: structure pass" "pass" "$(echo "$ARTIFACT_R2" | python3 -c "import json,sys; print(json.load(sys.stdin)['apps'][0]['criteria']['structure'])")"
+check "case2: references pass" "pass" "$(echo "$ARTIFACT_R2" | python3 -c "import json,sys; print(json.load(sys.stdin)['apps'][0]['criteria']['references'])")"
+
+# Case 3: STR-04 NOT CHECKED -> references = not_checked
+cat > "$TMP/findings-result3.json" << 'EOF'
+[
+  {"app_id":"root","rule":"STR-04","defect_key":"submit.yml.erb:form-submit-mismatch","result":"NOT CHECKED","severity":"info","summary":"not checked","evidence":"submit.yml.erb"}
+]
+EOF
+ARTIFACT_R3=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result3.json" --md "r.md" --plugin-version "0.3.0")
+check "case3: references not_checked" "not_checked" "$(echo "$ARTIFACT_R3" | python3 -c "import json,sys; print(json.load(sys.stdin)['apps'][0]['criteria']['references'])")"
+
+# Case 4: STR-02 WARN and STR-02 FAIL both present -> metadata = fail (worst wins)
+#         STR-07 PASS and STR-07 WARN -> structure = warn
+cat > "$TMP/findings-result4.json" << 'EOF'
+[
+  {"app_id":"root","rule":"STR-02","defect_key":"manifest.yml:missing-field:name","result":"WARN","severity":"low","summary":"metadata warn","evidence":"manifest.yml"},
+  {"app_id":"root","rule":"STR-02","defect_key":"manifest.yml:missing-field:description","result":"FAIL","severity":"high","summary":"metadata fail","evidence":"manifest.yml"},
+  {"app_id":"root","rule":"STR-07","defect_key":"form.yml:missing-form","result":"PASS","severity":"info","summary":"structure ok","evidence":"form.yml"},
+  {"app_id":"root","rule":"STR-07","defect_key":"form.yml:missing-submit","result":"WARN","severity":"low","summary":"structure warn","evidence":"form.yml"}
+]
+EOF
+ARTIFACT_R4=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result4.json" --md "r.md" --plugin-version "0.3.0")
+check "case4: metadata fail (worst wins)" "fail" "$(echo "$ARTIFACT_R4" | python3 -c "import json,sys; print(json.load(sys.stdin)['apps'][0]['criteria']['metadata'])")"
+check "case4: structure warn (worst wins)" "warn" "$(echo "$ARTIFACT_R4" | python3 -c "import json,sys; print(json.load(sys.stdin)['apps'][0]['criteria']['structure'])")"
+
+# Case 5: unrecognized result -> fail + stderr warning
+cat > "$TMP/findings-result5.json" << 'EOF'
+[
+  {"app_id":"root","rule":"STR-01","defect_key":"LICENSE:missing-license","result":"maybe","severity":"high","summary":"Missing LICENSE","evidence":"(no file)"}
+]
+EOF
+ARTIFACT_R5=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result5.json" --md "r.md" --plugin-version "0.3.0" 2>"$TMP/stderr5.txt")
+check "case5: license fail on unrecognized result" "fail" "$(echo "$ARTIFACT_R5" | python3 -c "import json,sys; print(json.load(sys.stdin)['repo_level']['criteria']['license'])")"
+STDERR5=$(cat "$TMP/stderr5.txt")
+case "$STDERR5" in
+  *"unrecognized result 'maybe'"*) check "case5: stderr warns unrecognized result" "yes" "yes" ;;
+  *) check "case5: stderr warns unrecognized result" "yes" "no ($STDERR5)" ;;
+esac
+
+# Case 6: repo level missing-readme tag with PASS -> readme_substantive = pass; with FAIL -> fail
+cat > "$TMP/findings-result6a.json" << 'EOF'
+[
+  {"app_id":"root","rule":"STR-01","defect_key":"README.md:missing-readme","result":"PASS","severity":"info","summary":"readme present","evidence":"README.md"}
+]
+EOF
+ARTIFACT_R6A=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result6a.json" --md "r.md" --plugin-version "0.3.0")
+check "case6: readme_substantive pass" "pass" "$(echo "$ARTIFACT_R6A" | python3 -c "import json,sys; print(json.load(sys.stdin)['repo_level']['criteria']['readme_substantive'])")"
+
+cat > "$TMP/findings-result6b.json" << 'EOF'
+[
+  {"app_id":"root","rule":"STR-01","defect_key":"README.md:missing-readme","result":"FAIL","severity":"high","summary":"readme missing","evidence":"(no file)"}
+]
+EOF
+ARTIFACT_R6B=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result6b.json" --md "r.md" --plugin-version "0.3.0")
+check "case6: readme_substantive fail" "fail" "$(echo "$ARTIFACT_R6B" | python3 -c "import json,sys; print(json.load(sys.stdin)['repo_level']['criteria']['readme_substantive'])")"
+
+# Case 7: meta-sourced gates (not_archived, public) go through the same enum
+cat > "$TMP/meta-result7a.json" << 'EOF'
+{
+  "repo_url": "https://github.com/test/app",
+  "sha": "abc123", "ref": "main",
+  "repo_shape": "inferred_single",
+  "not_archived": "WARN",
+  "model": "claude-sonnet-4-6",
+  "recommendation": {"decision": "Accept", "note": "All gates pass."},
+  "apps": [{"app_id": "root", "name": "Test App", "decision": "Accept"}]
+}
+EOF
+ARTIFACT_R7A=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result7a.json" --md "r.md" --plugin-version "0.3.0")
+check "case7a: not_archived WARN -> warn" "warn" "$(echo "$ARTIFACT_R7A" | python3 -c "import json,sys; print(json.load(sys.stdin)['repo_level']['criteria']['not_archived'])")"
+
+cat > "$TMP/meta-result7b.json" << 'EOF'
+{
+  "repo_url": "https://github.com/test/app",
+  "sha": "abc123", "ref": "main",
+  "repo_shape": "inferred_single",
+  "not_archived": "maybe",
+  "model": "claude-sonnet-4-6",
+  "recommendation": {"decision": "Accept", "note": "All gates pass."},
+  "apps": [{"app_id": "root", "name": "Test App", "decision": "Accept"}]
+}
+EOF
+ARTIFACT_R7B=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result7b.json" --md "r.md" --plugin-version "0.3.0" 2>"$TMP/stderr7b.txt")
+check "case7b: not_archived maybe -> fail" "fail" "$(echo "$ARTIFACT_R7B" | python3 -c "import json,sys; print(json.load(sys.stdin)['repo_level']['criteria']['not_archived'])")"
+STDERR7B=$(cat "$TMP/stderr7b.txt")
+case "$STDERR7B" in
+  *"unrecognized"*) check "case7b: stderr warns unrecognized" "yes" "yes" ;;
+  *) check "case7b: stderr warns unrecognized" "yes" "no ($STDERR7B)" ;;
+esac
+
+cat > "$TMP/meta-result7c.json" << 'EOF'
+{
+  "repo_url": "https://github.com/test/app",
+  "sha": "abc123", "ref": "main",
+  "repo_shape": "inferred_single",
+  "not_archived": "pass",
+  "public": "pass",
+  "model": "claude-sonnet-4-6",
+  "recommendation": {"decision": "Accept", "note": "All gates pass."},
+  "apps": [{"app_id": "root", "name": "Test App", "decision": "Accept"}]
+}
+EOF
+ARTIFACT_R7C=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result7c.json" --md "r.md" --plugin-version "0.3.0")
+check "case7c: public pass -> pass" "pass" "$(echo "$ARTIFACT_R7C" | python3 -c "import json,sys; print(json.load(sys.stdin)['repo_level']['criteria']['public'])")"
+
+ARTIFACT_R7D=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --md "r.md" --plugin-version "0.3.0")
+check "case7d: no public in meta -> no public key" "False" "$(echo "$ARTIFACT_R7D" | python3 -c "import json,sys; print('public' in json.load(sys.stdin)['repo_level']['criteria'])")"
+
+# Case 8: regression probes -- lower-case and padded result values resolve correctly
+cat > "$TMP/findings-result8a.json" << 'EOF'
+[
+  {"app_id":"root","rule":"STR-01","defect_key":"LICENSE:missing-license","result":"pass","severity":"info","summary":"lower-case pass","evidence":"LICENSE"}
+]
+EOF
+ARTIFACT_R8A=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result8a.json" --md "r.md" --plugin-version "0.3.0")
+check "case8a: lower-case 'pass' resolves to pass" "pass" "$(echo "$ARTIFACT_R8A" | python3 -c "import json,sys; print(json.load(sys.stdin)['repo_level']['criteria']['license'])")"
+
+cat > "$TMP/findings-result8b.json" << 'EOF'
+[
+  {"app_id":"root","rule":"STR-01","defect_key":"LICENSE:missing-license","result":"  FAIL  ","severity":"high","summary":"padded FAIL","evidence":"(no file)"}
+]
+EOF
+ARTIFACT_R8B=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result8b.json" --md "r.md" --plugin-version "0.3.0")
+check "case8b: padded '  FAIL  ' resolves to fail" "fail" "$(echo "$ARTIFACT_R8B" | python3 -c "import json,sys; print(json.load(sys.stdin)['repo_level']['criteria']['license'])")"
+
+# --- Test 5: indicator derivation ---
+echo ""
+echo "Test 5: indicator derivation"
 cat > "$TMP/meta-ind.json" << 'EOF'
 {
   "repo_url": "https://github.com/test/mono",
@@ -207,18 +376,18 @@ check "app-b portability anchor (2nd app)" "#portability-1" "$PORT_ANCHOR_B"
 DOCS_ANCHOR_B=$(echo "$ART4" | jget "d['apps'][1]['indicators']['documentation']['anchor']")
 check "app-b documentation anchor (2nd app)" "#documentation-1" "$DOCS_ANCHOR_B"
 
-# --- Test 5: no assessments -> no indicators (backward compatible) ---
+# --- Test 6: no assessments -> no indicators (backward compatible) ---
 echo ""
-echo "Test 5: no assessments -> indicators omitted"
+echo "Test 6: no assessments -> indicators omitted"
 ART5=$(python3 "$ASSEMBLE" --meta "$TMP/meta.json" --findings "$TMP/findings.json" --md "r.md" --plugin-version "0.3.0" 2> "$TMP/warn5.txt")
 HAS_IND=$(echo "$ART5" | jget "'indicators' in d['apps'][0] or 'indicators' in d['repo_level']")
 check "no indicators without assessments" "False" "$HAS_IND"
 grep -q "assessments" "$TMP/warn5.txt" && WARNED=yes || WARNED=no
 check "stderr warns about missing assessments" "yes" "$WARNED"
 
-# --- Test 6: cross-check warnings + waiver ---
+# --- Test 7: cross-check warnings + waiver ---
 echo ""
-echo "Test 6: cross-check warnings and brand-new waiver"
+echo "Test 7: cross-check warnings and brand-new waiver"
 cat > "$TMP/meta-x.json" << 'EOF'
 {
   "repo_url": "https://github.com/test/newapp",
@@ -254,9 +423,9 @@ check "waiver named in maintenance summary" "True" "$WAIVED_SUM"
 grep -q "QUA-01" "$TMP/warn6.txt" && XWARN=yes || XWARN=no
 check "cross-check warns on QUA-01 vs strong docs" "yes" "$XWARN"
 
-# --- Test 7: security severity boundaries ---
+# --- Test 8: security severity boundaries ---
 echo ""
-echo "Test 7: security severity boundaries"
+echo "Test 8: security severity boundaries"
 cat > "$TMP/meta-sev.json" << 'EOF'
 {
   "repo_url": "https://github.com/test/sev",
@@ -306,9 +475,9 @@ check "Info-only finding -> some_notes" "some_notes" "$SEC_INFO"
 SEC_STR=$(echo "$ART7" | jget "d['apps'][2]['indicators']['security']['level']")
 check "High STR finding leaves security solid" "solid" "$SEC_STR"
 
-# --- Test 8: upkeep boundaries ---
+# --- Test 9: upkeep boundaries ---
 echo ""
-echo "Test 8: upkeep boundaries"
+echo "Test 9: upkeep boundaries"
 # maint_level <active> <waiver> <signals-json> <findings-json> -> level on stdout,
 # assembler stderr in $TMP/warn8.txt
 maint_level() {
@@ -349,12 +518,12 @@ check "MNT-01 wins over brand-new waiver" "needs_attention" "$(maint_level false
 grep -qi "waiver" "$TMP/warn8.txt" && CONFLICT=yes || CONFLICT=no
 check "MNT-01 + waiver contradiction warns on stderr" "yes" "$CONFLICT"
 
-# --- Test 9: report-vs-artifact signal cross-check ---
+# --- Test 10: report-vs-artifact signal cross-check ---
 echo ""
-echo "Test 9: reported signals cross-check"
+echo "Test 10: reported signals cross-check"
 # The report states Low/Medium/High (LLM-derived); the artifact level is computed.
 # with_reported <out> <app-a security> <maintenance> adds the report's stated
-# levels to the Test 4 fixture. Everything except the two arguments agrees with
+# levels to the Test 5 fixture. Everything except the two arguments agrees with
 # the computed levels (Low=solid, Medium=some_notes, High=needs_attention).
 with_reported() {
   python3 -c '
@@ -386,9 +555,9 @@ python3 "$ASSEMBLE" --meta "$TMP/meta-mnt.json" --findings "$TMP/findings-ind.js
 grep -qi "maintenance" "$TMP/warn9c.txt" && MNTWARN=yes || MNTWARN=no
 check "report says High, computed solid: warns for maintenance" "yes" "$MNTWARN"
 
-# --- Test 10: grades are LLM-written strings ---
+# --- Test 11: grades are LLM-written strings ---
 echo ""
-echo "Test 10: grade normalization and unknown grades"
+echo "Test 11: grade normalization and unknown grades"
 cat > "$TMP/meta-grade.json" << 'EOF'
 {
   "repo_url": "https://github.com/test/grade",
@@ -413,9 +582,9 @@ check "unknown grade: documentation indicator omitted" "False" "$DOCS_UNKNOWN"
 grep -q "excellent" "$TMP/warn10.txt" && GRADEWARN=yes || GRADEWARN=no
 check "unknown grade named on stderr" "yes" "$GRADEWARN"
 
-# --- Test 11: no finding is lost ---
+# --- Test 12: no finding is lost ---
 echo ""
-echo "Test 11: findings whose app_id matches no app"
+echo "Test 12: findings whose app_id matches no app"
 # In a monorepo the apps are subpaths, so a repo-wide structure finding carries
 # app_id "root" and matches none of them. It belongs at repo level; it must not
 # vanish between findings.json and the artifact.
@@ -445,9 +614,9 @@ check "unmatched app_id named on stderr" "yes" "$ORPHANWARN"
 grep -q "'root'" "$TMP/warn11.txt" && ROOTWARN=yes || ROOTWARN=no
 check "repo-wide 'root' findings do not warn" "no" "$ROOTWARN"
 
-# --- Test 12: report paths are filenames ---
+# --- Test 13: report paths are filenames ---
 echo ""
-echo "Test 12: report paths"
+echo "Test 13: report paths"
 # CI passes absolute runner paths; a consumer finds the reports beside the
 # artifact, so only the filename means anything outside the run.
 ART12=$(python3 "$ASSEMBLE" --meta "$TMP/meta-ind.json" --findings "$TMP/findings-ind.json" \
