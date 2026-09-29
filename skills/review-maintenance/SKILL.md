@@ -46,7 +46,7 @@ mechanism-tag vocabulary in
 Anchors for repo-level findings are the fixed pseudo-anchors in
 finding-codes.md: `releases` (MNT-02), `CHANGELOG.md` (MNT-03; `CHANGELOG`
 when the file is absent), `.github/workflows` (MNT-04), `contributors`
-(MNT-05), `issues` (issue responsiveness), `commits` (MNT-01). Never invent
+(MNT-05), `issues` (MNT-06), `commits` (MNT-01). Never invent
 an anchor such as `RELEASES` or `github/commits`.
 
 Weight each signal the way the rubric's Upkeep section frames it:
