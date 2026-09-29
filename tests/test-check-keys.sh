@@ -12,7 +12,7 @@ rec() { # rule defect_key
   printf '{"app_id":"root","rule":"%s","defect_key":"%s","aspect":"x","severity":"low","result":"WARN","summary":"s","evidence":"e"}' "$1" "$2"; }
 
 # a fake target tree
-mkdir -p "$TMP/t/template" "$TMP/t/.github/workflows"; touch "$TMP/t/form.yml" "$TMP/t/template/script.sh.erb" "$TMP/t/README.md"
+mkdir -p "$TMP/t/template" "$TMP/t/.github/workflows"; touch "$TMP/t/form.yml" "$TMP/t/template/script.sh.erb" "$TMP/t/README.md" "$TMP/t/manifest.yml"
 
 echo "Test 1: valid keys pass (path anchors, pseudo-anchors, qualified tag, other: slug)"
 printf '[%s,%s,%s,%s,%s]' "$(rec QUA-02 template/script.sh.erb:hardcoded-path)" "$(rec MNT-02 releases:no-releases)" "$(rec QUA-06 form.yml:duplicate-yaml-key:custom_num_cores.help)" "$(rec STR-01 LICENSE:missing-license)" "$(rec QUA-07 form.yml:other:unbounded-walltime)" > "$TMP/ok.json"
@@ -61,5 +61,24 @@ check "reason" 1 "$(grep -c 'INVALID QUA-02 <missing> (no defect_key)' "$TMP/out
 
 echo "Test 10: unreadable input is exit 2"
 check "exit 2" 2 "$(run "$TMP/nope.json")"
+
+echo "Test 11: STR-02's qualifier requirement is sticky across the base tag and its bracketed examples"
+printf '[%s]' "$(rec STR-02 manifest.yml:missing-field)" > "$TMP/i.json"
+check "exit 1" 1 "$(run "$TMP/i.json")"
+check "reason" 1 "$(grep -c "INVALID STR-02 manifest.yml:missing-field (tag 'missing-field' requires a qualifier)" "$TMP/out")"
+printf '[%s]' "$(rec STR-02 manifest.yml:missing-field:software)" > "$TMP/j.json"
+check "exit 0" 0 "$(run "$TMP/j.json")"
+check "summary" "finding keys: 1/1 valid" "$(tail -1 "$TMP/out")"
+
+echo "Test 12: absolute and traversal anchors are rejected, not checked against the real filesystem"
+printf '[%s]' "$(rec QUA-02 /etc/passwd:hardcoded-path)" > "$TMP/k.json"
+check "exit 1 with target" 1 "$(run "$TMP/k.json" --target "$TMP/t")"
+check "reason with target" 1 "$(grep -c "INVALID QUA-02 /etc/passwd:hardcoded-path (anchor must be a repo-relative path)" "$TMP/out")"
+check "exit 1 without target" 1 "$(run "$TMP/k.json")"
+check "reason without target" 1 "$(grep -c "INVALID QUA-02 /etc/passwd:hardcoded-path (anchor must be a repo-relative path)" "$TMP/out")"
+printf '[%s]' "$(rec QUA-02 ../form.yml:hardcoded-path)" > "$TMP/l.json"
+check "exit 1 traversal with target" 1 "$(run "$TMP/l.json" --target "$TMP/t")"
+check "reason traversal with target" 1 "$(grep -c "INVALID QUA-02 \.\./form.yml:hardcoded-path (anchor must be a repo-relative path)" "$TMP/out")"
+check "exit 1 traversal without target" 1 "$(run "$TMP/l.json")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

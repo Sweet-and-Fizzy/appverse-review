@@ -44,7 +44,11 @@ def load_vocabulary(path=FINDING_CODES):
                     continue
                 for tok in TAG_TOKEN.findall(line):
                     base, _, qual = tok.partition(":")
-                    vocab[current][base] = qual.startswith("{")
+                    # Sticky: once a base is seen requiring a qualifier (its
+                    # "{qualifier}" form), later concrete examples of that
+                    # same base (e.g. "missing-field:software") must not
+                    # un-require it.
+                    vocab[current][base] = vocab[current].get(base, False) or qual.startswith("{")
     except OSError as e:
         print("error: cannot read {}: {}".format(path, e), file=sys.stderr)
         sys.exit(2)
@@ -64,9 +68,23 @@ def validate(finding, vocab, target):
         return rule, key, "no anchor"
     anchor, _, tag = key.partition(":")
     if anchor not in PSEUDO_ANCHORS:
+        if (
+            os.path.isabs(anchor)
+            or anchor.endswith("/")
+            or anchor in ("..", ".")
+            or any(seg == ".." for seg in anchor.split("/"))
+        ):
+            return rule, key, "anchor must be a repo-relative path"
         looks_like_path = "/" in anchor or "." in anchor
         if target is not None:
-            if not os.path.exists(os.path.join(target, anchor)):
+            resolved_target = os.path.realpath(target)
+            resolved_anchor = os.path.realpath(os.path.join(target, anchor))
+            in_target = resolved_anchor == resolved_target or resolved_anchor.startswith(
+                resolved_target + os.sep
+            )
+            if not in_target:
+                return rule, key, "anchor must be a repo-relative path"
+            if not os.path.exists(resolved_anchor):
                 return rule, key, "anchor is not a repo path or allowed pseudo-anchor"
         elif not looks_like_path:
             return rule, key, "anchor is not a repo path or allowed pseudo-anchor"
