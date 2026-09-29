@@ -96,10 +96,22 @@ def signal(body, dim):
     return m.group(1) if m else None
 
 
+def asserted(finding):
+    # Mirrors _asserted/_resolve_result in assemble-artifact.py (used by its
+    # derive_security_indicator) so both count the same records: result is
+    # stripped and upper-cased; PASS and NOT CHECKED/NOT_CHECKED do not count;
+    # FAIL, WARN, and any unrecognised or missing result count (the assembler
+    # treats those as fail). Kept as a copy, not an import, so each script
+    # stays standalone.
+    raw = finding.get("result")
+    key = raw.strip().upper() if isinstance(raw, str) else raw
+    return key not in ("PASS", "NOT CHECKED", "NOT_CHECKED")
+
+
 def derived_security(findings, app_id):
     sevs = [str(f.get("severity", "")).lower() for f in findings
             if f.get("app_id", "root") == app_id and str(f.get("rule", "")).startswith("OODT-")
-            and str(f.get("result", "")).upper() in ("FAIL", "WARN")]
+            and asserted(f)]
     if not sevs:
         return "Low", 0, None
     top = max(sevs, key=lambda s: SEV_RANK.get(s, 0))

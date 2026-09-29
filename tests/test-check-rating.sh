@@ -208,4 +208,16 @@ check "root mismatch derives Low" 1 "$(grep -cF "MISMATCH Security signal (repor
 check "viewer mismatch derives High" 1 "$(grep -cF "MISMATCH Security signal (report says Low; findings derive High: 1 OODT finding, highest severity medium)" "$TMP/out")"
 check "swapped summary" "ratings: 2 mismatches" "$(tail -1 "$TMP/out")"
 
+echo "Test 21: result is matched like the assembler (stripped, case-insensitive; unrecognised counts)"
+report Adequate Low Medium "$FULL" > "$TMP/r21.md"
+printf '[%s]' "$(sec low ' warn ')" > "$TMP/f21a.json"
+check "' warn ' counts exit 1" 1 "$(run "$TMP/r21.md" "$TMP/f21a.json")"
+check "' warn ' reason" 1 "$(grep -cF "MISMATCH Security signal (report says Low; findings derive Medium: 1 OODT finding, highest severity low)" "$TMP/out")"
+printf '[%s]' "$(sec low bogus)" > "$TMP/f21b.json"
+check "bogus counts exit 1" 1 "$(run "$TMP/r21.md" "$TMP/f21b.json")"
+check "bogus reason" 1 "$(grep -cF "MISMATCH Security signal (report says Low; findings derive Medium: 1 OODT finding, highest severity low)" "$TMP/out")"
+printf '[%s,%s]' "$(sec medium PASS)" "$(sec medium 'NOT CHECKED')" > "$TMP/f21c.json"
+check "PASS and NOT CHECKED do not count exit 0" 0 "$(run "$TMP/r21.md" "$TMP/f21c.json")"
+check "PASS and NOT CHECKED summary" "ratings: consistent" "$(tail -1 "$TMP/out")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
