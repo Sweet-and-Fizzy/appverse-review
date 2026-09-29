@@ -92,6 +92,7 @@ jobs:
         env:
           TARGET_REPO: ${{ inputs.target_repo }}
           REVIEW_ASPECTS: ${{ inputs.review_aspects }}
+          MODEL: ${{ inputs.model }}
         run: |
           if [ "$REVIEW_ASPECTS" = "all" ]; then
             echo "skill=review-app" >> "$GITHUB_OUTPUT"
@@ -107,6 +108,7 @@ jobs:
             echo "target_commit_date=$(git -C target-repo log -1 --format=%cs)"
             echo "plugin_sha=$(git -C appverse-review rev-parse --short HEAD)"
             echo "plugin_version=$(python3 -c "import json; print(json.load(open('appverse-review/.claude-plugin/plugin.json'))['version'])")"
+            echo "model_id=claude-${MODEL}-4-6"
           } >> "$GITHUB_OUTPUT"
 
       - name: Run AppVerse review
@@ -123,7 +125,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           plugin_marketplaces: "./appverse-review/"
           plugins: "appverse-review"
-          claude_args: "--max-turns 100 --model claude-${{ inputs.model }}-4-6"
+          claude_args: "--max-turns 100 --model ${{ steps.params.outputs.model_id }}"
           show_full_output: ${{ inputs.debug }}
           settings: |
             {
@@ -260,6 +262,37 @@ jobs:
           EOF
           echo "Dry-run report written to $REPORT_FILE"
 
+      - name: Stamp run provenance
+        if: inputs.review_aspects != 'dry-run'
+        env:
+          WS: ${{ github.workspace }}
+          SLUG: ${{ steps.params.outputs.repo_slug }}
+          MODEL_ID: ${{ steps.params.outputs.model_id }}
+          PLUGIN_VERSION: ${{ steps.params.outputs.plugin_version }}
+          PLUGIN_SHA: ${{ steps.params.outputs.plugin_sha }}
+        run: |
+          # The model cannot know what it is running as (a gateway run reported
+          # itself as Claude). The workflow knows, so it writes these values.
+          META="$WS/review-${SLUG}.meta.json"; MD="$WS/review-${SLUG}.md"
+          if [ -s "$META" ]; then
+            python3 - "$META" "$MODEL_ID" <<'EOF'
+          import json, sys
+          p, model = sys.argv[1], sys.argv[2]
+          m = json.load(open(p)); m["model"] = model
+          json.dump(m, open(p, "w"), indent=2); print("meta.json model =", model)
+          EOF
+          fi
+          if [ -s "$MD" ]; then
+            python3 - "$MD" "$MODEL_ID" "$PLUGIN_VERSION" "$PLUGIN_SHA" <<'EOF'
+          import re, sys
+          p, model, ver, sha = sys.argv[1:5]
+          s = open(p).read()
+          s, n1 = re.subn(r"(\*\*Model:\*\*)\s*\S+", r"\1 " + model, s, count=1)
+          s, n2 = re.subn(r"appverse-review @ [^\s(]+ \(`[^`]*`", "appverse-review @ " + ver + " (`" + sha + "`", s, count=1)
+          open(p, "w").write(s); print("header stamped: model", n1, "version", n2)
+          EOF
+          fi
+
       - name: Compute stable finding IDs
         if: inputs.review_aspects != 'dry-run'
         run: |
@@ -295,6 +328,32 @@ jobs:
             fi
           else
             echo "::warning::findings JSON or report missing — feedback floor not checked"
+          fi
+
+      - name: Check finding keys
+        if: inputs.review_aspects == 'all'
+        run: |
+          WS="${{ github.workspace }}"; SLUG="${{ steps.params.outputs.repo_slug }}"
+          if [ -s "$WS/review-${SLUG}.findings.json" ]; then
+            if ! python3 "$WS/appverse-review/references/check-keys.py" "$WS/review-${SLUG}.findings.json" --target "$WS/target-repo"; then
+              echo "::error::Malformed defect keys (see INVALID lines above); their stable IDs would not be stable"
+              exit 1
+            fi
+          else
+            echo "::warning::findings JSON missing — keys not checked"
+          fi
+
+      - name: Check ratings against evidence
+        if: inputs.review_aspects == 'all'
+        run: |
+          WS="${{ github.workspace }}"; SLUG="${{ steps.params.outputs.repo_slug }}"
+          if [ -s "$WS/review-${SLUG}.findings.json" ] && [ -s "$WS/review-${SLUG}.md" ]; then
+            if ! python3 "$WS/appverse-review/references/check-rating.py" "$WS/review-${SLUG}.md" "$WS/review-${SLUG}.findings.json"; then
+              echo "::error::A rating or signal does not follow the report's own evidence (see MISMATCH lines above)"
+              exit 1
+            fi
+          else
+            echo "::warning::report or findings missing — ratings not checked"
           fi
 
       - name: Generate PDF and HTML from review

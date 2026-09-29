@@ -306,7 +306,7 @@ Save to `review-<owner>-<repo>.meta.json`:
   "repo_shape": "inferred_single | declared_monorepo | declared_single",
   "not_archived": "pass | fail",
   "public": "pass | fail",
-  "model": "<the model you are running as, e.g. claude-sonnet-4-6>",
+  "model": "<the model id given to you by the run parameters; if none was given, the id you are running as>",
   "recommendation": {
     "decision": "<Accept | Accept with suggestions | Request changes | Reject>",
     "note": "<the Overall recommendation paragraph, verbatim>"
@@ -353,9 +353,10 @@ definitions: `${CLAUDE_PLUGIN_ROOT}/references/artifact-envelope.md`
 ("Indicator inputs"). If an aspect did not run, leave its block out.
 
 For monorepos, include one entry per app in the `apps` array. The `model`
-field is the Claude model ID you are running as — report it directly, do not
-guess. Token counts and cost are not available from the review session; they
-are tracked externally by the API provider.
+field is the model id the run gave you (CI overwrites it from the workflow's
+parameters after the review; a model cannot verify its own identity). Token
+counts and cost are not available from the review session; they are tracked
+externally by the API provider.
 
 ## 6. Wrap up
 
@@ -374,5 +375,15 @@ are tracked externally by the API provider.
 
       python3 "${CLAUDE_PLUGIN_ROOT}/references/check-feedback-floor.py" \
         review-<owner>-<repo>.findings.json review-<owner>-<repo>.md
+
+- Then validate finding keys and ratings, and fix the findings or the report
+  until both pass:
+
+      python3 "${CLAUDE_PLUGIN_ROOT}/references/check-keys.py" \
+        review-<owner>-<repo>.findings.json --target "$TMP"
+      python3 "${CLAUDE_PLUGIN_ROOT}/references/check-rating.py" \
+        review-<owner>-<repo>.md review-<owner>-<repo>.findings.json
+
+  (Reviewer mode's `$TMP` is the temp clone from setup; in submitter mode use `.`.)
 
 - Reviewer mode: remove the temp clone (`rm -rf "$TMP"`).
