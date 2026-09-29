@@ -37,6 +37,7 @@ review-security, review-quality, review-maintenance. Each subagent's prompt:
 > owner/repo: <owner/repo or unknown>; reviewed commit: <SHA> (<date>);
 > repo shape: <shape>; apps: <list of path + resolved fields>;
 > shared_paths: <list>; schema source: <live|cached>;
+> pre-review dir: <path to the pre-review output, or "absent">;
 > languages/frameworks detected: <e.g., Ruby/Sinatra, Python/Flask, shell>;
 > dependency manifests: <Gemfile.lock, package-lock.json, requirements.txt, or none>;
 > test suite: <command and result, or "none detected">.
@@ -125,6 +126,7 @@ string; if unavailable, write `unknown`.
 |---|---|---|---|---|
 | STR-02 | PASS/FAIL/WARN/NOT CHECKED | ... | Required metadata fields | ... |
 | STR-03 | PASS/FAIL/WARN/NOT CHECKED | ... | YAML validity | ... |
+| STR-06 | PASS/FAIL/NOT CHECKED | ... | Template scripts syntactically correct | <N files pass \| M of N fail: paths> (from pre-review syntax.json) |
 | STR-07 | PASS/FAIL/WARN/NOT CHECKED | ... | Standard OOD structure | ... |
 | STR-04 | PASS/FAIL/WARN/NOT CHECKED | ... | No broken references | ... |
 

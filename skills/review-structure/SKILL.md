@@ -11,7 +11,9 @@ Criteria: `${CLAUDE_PLUGIN_ROOT}/references/review-rubric.md` — sections
 yours; README depth is review-quality's job.
 
 **Setup:** Use the orchestrator's prepared target if provided; otherwise follow
-`${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` first.
+`${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` first. The orchestrator (or
+target-setup.md) names the pre-review directory; if it is absent, every STR-06
+record is NOT CHECKED with the note "pre-review facts not found".
 
 ## Repo-level checks
 
@@ -40,9 +42,14 @@ yours; README depth is review-quality's job.
   errors verbatim. A `form.yml.erb` cannot be YAML-parsed directly (unrendered
   ERB is not valid YAML) — check that it exists and has balanced ERB tags
   instead.
-- ERB templates look renderable (balanced `<%= %>` tags); shell scripts pass
-  `bash -n` (for `.sh.erb`, strip ERB tags first — see the recipe in
-  `${CLAUDE_PLUGIN_ROOT}/references/security-tools.md`).
+- ERB templates look renderable (balanced `<%= %>` tags). STR-06 comes from
+  the pre-review facts, never from running `bash -n` yourself: read
+  `<pre-review>/syntax.json` and record one STR-06 record per shell file —
+  result PASS when `ok` is true, FAIL when false (severity high, evidence
+  `<path>:1` plus the first stderr line), NOT CHECKED when `summary.json`'s
+  `syntax` check did not run — with `defect_key` `<path>:bash-syntax-error`.
+  The gate table's STR-06 row summarises them: "N files pass" or "M of N
+  fail: `<paths>`".
 - No broken references: variables and attributes used in `submit.yml.erb` and
   `template/` files exist in `form.yml` or `form.yml.erb`.
 - Batch Connect apps have the standard layout: `form.yml` or `form.yml.erb`,

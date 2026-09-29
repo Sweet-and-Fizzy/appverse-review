@@ -212,6 +212,9 @@ OODT-XX before hashing.
 **STR-06:**
 `bash-syntax-error`
 
+STR-06 is recorded for every shell file, with result PASS, FAIL, or NOT
+CHECKED, so the gate can distinguish "all scripts parse" from "not checked".
+
 **STR-07:**
 `missing-entry-point`, `missing-submit-yml`, `layout-mismatch`
 
