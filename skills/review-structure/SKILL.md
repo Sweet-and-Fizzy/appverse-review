@@ -48,8 +48,16 @@ record is NOT CHECKED with the note "pre-review facts not found".
   result PASS when `ok` is true, FAIL when false (severity high, evidence
   `<path>:1` plus the first stderr line), NOT CHECKED when `summary.json`'s
   `syntax` check did not run — with `defect_key` `<path>:bash-syntax-error`.
-  The gate table's STR-06 row summarises them: "N files pass" or "M of N
-  fail: `<paths>`".
+  Only a `stderr` that is a bash message (it starts with the file path and
+  "line") is a syntax error; an entry whose `stderr` begins with one of the
+  refusal reasons ("symlink outside target", "dangling symlink", "not a
+  regular file") was never syntax-checked at all. Record that entry as NOT
+  CHECKED (severity info, evidence `<path>:1` plus the stderr reason) when
+  the path exists in the tree (an outside-resolving symlink or a FIFO); give
+  a dangling symlink no findings record at all, since its path does not
+  exist for check-keys — name it only in the STR-06 row summary. The gate
+  table's STR-06 row summarises them: "N files pass; M fail: `<paths>`; K
+  not checked: `<path>` (`<reason>`)".
 - No broken references: variables and attributes used in `submit.yml.erb` and
   `template/` files exist in `form.yml` or `form.yml.erb`.
 - Batch Connect apps have the standard layout: `form.yml` or `form.yml.erb`,

@@ -214,6 +214,10 @@ OODT-XX before hashing.
 
 STR-06 is recorded for every shell file, with result PASS, FAIL, or NOT
 CHECKED, so the gate can distinguish "all scripts parse" from "not checked".
+A refused file (a symlink outside the target, a dangling symlink, a FIFO, or
+a device — see `syntax.json`'s `stderr`) was never syntax-checked and is
+never FAIL: NOT CHECKED when its path exists in the tree, or omitted entirely
+when it does not (a dangling symlink).
 
 **STR-07:**
 `missing-entry-point`, `missing-submit-yml`, `layout-mismatch`
