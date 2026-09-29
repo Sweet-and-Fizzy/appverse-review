@@ -5,6 +5,8 @@
 
 A key is "{anchor}:{tag}". The anchor must be a repo-relative path that
 exists under --target (when given) or one of the allowed pseudo-anchors.
+An absent-file tag (ABSENT_FILE_ANCHORS) instead takes its fixed expected
+anchor, or "<app_id>/<anchor>" in a monorepo, and existence is not checked.
 The tag must be in the rule's vocabulary (finding-codes.md), carrying its
 qualifier where the vocabulary shows one, or "other:<slug>" where the slug is
 not a vocabulary tag in disguise. Exit 0 when every key is valid, 1 when any
@@ -19,6 +21,19 @@ import sys
 PSEUDO_ANCHORS = {
     "LICENSE", "README.md", "CHANGELOG", "CHANGELOG.md", ".github/workflows",
     "releases", "issues", "contributors", "commits", "root",
+}
+# Absent-file tags (STR-01, STR-07): the file does not exist by definition, so
+# the anchor is the fixed expected path. Keep in step with finding-codes.md.
+# missing-license and missing-readme are not here: LICENSE and README.md are
+# pseudo-anchors already, and STR-01 also covers an insufficient file that
+# exists under another name (LICENSE.txt), which keeps its real path.
+ABSENT_FILE_ANCHORS = {
+    "missing-manifest": "manifest.yml",
+    "missing-appverse-yml": "appverse.yml",
+    "missing-form": "form.yml",
+    "missing-template-dir": "template",
+    "missing-submit-yml": "submit.yml.erb",
+    "missing-entry-point": "template/script.sh.erb",
 }
 FINDING_CODES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "finding-codes.md")
 RULE_HEADING = re.compile(r"^\*\*([A-Z]{3,4}-\d{2}):\*\*\s*$")
@@ -67,7 +82,18 @@ def validate(finding, vocab, target):
     if ":" not in key:
         return rule, key, "no anchor"
     anchor, _, tag = key.partition(":")
-    if anchor not in PSEUDO_ANCHORS:
+    if not tag:
+        return rule, key, "empty tag"
+    expected = ABSENT_FILE_ANCHORS.get(tag)
+    if expected is not None:
+        app_id = finding.get("app_id") or "root"
+        allowed = {expected}
+        if app_id != "root":
+            allowed.add(app_id.rstrip("/") + "/" + expected)
+        if anchor not in allowed:
+            return rule, key, "absent-file tag '{}' must use anchor '{}' (or '<app_id>/{}' in a monorepo)".format(
+                tag, expected, expected)
+    elif anchor not in PSEUDO_ANCHORS:
         if (
             os.path.isabs(anchor)
             or anchor.endswith("/")
@@ -88,16 +114,18 @@ def validate(finding, vocab, target):
                 return rule, key, "anchor is not a repo path or allowed pseudo-anchor"
         elif not looks_like_path:
             return rule, key, "anchor is not a repo path or allowed pseudo-anchor"
+    if rule not in vocab:
+        return rule, key, "unknown rule '{}'".format(rule)
     if tag.startswith("other:"):
         slug = tag[len("other:"):]
         if not slug:
             return rule, key, "other: needs a slug"
-        for base in vocab.get(rule, {}):
+        for base in vocab[rule]:
             if norm(base) == norm(slug):
                 return rule, key, "other:{} is the vocabulary tag '{}'".format(slug, base)
         return rule, key, None
     base, _, qual = tag.partition(":")
-    rule_vocab = vocab.get(rule, {})
+    rule_vocab = vocab[rule]
     if base not in rule_vocab:
         return rule, key, "tag '{}' not in {} vocabulary; use other:<slug> for a novel defect".format(base, rule)
     if rule_vocab[base] and not qual:
@@ -111,11 +139,18 @@ def main(argv):
     ap.add_argument("--target", default=None, help="reviewed repo checkout; enables path-existence checks")
     ap.add_argument("--vocabulary", default=FINDING_CODES)
     args = ap.parse_args(argv[1:])
+    if args.target is not None and (not args.target or not os.path.isdir(args.target)):
+        # An empty --target would silently mean the cwd and reject every real path.
+        print("error: --target is not a directory: '{}'".format(args.target), file=sys.stderr)
+        return 2
     try:
         with open(args.findings) as f:
             findings = json.load(f)
     except (OSError, ValueError) as e:
         print("error: {}".format(e), file=sys.stderr)
+        return 2
+    if not isinstance(findings, list) or not all(isinstance(x, dict) for x in findings):
+        print("error: findings must be a JSON list of objects", file=sys.stderr)
         return 2
     vocab = load_vocabulary(args.vocabulary)
     bad = 0

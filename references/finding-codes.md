@@ -59,9 +59,13 @@ defect_key = "{anchor}:{mechanism_tag}"
 
 - **`anchor`**: the file or resource the finding is about — deterministic,
   shifts only on renames. For findings in existing files, this is the
-  repo-relative path (e.g., `template/script.sh.erb`). For findings about
-  absent files or resources, this is the expected path or resource name
-  (e.g., `LICENSE`, `CHANGELOG`, `.github/workflows`)
+  repo-relative path (e.g., `template/script.sh.erb`). Anchors are always
+  relative to the repo root, never to the app: in a monorepo the anchor
+  includes the app subpath (`app_id` `apps/good-app` →
+  `apps/good-app/form.yml:missing-min-max`, not `form.yml:missing-min-max`).
+  For findings about absent files or repo-level resources, the anchor is
+  fixed: see the absent-file tag → anchor pairs and the pseudo-anchor list
+  under Edge cases below.
 - **`mechanism_tag`**: selected from the vocabulary for the finding's rule code
   (see tables below). Novel findings not in the vocabulary use
   `other:{short-description}`; recurring novel tags get promoted to the
@@ -87,12 +91,23 @@ defect_key = "{anchor}:{mechanism_tag}"
 - **Multiple findings with the same mechanism in one file** (e.g., 7 unquoted
   variables in `script.sh.erb`): treat as one finding with multiple evidence
   locations. `line` is mutable metadata carrying the list.
-- **Absent-file and repo-level findings** use a fixed pseudo-anchor, never a
-  free-text one. The allowed set is exactly: `LICENSE`, `README.md`,
-  `CHANGELOG`, `CHANGELOG.md`, `.github/workflows`, `releases`, `issues`,
-  `contributors`, `commits`, `root`. Case-sensitive: `RELEASES` and
-  `github/commits` are invalid. Anything else must be a repo-relative path
-  that exists in the reviewed tree. `check-keys.py` enforces this.
+- **Absent-file and repo-level findings** use a fixed anchor, never a
+  free-text one. `check-keys.py` enforces both lists below.
+  - Absent-file tags (STR-01, STR-07) take this expected anchor, whether or
+    not the file exists: `missing-manifest` → `manifest.yml`,
+    `missing-appverse-yml` → `appverse.yml`, `missing-form` → `form.yml`,
+    `missing-template-dir` → `template`, `missing-submit-yml` →
+    `submit.yml.erb`, `missing-entry-point` → `template/script.sh.erb`. In a
+    monorepo prefix the app subpath (`apps/bad-app/form.yml:missing-form`).
+    Any other anchor with one of these tags is invalid.
+  - Repo-level findings use a pseudo-anchor. The allowed set is exactly:
+    `LICENSE`, `README.md`, `CHANGELOG`, `CHANGELOG.md`, `.github/workflows`,
+    `releases`, `issues`, `contributors`, `commits`, `root`. Case-sensitive:
+    `RELEASES` and `github/commits` are invalid. `missing-license` and
+    `missing-readme` use `LICENSE` and `README.md` from this set, or the path
+    of an insufficient file that exists under another name (`LICENSE.txt`).
+  - Anything else must be a repo-relative path that exists in the reviewed
+    tree.
 - **Prior finding disappears but code unchanged**: flag as "prior finding not
   reproduced — verify manually" rather than auto-marking "fixed."
 

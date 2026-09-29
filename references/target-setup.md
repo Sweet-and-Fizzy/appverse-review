@@ -100,7 +100,7 @@ Field definitions:
 |---|---|---|---|
 | `app_id` | Yes | Yes | `"root"` for single-app repos; subpath for monorepos |
 | `rule` | Yes | Yes | Code from `finding-codes.md` (OODT-XX, STR-XX, QUA-XX, MNT-XX) |
-| `defect_key` | Yes | Yes | `{anchor}:{mechanism_tag}` per `finding-codes.md` |
+| `defect_key` | Yes | Yes | `{anchor}:{mechanism_tag}` per `finding-codes.md`. The anchor is relative to the repo root, so a monorepo app's anchor includes its subpath (`apps/good-app/form.yml:missing-min-max`) |
 | `aspect` | Yes | No | `security`, `structure`, `quality`, or `maintenance` |
 | `severity` | Yes | No | `critical`, `high`, `medium`, `low`, or `info` |
 | `result` | Yes | No | `FAIL`, `WARN`, `PASS`, or `NOT CHECKED` |

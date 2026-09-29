@@ -81,4 +81,55 @@ check "exit 1 traversal with target" 1 "$(run "$TMP/l.json" --target "$TMP/t")"
 check "reason traversal with target" 1 "$(grep -c "INVALID QUA-02 \.\./form.yml:hardcoded-path (anchor must be a repo-relative path)" "$TMP/out")"
 check "exit 1 traversal without target" 1 "$(run "$TMP/l.json")"
 
+recapp() { # app_id rule defect_key
+  printf '{"app_id":"%s","rule":"%s","defect_key":"%s","aspect":"x","severity":"low","result":"WARN","summary":"s","evidence":"e"}' "$1" "$2" "$3"; }
+mkdir -p "$TMP/empty"
+
+echo "Test 13: --target that is empty or not a directory is exit 2, not a silent cwd"
+printf '[%s]' "$(rec QUA-07 form.yml:missing-min-max)" > "$TMP/m.json"
+check "empty target exit 2" 2 "$(run "$TMP/m.json" --target "")"
+check "empty target message" 1 "$(grep -c "^error: --target is not a directory: ''$" "$TMP/out")"
+check "nonexistent target exit 2" 2 "$(run "$TMP/m.json" --target /nonexistent)"
+check "nonexistent target message" 1 "$(grep -c "^error: --target is not a directory: '/nonexistent'$" "$TMP/out")"
+
+echo "Test 14: absent-file tags take their fixed expected anchor; existence is not required"
+printf '[%s,%s]' "$(rec STR-01 form.yml:missing-form)" "$(rec STR-01 manifest.yml:missing-manifest)" > "$TMP/n.json"
+check "exit 0 against a tree without the files" 0 "$(run "$TMP/n.json" --target "$TMP/empty")"
+check "summary" "finding keys: 2/2 valid" "$(tail -1 "$TMP/out")"
+printf '[%s]' "$(recapp apps/bad-app STR-01 apps/bad-app/form.yml:missing-form)" > "$TMP/o.json"
+check "monorepo app_id/anchor exit 0" 0 "$(run "$TMP/o.json" --target "$TMP/empty")"
+printf '[%s]' "$(rec STR-01 root:missing-form)" > "$TMP/p.json"
+check "root anchor exit 1" 1 "$(run "$TMP/p.json" --target "$TMP/empty")"
+check "root anchor reason" 1 "$(grep -cF "INVALID STR-01 root:missing-form (absent-file tag 'missing-form' must use anchor 'form.yml' (or '<app_id>/form.yml' in a monorepo))" "$TMP/out")"
+printf '[%s]' "$(rec STR-01 apps/bad-app/form.yml:missing-form)" > "$TMP/p2.json"
+check "app-prefixed anchor with app_id root exit 1" 1 "$(run "$TMP/p2.json" --target "$TMP/empty")"
+# The tag vocabulary is still per rule: missing-form belongs to STR-01, so under
+# STR-07 the anchor passes but the tag does not (run 36477735864 keeps this INVALID).
+printf '[%s]' "$(rec STR-07 form.yml:missing-form)" > "$TMP/q.json"
+check "STR-07 missing-form exit 1" 1 "$(run "$TMP/q.json" --target "$TMP/empty")"
+check "STR-07 missing-form reason is the vocabulary" 1 "$(grep -cF "INVALID STR-07 form.yml:missing-form (tag 'missing-form' not in STR-07 vocabulary; use other:<slug> for a novel defect)" "$TMP/out")"
+
+echo "Test 15: monorepo anchors are repo-root-relative and include the app subpath"
+mkdir -p "$TMP/mono/apps/good-app"; touch "$TMP/mono/apps/good-app/form.yml"
+printf '[%s]' "$(recapp apps/good-app QUA-07 apps/good-app/form.yml:missing-min-max)" > "$TMP/r.json"
+check "full path exit 0" 0 "$(run "$TMP/r.json" --target "$TMP/mono")"
+printf '[%s]' "$(recapp apps/good-app QUA-07 form.yml:missing-min-max)" > "$TMP/s.json"
+check "app-relative path exit 1" 1 "$(run "$TMP/s.json" --target "$TMP/mono")"
+check "app-relative path reason" 1 "$(grep -cF "INVALID QUA-07 form.yml:missing-min-max (anchor is not a repo path or allowed pseudo-anchor)" "$TMP/out")"
+
+echo "Test 16: empty tag, unknown rule, and non-list input"
+printf '[%s]' "$(rec QUA-07 form.yml:)" > "$TMP/u.json"
+check "empty tag exit 1" 1 "$(run "$TMP/u.json")"
+check "empty tag reason" 1 "$(grep -cF "INVALID QUA-07 form.yml: (empty tag)" "$TMP/out")"
+printf '[%s]' "$(rec OAT-01 form.yml:eval-exec)" > "$TMP/v.json"
+check "unknown rule exit 1" 1 "$(run "$TMP/v.json")"
+check "unknown rule reason" 1 "$(grep -cF "INVALID OAT-01 form.yml:eval-exec (unknown rule 'OAT-01')" "$TMP/out")"
+echo '{"findings":[]}' > "$TMP/w.json"
+check "object top level exit 2" 2 "$(run "$TMP/w.json")"
+check "object top level message" 1 "$(grep -cxF "error: findings must be a JSON list of objects" "$TMP/out")"
+check "no traceback" 0 "$(grep -c Traceback "$TMP/out")"
+echo '["form.yml:missing-min-max"]' > "$TMP/x.json"
+check "non-object element exit 2" 2 "$(run "$TMP/x.json")"
+check "non-object element message" 1 "$(grep -cxF "error: findings must be a JSON list of objects" "$TMP/out")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

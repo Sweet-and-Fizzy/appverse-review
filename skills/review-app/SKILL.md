@@ -65,7 +65,7 @@ string; if unavailable, write `unknown`.
 
 **Repository:** <url or path>  **Mode:** reviewer|submitter  **Date:** <today>
 **Reviewed commit:** `<full SHA>` (<commit date>)  **Repo shape:** declared monorepo (N apps) | declared single app | inferred single app
-**Reviewed with:** appverse-review @ <plugin version> (`<appverse-review HEAD short SHA, captured at run time>`, https://github.com/Sweet-and-Fizzy/appverse-review) · **Model:** <the model id you are running as, the same value written to meta.json> · **Rubric:** https://openondemand.connectci.org/appverse-review-rubric
+**Reviewed with:** appverse-review @ <plugin version> (`<appverse-review HEAD short SHA, captured at run time>`, https://github.com/Sweet-and-Fizzy/appverse-review) · **Model:** <the model id the run gave you; CI overwrites this from its parameters> · **Rubric:** https://openondemand.connectci.org/appverse-review-rubric
 
 > _Disclaimer: This is an automated review with human curation. It is provided without warranty of any kind and does not certify the app as secure or fit for any purpose. A listing is not an endorsement._
 
@@ -380,10 +380,12 @@ externally by the API provider.
   until both pass:
 
       python3 "${CLAUDE_PLUGIN_ROOT}/references/check-keys.py" \
-        review-<owner>-<repo>.findings.json --target "$TMP"
+        review-<owner>-<repo>.findings.json --target "$TMP/repo"
       python3 "${CLAUDE_PLUGIN_ROOT}/references/check-rating.py" \
         review-<owner>-<repo>.md review-<owner>-<repo>.findings.json
 
-  (Reviewer mode's `$TMP` is the temp clone from setup; in submitter mode use `.`.)
+  (Reviewer mode's `$TMP/repo` is the clone from setup. When the repo was
+  already checked out for you (CI: `$GITHUB_WORKSPACE/target-repo`), pass that
+  path instead. In submitter mode use `.`.)
 
 - Reviewer mode: remove the temp clone (`rm -rf "$TMP"`).
