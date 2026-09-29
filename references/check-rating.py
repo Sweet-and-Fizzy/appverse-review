@@ -127,6 +127,20 @@ def main(argv):
         rating = rm.group(1)
         evidence = parse_evidence(doc)
         supported = highest_supported_rung(evidence)
+
+        signals = subsection(body, "Signals")
+        if signals is None:
+            print("error: {} has no '### Signals' section".format(heading), file=sys.stderr)
+            return 2
+        doc_sig = signal(signals, "Documentation")
+        if doc_sig is None:
+            print("error: {} has no Signals row for Documentation".format(heading), file=sys.stderr)
+            return 2
+        sec_sig = signal(signals, "Security")
+        if sec_sig is None:
+            print("error: {} has no Signals row for Security".format(heading), file=sys.stderr)
+            return 2
+
         if supported is None or RATING_ORDER.index(rating) > RATING_ORDER.index(supported):
             # name the first requirement that blocks the claimed rung
             blocker = None
@@ -140,13 +154,11 @@ def main(argv):
             problems += 1
             print("MISMATCH Documentation rating ({} claimed but '{}' evidence is none; highest supported rung is {})".format(
                 rating, blocker, supported or "none"))
-        doc_sig = signal(body, "Documentation")
-        if doc_sig and doc_sig != DOC_SIGNAL[rating]:
+        if doc_sig != DOC_SIGNAL[rating]:
             problems += 1
             print("MISMATCH Documentation signal (report says {}; rating {} maps to {})".format(doc_sig, rating, DOC_SIGNAL[rating]))
-        sec_sig = signal(body, "Security")
         derived, count, top = derived_security(findings, app_id)
-        if sec_sig and sec_sig != derived:
+        if sec_sig != derived:
             problems += 1
             detail = "{} OODT finding{}, highest severity {}".format(count, "" if count == 1 else "s", top) if count else "no OODT findings"
             print("MISMATCH Security signal (report says {}; findings derive {}: {})".format(sec_sig, derived, detail))

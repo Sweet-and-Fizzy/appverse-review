@@ -124,4 +124,29 @@ echo "Test 9: no Documentation section is exit 2"
 grep -v "^### Documentation" "$TMP/r1.md" | grep -v "Rating: \*\*Strong" > "$TMP/r9.md"
 check "exit 2" 2 "$(run "$TMP/r9.md" "$TMP/f1.json")"
 
+echo "Test 10: signal() must not read a findings-table row whose first cell is Security/Documentation"
+# Signals table has no Security row (blank Level cell removed entirely); the Security findings
+# table below it has a row starting "| Security | High | medium | OODT-01 | s | e |" that must
+# not be misread as the Signals-table Security level.
+sed -e 's/^| Security | Low | e |$//' \
+    -e 's/^|---|---|---|---|---|---|$/|---|---|---|---|---|---|\n| Security | High | medium | OODT-01 | s | e |/' \
+    "$TMP/r1.md" > "$TMP/r10.md"
+check "exit 2 (missing Signals row, not misread)" 2 "$(run "$TMP/r10.md" "$TMP/f1.json")"
+check "error names Security" 1 "$(grep -c "has no Signals row for Security" "$TMP/out")"
+
+echo "Test 11: missing '### Signals' section entirely is exit 2"
+grep -v "^### Signals$" "$TMP/r1.md" | sed '/^| Dimension | Level | Evidence |$/d; /^|---|---|---|$/d; /^| Security | Low | e |$/d; /^| Portability | Medium | e |$/d; /^| Documentation | Low | e |$/d' > "$TMP/r11.md"
+check "exit 2" 2 "$(run "$TMP/r11.md" "$TMP/f1.json")"
+check "error names Signals section" 1 "$(grep -c "has no '### Signals' section" "$TMP/out")"
+
+echo "Test 12: Signals table present but missing the Documentation row is exit 2"
+grep -v "^| Documentation | Low | e |$" "$TMP/r1.md" > "$TMP/r12.md"
+check "exit 2" 2 "$(run "$TMP/r12.md" "$TMP/f1.json")"
+check "error names Documentation" 1 "$(grep -c "has no Signals row for Documentation" "$TMP/out")"
+
+echo "Test 13: Signals table present but missing the Security row is exit 2"
+grep -v "^| Security | Low | e |$" "$TMP/r1.md" > "$TMP/r13.md"
+check "exit 2" 2 "$(run "$TMP/r13.md" "$TMP/f1.json")"
+check "error names Security" 1 "$(grep -c "has no Signals row for Security" "$TMP/out")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
