@@ -74,6 +74,15 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq shellcheck > /dev/null 2>&1
           pip install --quiet bandit semgrep==1.178.0 2>/dev/null || true
+          # trivy (dependency manifests, container definitions) from Aqua's apt
+          # repo. Best-effort like the others: if the repo is unreachable the
+          # pre-review summary records trivy as not installed.
+          if wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key \
+               | gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null \
+             && echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" \
+               | sudo tee /etc/apt/sources.list.d/trivy.list > /dev/null; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq trivy > /dev/null 2>&1 || true
+          fi
 
       - name: Run pre-review checks
         if: inputs.review_aspects != 'dry-run'

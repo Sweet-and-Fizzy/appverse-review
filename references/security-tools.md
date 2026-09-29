@@ -26,7 +26,7 @@ never replace, the manual analysis.
   `failed_to_run`, or `skipped`. The skill renders these as `Run`,
   `Not run (not installed)`, `Not run (failed)`, and `Not run (<note>)`.
 - **CI:** the workflow installs shellcheck, bandit, and a pinned semgrep.
-  trivy is local-only until CI installs it; in CI its row is
+  trivy is installed in CI from Aqua's apt repo, best-effort; in CI its row is
   `not_installed`.
 - **Scanner configuration in the target:** shellcheck runs with `--norc` and
   trivy with an empty config and ignore file written to the out-dir, so a
