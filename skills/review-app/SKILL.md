@@ -135,11 +135,12 @@ string; if unavailable, write `unknown`.
 Findings are classified under OODT (Open OnDemand App Threats); codes are defined in the rubric's Security section.
 
 **Check tiers:** <Tiers 1–2 | Tiers 1–3 | Tier 1 only>
+<!-- from <pre-review>/summary.json: tier 2 ran only if a tool has status ran -->
 <if not all tiers: "Tier N not checked — <reason>">
 
 | Tool | Status | Result |
 |---|---|---|
-<!-- one row per relevant tool from the security aspect's tool-scan summary -->
+<!-- one row per check in summary.json except syntax and catalog; rendering rules in review-security/SKILL.md step 5 -->
 
 <capability profile: table for Batch Connect, narrative for Passenger>
 
@@ -196,6 +197,8 @@ Findings are classified under OODT (Open OnDemand App Threats); codes are define
 **Not examined:** <list of files/surfaces not reached, with reason — e.g.,
 "dashboard-plugin/ (needs a Rails host)", "runtime behavior (CI, no app
 environment)">
+**Tools:** <which pre-review checks ran, from summary.json; "pre-review facts
+not found" if absent>
 
 ## Catalog checks
 <!-- Query the public JSON:API — see the Reviewer Process's "Reading the catalog

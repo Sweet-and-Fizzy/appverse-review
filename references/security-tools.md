@@ -1,9 +1,27 @@
 # Static Analysis Tools
 
-Optional tools that supplement the manual security review. The review-security
-skill probes for these, runs whichever are installed, and folds their output into
-the OODT-classified findings. **If none are installed the review still completes
-normally** — tool findings supplement, never replace, the manual analysis.
+Optional tools that supplement the manual security review.
+`references/run-pre-review.sh` runs these before the review and writes their
+JSON beside a summary; the review-security skill reads that output and folds
+it into the OODT-classified findings. This file is the specification the
+script implements; the commands below are the ones it runs. **If none are
+installed the review still completes normally** — tool findings supplement,
+never replace, the manual analysis.
+
+## Executable form
+
+- **Script:** `references/run-pre-review.sh <target-dir> <out-dir>`, backed by
+  `references/pre-review.py`.
+- **Output files:** `<out-dir>/summary.json` (one record per check, in order
+  syntax, shellcheck, semgrep, bandit, trivy, catalog); `<out-dir>/syntax.json`;
+  `<out-dir>/shellcheck.json`, `semgrep.json`, `bandit.json`, `trivy.json` (the
+  tool's own JSON, present only when that tool ran).
+- **Status vocabulary:** each check's `status` is `ran`, `not_installed`,
+  `failed_to_run`, or `skipped`. The skill renders these as `Run`,
+  `Not run (not installed)`, `Not run (failed)`, and `Not run (<note>)`.
+- Adding a tool means adding it to both this table and `pre-review.py` — the
+  script is the executable form of this spec, not an independent
+  implementation.
 
 ## Tool Lookup Table
 
