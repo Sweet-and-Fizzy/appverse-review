@@ -71,6 +71,7 @@ for dim in Portability Documentation Upkeep; do
   has "$RUBRIC" "**$dim signal:**" "$dim derivation line"
 done
 lacks "$RUBRIC" "**Security signal:**" "no Security signal derivation"
+lacks "$PROCESS" "Security: [Low" "process doc has no Security level"
 
 echo "Test 7: enumerated named checks"
 has "$RUBRIC" "check: icon-matches-target-os" "icon check"

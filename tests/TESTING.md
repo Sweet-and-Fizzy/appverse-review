@@ -236,7 +236,7 @@ categories.
 | Aspect | broken-app | monorepo | vnc-stale | passenger | container | curl-pipe |
 |--------|-----------|----------|-----------|-----------|-----------|-----------|
 | **Structure** | FAIL (LICENSE, YAML) | FAIL (metadata) | PASS | FAIL (no form) | WARN (ext attrs) | PASS |
-| **Security** | High (secret, 0.0.0.0) | PASS | PASS | Critical (injection) | High (CORS, 0.0.0.0) | Critical (curl\|bash, eval) |
+| **Security (top severity)** | High (secret, 0.0.0.0) | PASS | PASS | Critical (injection) | High (CORS, 0.0.0.0) | Critical (curl\|bash, eval) |
 | **Quality** | Minimal docs, Not portable | PASS / mixed | Adequate docs, Not portable, copy-paste artifacts | Minimal docs, Not portable | Minimal docs, Not portable | Strong docs, meh quality |
 | **Maintenance** | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED |
 

@@ -97,7 +97,7 @@ stderr and still assemble.
     "sha":          "6a4183c…",
     "ref":          "main",
     "at":           "2026-08-27T14:00:00Z",
-    "tool_version": "appverse-review@0.4.0",
+    "tool_version": "appverse-review@0.5.0",
     "repo_shape":   "inferred_single | declared_monorepo | declared_single"
   },
 
@@ -215,6 +215,14 @@ findings in `apps[].findings`, each with its severity and result; the portal
 shows the findings, not a level. An app with none is described as having no
 tool-detectable issues in the checked tiers, never as `safe`.
 
+A consumer that counts security findings counts `OODT-` records whose
+`result` is FAIL or WARN; a PASS record confirms a check and a NOT CHECKED
+record reports a skipped tier, and neither is a finding to review.
+
+**Portal.** The portal's `indicator_security` field and the reviewer's
+security-level override are retired with 1.2; the seeder tolerates the
+missing key, and the curation form's security level widget should be removed.
+
 - **Levels follow the record's `result`.** Only `FAIL` and `WARN` records assert
   a defect. A `PASS` record confirms a check and a `NOT CHECKED` record reports
   a skipped one (the security skill files tier 3 that way); neither moves a
@@ -232,9 +240,9 @@ tool-detectable issues in the checked tiers, never as `safe`.
 - **Display labels.** The report's Signals block shows the same levels as
   Low / Medium / High: `solid` = Low, `some_notes` = Medium,
   `needs_attention` = High. The enum is the machine value and the words differ
-  on purpose: findings already carry a low/medium/high `severity`, and a
-  Medium-severity finding produces a High signal, so sharing one vocabulary
-  would put two different scales side by side under the same names.
+  on purpose: findings already carry a low/medium/high `severity`, which is
+  per finding, while a signal level is per axis. They are different scales,
+  and sharing one vocabulary would put them side by side under the same names.
 - **`level` is the tool's default.** It is what the rules produce. A consumer
   may let a human reviewer override it; the artifact records only the tool's
   value.
@@ -267,6 +275,9 @@ clean findings for every app), or a finding whose `app_id` matches no app.
 The `schema_version` field is semver. Consumers pin to a major version.
 Breaking changes (field removals, type changes) bump the major. Additive
 changes (new optional fields like `indicators`) bump the minor.
+Removing an optional indicator key is a minor bump: since 1.1, consumers must
+tolerate a missing indicator key (see Indicators), so 1.2's removal of
+`indicators.security` breaks no conforming consumer.
 
 | Version | Change |
 |---|---|

@@ -18,9 +18,9 @@ create confusion in the catalog.
 
 Most of the checking is done by **Appverse Review**, which produces an
 evidence-backed report covering structure, security, quality, and maintenance,
-with `file:line` findings, Low / Medium / High signals per dimension, and a
-recommended decision. The reviewer receives that report, verifies it, curates
-the feedback, and makes the call. The review recommends; a human decides.
+with `file:line` findings, Low / Medium / High signals for portability,
+documentation, and upkeep, and a recommended decision. The reviewer receives
+that report, verifies it, curates the feedback, and makes the call. The review recommends; a human decides.
 
 ## Before you start
 
@@ -122,8 +122,8 @@ first: the reviewed commit, the version of the review tool, and the disclaimer.
 The report is organized the way the rubric is:
 
 - **Repo-level gate criteria** (pass / fail) and the repo's **Upkeep** signal.
-- Per app: a **Signals** block (Security, Portability, Documentation at Low /
-  Medium / High with an evidence phrase), then the app's **Structure** gate
+- Per app: a **Signals** block (Portability, Documentation at Low / Medium /
+  High with an evidence phrase), then the app's **Structure** gate
   results, then **Security**, **Portability**, **Documentation**, and **Code
   Quality** findings, each with a rule code, severity, and `file:line`.
 - **Review scope**: which security tiers ran and what was not checked.
@@ -140,7 +140,7 @@ taking them on trust. Spot-check that:
 
 1. Required files and metadata are as the report states — `appverse.yml` or
    `manifest.yml`, `README.md`, `LICENSE`, standard OOD structure.
-2. Security findings are real and correctly rated — open a few and check the
+2. Security findings are real and correctly classified — open a few and check the
    cited `file:line` actually shows the flagged pattern.
 3. Portability and Documentation ratings and any correctness-&-polish findings match what you see —
    documentation level, portability, and any copy-paste artifacts or typos.
@@ -210,7 +210,7 @@ Copy this template when recording a review by hand:
 For Monorepos: repeat the per-app criteria and decision for each entry in `apps[]`.
 
 ### Signals
-- Security: [Low / Medium / High] — findings classified under OODT, with severity and file:line evidence
+- Security: findings classified under OODT, with severity and file:line evidence (no level)
 - Portability: [Low / Medium / High] — [Not portable / Partially portable / Portable]
 - Documentation: [Low / Medium / High] — [Minimal / Adequate / Strong / Exemplary]
 - Upkeep (repo): [Low / Medium / High] — last commit, releases, CI, CHANGELOG

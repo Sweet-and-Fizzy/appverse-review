@@ -143,7 +143,7 @@ Findings are classified under OODT (Open OnDemand App Threats); codes are define
 
 #### Findings
 
-<!-- When there are no FAIL/WARN findings, write exactly: "No tool-detectable issues in the checked tiers." Never write "safe". -->
+<!-- When there are no FAIL/WARN findings, keep the table header and write exactly "No tool-detectable issues in the checked tiers." in place of the table rows; the Check tiers lines above stay as they are. Never write "safe". -->
 
 | Rule | Result | Severity | Tag | Summary | Evidence |
 |---|---|---|---|---|---|
