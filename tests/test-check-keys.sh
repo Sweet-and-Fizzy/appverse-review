@@ -132,4 +132,12 @@ echo '["form.yml:missing-min-max"]' > "$TMP/x.json"
 check "non-object element exit 2" 2 "$(run "$TMP/x.json")"
 check "non-object element message" 1 "$(grep -cxF "error: findings must be a JSON list of objects" "$TMP/out")"
 
+echo "Test 17: missing-entry-point accepts the Batch Connect or a Passenger entry point"
+printf '[%s,%s,%s,%s]' "$(rec STR-07 template/script.sh.erb:missing-entry-point)" "$(rec STR-07 config.ru:missing-entry-point)" "$(rec STR-07 passenger_wsgi.py:missing-entry-point)" "$(recapp apps/web STR-07 apps/web/config.ru:missing-entry-point)" > "$TMP/y.json"
+check "exit 0 against a tree without the files" 0 "$(run "$TMP/y.json" --target "$TMP/empty")"
+check "summary" "finding keys: 4/4 valid" "$(tail -1 "$TMP/out")"
+printf '[%s]' "$(rec STR-07 app.rb:missing-entry-point)" > "$TMP/z.json"
+check "app.rb exit 1" 1 "$(run "$TMP/z.json" --target "$TMP/empty")"
+check "app.rb reason lists the allowed anchors" 1 "$(grep -cF "INVALID STR-07 app.rb:missing-entry-point (absent-file tag 'missing-entry-point' must use one of 'template/script.sh.erb', 'config.ru', 'passenger_wsgi.py' (or '<app_id>/<anchor>' in a monorepo))" "$TMP/out")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

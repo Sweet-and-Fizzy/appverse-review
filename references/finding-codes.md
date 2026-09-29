@@ -97,7 +97,8 @@ defect_key = "{anchor}:{mechanism_tag}"
     not the file exists: `missing-manifest` → `manifest.yml`,
     `missing-appverse-yml` → `appverse.yml`, `missing-form` → `form.yml`,
     `missing-template-dir` → `template`, `missing-submit-yml` →
-    `submit.yml.erb`, `missing-entry-point` → `template/script.sh.erb`. In a
+    `submit.yml.erb`, `missing-entry-point` → one of `template/script.sh.erb`
+    (Batch Connect), `config.ru`, or `passenger_wsgi.py` (Passenger). In a
     monorepo prefix the app subpath (`apps/bad-app/form.yml:missing-form`).
     Any other anchor with one of these tags is invalid.
   - Repo-level findings use a pseudo-anchor. The allowed set is exactly:

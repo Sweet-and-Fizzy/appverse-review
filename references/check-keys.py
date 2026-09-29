@@ -28,12 +28,13 @@ PSEUDO_ANCHORS = {
 # pseudo-anchors already, and STR-01 also covers an insufficient file that
 # exists under another name (LICENSE.txt), which keeps its real path.
 ABSENT_FILE_ANCHORS = {
-    "missing-manifest": "manifest.yml",
-    "missing-appverse-yml": "appverse.yml",
-    "missing-form": "form.yml",
-    "missing-template-dir": "template",
-    "missing-submit-yml": "submit.yml.erb",
-    "missing-entry-point": "template/script.sh.erb",
+    "missing-manifest": ("manifest.yml",),
+    "missing-appverse-yml": ("appverse.yml",),
+    "missing-form": ("form.yml",),
+    "missing-template-dir": ("template",),
+    "missing-submit-yml": ("submit.yml.erb",),
+    # Batch Connect job script, or the Passenger entry point (Rack / WSGI).
+    "missing-entry-point": ("template/script.sh.erb", "config.ru", "passenger_wsgi.py"),
 }
 FINDING_CODES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "finding-codes.md")
 RULE_HEADING = re.compile(r"^\*\*([A-Z]{3,4}-\d{2}):\*\*\s*$")
@@ -87,12 +88,15 @@ def validate(finding, vocab, target):
     expected = ABSENT_FILE_ANCHORS.get(tag)
     if expected is not None:
         app_id = finding.get("app_id") or "root"
-        allowed = {expected}
+        allowed = set(expected)
         if app_id != "root":
-            allowed.add(app_id.rstrip("/") + "/" + expected)
+            allowed |= {app_id.rstrip("/") + "/" + e for e in expected}
         if anchor not in allowed:
-            return rule, key, "absent-file tag '{}' must use anchor '{}' (or '<app_id>/{}' in a monorepo)".format(
-                tag, expected, expected)
+            if len(expected) == 1:
+                return rule, key, "absent-file tag '{}' must use anchor '{}' (or '<app_id>/{}' in a monorepo)".format(
+                    tag, expected[0], expected[0])
+            return rule, key, "absent-file tag '{}' must use one of {} (or '<app_id>/<anchor>' in a monorepo)".format(
+                tag, ", ".join("'{}'".format(e) for e in expected))
     elif anchor not in PSEUDO_ANCHORS:
         if (
             os.path.isabs(anchor)
