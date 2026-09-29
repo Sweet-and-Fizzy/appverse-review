@@ -384,7 +384,9 @@ externally by the API provider.
       python3 "${CLAUDE_PLUGIN_ROOT}/references/check-rating.py" \
         review-<owner>-<repo>.md review-<owner>-<repo>.findings.json
 
-  (Reviewer mode's `$TMP/repo` is the clone from setup. When the repo was
+  (`check-rating.py` checks Documentation only: the rating against its
+  evidence lines and the Documentation signal against the rating.
+  Reviewer mode's `$TMP/repo` is the clone from setup. When the repo was
   already checked out for you (CI: `$GITHUB_WORKSPACE/target-repo`), pass that
   path instead. In submitter mode use `.`.)
 

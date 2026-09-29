@@ -22,7 +22,7 @@ Scripts then process these:
 | `assemble-artifact.py` | meta JSON + findings JSON + file paths | **artifact JSON** (this contract) |
 | `check-feedback-floor.py` | findings JSON + report MD | exit status: every Low+ fix-item named in the Draft Feedback |
 | `check-keys.py` | findings JSON (+ target checkout) | exit status: every `defect_key` is `{anchor}:{tag}` with a real or allowed anchor and a vocabulary tag |
-| `check-rating.py` | report MD + findings JSON | exit status: the Documentation rating follows its evidence lines; Security and Documentation signals follow the findings and the rating |
+| `check-rating.py` | report MD + findings JSON | exit status: Documentation only; the rating follows its evidence lines and the Documentation signal follows the rating (the findings JSON is accepted but not read) |
 
 The LLM produces the judgment; the scripts produce the structure.
 

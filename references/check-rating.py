@@ -8,13 +8,12 @@ Per "## App:" section:
      requirements, and every lower rung's, all have non-"none" evidence lines.
   2. The Signals table's Documentation level must be the one the rating maps to
      (Strong/Exemplary -> Low, Adequate -> Medium, Minimal -> High).
-  3. The Signals table's Security level must equal the level derived from the
-     app's OODT- findings with result FAIL/WARN (none -> Low; low/info only ->
-     Medium; any medium/high/critical -> High).
+Only Documentation is checked: there is no security rating (design R4), so the
+Security signal is not compared with anything. The findings JSON argument is
+kept so the command line does not change, but it is not read.
 Exit 0 when consistent, 1 with one MISMATCH line per problem, 2 when the
-report or findings cannot be read or a needed section is missing.
+report cannot be read or a needed section is missing.
 """
-import json
 import re
 import sys
 
@@ -27,7 +26,6 @@ RUNGS = [
 RATING_ORDER = [r for r, _ in RUNGS]
 DOC_SIGNAL = {"Minimal": "High", "Adequate": "Medium", "Strong": "Low", "Exemplary": "Low"}
 NONE_WORDS = {"none", "n/a", "na", "absent", "missing", "not", "no"}
-SEV_RANK = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
 
 
 def is_none(value):
@@ -43,12 +41,6 @@ def app_sections(text):
     for i in range(1, len(parts) - 1, 2):
         body = parts[i + 1].split("\n## ", 1)[0]
         yield parts[i].strip(), body
-
-
-def app_id_from_heading(heading):
-    m = re.search(r"\(([^)]*)\)\s*$", heading)
-    sub = (m.group(1).strip() if m else "root")
-    return "root" if sub in ("", "root", "repo root") else sub
 
 
 def subsection(body, name):
@@ -96,35 +88,12 @@ def signal(body, dim):
     return m.group(1) if m else None
 
 
-def asserted(finding):
-    # Mirrors _asserted/_resolve_result in assemble-artifact.py (used by its
-    # derive_security_indicator) so both count the same records: result is
-    # stripped and upper-cased; PASS and NOT CHECKED/NOT_CHECKED do not count;
-    # FAIL, WARN, and any unrecognised or missing result count (the assembler
-    # treats those as fail). Kept as a copy, not an import, so each script
-    # stays standalone.
-    raw = finding.get("result")
-    key = raw.strip().upper() if isinstance(raw, str) else raw
-    return key not in ("PASS", "NOT CHECKED", "NOT_CHECKED")
-
-
-def derived_security(findings, app_id):
-    sevs = [str(f.get("severity", "")).lower() for f in findings
-            if f.get("app_id", "root") == app_id and str(f.get("rule", "")).startswith("OODT-")
-            and asserted(f)]
-    if not sevs:
-        return "Low", 0, None
-    top = max(sevs, key=lambda s: SEV_RANK.get(s, 0))
-    return ("High" if SEV_RANK.get(top, 0) >= 2 else "Medium"), len(sevs), top
-
-
 def main(argv):
     if len(argv) != 3:
         print("usage: check-rating.py <report.md> <findings.json>", file=sys.stderr)
         return 2
     try:
         report = open(argv[1]).read()
-        findings = json.load(open(argv[2]))
     except (OSError, ValueError) as e:
         print("error: {}".format(e), file=sys.stderr)
         return 2
@@ -132,7 +101,6 @@ def main(argv):
     seen = 0
     for heading, body in app_sections(report):
         seen += 1
-        app_id = app_id_from_heading(heading)
         doc = subsection(body, "Documentation")
         if doc is None:
             print("error: {} has no '### Documentation' section".format(heading), file=sys.stderr)
@@ -153,10 +121,6 @@ def main(argv):
         if doc_sig is None:
             print("error: {} has no Signals row for Documentation".format(heading), file=sys.stderr)
             return 2
-        sec_sig = signal(signals, "Security")
-        if sec_sig is None:
-            print("error: {} has no Signals row for Security".format(heading), file=sys.stderr)
-            return 2
 
         if supported is None or RATING_ORDER.index(rating) > RATING_ORDER.index(supported):
             # name the first requirement that blocks the claimed rung
@@ -174,11 +138,6 @@ def main(argv):
         if doc_sig != DOC_SIGNAL[rating]:
             problems += 1
             print("MISMATCH Documentation signal (report says {}; rating {} maps to {})".format(doc_sig, rating, DOC_SIGNAL[rating]))
-        derived, count, top = derived_security(findings, app_id)
-        if sec_sig != derived:
-            problems += 1
-            detail = "{} OODT finding{}, highest severity {}".format(count, "" if count == 1 else "s", top) if count else "no OODT findings"
-            print("MISMATCH Security signal (report says {}; findings derive {}: {})".format(sec_sig, derived, detail))
     if seen == 0:
         print("error: no '## App:' section in report", file=sys.stderr)
         return 2

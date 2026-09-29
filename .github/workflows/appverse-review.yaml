@@ -366,7 +366,7 @@ jobs:
               if [ "$rc" -eq 2 ]; then
                 echo "::error::Rating check could not run (see error above)"
               else
-                echo "::error::A rating or signal does not follow the report's own evidence (see MISMATCH lines above)"
+                echo "::error::The Documentation rating does not follow the report's own evidence (see MISMATCH lines above)"
               fi
               exit 1
             fi
