@@ -26,12 +26,14 @@ RUNGS = [
 ]
 RATING_ORDER = [r for r, _ in RUNGS]
 DOC_SIGNAL = {"Minimal": "High", "Adequate": "Medium", "Strong": "Low", "Exemplary": "Low"}
-NONE_WORDS = {"none", "n/a", "na", "absent", "missing", "not"}
+NONE_WORDS = {"none", "n/a", "na", "absent", "missing", "not", "no"}
 SEV_RANK = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
 
 
 def is_none(value):
-    first = re.sub(r"[^a-z/]", "", value.strip().lower().split(" ")[0]) if value.strip() else "none"
+    if not re.sub(r"[\W_]", "", value):
+        return True  # empty or punctuation only ("—", "-", "")
+    first = re.sub(r"[^a-z/]", "", value.strip().lower().split()[0])
     return first in NONE_WORDS
 
 
@@ -65,14 +67,16 @@ def parse_evidence(doc):
         stripped = line.strip()
         if not stripped:
             continue
-        if stripped.startswith("- "):
+        if stripped[:2] in ("- ", "* ", "+ "):
             items.append(stripped[2:])           # bullet form: one requirement per line
         else:
             items.extend(p for p in stripped.split(";") if p.strip())  # template form
     out = {}
     for item in items:
         k, _, v = item.partition(":")
-        out[k.strip().lower()] = v.strip()
+        # "**what it launches:** README.md:27" splits into "**what it launches"
+        # and "** README.md:27"; drop the emphasis markers from both.
+        out[re.sub(r"[*_`]", "", k).strip().lower()] = v.strip().strip("*_`").strip()
     return out
 
 
@@ -87,7 +91,8 @@ def highest_supported_rung(evidence):
 
 
 def signal(body, dim):
-    m = re.search(r"^\|\s*" + dim + r"\s*\|\s*(Low|Medium|High)\s*\|", body, flags=re.M)
+    m = re.search(r"^\|\s*(?:\*\*)?" + dim + r"(?:\*\*)?\s*\|\s*(?:\*\*)?(Low|Medium|High)(?:\*\*)?\s*\|",
+                  body, flags=re.M)
     return m.group(1) if m else None
 
 
@@ -152,8 +157,8 @@ def main(argv):
                 if blocker or rung == rating:
                     break
             problems += 1
-            print("MISMATCH Documentation rating ({} claimed but '{}' evidence is none; highest supported rung is {})".format(
-                rating, blocker, supported or "none"))
+            print("MISMATCH Documentation rating ({} claimed but '{}' evidence is {}; highest supported rung is {})".format(
+                rating, blocker, "missing" if blocker not in evidence else "none", supported or "none"))
         if doc_sig != DOC_SIGNAL[rating]:
             problems += 1
             print("MISMATCH Documentation signal (report says {}; rating {} maps to {})".format(doc_sig, rating, DOC_SIGNAL[rating]))

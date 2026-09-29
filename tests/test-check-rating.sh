@@ -149,4 +149,63 @@ grep -v "^| Security | Low | e |$" "$TMP/r1.md" > "$TMP/r13.md"
 check "exit 2" 2 "$(run "$TMP/r13.md" "$TMP/f1.json")"
 check "error names Security" 1 "$(grep -c "has no Signals row for Security" "$TMP/out")"
 
+# FULL with one line replaced: $1 = requirement, $2 = new value
+full_with() { printf '%s\n' "$FULL" | sed "s|^  - $1: .*|  - $1: $2|"; }
+
+echo "Test 14: 'No …' evidence is none"
+report Strong Low Low "$(full_with troubleshooting 'No troubleshooting section')" > "$TMP/r14.md"
+check "exit 1" 1 "$(run "$TMP/r14.md" "$TMP/f1.json")"
+check "caps at Adequate" 1 "$(grep -cF "MISMATCH Documentation rating (Strong claimed but 'troubleshooting' evidence is none; highest supported rung is Adequate)" "$TMP/out")"
+
+echo "Test 15: punctuation-only evidence is none"
+report Strong Low Low "$(full_with 'environment variables' '—')" > "$TMP/r15.md"
+check "exit 1" 1 "$(run "$TMP/r15.md" "$TMP/f1.json")"
+check "caps at Adequate" 1 "$(grep -cF "MISMATCH Documentation rating (Strong claimed but 'environment variables' evidence is none; highest supported rung is Adequate)" "$TMP/out")"
+
+echo "Test 16: bold requirement keys parse"
+BOLD=$(printf '%s\n' "$FULL" | sed -E 's/^  - ([a-z ]+):/  - **\1:**/')
+report Strong Low Low "$BOLD" > "$TMP/r16.md"
+check "exit 0" 0 "$(run "$TMP/r16.md" "$TMP/f1.json")"
+check "summary" "ratings: consistent" "$(tail -1 "$TMP/out")"
+BOLDNOENV=$(printf '%s\n' "$BOLD" | sed 's/^  - \*\*environment variables:\*\* .*/  - **environment variables:** none/')
+report Strong Low Low "$BOLDNOENV" > "$TMP/r16b.md"
+check "bold none still caps" 1 "$(run "$TMP/r16b.md" "$TMP/f1.json")"
+check "bold none reason" 1 "$(grep -cF "MISMATCH Documentation rating (Strong claimed but 'environment variables' evidence is none; highest supported rung is Adequate)" "$TMP/out")"
+
+echo "Test 17: * and + bullets parse"
+STARS=$(printf '%s\n' "$FULL" | awk '{ sub(/^  - /, NR <= 5 ? "  * " : "  + "); print }')
+report Strong Low Low "$STARS" > "$TMP/r17.md"
+check "exit 0" 0 "$(run "$TMP/r17.md" "$TMP/f1.json")"
+check "five * bullets" 5 "$(grep -cE '^  \* [a-z]' "$TMP/r17.md")"
+check "five + bullets" 5 "$(grep -cE '^  \+ [a-z]' "$TMP/r17.md")"
+
+echo "Test 18: bold dimension and level cells in the Signals table"
+sed -e 's/^| Security | Low | e |$/| **Security** | Low | e |/' -e 's/^| Documentation | Low | e |$/| Documentation | **Low** | e |/' "$TMP/r1.md" > "$TMP/r18.md"
+check "exit 0" 0 "$(run "$TMP/r18.md" "$TMP/f1.json")"
+check "summary" "ratings: consistent" "$(tail -1 "$TMP/out")"
+sed -e 's/^| Security | Low | e |$/| **Security** | **Low** | e |/' "$TMP/r1.md" > "$TMP/r18b.md"; printf '[%s]' "$(sec medium FAIL)" > "$TMP/f18.json"
+check "bold level still compared" 1 "$(run "$TMP/r18b.md" "$TMP/f18.json")"
+check "bold level reason" 1 "$(grep -cF "MISMATCH Security signal (report says Low; findings derive High: 1 OODT finding, highest severity medium)" "$TMP/out")"
+
+echo "Test 19: an absent requirement line is 'missing', not 'none'"
+report Strong Low Low "$(printf '%s\n' "$FULL" | grep -v 'screenshots:')" > "$TMP/r19.md"
+check "exit 1" 1 "$(run "$TMP/r19.md" "$TMP/f1.json")"
+check "reason" 1 "$(grep -cF "MISMATCH Documentation rating (Strong claimed but 'screenshots' evidence is missing; highest supported rung is Adequate)" "$TMP/out")"
+
+echo "Test 20: Security signal is derived per app_id across two app sections"
+two_apps() { # $1 = root Security level, $2 = viewer Security level
+  report Strong "$1" Low "$FULL" | sed '/^## Review scope$/,$d'
+  report Strong "$2" Low "$FULL" | sed -n '/^## App: X (root)$/,$p' | sed 's/^## App: X (root)$/## App: Viewer (apps\/viewer)/'
+}
+two_apps Low High | sed 's/^## App: X (root)$/## App: SAS (root)/' > "$TMP/r20.md"
+printf '[%s]' "$(sec medium WARN | sed 's/"app_id":"root"/"app_id":"apps\/viewer"/')" > "$TMP/f20.json"
+check "two sections" 2 "$(grep -c '^## App:' "$TMP/r20.md")"
+check "consistent exit 0" 0 "$(run "$TMP/r20.md" "$TMP/f20.json")"
+check "consistent summary" "ratings: consistent" "$(tail -1 "$TMP/out")"
+two_apps High Low | sed 's/^## App: X (root)$/## App: SAS (root)/' > "$TMP/r20b.md"
+check "swapped exit 1" 1 "$(run "$TMP/r20b.md" "$TMP/f20.json")"
+check "root mismatch derives Low" 1 "$(grep -cF "MISMATCH Security signal (report says High; findings derive Low: no OODT findings)" "$TMP/out")"
+check "viewer mismatch derives High" 1 "$(grep -cF "MISMATCH Security signal (report says Low; findings derive High: 1 OODT finding, highest severity medium)" "$TMP/out")"
+check "swapped summary" "ratings: 2 mismatches" "$(tail -1 "$TMP/out")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
