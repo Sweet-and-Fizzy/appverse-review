@@ -7,7 +7,8 @@ A key is "{anchor}:{tag}". The anchor must be a repo-relative path that
 exists under --target (when given) or one of the allowed pseudo-anchors.
 An absent-file tag (ABSENT_FILE_ANCHORS) instead takes its fixed expected
 anchor, which must be "<app_id>/<anchor>" in a monorepo, and existence is not
-checked. The tag must be in the rule's vocabulary (finding-codes.md), carrying
+checked; missing-entry-point takes "root", or the app subpath itself in a
+monorepo. The tag must be in the rule's vocabulary (finding-codes.md), carrying
 its qualifier where the vocabulary shows one, or "other:<slug>" where the slug
 is neither a vocabulary tag in disguise nor one extended by a suffix. Exit 0 when every key is valid, 1 when any
 is not (one INVALID line each), 2 when the input cannot be read.
@@ -34,8 +35,10 @@ ABSENT_FILE_ANCHORS = {
     "missing-form": ("form.yml",),
     "missing-template-dir": ("template",),
     "missing-submit-yml": ("submit.yml.erb",),
-    # Batch Connect job script, or the Passenger entry point (Rack / WSGI).
-    "missing-entry-point": ("template/script.sh.erb", "config.ru", "passenger_wsgi.py"),
+    # One anchor for the app whichever entry point (Batch Connect script,
+    # Rack, WSGI) it lacks: "root", or the app subpath itself in a monorepo
+    # (special-cased in validate(); the <app_id>/<anchor> rule does not apply).
+    "missing-entry-point": ("root",),
     # One key whether or not a CHANGELOG exists.
     "no-changelog": ("CHANGELOG.md",),
 }
@@ -110,7 +113,10 @@ def validate(finding, vocab, target):
     if not_repo_relative(anchor):
         return rule, key, "anchor must be a repo-relative path"
     expected = ABSENT_FILE_ANCHORS.get(tag)
-    if expected is not None:
+    if tag == "missing-entry-point":
+        if anchor != app_id:
+            return rule, key, "absent-file tag 'missing-entry-point' must use anchor 'root' (or the app subpath in a monorepo)"
+    elif expected is not None:
         if app_id != "root":
             # A monorepo's anchors are repo-root-relative, so the app prefix is required.
             if anchor in expected:

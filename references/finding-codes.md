@@ -97,12 +97,14 @@ defect_key = "{anchor}:{mechanism_tag}"
     whether or not the file exists: `missing-manifest` → `manifest.yml`,
     `missing-appverse-yml` → `appverse.yml`, `missing-form` → `form.yml`,
     `missing-template-dir` → `template`, `missing-submit-yml` →
-    `submit.yml.erb`, `missing-entry-point` → one of `template/script.sh.erb`
-    (Batch Connect), `config.ru`, or `passenger_wsgi.py` (Passenger),
-    `no-changelog` → `CHANGELOG.md`. In a monorepo (`app_id` not `root`) the
-    app subpath prefix is required: `apps/bad-app/form.yml:missing-form`,
-    never the bare `form.yml:missing-form`. Any other anchor with one of these
-    tags is invalid.
+    `submit.yml.erb`, `missing-entry-point` → `root`
+    whichever entry point the app lacks (Batch Connect script, `config.ru`, or
+    `passenger_wsgi.py`), `no-changelog` → `CHANGELOG.md`. In a monorepo
+    (`app_id` not `root`) the app subpath prefix is required:
+    `apps/bad-app/form.yml:missing-form`, never the bare
+    `form.yml:missing-form`; `missing-entry-point` instead takes the app
+    subpath alone, `apps/bad-app:missing-entry-point`. Any other anchor with
+    one of these tags is invalid.
   - Repo-level findings use a pseudo-anchor. The allowed set is exactly:
     `LICENSE`, `README.md`, `CHANGELOG.md`, `.github/workflows`,
     `releases`, `issues`, `contributors`, `commits`, `root`. Case-sensitive:
