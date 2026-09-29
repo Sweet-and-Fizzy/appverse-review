@@ -288,8 +288,12 @@ jobs:
           import re, sys
           p, model, ver, sha = sys.argv[1:5]
           s = open(p).read()
-          # Consume the whole value ("Claude Sonnet 4.6") up to the " · " separator.
-          s, n1 = re.subn(r"(\*\*Model:\*\*)\s*[^·\n]*?(?=\s*·|\s*$)", lambda m: m.group(1) + " " + model, s, count=1, flags=re.M)
+          # Consume the whole value ("Claude Sonnet 4.6", or nothing) and its
+          # surrounding spaces, never the newline, up to the " · " separator or
+          # end of line; put back exactly one space before a separator.
+          s, n1 = re.subn(r"(\*\*Model:\*\*)[^\S\n]*[^·\n]*?[^\S\n]*(?=(\s*·)|$)",
+                          lambda m: m.group(1) + " " + model + (" " if m.group(2) and "\n" not in m.group(2) else ""),
+                          s, count=1, flags=re.M)
           s, n2 = re.subn(r"appverse-review @ [^\s(]+ \(`[^`]*`", lambda m: "appverse-review @ " + ver + " (`" + sha + "`", s, count=1)
           open(p, "w").write(s); print("header stamped: model", n1, "version", n2)
           if not (n1 and n2):
