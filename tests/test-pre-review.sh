@@ -16,6 +16,23 @@ j() { python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(eval(sy
 chk() { j "$1/summary.json" "[c for c in d['checks'] if c['name']=='$2'][0]['$3']"; }
 # syn <out> <path> <field>: one field of one syntax.json entry
 syn() { j "$1/syntax.json" "[e for e in d if e['path']=='$2'][0]['$3']"; }
+has_sc() { command -v shellcheck >/dev/null 2>&1; }
+yn() { if "$@"; then echo True; else echo False; fi; }
+
+# The syntax check needs bash >= 4. Where the only bash is older (macOS
+# /bin/bash 3.2), the bash -n tests run through a shim that reports 5.x and
+# execs the real bash, so the stripping and bookkeeping paths stay covered;
+# Test 20 covers the bash < 4 path itself.
+REAL_BASH="$(command -v bash)"
+BASH4="$REAL_BASH"
+if [ "$("$REAL_BASH" -c 'echo "${BASH_VERSINFO[0]}"')" -lt 4 ]; then
+  mkdir -p "$TMP/bash4"; BASH4="$TMP/bash4/bash"
+  printf '#!/bin/sh\n[ "$1" = --version ] && { echo "GNU bash, version 5.2.0(1)-release (shim)"; exit 0; }\nexec "%s" "$@"\n' "$REAL_BASH" > "$BASH4"
+  chmod +x "$BASH4"; PATH="$TMP/bash4:$PATH"; export PATH
+  echo "NOTE: bash on PATH is older than 4; bash -n tests run through a version shim"
+fi
+# fakebin <dir>: a PATH dir holding only python3, sh, env and bash (>= 4)
+fakebin() { mkdir -p "$1"; for b in python3 sh env; do ln -sf "$(command -v "$b")" "$1/$b"; done; ln -sf "$BASH4" "$1/bash"; }
 
 echo "Test 1: missing target is exit 2"
 check "exit 2" 2 "$(run "$TMP/nope" "$TMP/o1")"
@@ -74,7 +91,7 @@ check "exit 0" 0 "$(run "$FIX/passenger-flask-app" "$O")"
 check "bandit files_examined" "4" "$(chk "$O" bandit files_examined)"
 check "bandit ran or not_installed" "True" "$(j "$O/summary.json" "[c for c in d['checks'] if c['name']=='bandit'][0]['status'] in ('ran','not_installed')")"
 check "trivy files_examined" "1" "$(chk "$O" trivy files_examined)"
-if [ "$(chk "$O" trivy status)" = failed_to_run ] && chk "$O" trivy note | grep -qiE 'db|download|network|dial|connection'; then
+if [ "$(chk "$O" trivy status)" = failed_to_run ] && chk "$O" trivy note | grep 'FATAL' | grep -qE 'download|DB|network'; then
   skip "trivy offline (cannot fetch its DB)"; skip "trivy offline (cannot fetch its DB)"
 else
   check "trivy ran or not_installed" "True" "$(j "$O/summary.json" "[c for c in d['checks'] if c['name']=='trivy'][0]['status'] in ('ran','not_installed')")"
@@ -87,8 +104,7 @@ if command -v bandit >/dev/null 2>&1; then
 else skip "bandit not installed"; fi
 
 echo "Test 7: no tools on PATH"
-BIN="$TMP/bin"; mkdir -p "$BIN"
-for b in python3 bash sh env; do ln -s "$(command -v "$b")" "$BIN/$b"; done
+BIN="$TMP/bin"; fakebin "$BIN"
 T="$TMP/t7"; mkdir -p "$T"
 printf 'echo hi\n' > "$T/a.sh"; printf 'print(1)\n' > "$T/b.py"; printf 'flask\n' > "$T/requirements.txt"
 O="$TMP/o7"
@@ -110,13 +126,16 @@ if command -v shellcheck >/dev/null 2>&1; then
   check "shellcheck.json is a list" "True" "$(j "$O/shellcheck.json" "isinstance(d, list)")"
   check "shellcheck.json non-empty" "True" "$(j "$O/shellcheck.json" "len(d) > 0")"
   check "every file under template/" "True" "$(j "$O/shellcheck.json" "all(e['file'].startswith('template/') for e in d)")"
-  check "command" "True" "$(j "$O/summary.json" "[c for c in d['checks'] if c['name']=='shellcheck'][0]['command'].startswith('shellcheck -f json -S warning')")"
+  check "command" "shellcheck --norc -f json -S info <file> (per shell file; .sh.erb scanned as its ERB-stripped copy)" "$(chk "$O" shellcheck command)"
   check "files_examined" "4" "$(chk "$O" shellcheck files_examined)"
   check "version line carries a number" "True" "$(j "$O/summary.json" "any(ch.isdigit() for ch in [c for c in d['checks'] if c['name']=='shellcheck'][0]['version'])")"
 else skip "shellcheck not installed"; fi
-if [ "$(chk "$O" semgrep status)" = ran ]; then
-  check "semgrep note explains files_examined" "files_examined is the tree size; semgrep applies its own ignore list (tests/, vendored dirs)" "$(chk "$O" semgrep note)"
-else skip "semgrep did not run"; fi
+if python3 -c 'import shutil,sys; sys.exit(shutil.which("semgrep") is None)'; then
+  check "semgrep ran" "ran" "$(chk "$O" semgrep status)"
+  [ "$(chk "$O" semgrep status)" = ran ] || echo "        semgrep note: $(chk "$O" semgrep note)"
+  check "semgrep note explains files_examined and names the rulesets" "files_examined is semgrep's paths.scanned; rulesets p/security-audit, p/secrets" "$(chk "$O" semgrep note)"
+  check "semgrep files_examined is paths.scanned" "$(j "$O/semgrep.json" "len(d['paths']['scanned'])")" "$(chk "$O" semgrep files_examined)"
+else skip "semgrep not installed"; skip "semgrep not installed"; skip "semgrep not installed"; fi
 
 echo "Test 9: flags"
 T="$TMP/t9"; mkdir -p "$T"; printf 'echo hi\n' > "$T/a.sh"
@@ -134,8 +153,6 @@ check "stale bandit.json gone" "False" "$([ -e "$O/bandit.json" ] && echo True |
 check "stale stripped copy gone" "False" "$([ -e "$O/stripped/old.sh" ] && echo True || echo False)"
 check "second run exit 0" 0 "$(run "$FIX/monorepo" "$O")"
 check "summary rewritten" "pre-review/1" "$(j "$O/summary.json" "d['schema']")"
-
-has_sc() { command -v shellcheck >/dev/null 2>&1; }
 
 echo "Test 11: a dangling or unreadable shell file fails its own entry, the rest still run"
 T="$TMP/t11"; mkdir -p "$T"
@@ -172,6 +189,7 @@ O="$TMP/o12"
 check "exit 0" 0 "$(run "$T" "$O")"
 check "leak not ok" "False" "$(syn "$O" leak.sh.erb ok)"
 check "leak stderr" "symlink outside target, not checked" "$(syn "$O" leak.sh.erb stderr)"
+check "refused .sh.erb not stripped" "False" "$(syn "$O" leak.sh.erb stripped)"
 check "no stripped copy of leak" "False" "$([ -e "$O/stripped/leak.sh.erb.sh" ] && echo True || echo False)"
 check "fifo not ok" "False" "$(syn "$O" fifo.sh.erb ok)"
 check "fifo stderr" "not a regular file, not checked" "$(syn "$O" fifo.sh.erb stderr)"
@@ -181,7 +199,9 @@ check "syntax files_examined counts real + inside only" "2" "$(chk "$O" syntax f
 if has_sc; then check "shellcheck files_examined" "2" "$(chk "$O" shellcheck files_examined)"
   check "no shellcheck entry for leak or fifo" "0" "$(j "$O/shellcheck.json" "len([e for e in d if e['file'] in ('leak.sh.erb','fifo.sh.erb')])")"
 else skip "shellcheck not installed"; skip "shellcheck not installed"; fi
-check "semgrep files_examined excludes leak and fifo" "2" "$(chk "$O" semgrep files_examined)"
+if [ "$(chk "$O" semgrep status)" = ran ]; then
+  check "semgrep scanned neither leak nor fifo" "0" "$(j "$O/semgrep.json" "len([p for p in d['paths']['scanned'] if p in ('leak.sh.erb','fifo.sh.erb')])")"
+else skip "semgrep did not run"; fi
 
 echo "Test 13: a file named like an option is passed as a path"
 T="$TMP/t13"; mkdir -p "$T"; printf '#!/bin/bash\ncd "$1"\n' > "$T/-x.sh"
@@ -202,11 +222,13 @@ check "out == target via trailing slash exit 2" 2 "$(run "$T" "$T/")"
 check "first run inside target" 0 "$(run "$T" "$T/pre-review")"
 check "second run inside target" 0 "$(run "$T" "$T/pre-review")"
 check "syntax lists only a.sh" "a.sh" "$(j "$T/pre-review/syntax.json" "','.join(e['path'] for e in d)")"
-check "semgrep files_examined ignores out-dir" "2" "$(chk "$T/pre-review" semgrep files_examined)"
+if [ "$(chk "$T/pre-review" semgrep status)" = ran ]; then
+  check "semgrep files_examined ignores out-dir" "2" "$(chk "$T/pre-review" semgrep files_examined)"
+  check "semgrep command excludes out-dir" "True" "$(yn grep -q -- '--exclude pre-review' <<< "$(chk "$T/pre-review" semgrep command)")"
+else skip "semgrep did not run"; skip "semgrep did not run"; fi
 
 echo "Test 15: a crashing tool with empty stderr reports its stdout"
-FB="$TMP/fakebin"; mkdir -p "$FB"
-for b in python3 bash sh env; do ln -s "$(command -v "$b")" "$FB/$b"; done
+FB="$TMP/fakebin"; fakebin "$FB"
 printf '#!/bin/sh\n[ "$1" = --version ] && { echo "Version: 9.9"; exit 0; }\necho "fatal: could not open cache"\nexit 1\n' > "$FB/trivy"; chmod +x "$FB/trivy"
 T="$TMP/t15"; mkdir -p "$T"; printf 'flask\n' > "$T/requirements.txt"
 O="$TMP/o15"
@@ -215,5 +237,153 @@ check "trivy failed_to_run" "failed_to_run" "$(chk "$O" trivy status)"
 check "note is stdout" "fatal: could not open cache" "$(chk "$O" trivy note)"
 check "trivy exit_code" "1" "$(chk "$O" trivy exit_code)"
 check "no trivy.json" "False" "$([ -e "$O/trivy.json" ] && echo True || echo False)"
+
+has_trivy() { command -v trivy >/dev/null 2>&1; }
+has_semgrep() { python3 -c 'import shutil,sys; sys.exit(shutil.which("semgrep") is None)'; }
+
+echo "Test 16: a target's trivy.yaml cannot make trivy write outside the out-dir"
+T="$TMP/t16"; mkdir -p "$T" "$TMP/escape"; printf 'flask==0.12\n' > "$T/requirements.txt"
+printf 'output: %s/escape/pwned.json\n' "$TMP" > "$T/trivy.yaml"
+printf 'CVE-2018-1000656\n' > "$T/.trivyignore"
+O="$TMP/o16"
+if has_trivy; then
+  check "exit 0" 0 "$(run "$T" "$O")"
+  check "no file written at trivy.yaml's output path" "False" "$([ -e "$TMP/escape/pwned.json" ] && echo True || echo False)"
+  check "command passes the empty config and ignore file and the absolute target" "True" "$(yn grep -qF -- "--config $O/trivy-empty.yaml --ignorefile $O/trivy-empty.ignore $T" <<< "$(chk "$O" trivy command)")"
+  if [ "$(chk "$O" trivy status)" = ran ]; then
+    check "note names trivy.yaml and .trivyignore" "target ships .trivyignore; its suppressions were ignored; target ships trivy.yaml; its suppressions were ignored" "$(chk "$O" trivy note)"
+    check "trivy.json written in out-dir" "True" "$(j "$O/trivy.json" "'SchemaVersion' in d")"
+  else echo "        trivy note: $(chk "$O" trivy note)"; skip "trivy did not run (offline?)"; skip "trivy did not run"; fi
+else skip "trivy not installed"; skip "trivy not installed"; skip "trivy not installed"; skip "trivy not installed"; skip "trivy not installed"; fi
+
+echo "Test 17: a target's .shellcheckrc cannot silence shellcheck"
+T="$TMP/t17"; mkdir -p "$T"; printf 'disable=all\n' > "$T/.shellcheckrc"
+printf '#!/bin/bash\nrm -rf $HOME/$x\n' > "$T/a.sh"
+O="$TMP/o17"
+check "exit 0" 0 "$(run "$T" "$O")"
+if has_sc; then
+  check "findings despite disable=all" "True" "$(j "$O/shellcheck.json" "len(d) > 0")"
+  check "note names .shellcheckrc" "target ships .shellcheckrc; its suppressions were ignored" "$(chk "$O" shellcheck note)"
+else skip "shellcheck not installed"; skip "shellcheck not installed"; fi
+
+echo "Test 18: a target's .semgrepignore is reported"
+T="$TMP/t18"; mkdir -p "$T"; printf '*\n' > "$T/.semgrepignore"; printf 'echo hi\n' > "$T/a.sh"
+O="$TMP/o18"
+check "exit 0" 0 "$(run "$T" "$O")"
+if has_semgrep; then
+  check "semgrep ran" "ran" "$(chk "$O" semgrep status)"
+  check "files_examined 0" "0" "$(chk "$O" semgrep files_examined)"
+  check "note names .semgrepignore" "files_examined is semgrep's paths.scanned; rulesets p/security-audit, p/secrets; target ships .semgrepignore; it may suppress findings" "$(chk "$O" semgrep note)"
+else skip "semgrep not installed"; skip "semgrep not installed"; skip "semgrep not installed"; fi
+
+echo "Test 19: finding_count and top_codes"
+O="$TMP/cs"
+check "every record has finding_count and top_codes" "True" "$(j "$O/summary.json" "all('finding_count' in c and isinstance(c['top_codes'], list) for c in d['checks'])")"
+check "catalog finding_count null" "None" "$(chk "$O" catalog finding_count)"
+check "trivy (skipped) finding_count null" "None" "$(chk "$O" trivy finding_count)"
+if has_sc; then
+  check "shellcheck finding_count" "9" "$(chk "$O" shellcheck finding_count)"
+  check "shellcheck finding_count is len(shellcheck.json)" "$(j "$O/shellcheck.json" "len(d)")" "$(chk "$O" shellcheck finding_count)"
+  check "shellcheck top_codes" "SC2155,SC2086,SC2154,SC1091,SC2034" "$(j "$O/summary.json" "','.join([c for c in d['checks'] if c['name']=='shellcheck'][0]['top_codes'])")"
+else skip "shellcheck not installed"; skip "shellcheck not installed"; skip "shellcheck not installed"; fi
+
+echo "Test 20: bash older than 4 is failed_to_run, every file still listed"
+OB="$TMP/oldbash"; mkdir -p "$OB"
+printf '#!/bin/sh\n[ "$1" = --version ] && { echo "GNU bash, version 3.2.57(1)-release"; exit 0; }\nexec "%s" "$@"\n' "$REAL_BASH" > "$OB/bash"; chmod +x "$OB/bash"
+T="$TMP/t20"; mkdir -p "$T"; printf 'echo hi\n' > "$T/a.sh"; printf 'echo <%%= x %%>\n' > "$T/b.sh.erb"
+O="$TMP/o20"
+check "exit 0" 0 "$(PATH="$OB:$PATH" "$REAL_BASH" "$RUN" "$T" "$O" > "$TMP/stdout" 2> "$TMP/stderr"; echo $?)"
+check "syntax failed_to_run" "failed_to_run" "$(chk "$O" syntax status)"
+check "syntax note" "bash >= 4 required for the syntax check (found 3.2.57)" "$(chk "$O" syntax note)"
+check "syntax.json lists both files" "a.sh,b.sh.erb" "$(j "$O/syntax.json" "','.join(e['path'] for e in d)")"
+check "every entry ok false with the reason" "True" "$(j "$O/syntax.json" "all(not e['ok'] and e['stderr']=='not checked: bash >= 4 required' and not e['stripped'] for e in d)")"
+
+echo "Test 21: shellcheck reports SC2086 (info level)"
+T="$TMP/t21"; mkdir -p "$T"; printf '#!/bin/bash\necho $1\n' > "$T/a.sh"
+O="$TMP/o21"
+check "exit 0" 0 "$(run "$T" "$O")"
+if has_sc; then
+  check "SC2086 reported" "True" "$(j "$O/shellcheck.json" "any(e['code']==2086 for e in d)")"
+  check "top_codes" "SC2086" "$(j "$O/summary.json" "','.join([c for c in d['checks'] if c['name']=='shellcheck'][0]['top_codes'])")"
+else skip "shellcheck not installed"; skip "shellcheck not installed"; fi
+
+echo "Test 22: a <%% literal keeps the code after it"
+T="$TMP/t22"; mkdir -p "$T"
+printf '#!/bin/bash\n<%%%% rm -rf $HOME/$1 %%>\necho <%%= x %%>\n' > "$T/a.sh.erb"
+O="$TMP/o22"
+check "exit 0" 0 "$(run "$T" "$O")"
+check "stripped copy keeps the literal region" "<% rm -rf \$HOME/\$1 %>" "$(sed -n 2p "$O/stripped/a.sh.erb.sh")"
+check "real tag still stripped" "echo ERBVALUE" "$(sed -n 3p "$O/stripped/a.sh.erb.sh")"
+
+echo "Test 23: syntax note counts checked files only"
+T="$TMP/t23"; mkdir -p "$T"; printf 'if [ ; then\n' > "$T/bad.sh"; printf 'echo hi\n' > "$T/good.sh"
+ln -s /etc/hosts "$T/leak.sh"; mkfifo "$T/fifo.sh"
+O="$TMP/o23"
+check "exit 0" 0 "$(run "$T" "$O")"
+check "syntax note" "1 of 2 files failed bash -n" "$(chk "$O" syntax note)"
+check "syntax exit_code" "1" "$(chk "$O" syntax exit_code)"
+
+echo "Test 24: no bash on PATH still writes syntax.json"
+NB="$TMP/nobash"; mkdir -p "$NB"; ln -s "$(command -v python3)" "$NB/python3"
+T="$TMP/t24"; mkdir -p "$T"; printf 'echo hi\n' > "$T/a.sh"
+O="$TMP/o24"
+check "exit 0" 0 "$(PATH="$NB" "$NB/python3" "$SCRIPT_DIR/references/pre-review.py" "$T" "$O" > "$TMP/stdout" 2> "$TMP/stderr"; echo $?)"
+check "syntax not_installed" "not_installed" "$(chk "$O" syntax status)"
+check "syntax.json entry" "False|not checked: bash not found on PATH" "$(j "$O/syntax.json" "'%s|%s' % (d[0]['ok'], d[0]['stderr'])")"
+
+echo "Test 25: trivy failure note is its FATAL line"
+FB="$TMP/fb25"; fakebin "$FB"
+printf '#!/bin/sh\n[ "$1" = --version ] && { echo "Version: 9.9"; exit 0; }\necho "INFO starting" >&2\necho "FATAL Fatal error: init error: DB error: failed to download vulnerability DB" >&2\necho "INFO trailing" >&2\nexit 1\n' > "$FB/trivy"; chmod +x "$FB/trivy"
+T="$TMP/t25"; mkdir -p "$T"; printf 'flask\n' > "$T/requirements.txt"
+O="$TMP/o25"
+check "exit 0" 0 "$(PATH="$FB" "$FB/bash" "$RUN" "$T" "$O" > "$TMP/stdout" 2> "$TMP/stderr"; echo $?)"
+check "note is the FATAL line" "FATAL Fatal error: init error: DB error: failed to download vulnerability DB" "$(chk "$O" trivy note)"
+printf '#!/bin/sh\n[ "$1" = --version ] && { echo "Version: 9.9"; exit 0; }\necho "INFO starting" >&2\necho "error: last line" >&2\necho "" >&2\nexit 1\n' > "$FB/trivy"
+O="$TMP/o25b"
+check "exit 0 (no FATAL)" 0 "$(PATH="$FB" "$FB/bash" "$RUN" "$T" "$O" > "$TMP/stdout" 2> "$TMP/stderr"; echo $?)"
+check "note is the last non-empty line" "error: last line" "$(chk "$O" trivy note)"
+
+echo "Test 26: shell files over 1 MB are skipped"
+T="$TMP/t26"; mkdir -p "$T"; printf 'echo hi\n' > "$T/small.sh"
+python3 -c "import sys; open(sys.argv[1],'w').write('echo x\n' * 160000)" "$T/big.sh"
+O="$TMP/o26"
+check "exit 0" 0 "$(run "$T" "$O")"
+check "big.sh ok false" "False" "$(syn "$O" big.sh ok)"
+check "big.sh reason" "skipped: file larger than 1 MB" "$(syn "$O" big.sh stderr)"
+check "syntax files_examined" "1" "$(chk "$O" syntax files_examined)"
+if has_sc; then
+  check "shellcheck files_examined" "1" "$(chk "$O" shellcheck files_examined)"
+  check "no shellcheck entry for big.sh" "0" "$(j "$O/shellcheck.json" "len([e for e in d if e['file']=='big.sh'])")"
+  check "shellcheck note names big.sh" "not scanned (larger than 1 MB): big.sh" "$(chk "$O" shellcheck note)"
+else skip "shellcheck not installed"; skip "shellcheck not installed"; skip "shellcheck not installed"; fi
+
+echo "Test 27: shellcheck exiting >= 2 is failed_to_run"
+FB="$TMP/fb27"; fakebin "$FB"
+printf '#!/bin/sh\n[ "$1" = --version ] && { echo "version: 0.0.1"; exit 0; }\necho "boom" >&2\nexit 3\n' > "$FB/shellcheck"; chmod +x "$FB/shellcheck"
+T="$TMP/t27"; mkdir -p "$T"; printf 'echo hi\n' > "$T/a.sh"
+O="$TMP/o27"
+check "exit 0" 0 "$(PATH="$FB" "$FB/bash" "$RUN" "$T" "$O" > "$TMP/stdout" 2> "$TMP/stderr"; echo $?)"
+check "shellcheck failed_to_run" "failed_to_run" "$(chk "$O" shellcheck status)"
+check "exit_code 3" "3" "$(chk "$O" shellcheck exit_code)"
+check "note" "a.sh: boom" "$(chk "$O" shellcheck note | tr -d '\n')"
+check "finding_count null" "None" "$(chk "$O" shellcheck finding_count)"
+
+echo "Test 28: a tool that runs past the timeout is failed_to_run"
+FB="$TMP/fb28"; fakebin "$FB"
+printf '#!/bin/sh\n[ "$1" = --version ] && { echo "version: 0.0.1"; exit 0; }\nexec /bin/sleep 5\n' > "$FB/shellcheck"; chmod +x "$FB/shellcheck"
+O="$TMP/o28"
+check "exit 0" 0 "$(PRE_REVIEW_TIMEOUT=1 PATH="$FB" "$FB/bash" "$RUN" "$T" "$O" > "$TMP/stdout" 2> "$TMP/stderr"; echo $?)"
+check "shellcheck failed_to_run" "failed_to_run" "$(chk "$O" shellcheck status)"
+check "note says timed out" "a.sh: timed out after 1 s" "$(chk "$O" shellcheck note)"
+
+echo "Test 29: .sh.erb shellcheck lines map to source lines"
+T="$TMP/t29"; mkdir -p "$T"
+printf '#!/bin/bash\n<%% if x\n   y %%>\ncd /tmp\necho ok\n' > "$T/a.sh.erb"
+O="$TMP/o29"
+check "exit 0" 0 "$(run "$T" "$O")"
+if has_sc; then
+  check "SC2164 on source line 4" "4" "$(j "$O/shellcheck.json" "[e['line'] for e in d if e['code']==2164][0]")"
+  check "file is the source path" "a.sh.erb" "$(j "$O/shellcheck.json" "[e['file'] for e in d if e['code']==2164][0]")"
+else skip "shellcheck not installed"; skip "shellcheck not installed"; fi
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
