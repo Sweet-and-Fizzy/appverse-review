@@ -73,10 +73,11 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq shellcheck > /dev/null 2>&1
-          pip install --quiet bandit semgrep 2>/dev/null || true
+          pip install --quiet bandit semgrep==1.178.0 2>/dev/null || true
 
       - name: Run pre-review checks
         if: inputs.review_aspects != 'dry-run'
+        timeout-minutes: 15
         run: |
           # Tools and the shell syntax check run here, before the model, so the
           # review reads facts instead of running anything.
@@ -140,9 +141,6 @@ jobs:
             {
               "permissions": {
                 "allow": [
-                  "Bash(shellcheck:*)",
-                  "Bash(bandit:*)",
-                  "Bash(semgrep:*)",
                   "Bash(find:*)",
                   "Bash(grep:*)",
                   "Bash(cat:*)",
@@ -158,8 +156,6 @@ jobs:
                   "Bash(sed:*)",
                   "Bash(sort:*)",
                   "Bash(uniq:*)",
-                  "Bash(command:*)",
-                  "Bash(which:*)",
                   "Bash(echo:*)",
                   "Bash(printf:*)",
                   "Bash(mktemp:*)",
@@ -205,6 +201,8 @@ jobs:
             Pre-review facts are in ${{ github.workspace }}/pre-review/
             (summary.json, syntax.json, and the tool JSON files). Read them;
             the security and structure skills tell you how.
+            The pre-review script has already run for this checkout; do not run
+            references/run-pre-review.sh yourself.
 
             These values are already resolved; use them as given rather
             than running git for them:
