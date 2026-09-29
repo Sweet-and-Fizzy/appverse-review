@@ -97,9 +97,9 @@ defect_key = "{anchor}:{mechanism_tag}"
     whether or not the file exists: `missing-manifest` → `manifest.yml`,
     `missing-appverse-yml` → `appverse.yml`, `missing-form` → `form.yml`,
     `missing-template-dir` → `template`, `missing-submit-yml` →
-    `submit.yml.erb`, `missing-entry-point` → `root`
-    whichever entry point the app lacks (Batch Connect script, `config.ru`, or
-    `passenger_wsgi.py`), `no-changelog` → `CHANGELOG.md`. In a monorepo
+    `submit.yml.erb`, `no-changelog` → `CHANGELOG.md`. `missing-entry-point`
+    → `root` (the app subpath in a monorepo), whichever Batch Connect or
+    Passenger entry point the app lacks. In a monorepo
     (`app_id` not `root`) the app subpath prefix is required:
     `apps/bad-app/form.yml:missing-form`, never the bare
     `form.yml:missing-form`; `missing-entry-point` instead takes the app
