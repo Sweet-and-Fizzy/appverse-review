@@ -132,7 +132,7 @@ consistent with the dependency file (`STR-08` if missing or inconsistent).
 |-------|------------------|
 | `manifest.yml` and `appverse.yml` are valid YAML | Parse without errors |
 | `form.yml` is valid YAML; `form.yml.erb` has balanced ERB tags | `form.yml.erb` cannot be YAML-parsed before rendering, so it is checked for balanced `<% %>` tags instead |
-| Template scripts are syntactically correct | ERB templates render; shell scripts pass `bash -n` (for `.sh.erb`, strip ERB tags first — see [security-tools.md](https://github.com/Sweet-and-Fizzy/appverse-review/blob/main/references/security-tools.md)). This is a gate. Shellcheck is a best-effort tier-2 tool: run it when available, but its absence never fails this criterion. Recorded as STR-06 per shell file from the pre-review syntax check (PASS / FAIL / NOT CHECKED). |
+| Template scripts are syntactically correct | ERB templates render; shell scripts pass `bash -n` (for `.sh.erb`, strip ERB tags first — see [security-tools.md](https://github.com/Sweet-and-Fizzy/appverse-review/blob/main/references/security-tools.md)). This is a gate. Shellcheck is a best-effort tier-2 tool: run by the pre-review step when installed; its absence never fails this criterion. Recorded as STR-06 per shell file from the pre-review syntax check (PASS / FAIL / NOT CHECKED). |
 | No obviously broken references | Module names, paths, and variables referenced in `submit.yml.erb` and `template/` exist in `form.yml` or `form.yml.erb` |
 
 ## Security

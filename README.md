@@ -28,10 +28,11 @@ and whether the `software` value matches a catalog entry.
 - **gh** CLI (optional) — enables maintenance signals (commit recency, releases,
   issue responsiveness). Without it, those signals are marked "not checked" and
   the review still completes.
-- **Static analysis tools** (optional) — `references/run-pre-review.sh` probes for
-  and runs any of these that are installed, before the model reviews anything:
-  shellcheck (shell), bandit (Python), semgrep (multi-language), npm audit
-  (Node.js), trivy (dependencies/containers), rubocop (Ruby). See
+- **Static analysis tools** (optional) — `references/run-pre-review.sh` runs
+  whichever of shellcheck (shell), bandit (Python), semgrep (multi-language),
+  and trivy (dependencies/containers) are installed, before the model reviews
+  anything. npm audit (Node.js) and rubocop (Ruby) are manual only; the script
+  does not run them. See
   [references/security-tools.md](references/security-tools.md) for install
   instructions per platform. If none are installed the review still completes
   normally.
@@ -92,9 +93,9 @@ The security aspect builds a **capability profile** of what the app actually
 does, runs unsafe-pattern checks, and classifies findings under the OODT (Open
 OnDemand Threat) taxonomy — narrow-baseline anomaly detection for Batch
 Connect apps, transparency profiling for Passenger apps. When static analysis
-tools are installed (shellcheck, bandit, semgrep, etc.), the security review
-runs them automatically and folds their findings into the OODT-classified report
-as corroborating or additional evidence.
+tools are installed (shellcheck, bandit, semgrep, trivy), the pre-review step
+runs them before the review, and the security review folds their findings into
+the OODT-classified report as corroborating or additional evidence.
 
 ## CI / GitHub Actions
 

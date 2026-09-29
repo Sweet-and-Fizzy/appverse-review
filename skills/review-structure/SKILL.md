@@ -44,20 +44,28 @@ record is NOT CHECKED with the note "pre-review facts not found".
   instead.
 - ERB templates look renderable (balanced `<%= %>` tags). STR-06 comes from
   the pre-review facts, never from running `bash -n` yourself: read
-  `<pre-review>/syntax.json` and record one STR-06 record per shell file —
-  result PASS when `ok` is true, FAIL when false (severity high, evidence
-  `<path>:1` plus the first stderr line), NOT CHECKED when `summary.json`'s
-  `syntax` check did not run — with `defect_key` `<path>:bash-syntax-error`.
-  Only a `stderr` that is a bash message (it starts with the file path and
-  "line") is a syntax error; an entry whose `stderr` begins with one of the
-  refusal reasons ("symlink outside target", "dangling symlink", "not a
-  regular file") was never syntax-checked at all. Record that entry as NOT
-  CHECKED (severity info, evidence `<path>:1` plus the stderr reason) when
-  the path exists in the tree (an outside-resolving symlink or a FIFO); give
-  a dangling symlink no findings record at all, since its path does not
-  exist for check-keys — name it only in the STR-06 row summary. The gate
-  table's STR-06 row summarises them: "N files pass; M fail: `<paths>`; K
-  not checked: `<path>` (`<reason>`)".
+  `<pre-review>/syntax.json` and record one STR-06 record per shell file,
+  with `defect_key` `<path>:bash-syntax-error`, by these rules in order:
+  - `summary.json`'s `syntax` check did not run (status other than `ran`):
+    every entry is NOT CHECKED (severity info, evidence `<path>:1` plus the
+    check's `note`), except refused symlinks as below.
+  - `ok` is true: PASS.
+  - `stderr` begins with "symlink outside target" or "dangling symlink": a
+    refused symlink. Give it no findings record at all, since check-keys
+    resolves the anchor and a symlink leading outside the target or nowhere
+    has no valid key; name it only in the STR-06 row summary.
+  - `stderr` begins with "not a regular file" (a FIFO or device): NOT
+    CHECKED (severity info, evidence `<path>:1` plus the reason).
+  - `stderr` is a bash message (it starts with the file path followed by
+    `: line N:`): FAIL (severity high, evidence `<path>:<N>` using that line
+    number, or `<path>:1` when no `line N` is present, plus the first stderr
+    line).
+  - Anything else (a binary file, a permission error, a timeout, a file too
+    large to check): NOT CHECKED (severity info, evidence `<path>:1` plus the
+    stderr text).
+  The gate table's STR-06 row summarises them: "N files pass; M fail:
+  `<paths>`; K not checked: `<path>` (`<reason>`)", with refused symlinks
+  listed among the not-checked paths.
 - No broken references: variables and attributes used in `submit.yml.erb` and
   `template/` files exist in `form.yml` or `form.yml.erb`.
 - Batch Connect apps have the standard layout: `form.yml` or `form.yml.erb`,

@@ -64,14 +64,15 @@ should look thinner, not identical to a full one.
    missed, add it.
 5. **Tier 2 — Read the pre-review results.** Read `<pre-review>/summary.json`.
    Render the tool-scan summary from it: one row per check except `syntax` and
-   `catalog`; Status is `Run` for `ran` (shellcheck: `Run (ERB-stripped)` when
-   any `syntax.json` entry has `stripped` true), `Not run (not installed)` for
-   `not_installed`, `Not run (failed)` for `failed_to_run`, and
-   `Not run (<note>)` for `skipped`; Result is the finding count read from that
-   tool's JSON file (`shellcheck.json` is a list; `semgrep.json` `results[]`;
-   `bandit.json` `results[]`; `trivy.json`
-   `Results[].Vulnerabilities`/`Misconfigurations`/`Secrets`) or `—` when it
-   did not run. Then read each tool's JSON and treat its findings exactly as
+   `catalog`; Status is `Run` for `ran` (shellcheck: `Run (ERB-stripped)`
+   when its `note` says `.sh.erb file(s) scanned ERB-stripped`),
+   `Not run (not installed)` for `not_installed`, `Not run (failed)` for `failed_to_run`, and
+   `Not run (<note>)` for `skipped`. Result is rendered verbatim from the
+   record's `finding_count` and `top_codes`, never counted or computed by
+   you: `—` when `finding_count` is null (the tool did not run), `0 findings`
+   when it is 0, otherwise `<finding_count> findings (<top_codes joined with
+   ", ">)` (`1 finding (...)` for one). Install hints and notes never go in
+   the table. Then read each tool's JSON and treat its findings exactly as
    before: corroboration for a step-4 finding, or a new finding classified
    under OODT. Never run a tool, never ask to run one, never write "pending
    approval". If the pre-review directory is missing, every row is
@@ -131,13 +132,13 @@ Follow these rules for any runtime verification:
 
   | Tool | Status | Result |
   |---|---|---|
-  | shellcheck | Run (ERB-stripped) | 2 findings (SC2086, SC2046) |
-  | semgrep | Not run (not installed) | `pip install semgrep` |
+  | shellcheck | Run (ERB-stripped) | 2 findings (SC2164, SC2148) |
+  | semgrep | Not run (not installed) | — |
+  | bandit | Run | 0 findings |
   | trivy | Not run (no applicable files) | — |
-  | bandit | Run | clean |
 
-  If no tools were available, use the table with all rows showing
-  `Not run (not installed)` plus install hints. Never omit the table — its
+  If no tools were available, use the table with every row showing
+  `Not run (not installed)` and Result `—`. Never omit the table — its
   absence is indistinguishable from a clean scan.
 - The capability profile: a compact File / Capabilities / Anomalies table for
   Batch Connect apps; a short narrative for Passenger apps.

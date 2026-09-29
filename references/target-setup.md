@@ -22,6 +22,8 @@ own runs it itself.
 
   This writes the tool and syntax facts the security and structure skills
   read; a local machine has whatever tools it has, and summary.json says so.
+  The shell syntax check needs bash >= 4 first on PATH (on macOS,
+  `brew install bash`); with the system bash 3.2 every STR-06 is NOT CHECKED.
 
   If `gh` is unavailable, shallow-clone and read the SHA from the checkout. The
   SHA must be recorded regardless of method.
