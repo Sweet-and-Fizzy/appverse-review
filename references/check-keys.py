@@ -6,10 +6,10 @@
 A key is "{anchor}:{tag}". The anchor must be a repo-relative path that
 exists under --target (when given) or one of the allowed pseudo-anchors.
 An absent-file tag (ABSENT_FILE_ANCHORS) instead takes its fixed expected
-anchor, or "<app_id>/<anchor>" in a monorepo, and existence is not checked.
-The tag must be in the rule's vocabulary (finding-codes.md), carrying its
-qualifier where the vocabulary shows one, or "other:<slug>" where the slug is
-not a vocabulary tag in disguise. Exit 0 when every key is valid, 1 when any
+anchor, which must be "<app_id>/<anchor>" in a monorepo, and existence is not
+checked. The tag must be in the rule's vocabulary (finding-codes.md), carrying
+its qualifier where the vocabulary shows one, or "other:<slug>" where the slug
+is neither a vocabulary tag in disguise nor one extended by a suffix. Exit 0 when every key is valid, 1 when any
 is not (one INVALID line each), 2 when the input cannot be read.
 """
 import argparse
@@ -19,11 +19,12 @@ import re
 import sys
 
 PSEUDO_ANCHORS = {
-    "LICENSE", "README.md", "CHANGELOG", "CHANGELOG.md", ".github/workflows",
+    "LICENSE", "README.md", "CHANGELOG.md", ".github/workflows",
     "releases", "issues", "contributors", "commits", "root",
 }
-# Absent-file tags (STR-01, STR-07): the file does not exist by definition, so
-# the anchor is the fixed expected path. Keep in step with finding-codes.md.
+# Absent-file tags (STR-01, STR-07, MNT-03): the file does not exist by
+# definition, so the anchor is the fixed expected path, prefixed with the
+# app_id in a monorepo. Keep in step with finding-codes.md.
 # missing-license and missing-readme are not here: LICENSE and README.md are
 # pseudo-anchors already, and STR-01 also covers an insufficient file that
 # exists under another name (LICENSE.txt), which keeps its real path.
@@ -35,6 +36,8 @@ ABSENT_FILE_ANCHORS = {
     "missing-submit-yml": ("submit.yml.erb",),
     # Batch Connect job script, or the Passenger entry point (Rack / WSGI).
     "missing-entry-point": ("template/script.sh.erb", "config.ru", "passenger_wsgi.py"),
+    # One key whether or not a CHANGELOG exists.
+    "no-changelog": ("CHANGELOG.md",),
 }
 FINDING_CODES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "finding-codes.md")
 RULE_HEADING = re.compile(r"^\*\*([A-Z]{3,4}-\d{2}):\*\*\s*$")
@@ -75,6 +78,22 @@ def norm(s):
     return re.sub(r"[-_]", "", s.lower())
 
 
+def extended_tag(slug, bases):
+    """Return the longest vocabulary tag the slug extends ('<tag>-...' or '<tag>_...'), else None."""
+    s = slug.lower().replace("_", "-")
+    hits = [b for b in bases if s.startswith(b.lower().replace("_", "-") + "-")]
+    return max(hits, key=len) if hits else None
+
+
+def not_repo_relative(path):
+    return (
+        os.path.isabs(path)
+        or path.endswith("/")
+        or path in ("..", ".")
+        or any(seg == ".." for seg in path.split("/"))
+    )
+
+
 def validate(finding, vocab, target):
     rule = finding.get("rule") or "<missing>"
     key = finding.get("defect_key")
@@ -85,12 +104,20 @@ def validate(finding, vocab, target):
     anchor, _, tag = key.partition(":")
     if not tag:
         return rule, key, "empty tag"
+    app_id = finding.get("app_id") or "root"
+    if app_id != "root" and not_repo_relative(app_id):
+        return rule, key, "app_id must be a repo-relative path"
+    if not_repo_relative(anchor):
+        return rule, key, "anchor must be a repo-relative path"
     expected = ABSENT_FILE_ANCHORS.get(tag)
     if expected is not None:
-        app_id = finding.get("app_id") or "root"
-        allowed = set(expected)
         if app_id != "root":
-            allowed |= {app_id.rstrip("/") + "/" + e for e in expected}
+            # A monorepo's anchors are repo-root-relative, so the app prefix is required.
+            if anchor in expected:
+                return rule, key, "absent-file anchor must be '{}/{}' in a monorepo".format(app_id, anchor)
+            allowed = {app_id + "/" + e for e in expected}
+        else:
+            allowed = set(expected)
         if anchor not in allowed:
             if len(expected) == 1:
                 return rule, key, "absent-file tag '{}' must use anchor '{}' (or '<app_id>/{}' in a monorepo)".format(
@@ -98,13 +125,6 @@ def validate(finding, vocab, target):
             return rule, key, "absent-file tag '{}' must use one of {} (or '<app_id>/<anchor>' in a monorepo)".format(
                 tag, ", ".join("'{}'".format(e) for e in expected))
     elif anchor not in PSEUDO_ANCHORS:
-        if (
-            os.path.isabs(anchor)
-            or anchor.endswith("/")
-            or anchor in ("..", ".")
-            or any(seg == ".." for seg in anchor.split("/"))
-        ):
-            return rule, key, "anchor must be a repo-relative path"
         looks_like_path = "/" in anchor or "." in anchor
         if target is not None:
             resolved_target = os.path.realpath(target)
@@ -127,6 +147,10 @@ def validate(finding, vocab, target):
         for base in vocab[rule]:
             if norm(base) == norm(slug):
                 return rule, key, "other:{} is the vocabulary tag '{}'".format(slug, base)
+        base = extended_tag(slug, vocab[rule])
+        if base is not None:
+            return rule, key, "other:{} extends the vocabulary tag '{}'; use '{}' or a distinct slug".format(
+                slug, base, base)
         return rule, key, None
     base, _, qual = tag.partition(":")
     rule_vocab = vocab[rule]

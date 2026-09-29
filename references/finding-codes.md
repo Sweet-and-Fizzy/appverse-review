@@ -93,16 +93,18 @@ defect_key = "{anchor}:{mechanism_tag}"
   locations. `line` is mutable metadata carrying the list.
 - **Absent-file and repo-level findings** use a fixed anchor, never a
   free-text one. `check-keys.py` enforces both lists below.
-  - Absent-file tags (STR-01, STR-07) take this expected anchor, whether or
-    not the file exists: `missing-manifest` → `manifest.yml`,
+  - Absent-file tags (STR-01, STR-07, MNT-03) take this expected anchor,
+    whether or not the file exists: `missing-manifest` → `manifest.yml`,
     `missing-appverse-yml` → `appverse.yml`, `missing-form` → `form.yml`,
     `missing-template-dir` → `template`, `missing-submit-yml` →
     `submit.yml.erb`, `missing-entry-point` → one of `template/script.sh.erb`
-    (Batch Connect), `config.ru`, or `passenger_wsgi.py` (Passenger). In a
-    monorepo prefix the app subpath (`apps/bad-app/form.yml:missing-form`).
-    Any other anchor with one of these tags is invalid.
+    (Batch Connect), `config.ru`, or `passenger_wsgi.py` (Passenger),
+    `no-changelog` → `CHANGELOG.md`. In a monorepo (`app_id` not `root`) the
+    app subpath prefix is required: `apps/bad-app/form.yml:missing-form`,
+    never the bare `form.yml:missing-form`. Any other anchor with one of these
+    tags is invalid.
   - Repo-level findings use a pseudo-anchor. The allowed set is exactly:
-    `LICENSE`, `README.md`, `CHANGELOG`, `CHANGELOG.md`, `.github/workflows`,
+    `LICENSE`, `README.md`, `CHANGELOG.md`, `.github/workflows`,
     `releases`, `issues`, `contributors`, `commits`, `root`. Case-sensitive:
     `RELEASES` and `github/commits` are invalid. `missing-license` and
     `missing-readme` use `LICENSE` and `README.md` from this set, or the path
