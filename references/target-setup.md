@@ -18,6 +18,10 @@ own runs it itself.
       SHA=$(gh api "repos/<owner>/<repo>/commits/$REF" --jq '.sha')
       TMP=$(mktemp -d) && git clone --depth 1 <url> "$TMP/repo"
       git -C "$TMP/repo" checkout "$SHA"
+      bash "${CLAUDE_PLUGIN_ROOT}/references/run-pre-review.sh" "$TMP/repo" "$TMP/pre-review" --no-catalog
+
+  This writes the tool and syntax facts the security and structure skills
+  read; a local machine has whatever tools it has, and summary.json says so.
 
   If `gh` is unavailable, shallow-clone and read the SHA from the checkout. The
   SHA must be recorded regardless of method.
@@ -31,6 +35,10 @@ own runs it itself.
   `<owner>/<repo>` from `git remote get-url origin` if available. If the tree has
   neither `appverse.yml` nor `manifest.yml` at its root, warn that this will fail
   gate criteria and confirm the directory is the app repo before continuing.
+
+      PRE=$(mktemp -d) && bash "${CLAUDE_PLUGIN_ROOT}/references/run-pre-review.sh" . "$PRE" --no-catalog
+
+  Pass `$PRE` as the pre-review directory.
 
 Record the reviewed commit — every review is pinned to it:
 

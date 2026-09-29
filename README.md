@@ -28,12 +28,13 @@ and whether the `software` value matches a catalog entry.
 - **gh** CLI (optional) — enables maintenance signals (commit recency, releases,
   issue responsiveness). Without it, those signals are marked "not checked" and
   the review still completes.
-- **Static analysis tools** (optional) — the security review probes for and runs
-  any of these that are installed: shellcheck (shell), bandit (Python), semgrep
-  (multi-language), npm audit (Node.js), trivy (dependencies/containers), rubocop
-  (Ruby). See [references/security-tools.md](references/security-tools.md) for
-  install instructions per platform. If none are installed the review still
-  completes normally.
+- **Static analysis tools** (optional) — `references/run-pre-review.sh` probes for
+  and runs any of these that are installed, before the model reviews anything:
+  shellcheck (shell), bandit (Python), semgrep (multi-language), npm audit
+  (Node.js), trivy (dependencies/containers), rubocop (Ruby). See
+  [references/security-tools.md](references/security-tools.md) for install
+  instructions per platform. If none are installed the review still completes
+  normally.
 
 ## Install
 
@@ -128,6 +129,7 @@ references/
   security-tools.md      Static analysis tool lookup
   target-setup.md        Shared setup procedure (mode detection, schema load)
   appverse.yml           Cached schema reference (offline fallback)
+  run-pre-review.sh / pre-review.py   Tools and syntax check before the model (summary.json, syntax.json, tool JSON)
 tests/
   fixtures/              6 deliberately broken app repos for calibration
   TESTING.md             Expected findings per fixture, coverage matrix
