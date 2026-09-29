@@ -108,7 +108,7 @@ deeper inspection.
 | 7 | Uses `$PBS_NODEFILE` (PBS var on a Slurm cluster) | `template/script.sh.erb:18–19` | Quality | WARN — QUA-02 `hardcoded-cluster` (PBS assumption on Slurm) |
 | 8 | Hardcoded path `/usr/share/Modules/init/bash` | `template/script.sh.erb:4` | Quality | QUA-02 `hardcoded-path` — Not portable |
 | 9 | Copy-paste artifact: MATLAB help text in a debugger app | `form.yml.erb:32` | Quality | QUA-05 `wrong-app-reference` |
-| 10 | Duplicate YAML key: `help:` appears twice on `num_cores` | `form.yml.erb:32,35` | Quality | QUA-06 `duplicate-yaml-key:help` |
+| 10 | Duplicate YAML key: `help:` appears twice on `num_cores` | `form.yml.erb:32,35` | Quality | QUA-06 `duplicate-yaml-key:num_cores.help` |
 | 11 | CHANGELOG describes a different app (MATLAB, not HPC Debugger) | `CHANGELOG.md` | Quality | QUA-05 `wrong-app-changelog` |
 
 **Key behavior to verify:**
