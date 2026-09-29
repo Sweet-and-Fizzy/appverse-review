@@ -72,7 +72,7 @@ should look thinner, not identical to a full one.
    you: `—` when `finding_count` is null (the tool did not run), `0 findings`
    when it is 0, otherwise `<finding_count> findings (<top_codes joined with
    ", ">)` (`1 finding (...)` for one). Install hints and notes never go in
-   the table. Then read each tool's JSON and treat its findings exactly as
+   the Result column. Then read each tool's JSON and treat its findings exactly as
    before: corroboration for a step-4 finding, or a new finding classified
    under OODT. Never run a tool, never ask to run one, never write "pending
    approval". If the pre-review directory is missing, every row is

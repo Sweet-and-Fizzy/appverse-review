@@ -224,7 +224,7 @@ check "second run inside target" 0 "$(run "$T" "$T/pre-review")"
 check "syntax lists only a.sh" "a.sh" "$(j "$T/pre-review/syntax.json" "','.join(e['path'] for e in d)")"
 if [ "$(chk "$T/pre-review" semgrep status)" = ran ]; then
   check "semgrep files_examined ignores out-dir" "2" "$(chk "$T/pre-review" semgrep files_examined)"
-  check "semgrep command excludes out-dir" "True" "$(yn grep -q -- '--exclude pre-review' <<< "$(chk "$T/pre-review" semgrep command)")"
+  check "semgrep command excludes out-dir, anchored" "True" "$(yn grep -q -- '--exclude /pre-review ' <<< "$(chk "$T/pre-review" semgrep command)")"
 else skip "semgrep did not run"; skip "semgrep did not run"; fi
 
 echo "Test 15: a crashing tool with empty stderr reports its stdout"
@@ -240,6 +240,20 @@ check "no trivy.json" "False" "$([ -e "$O/trivy.json" ] && echo True || echo Fal
 
 has_trivy() { command -v trivy >/dev/null 2>&1; }
 has_semgrep() { python3 -c 'import shutil,sys; sys.exit(shutil.which("semgrep") is None)'; }
+
+echo "Test 14b: an in-target out-dir is skipped by path, not by name"
+T="$TMP/t14b"; mkdir -p "$T/app/pre-review"
+printf 'flask==0.12\n' > "$T/requirements.txt"; printf 'flask==0.12\n' > "$T/app/pre-review/requirements.txt"
+printf 'echo hi\n' > "$T/app/pre-review/b.sh"
+O="$T/pre-review"
+check "exit 0" 0 "$(run "$T" "$O")"
+check "trivy command skips the out-dir by relative path" "True" "$(yn grep -qF -- '--skip-dirs pre-review --config' <<< "$(chk "$O" trivy command)")"
+if [ "$(chk "$O" semgrep status)" = ran ]; then
+  check "semgrep still scans app/pre-review" "True" "$(j "$O/semgrep.json" "'app/pre-review/b.sh' in d['paths']['scanned']")"
+else skip "semgrep did not run"; fi
+if [ "$(chk "$O" trivy status)" = ran ]; then
+  check "trivy still scans app/pre-review" "True" "$(j "$O/trivy.json" "'app/pre-review/requirements.txt' in [r['Target'] for r in d.get('Results', [])]")"
+else skip "trivy did not run"; fi
 
 echo "Test 16: a target's trivy.yaml cannot make trivy write outside the out-dir"
 T="$TMP/t16"; mkdir -p "$T" "$TMP/escape"; printf 'flask==0.12\n' > "$T/requirements.txt"
@@ -282,10 +296,12 @@ check "every record has finding_count and top_codes" "True" "$(j "$O/summary.jso
 check "catalog finding_count null" "None" "$(chk "$O" catalog finding_count)"
 check "trivy (skipped) finding_count null" "None" "$(chk "$O" trivy finding_count)"
 if has_sc; then
-  check "shellcheck finding_count" "9" "$(chk "$O" shellcheck finding_count)"
+  # Recomputed from shellcheck.json so the test holds across shellcheck versions.
   check "shellcheck finding_count is len(shellcheck.json)" "$(j "$O/shellcheck.json" "len(d)")" "$(chk "$O" shellcheck finding_count)"
-  check "shellcheck top_codes" "SC2155,SC2086,SC2154,SC1091,SC2034" "$(j "$O/summary.json" "','.join([c for c in d['checks'] if c['name']=='shellcheck'][0]['top_codes'])")"
-else skip "shellcheck not installed"; skip "shellcheck not installed"; skip "shellcheck not installed"; fi
+  check "shellcheck top_codes: most frequent, then by code" "$(python3 -c 'import json,sys,collections; c=collections.Counter("SC%s" % e["code"] for e in json.load(open(sys.argv[1]))); print(",".join(k for k, _ in sorted(c.items(), key=lambda kv: (-kv[1], kv[0]))[:5]))' "$O/shellcheck.json")" "$(j "$O/summary.json" "','.join([c for c in d['checks'] if c['name']=='shellcheck'][0]['top_codes'])")"
+  check "SC2086 present" "True" "$(j "$O/shellcheck.json" "any(e['code']==2086 for e in d)")"
+  check "SC2155 present" "True" "$(j "$O/shellcheck.json" "any(e['code']==2155 for e in d)")"
+else for i in 1 2 3 4; do skip "shellcheck not installed"; done; fi
 
 echo "Test 20: bash older than 4 is failed_to_run, every file still listed"
 OB="$TMP/oldbash"; mkdir -p "$OB"

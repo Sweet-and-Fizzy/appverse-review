@@ -470,15 +470,22 @@ def _run_json_tool(name, cmd, target, out, files_examined, crashed, note="", cwd
     return _with_findings(rec, data), data
 
 
+def _out_inside(target, out):
+    """The out-dir as a target-relative path when it lies inside the target
+    (it is not part of the app, so the whole-tree tools skip it), else None."""
+    rel = os.path.relpath(out, target)
+    return None if rel == ".." or rel.startswith(".." + os.sep) else rel.replace(os.sep, "/")
+
+
 def check_semgrep(target, out):
     n = count_files(target, out)
     if not n:
         return record("semgrep", "skipped", version=tool_version("semgrep"),
                       command=" ".join(SEMGREP + ["."]), note=NO_FILES)
     cmd = list(SEMGREP)
-    rel_out = os.path.relpath(out, target)
-    if not rel_out.startswith(".."):  # an out-dir inside the target is not the app
-        cmd[-1:-1] = ["--exclude", rel_out.replace(os.sep, "/")]
+    rel_out = _out_inside(target, out)
+    if rel_out:  # a leading / anchors semgrep's pattern at the target root
+        cmd[-1:-1] = ["--exclude", "/" + rel_out]
     rec, data = _run_json_tool("semgrep", cmd + ["."], target, out, n, lambda rc: rc >= 2,
                                note=SEMGREP_NOTE)
     scanned = ((data or {}).get("paths") or {}).get("scanned") if isinstance(data, dict) else None
@@ -506,7 +513,9 @@ def check_trivy(target, out):
     `output:` and write anywhere, and its .trivyignore could hide findings."""
     config = os.path.join(out, TRIVY_EMPTY_CONFIG)
     ignore = os.path.join(out, TRIVY_EMPTY_IGNORE)
-    cmd = TRIVY + ["--config", config, "--ignorefile", ignore, target]
+    rel_out = _out_inside(target, out)  # trivy matches --skip-dirs from the scan root
+    cmd = TRIVY + (["--skip-dirs", rel_out] if rel_out else []) + [
+        "--config", config, "--ignorefile", ignore, target]
     n = len(find_manifests(target, out))
     if not n:
         return record("trivy", "skipped", version=tool_version("trivy"), command=" ".join(cmd),
