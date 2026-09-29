@@ -30,12 +30,21 @@ files -> skipped ("no applicable files"); binary not on PATH -> not_installed
 (shellcheck >= 2, semgrep >= 2, bandit >= 2, trivy != 0) -> failed_to_run
 (note = first 500 chars of stderr); otherwise ran. The catalog check is a
 placeholder: always skipped. Tool commands are the ones in security-tools.md.
+
+Only regular files are examined: a symlink counts when it resolves to a regular
+file inside the target; any other symlink, FIFO or device is never read, is
+excluded from every tool's file list and from files_examined, and (when it has
+a shell suffix) is listed in syntax.json as ok false with the reason in stderr.
+An out-dir inside the target is excluded from the walk; out-dir == target is
+refused (exit 2). semgrep's files_examined is the tree size; semgrep applies
+its own ignore list (tests/, vendored dirs).
 """
 import argparse
 import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -47,6 +56,11 @@ MANIFEST_NAMES = {"package.json", "requirements.txt", "Gemfile.lock", "Dockerfil
 TIMEOUT = 300
 STDERR_CHARS = 500
 NO_FILES = "no applicable files"
+SEMGREP_NOTE = ("files_examined is the tree size; semgrep applies its own ignore list "
+                "(tests/, vendored dirs)")
+OUTSIDE = "symlink outside target, not checked"
+DANGLING = "dangling symlink (No such file or directory), not checked"
+NOT_REGULAR = "not a regular file, not checked"
 INSTALL_HINTS = {
     "shellcheck": "apt install shellcheck / brew install shellcheck",
     "bandit": "pip install bandit",
@@ -77,32 +91,69 @@ def strip_erb(text):
     return text
 
 
-def _walk(target):
-    """Every file under target as a sorted repo-relative path, skipping SKIP_DIRS."""
-    found = []
-    for root, dirs, files in os.walk(target):
-        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
-        for name in files:
-            rel = os.path.relpath(os.path.join(root, name), target)
-            found.append(rel.replace(os.sep, "/"))
-    return sorted(found)
+def _classify(target, exclude=None):
+    """Walk target (skipping SKIP_DIRS and the exclude dir, not following
+    symlinked dirs). Return (files, rejected): files are sorted repo-relative
+    paths of regular files, or symlinks that resolve to a regular file inside
+    target; rejected maps every other entry (a symlink leading outside or
+    nowhere, a FIFO, a device) to the reason it was not read."""
+    root_real = os.path.realpath(target)
+    exclude_real = os.path.realpath(exclude) if exclude else None
+    files, rejected = [], {}
+    for root, dirs, names in os.walk(target):
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS
+                   and os.path.realpath(os.path.join(root, d)) != exclude_real]
+        for name in names:
+            full = os.path.join(root, name)
+            rel = os.path.relpath(full, target).replace(os.sep, "/")
+            mode = os.lstat(full).st_mode
+            if stat.S_ISLNK(mode):
+                real = os.path.realpath(full)
+                if not os.path.exists(real):
+                    rejected[rel] = DANGLING
+                elif os.path.commonpath([real, root_real]) != root_real:
+                    rejected[rel] = OUTSIDE
+                elif not os.path.isfile(real):
+                    rejected[rel] = NOT_REGULAR
+                else:
+                    files.append(rel)
+            elif stat.S_ISREG(mode):
+                files.append(rel)
+            else:
+                rejected[rel] = NOT_REGULAR
+    return sorted(files), rejected
 
 
-def find_shell_files(target):
-    return [p for p in _walk(target) if p.endswith(SHELL_SUFFIXES)]
+def _walk(target, exclude=None):
+    """Every examinable file under target as a sorted repo-relative path."""
+    return _classify(target, exclude)[0]
 
 
-def find_py_files(target):
-    return [p for p in _walk(target) if p.endswith(".py")]
+def find_shell_files(target, exclude=None):
+    return [p for p in _walk(target, exclude) if p.endswith(SHELL_SUFFIXES)]
 
 
-def find_manifests(target):
-    return [p for p in _walk(target)
+def find_py_files(target, exclude=None):
+    return [p for p in _walk(target, exclude) if p.endswith(".py")]
+
+
+def find_manifests(target, exclude=None):
+    return [p for p in _walk(target, exclude)
             if p.rsplit("/", 1)[-1] in MANIFEST_NAMES or p.endswith(".def")]
 
 
-def count_files(target):
-    return len(_walk(target))
+def count_files(target, exclude=None):
+    return len(_walk(target, exclude))
+
+
+def _arg(rel):
+    """A repo-relative path as a tool argument: ./-x.sh is never an option."""
+    return "./" + rel
+
+
+def _failure(err, stdout):
+    """failed_to_run note text: stderr, or stdout when stderr is empty."""
+    return err if (err or "").strip() else (stdout or "")
 
 
 def run(cmd, timeout=TIMEOUT, cwd=None):
@@ -156,11 +207,23 @@ def _stripped_copy(target, out, rel):
 def check_syntax(target, out):
     """bash -n on every shell file (ERB-stripped copy for .sh.erb). Returns
     (summary record, syntax entries). Entries carry the path scanned in
-    '_scan' for shellcheck; it is dropped before syntax.json is written."""
-    files = find_shell_files(target)
+    '_scan' for shellcheck (None when the file could not be read); it is
+    dropped before syntax.json is written. A file that cannot be read fails
+    on its own entry; the rest are still checked."""
+    all_files, rejected = _classify(target, out)
+    files = [p for p in all_files if p.endswith(SHELL_SUFFIXES)]
+    refused = [{"path": p, "stripped": p.endswith(".sh.erb"), "ok": False,
+                "stderr": why, "_scan": None}
+               for p, why in sorted(rejected.items()) if p.endswith(SHELL_SUFFIXES)]
     command = "bash -n <file> (per shell file; .sh.erb checked as its ERB-stripped copy)"
+
+    def write(entries):
+        entries = sorted(entries, key=lambda e: e["path"])
+        _write_json(out, "syntax.json", [{k: v for k, v in e.items() if k != "_scan"} for e in entries])
+        return entries
+
     if not files:
-        _write_json(out, "syntax.json", [])
+        write(refused)
         return record("syntax", "skipped", command=command, output_file="syntax.json",
                       note=NO_FILES), []
     bash = shutil.which("bash")
@@ -170,7 +233,12 @@ def check_syntax(target, out):
     entries = []
     for rel in files:
         stripped = rel.endswith(".sh.erb")
-        scan = _stripped_copy(target, out, rel) if stripped else rel
+        try:
+            scan = _stripped_copy(target, out, rel) if stripped else _arg(rel)
+        except Exception as e:  # unreadable file: fail this entry, keep going
+            entries.append({"path": rel, "stripped": stripped, "ok": False,
+                            "stderr": ("%s: %s" % (type(e).__name__, e))[:STDERR_CHARS], "_scan": None})
+            continue
         rc, _, err, error = run([bash, "-n", scan], cwd=target)
         if error:
             ok, stderr = False, error
@@ -178,16 +246,16 @@ def check_syntax(target, out):
             ok, stderr = rc == 0, err.replace(scan, rel)
         entries.append({"path": rel, "stripped": stripped, "ok": ok,
                         "stderr": stderr[:STDERR_CHARS], "_scan": scan})
-    _write_json(out, "syntax.json", [{k: v for k, v in e.items() if k != "_scan"} for e in entries])
+    entries = write(entries + refused)
     failed = sum(1 for e in entries if not e["ok"])
     return record("syntax", "ran", version=tool_version("bash"), command=command,
                   exit_code=1 if failed else 0, output_file="syntax.json",
                   files_examined=len(files),
-                  note="%d of %d files failed bash -n" % (failed, len(files)) if failed else ""), entries
+                  note="%d of %d files failed bash -n" % (failed, len(entries)) if failed else ""), entries
 
 
 def check_shellcheck(target, out, syntax_entries):
-    files = find_shell_files(target)
+    files = find_shell_files(target, out)
     command = " ".join(SHELLCHECK) + " <file> (per shell file; .sh.erb scanned as its ERB-stripped copy)"
     if not files:
         return record("shellcheck", "skipped", version=tool_version("shellcheck"), command=command,
@@ -197,32 +265,45 @@ def check_shellcheck(target, out, syntax_entries):
                       note=INSTALL_HINTS["shellcheck"])
     scans = {e["path"]: e["_scan"] for e in syntax_entries}
     version = tool_version("shellcheck")
-    results, worst = [], 0
+    results, worst, unread = [], 0, []
     for rel in files:
-        scan = scans.get(rel) or (_stripped_copy(target, out, rel) if rel.endswith(".sh.erb") else rel)
+        try:
+            if rel.endswith(".sh.erb"):
+                scan = scans.get(rel) or _stripped_copy(target, out, rel)
+            else:
+                open(os.path.join(target, rel), "rb").close()
+                scan = _arg(rel)
+        except Exception:  # unreadable file: skip it, name it in the note
+            unread.append(rel)
+            continue
         rc, stdout, err, error = run(SHELLCHECK + [scan], cwd=target)
         if error or rc >= 2:
             return record("shellcheck", "failed_to_run", version=version, command=command,
                           exit_code=rc, files_examined=len(files),
-                          note=("%s: %s" % (rel, error or err))[:STDERR_CHARS])
+                          note=("%s: %s" % (rel, error or _failure(err, stdout)))[:STDERR_CHARS])
         worst = max(worst, rc)
         try:
             items = json.loads(stdout) if stdout.strip() else []
         except ValueError:
             return record("shellcheck", "failed_to_run", version=version, command=command,
                           exit_code=rc, files_examined=len(files),
-                          note=("%s: output was not JSON: %s" % (rel, err or stdout))[:STDERR_CHARS])
+                          note=("%s: output was not JSON: %s" % (rel, _failure(err, stdout)))[:STDERR_CHARS])
         for item in items:
             item["file"] = rel
         results.extend(items)
     _write_json(out, "shellcheck.json", results)
-    n_stripped = sum(1 for f in files if f.endswith(".sh.erb"))
+    n_stripped = sum(1 for f in files if f.endswith(".sh.erb") and f not in unread)
+    notes = []
+    if n_stripped:
+        notes.append("%d .sh.erb file(s) scanned ERB-stripped" % n_stripped)
+    if unread:
+        notes.append("not scanned (unreadable): " + ", ".join(unread))
     return record("shellcheck", "ran", version=version, command=command, exit_code=worst,
-                  output_file="shellcheck.json", files_examined=len(files),
-                  note="%d .sh.erb file(s) scanned ERB-stripped" % n_stripped if n_stripped else "")
+                  output_file="shellcheck.json", files_examined=len(files) - len(unread),
+                  note="; ".join(notes))
 
 
-def _run_json_tool(name, cmd, target, out, files_examined, crashed):
+def _run_json_tool(name, cmd, target, out, files_examined, crashed, note=""):
     """Run a whole-directory tool from the target root; its stdout JSON is
     written verbatim to <name>.json when it ran."""
     command = " ".join(cmd)
@@ -233,30 +314,32 @@ def _run_json_tool(name, cmd, target, out, files_examined, crashed):
     rc, stdout, err, error = run(cmd, cwd=target)
     if error or crashed(rc):
         return record(name, "failed_to_run", version=version, command=command, exit_code=rc,
-                      files_examined=files_examined, note=(error or err)[:STDERR_CHARS])
+                      files_examined=files_examined,
+                      note=(error or _failure(err, stdout))[:STDERR_CHARS])
     try:
         json.loads(stdout)
     except ValueError:
         return record(name, "failed_to_run", version=version, command=command, exit_code=rc,
                       files_examined=files_examined,
-                      note=("output was not JSON: " + (err or stdout))[:STDERR_CHARS])
+                      note=("output was not JSON: " + _failure(err, stdout))[:STDERR_CHARS])
     with open(os.path.join(out, name + ".json"), "w") as f:
         f.write(stdout)
     return record(name, "ran", version=version, command=command, exit_code=rc,
-                  output_file=name + ".json", files_examined=files_examined)
+                  output_file=name + ".json", files_examined=files_examined, note=note)
 
 
 def check_semgrep(target, out):
-    n = count_files(target)
+    n = count_files(target, out)
     if not n:
         return record("semgrep", "skipped", version=tool_version("semgrep"),
                       command=" ".join(SEMGREP + ["."]), note=NO_FILES)
-    return _run_json_tool("semgrep", SEMGREP + ["."], target, out, n, lambda rc: rc >= 2)
+    return _run_json_tool("semgrep", SEMGREP + ["."], target, out, n, lambda rc: rc >= 2,
+                          note=SEMGREP_NOTE)
 
 
 def check_bandit(target, out):
     cmd = [a if a != "<dir>" else "." for a in BANDIT]
-    n = len(find_py_files(target))
+    n = len(find_py_files(target, out))
     if not n:
         return record("bandit", "skipped", version=tool_version("bandit"), command=" ".join(cmd),
                       note=NO_FILES)
@@ -265,7 +348,7 @@ def check_bandit(target, out):
 
 def check_trivy(target, out):
     cmd = TRIVY + ["."]
-    n = len(find_manifests(target))
+    n = len(find_manifests(target, out))
     if not n:
         return record("trivy", "skipped", version=tool_version("trivy"), command=" ".join(cmd),
                       note=NO_FILES)
@@ -300,6 +383,9 @@ def main(argv):
         return 2
     target = os.path.abspath(args.target)
     out = os.path.abspath(args.out)
+    if os.path.realpath(out) == os.path.realpath(target):
+        print("error: out-dir must not be the target: %s" % args.out, file=sys.stderr)
+        return 2
     _prepare_out(out)
 
     checks, syntax_entries = [], []

@@ -66,7 +66,7 @@ check "shared/common.sh listed" "True" "$(j "$O/syntax.json" "any(e['path']=='sh
 check "bandit skipped" "skipped" "$(chk "$O" bandit status)"
 check "bandit note" "no applicable files" "$(chk "$O" bandit note)"
 check "bandit no output file" "False" "$([ -e "$O/bandit.json" ] && echo True || echo False)"
-check "trivy skipped or not_installed" "True" "$(j "$O/summary.json" "[c for c in d['checks'] if c['name']=='trivy'][0]['status'] in ('skipped','not_installed')")"
+check "trivy skipped (no manifests)" "skipped" "$(chk "$O" trivy status)"
 
 echo "Test 6: passenger-flask-app counts"
 O="$TMP/flask"
@@ -74,10 +74,14 @@ check "exit 0" 0 "$(run "$FIX/passenger-flask-app" "$O")"
 check "bandit files_examined" "4" "$(chk "$O" bandit files_examined)"
 check "bandit ran or not_installed" "True" "$(j "$O/summary.json" "[c for c in d['checks'] if c['name']=='bandit'][0]['status'] in ('ran','not_installed')")"
 check "trivy files_examined" "1" "$(chk "$O" trivy files_examined)"
-check "trivy ran or not_installed" "True" "$(j "$O/summary.json" "[c for c in d['checks'] if c['name']=='trivy'][0]['status'] in ('ran','not_installed')")"
-if command -v trivy >/dev/null 2>&1; then
-  check "trivy.json is trivy's own JSON" "True" "$(j "$O/trivy.json" "'SchemaVersion' in d")"
-else skip "trivy not installed"; fi
+if [ "$(chk "$O" trivy status)" = failed_to_run ] && chk "$O" trivy note | grep -qiE 'db|download|network|dial|connection'; then
+  skip "trivy offline (cannot fetch its DB)"; skip "trivy offline (cannot fetch its DB)"
+else
+  check "trivy ran or not_installed" "True" "$(j "$O/summary.json" "[c for c in d['checks'] if c['name']=='trivy'][0]['status'] in ('ran','not_installed')")"
+  if command -v trivy >/dev/null 2>&1; then
+    check "trivy.json is trivy's own JSON" "True" "$(j "$O/trivy.json" "'SchemaVersion' in d")"
+  else skip "trivy not installed"; fi
+fi
 if command -v bandit >/dev/null 2>&1; then
   check "bandit.json is bandit's own JSON" "True" "$(j "$O/bandit.json" "'results' in d")"
 else skip "bandit not installed"; fi
@@ -110,6 +114,9 @@ if command -v shellcheck >/dev/null 2>&1; then
   check "files_examined" "4" "$(chk "$O" shellcheck files_examined)"
   check "version line carries a number" "True" "$(j "$O/summary.json" "any(ch.isdigit() for ch in [c for c in d['checks'] if c['name']=='shellcheck'][0]['version'])")"
 else skip "shellcheck not installed"; fi
+if [ "$(chk "$O" semgrep status)" = ran ]; then
+  check "semgrep note explains files_examined" "files_examined is the tree size; semgrep applies its own ignore list (tests/, vendored dirs)" "$(chk "$O" semgrep note)"
+else skip "semgrep did not run"; fi
 
 echo "Test 9: flags"
 T="$TMP/t9"; mkdir -p "$T"; printf 'echo hi\n' > "$T/a.sh"
@@ -127,5 +134,86 @@ check "stale bandit.json gone" "False" "$([ -e "$O/bandit.json" ] && echo True |
 check "stale stripped copy gone" "False" "$([ -e "$O/stripped/old.sh" ] && echo True || echo False)"
 check "second run exit 0" 0 "$(run "$FIX/monorepo" "$O")"
 check "summary rewritten" "pre-review/1" "$(j "$O/summary.json" "d['schema']")"
+
+has_sc() { command -v shellcheck >/dev/null 2>&1; }
+
+echo "Test 11: a dangling or unreadable shell file fails its own entry, the rest still run"
+T="$TMP/t11"; mkdir -p "$T"
+printf 'echo hi\n' > "$T/good.sh"
+ln -s /nonexistent "$T/dangling.sh.erb"
+printf 'echo <%%= x %%>\n' > "$T/locked.sh.erb"; chmod 000 "$T/locked.sh.erb"
+O="$TMP/o11"
+check "exit 0" 0 "$(run "$T" "$O")"
+check "syntax ran" "ran" "$(chk "$O" syntax status)"
+check "good.sh ok" "True" "$(syn "$O" good.sh ok)"
+check "dangling not ok" "False" "$(syn "$O" dangling.sh.erb ok)"
+check "dangling stderr" "True" "$(syn "$O" dangling.sh.erb stderr | grep -qE 'No such file|not a regular file' && echo True || echo False)"
+if [ -r "$T/locked.sh.erb" ]; then skip "running as root, chmod 000 is readable"; skip "root"; skip "root"
+else
+  check "unreadable not ok" "False" "$(syn "$O" locked.sh.erb ok)"
+  check "unreadable stderr" "True" "$(syn "$O" locked.sh.erb stderr | grep -q 'Permission denied' && echo True || echo False)"
+  if has_sc; then check "shellcheck note names the unreadable file" "True" "$(chk "$O" shellcheck note | grep -q 'not scanned (unreadable): locked.sh.erb' && echo True || echo False)"
+  else skip "shellcheck not installed"; fi
+fi
+check "dangling excluded from syntax files_examined" "2" "$(chk "$O" syntax files_examined)"
+if has_sc; then
+  check "shellcheck ran" "ran" "$(chk "$O" shellcheck status)"
+  check "shellcheck scanned only the readable file" "1" "$(chk "$O" shellcheck files_examined)"
+else skip "shellcheck not installed"; skip "shellcheck not installed"; fi
+chmod 600 "$T/locked.sh.erb"
+
+echo "Test 12: symlinks out of the target and FIFOs are never read"
+T="$TMP/t12"; mkdir -p "$T"
+printf 'echo <%%= x %%>\n' > "$T/real.sh.erb"
+ln -s /etc/hosts "$T/leak.sh.erb"
+ln -s ./real.sh.erb "$T/inside.sh.erb"
+mkfifo "$T/fifo.sh.erb"
+O="$TMP/o12"
+check "exit 0" 0 "$(run "$T" "$O")"
+check "leak not ok" "False" "$(syn "$O" leak.sh.erb ok)"
+check "leak stderr" "symlink outside target, not checked" "$(syn "$O" leak.sh.erb stderr)"
+check "no stripped copy of leak" "False" "$([ -e "$O/stripped/leak.sh.erb.sh" ] && echo True || echo False)"
+check "fifo not ok" "False" "$(syn "$O" fifo.sh.erb ok)"
+check "fifo stderr" "not a regular file, not checked" "$(syn "$O" fifo.sh.erb stderr)"
+check "inside checked" "True" "$(syn "$O" inside.sh.erb ok)"
+check "inside stripped copy" "1" "$(grep -c 'ERBVALUE' "$O/stripped/inside.sh.erb.sh")"
+check "syntax files_examined counts real + inside only" "2" "$(chk "$O" syntax files_examined)"
+if has_sc; then check "shellcheck files_examined" "2" "$(chk "$O" shellcheck files_examined)"
+  check "no shellcheck entry for leak or fifo" "0" "$(j "$O/shellcheck.json" "len([e for e in d if e['file'] in ('leak.sh.erb','fifo.sh.erb')])")"
+else skip "shellcheck not installed"; skip "shellcheck not installed"; fi
+check "semgrep files_examined excludes leak and fifo" "2" "$(chk "$O" semgrep files_examined)"
+
+echo "Test 13: a file named like an option is passed as a path"
+T="$TMP/t13"; mkdir -p "$T"; printf '#!/bin/bash\ncd "$1"\n' > "$T/-x.sh"
+O="$TMP/o13"
+check "exit 0" 0 "$(run "$T" "$O")"
+check "-x.sh ok" "True" "$(syn "$O" -x.sh ok)"
+check "-x.sh stderr empty" "" "$(syn "$O" -x.sh stderr)"
+if has_sc; then
+  check "shellcheck ran" "ran" "$(chk "$O" shellcheck status)"
+  check "SC2164 reported against -x.sh" "True" "$(j "$O/shellcheck.json" "any(e['file']=='-x.sh' and e['code']==2164 for e in d)")"
+else skip "shellcheck not installed"; skip "shellcheck not installed"; fi
+
+echo "Test 14: out-dir must not be the target; an out-dir inside the target is not walked"
+T="$TMP/t14"; mkdir -p "$T"; printf 'echo hi\n' > "$T/a.sh"; printf 'x: 1\n' > "$T/form.yml"
+check "out == target exit 2" 2 "$(run "$T" "$T")"
+check "out == target message" 1 "$(grep -c 'out-dir must not be the target' "$TMP/stderr")"
+check "out == target via trailing slash exit 2" 2 "$(run "$T" "$T/")"
+check "first run inside target" 0 "$(run "$T" "$T/pre-review")"
+check "second run inside target" 0 "$(run "$T" "$T/pre-review")"
+check "syntax lists only a.sh" "a.sh" "$(j "$T/pre-review/syntax.json" "','.join(e['path'] for e in d)")"
+check "semgrep files_examined ignores out-dir" "2" "$(chk "$T/pre-review" semgrep files_examined)"
+
+echo "Test 15: a crashing tool with empty stderr reports its stdout"
+FB="$TMP/fakebin"; mkdir -p "$FB"
+for b in python3 bash sh env; do ln -s "$(command -v "$b")" "$FB/$b"; done
+printf '#!/bin/sh\n[ "$1" = --version ] && { echo "Version: 9.9"; exit 0; }\necho "fatal: could not open cache"\nexit 1\n' > "$FB/trivy"; chmod +x "$FB/trivy"
+T="$TMP/t15"; mkdir -p "$T"; printf 'flask\n' > "$T/requirements.txt"
+O="$TMP/o15"
+check "exit 0" 0 "$(PATH="$FB" "$FB/bash" "$RUN" "$T" "$O" > "$TMP/stdout" 2> "$TMP/stderr"; echo $?)"
+check "trivy failed_to_run" "failed_to_run" "$(chk "$O" trivy status)"
+check "note is stdout" "fatal: could not open cache" "$(chk "$O" trivy note)"
+check "trivy exit_code" "1" "$(chk "$O" trivy exit_code)"
+check "no trivy.json" "False" "$([ -e "$O/trivy.json" ] && echo True || echo False)"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
