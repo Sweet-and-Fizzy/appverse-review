@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Pre-review facts: run the static-analysis tools and the shell syntax check
-once, before the model, and write the results as JSON.
+before the model, so that they run and are recorded on every review rather
+than when the model chooses to run them, and write the results as JSON.
 
     references/run-pre-review.sh <target-dir> <out-dir> [--catalog URL] [--no-catalog]
 
@@ -8,7 +9,8 @@ Exit 0 whenever the script ran to completion, whatever the tools found; exit 2
 only when <target-dir> is missing (or the arguments do not parse). A tool that
 is absent, crashes, or times out is data in the output, never a script failure.
 
-Files written to <out-dir> (any previous *.json and stripped/ are removed first):
+Files written to <out-dir> (any previous *.json, tool-table.md and stripped/ are
+removed first):
 
   summary.json   {"schema": "pre-review/1", "target": <abs path>,
                   "generated_at": <ISO 8601 UTC>, "checks": [...]}
@@ -23,14 +25,18 @@ Files written to <out-dir> (any previous *.json and stripped/ are removed first)
   syntax.json    one entry per shell file (*.sh, *.bash, *.sh.erb): path
                  (repo-relative), stripped (ERB tags removed first), ok
                  (bash -n passed), stderr (first 500 chars). Written even
-                 when the check cannot run (no bash, or bash < 4), with every
-                 file ok false and the reason in stderr.
+                 when there is no bash, with every file ok false and the
+                 reason in stderr. Under a bash older than 4 a failure's
+                 stderr starts "bash <ver> rejected this file (may be valid
+                 on bash >= 4): ".
   shellcheck.json  shellcheck's objects concatenated across files, "file" set
                  to the repo-relative source path (.sh.erb scanned stripped).
   semgrep.json, bandit.json, trivy.json  the tool's own JSON, verbatim.
   stripped/<path>.sh  the ERB-stripped copy of each .sh.erb, for inspection.
   trivy-empty.yaml, trivy-empty.ignore  empty files passed to trivy as its
                  --config and --ignorefile.
+  tool-table.md  the Check tiers line and the Tool / Status / Result table,
+                 rendered from summary.json for the security skill to paste.
 
 A tool's JSON is absent when the tool did not run. Status rules: no applicable
 files -> skipped ("no applicable files"); binary not on PATH -> not_installed
@@ -38,8 +44,10 @@ files -> skipped ("no applicable files"); binary not on PATH -> not_installed
 exited with a crash code (shellcheck >= 2, semgrep >= 2, bandit >= 2,
 trivy != 0) -> failed_to_run (note = first 500 chars of stderr; for trivy its
 FATAL line, else its last non-empty stderr line); otherwise ran. The syntax
-check needs bash >= 4 (the first bash on PATH); an older bash is
-failed_to_run. The catalog check is a placeholder: always skipped.
+check runs bash -n with the first bash on PATH; under a bash older than 4 a
+pass stands, a failure may be a false one (bash 3.2 rejects ;;& and other
+bash 4 syntax), so it carries the prefix above and the syntax note says so.
+The catalog check is a placeholder: always skipped.
 
 Tool commands are the ones in security-tools.md: shellcheck --norc -f json
 -S info per file, and trivy run from the out-dir with an empty --config and
@@ -106,6 +114,7 @@ TRIVY = ["trivy", "fs", "--format", "json", "--scanners", "vuln,misconfig,secret
          "--skip-dirs", "vendor", "--skip-dirs", "node_modules"]
 TRIVY_EMPTY_CONFIG = "trivy-empty.yaml"
 TRIVY_EMPTY_IGNORE = "trivy-empty.ignore"
+TABLE_TOOLS = ("shellcheck", "semgrep", "bandit", "trivy")
 
 
 def strip_erb(text):
@@ -317,8 +326,10 @@ def check_syntax(target, out):
     (summary record, syntax entries). Entries carry the path scanned in
     '_scan' for shellcheck (None when the file could not be read); it is
     dropped before syntax.json is written. A file that cannot be read fails
-    on its own entry; the rest are still checked. When bash is missing or
-    older than 4, nothing is checked and every file is listed ok false."""
+    on its own entry; the rest are still checked. When bash is missing,
+    nothing is checked and every file is listed ok false. Under a bash older
+    than 4 every file is still checked; a failure's stderr is prefixed to say
+    it may be false."""
     all_files, rejected = _classify(target, out)
     files = [p for p in all_files if p.endswith(SHELL_SUFFIXES)]
     refused = [{"path": p, "stripped": False, "ok": False, "stderr": why, "_scan": None}
@@ -344,11 +355,8 @@ def check_syntax(target, out):
         return record("syntax", "not_installed", command=command, output_file="syntax.json",
                       files_examined=len(files), note="bash not found on PATH"), []
     major, ver = _bash_major(bash)
-    if major is not None and major < 4:
-        write(unchecked("bash >= 4 required") + refused)
-        return record("syntax", "failed_to_run", version=tool_version("bash"), command=command,
-                      output_file="syntax.json", files_examined=0,
-                      note="bash >= 4 required for the syntax check (found %s)" % ver), []
+    old_bash = major is not None and major < 4
+    old_prefix = "bash %s rejected this file (may be valid on bash >= 4): " % ver
     entries, checked = [], []
     for rel in files:
         stripped = rel.endswith(".sh.erb")
@@ -368,11 +376,15 @@ def check_syntax(target, out):
             ok, stderr = False, error
         else:
             ok, stderr = rc == 0, err.replace(scan, rel)
+            if old_bash and not ok:
+                stderr = old_prefix + stderr
         entries.append({"path": rel, "stripped": stripped, "ok": ok,
                         "stderr": stderr[:STDERR_CHARS], "_scan": scan})
     entries = write(entries + refused)
     failed = sum(1 for e in entries if e["path"] in checked and not e["ok"])
     notes = []
+    if old_bash:
+        notes.append("bash %s on PATH: failures may be false; install bash >= 4 to confirm" % ver)
     if failed:
         notes.append("%d of %d files failed bash -n" % (failed, len(checked)))
     if len(checked) < len(files):
@@ -532,10 +544,43 @@ def check_catalog(args):
     return record("catalog", "skipped", note="catalog reads land in a later PR")
 
 
+def _tool_status(rec):
+    if rec["status"] == "ran":
+        stripped = "file(s) scanned ERB-stripped" in (rec["note"] or "")
+        return "Run (ERB-stripped)" if rec["name"] == "shellcheck" and stripped else "Run"
+    if rec["status"] == "not_installed":
+        return "Not run (not installed)"
+    if rec["status"] == "failed_to_run":
+        return "Not run (failed)"
+    return "Not run (%s)" % rec["note"]
+
+
+def _tool_result(rec):
+    n = rec.get("finding_count")
+    if rec["status"] != "ran" or n is None:
+        return "\u2014"
+    if n == 0:
+        return "0 findings"
+    return "%d finding%s (%s)" % (n, "" if n == 1 else "s", ", ".join(rec.get("top_codes") or []))
+
+
+def tool_table(checks):
+    """The Check tiers line and the tool table, as the security skill pastes it."""
+    by_name = {c["name"]: c for c in checks}
+    rows = [by_name.get(t) or record(t, "failed_to_run") for t in TABLE_TOOLS]
+    tiers = "Tiers 1\u20132" if any(r["status"] == "ran" for r in rows) else "Tier 1 only"
+    lines = ["**Check tiers:** " + tiers, "",
+             "Tier 3 not checked \u2014 no isolated execution environment.", "",
+             "| Tool | Status | Result |", "|---|---|---|"]
+    lines += ["| %s | %s | %s |" % (r["name"], _tool_status(r).replace("|", "\\|"),
+                                    _tool_result(r)) for r in rows]
+    return "\n".join(lines) + "\n"
+
+
 def _prepare_out(out):
     os.makedirs(out, exist_ok=True)
     for name in os.listdir(out):
-        if name.endswith(".json"):
+        if name.endswith(".json") or name == "tool-table.md":
             os.remove(os.path.join(out, name))
     shutil.rmtree(os.path.join(out, "stripped"), ignore_errors=True)
 
@@ -586,6 +631,8 @@ def main(argv):
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "checks": checks,
     })
+    with open(os.path.join(out, "tool-table.md"), "w", encoding="utf-8") as f:
+        f.write(tool_table(checks))
     for c in checks:
         print("%-10s %s%s" % (c["name"], c["status"], " (%s)" % c["note"] if c["note"] else ""))
     return 0

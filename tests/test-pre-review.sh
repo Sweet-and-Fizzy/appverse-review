@@ -19,10 +19,11 @@ syn() { j "$1/syntax.json" "[e for e in d if e['path']=='$2'][0]['$3']"; }
 has_sc() { command -v shellcheck >/dev/null 2>&1; }
 yn() { if "$@"; then echo True; else echo False; fi; }
 
-# The syntax check needs bash >= 4. Where the only bash is older (macOS
-# /bin/bash 3.2), the bash -n tests run through a shim that reports 5.x and
-# execs the real bash, so the stripping and bookkeeping paths stay covered;
-# Test 20 covers the bash < 4 path itself.
+# Under a bash older than 4 the syntax check prefixes every failure (it may
+# be false). Where the only bash is older (macOS /bin/bash 3.2), the other
+# bash -n tests run through a shim that reports 5.x and execs the real bash,
+# so their stderr assertions see plain bash messages; Test 20 covers both the
+# < 4 and >= 4 paths with its own shims, whatever the real bash is.
 REAL_BASH="$(command -v bash)"
 BASH4="$REAL_BASH"
 if [ "$("$REAL_BASH" -c 'echo "${BASH_VERSINFO[0]}"')" -lt 4 ]; then
@@ -303,16 +304,30 @@ if has_sc; then
   check "SC2155 present" "True" "$(j "$O/shellcheck.json" "any(e['code']==2155 for e in d)")"
 else for i in 1 2 3 4; do skip "shellcheck not installed"; done; fi
 
-echo "Test 20: bash older than 4 is failed_to_run, every file still listed"
-OB="$TMP/oldbash"; mkdir -p "$OB"
-printf '#!/bin/sh\n[ "$1" = --version ] && { echo "GNU bash, version 3.2.57(1)-release"; exit 0; }\nexec "%s" "$@"\n' "$REAL_BASH" > "$OB/bash"; chmod +x "$OB/bash"
+echo "Test 20: bash older than 4 keeps passes and prefixes failures; bash >= 4 does not"
+# vbash <dir> <version>: a bash that reports <version> and execs the real
+# bash. c.sh uses ;;& (bash 4 syntax); where the real bash accepts it, the
+# shim rejects it the way bash 3.2 does, so the failure path is covered on
+# any machine.
+vbash() { mkdir -p "$1"; printf '#!/bin/sh\n[ "$1" = --version ] && { echo "GNU bash, version %s(1)-release"; exit 0; }\nif [ "$1" = -n ] && grep -qF ";;&" "$2" 2>/dev/null && "%s" -n "$2" 2>/dev/null; then echo "$2: line 2: syntax error near unexpected token \`&'"'"'" >&2; exit 2; fi\nexec "%s" "$@"\n' "$2" "$REAL_BASH" "$REAL_BASH" > "$1/bash"; chmod +x "$1/bash"; }
 T="$TMP/t20"; mkdir -p "$T"; printf 'echo hi\n' > "$T/a.sh"; printf 'echo <%%= x %%>\n' > "$T/b.sh.erb"
+printf 'case x in\n  a) echo a ;;&\n  *) echo b ;;\nesac\n' > "$T/c.sh"
+vbash "$TMP/bash32" 3.2.57; vbash "$TMP/bash52" 5.2.21
 O="$TMP/o20"
-check "exit 0" 0 "$(PATH="$OB:$PATH" "$REAL_BASH" "$RUN" "$T" "$O" > "$TMP/stdout" 2> "$TMP/stderr"; echo $?)"
-check "syntax failed_to_run" "failed_to_run" "$(chk "$O" syntax status)"
-check "syntax note" "bash >= 4 required for the syntax check (found 3.2.57)" "$(chk "$O" syntax note)"
-check "syntax.json lists both files" "a.sh,b.sh.erb" "$(j "$O/syntax.json" "','.join(e['path'] for e in d)")"
-check "every entry ok false with the reason" "True" "$(j "$O/syntax.json" "all(not e['ok'] and e['stderr']=='not checked: bash >= 4 required' and not e['stripped'] for e in d)")"
+check "exit 0" 0 "$(PATH="$TMP/bash32:$PATH" "$REAL_BASH" "$RUN" "$T" "$O" > "$TMP/stdout" 2> "$TMP/stderr"; echo $?)"
+check "syntax ran" "ran" "$(chk "$O" syntax status)"
+check "syntax version recorded" "True" "$(chk "$O" syntax version | grep -qF 3.2.57 && echo True || echo False)"
+check "syntax note" "bash 3.2.57 on PATH: failures may be false; install bash >= 4 to confirm; 1 of 3 files failed bash -n" "$(chk "$O" syntax note)"
+check "syntax files_examined" "3" "$(chk "$O" syntax files_examined)"
+check "valid a.sh ok" "True|" "$(j "$O/syntax.json" "'%s|%s' % ([e for e in d if e['path']=='a.sh'][0]['ok'], [e for e in d if e['path']=='a.sh'][0]['stderr'])")"
+check "valid b.sh.erb ok and stripped" "True|True" "$(j "$O/syntax.json" "'%s|%s' % ([e for e in d if e['path']=='b.sh.erb'][0]['ok'], [e for e in d if e['path']=='b.sh.erb'][0]['stripped'])")"
+check "c.sh (;;&) not ok" "False" "$(syn "$O" c.sh ok)"
+check "c.sh stderr carries the bash < 4 prefix" "True" "$(syn "$O" c.sh stderr | grep -q '^bash 3.2.57 rejected this file (may be valid on bash >= 4): c.sh: line 2: syntax error' && echo True || echo False)"
+O="$TMP/o20b"
+check "exit 0 (bash 5)" 0 "$(PATH="$TMP/bash52:$PATH" "$REAL_BASH" "$RUN" "$T" "$O" > "$TMP/stdout" 2> "$TMP/stderr"; echo $?)"
+check "syntax ran (bash 5)" "ran" "$(chk "$O" syntax status)"
+check "syntax note (bash 5)" "1 of 3 files failed bash -n" "$(chk "$O" syntax note)"
+check "c.sh stderr is the plain bash message" "True" "$(syn "$O" c.sh stderr | grep -q '^c.sh: line 2: syntax error' && echo True || echo False)"
 
 echo "Test 21: shellcheck reports SC2086 (info level)"
 T="$TMP/t21"; mkdir -p "$T"; printf '#!/bin/bash\necho $1\n' > "$T/a.sh"
@@ -400,6 +415,20 @@ check "exit 0" 0 "$(run "$T" "$O")"
 if has_sc; then
   check "SC2164 on source line 4" "4" "$(j "$O/shellcheck.json" "[e['line'] for e in d if e['code']==2164][0]")"
   check "file is the source path" "a.sh.erb" "$(j "$O/shellcheck.json" "[e['file'] for e in d if e['code']==2164][0]")"
+else skip "shellcheck not installed"; skip "shellcheck not installed"; fi
+
+echo "Test 30: tool-table.md, PATH-restricted (no tools)"
+check "exact contents" "$(printf '%s\n' '**Check tiers:** Tier 1 only' '' 'Tier 3 not checked — no isolated execution environment.' '' '| Tool | Status | Result |' '|---|---|---|' '| shellcheck | Not run (not installed) | — |' '| semgrep | Not run (not installed) | — |' '| bandit | Not run (not installed) | — |' '| trivy | Not run (not installed) | — |')" "$(cat "$TMP/o7/tool-table.md")"
+check "ends with a newline" "True" "$(python3 -c 'import sys; print(open(sys.argv[1]).read().endswith("|\n"))' "$TMP/o7/tool-table.md")"
+
+echo "Test 31: tool-table.md, containerized-server with only shellcheck"
+if has_sc; then
+  FB="$TMP/fb31"; fakebin "$FB"; ln -sf "$(command -v shellcheck)" "$FB/shellcheck"
+  O="$TMP/o31"
+  check "exit 0" 0 "$(PATH="$FB" "$FB/bash" "$RUN" "$FIX/containerized-server" "$O" > "$TMP/stdout" 2> "$TMP/stderr"; echo $?)"
+  # The shellcheck Result is recomputed from shellcheck.json so the test holds across shellcheck versions.
+  SC_RESULT="$(python3 -c 'import json,sys,collections; d=json.load(open(sys.argv[1])); c=collections.Counter("SC%s" % e["code"] for e in d); print("%d findings (%s)" % (len(d), ", ".join(k for k, _ in sorted(c.items(), key=lambda kv: (-kv[1], kv[0]))[:5])))' "$O/shellcheck.json")"
+  check "exact contents" "$(printf '%s\n' '**Check tiers:** Tiers 1–2' '' 'Tier 3 not checked — no isolated execution environment.' '' '| Tool | Status | Result |' '|---|---|---|' "| shellcheck | Run (ERB-stripped) | $SC_RESULT |" '| semgrep | Not run (not installed) | — |' '| bandit | Not run (no applicable files) | — |' '| trivy | Not run (no applicable files) | — |')" "$(cat "$O/tool-table.md")"
 else skip "shellcheck not installed"; skip "shellcheck not installed"; fi
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

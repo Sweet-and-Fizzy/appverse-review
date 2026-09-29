@@ -22,8 +22,10 @@ own runs it itself.
 
   This writes the tool and syntax facts the security and structure skills
   read; a local machine has whatever tools it has, and summary.json says so.
-  The shell syntax check needs bash >= 4 first on PATH (on macOS,
-  `brew install bash`); with the system bash 3.2 every STR-06 is NOT CHECKED.
+  The shell syntax check uses the first bash on PATH. The macOS system bash
+  3.2 is fine unless a script fails under it: a file that fails is recorded
+  as possibly valid on bash >= 4 and its STR-06 is NOT CHECKED. To confirm
+  such a failure, put bash >= 4 first on PATH (`brew install bash`) and rerun.
 
   If `gh` is unavailable, shallow-clone and read the SHA from the checkout. The
   SHA must be recorded regardless of method.

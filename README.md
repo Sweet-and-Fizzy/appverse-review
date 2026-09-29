@@ -30,8 +30,9 @@ and whether the `software` value matches a catalog entry.
   the review still completes.
 - **Static analysis tools** (optional) — `references/run-pre-review.sh` runs
   whichever of shellcheck (shell), bandit (Python), semgrep (multi-language),
-  and trivy (dependencies/containers) are installed, before the model reviews
-  anything. npm audit (Node.js) and rubocop (Ruby) are manual only; the script
+  and trivy (dependencies/containers) are installed, plus the shell syntax
+  check, before the model reviews anything, so they run and are recorded on
+  every review rather than when the model decides to run them. npm audit (Node.js) and rubocop (Ruby) are manual only; the script
   does not run them. See
   [references/security-tools.md](references/security-tools.md) for install
   instructions per platform. If none are installed the review still completes

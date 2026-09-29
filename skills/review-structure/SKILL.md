@@ -56,6 +56,10 @@ record is NOT CHECKED with the note "pre-review facts not found".
     has no valid key; name it only in the STR-06 row summary.
   - `stderr` begins with "not a regular file" (a FIFO or device): NOT
     CHECKED (severity info, evidence `<path>:1` plus the reason).
+  - `stderr` begins with "bash <ver> rejected this file" (the bash on PATH
+    is older than 4, and the file may use bash 4 syntax such as `;;&`): NOT
+    CHECKED (severity info, evidence `<path>:1` plus that stderr text), not
+    FAIL.
   - `stderr` is a bash message (it starts with the file path followed by
     `: line N:`): FAIL (severity high, evidence `<path>:<N>` using that line
     number, or `<path>:1` when no `line N` is present, plus the first stderr

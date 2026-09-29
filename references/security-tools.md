@@ -19,15 +19,19 @@ never replace, the manual analysis.
 - **Finding counts:** each record carries `finding_count` (null when the
   tool did not run) and `top_codes` (up to five most frequent codes); the
   skill's Result column is rendered from these, never recounted.
-- **Syntax check:** `bash -n` needs bash >= 4 (the first `bash` on PATH).
-  With an older bash (macOS `/bin/bash` is 3.2) the `syntax` check is
-  `failed_to_run` and `syntax.json` lists every shell file as not checked.
+- **Syntax check:** `bash -n` with the first `bash` on PATH; the `syntax`
+  record's `version` names it. With an older bash (macOS `/bin/bash` is 3.2)
+  a pass stands; a failure's `stderr` starts `bash <ver> rejected this file
+  (may be valid on bash >= 4): ` and the note says failures may be false.
+- **Tool table:** `<out-dir>/tool-table.md` is the Check tiers line and the
+  Tool / Status / Result table, rendered from `summary.json`. The security
+  skill pastes it verbatim.
 - **Status vocabulary:** each check's `status` is `ran`, `not_installed`,
   `failed_to_run`, or `skipped`. The skill renders these as `Run`,
   `Not run (not installed)`, `Not run (failed)`, and `Not run (<note>)`.
 - **CI:** the workflow installs shellcheck, bandit, and a pinned semgrep.
-  trivy is local-only until CI installs it; in CI its row is
-  `not_installed`.
+  trivy is local-only until CI installs it from a pinned source (see the
+  planning discussion); in CI its row is `not_installed`.
 - **Scanner configuration in the target:** shellcheck runs with `--norc` and
   trivy with an empty config and ignore file written to the out-dir, so a
   target's `.shellcheckrc`, `trivy.yaml`, or `.trivyignore` cannot silence

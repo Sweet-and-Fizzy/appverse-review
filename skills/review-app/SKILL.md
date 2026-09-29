@@ -134,13 +134,7 @@ string; if unavailable, write `unknown`.
 
 Findings are classified under OODT (Open OnDemand App Threats); codes are defined in the rubric's Security section.
 
-**Check tiers:** <Tiers 1–2 | Tiers 1–3 | Tier 1 only>
-<!-- from <pre-review>/summary.json: tier 2 ran only if a tool has status ran -->
-<if not all tiers: "Tier N not checked — <reason>">
-
-| Tool | Status | Result |
-|---|---|---|
-<!-- one row per check in summary.json except syntax and catalog; rendering rules in review-security/SKILL.md step 5 -->
+<!-- Paste <pre-review>/tool-table.md here verbatim: the Check tiers line, the tier 3 line, and the Tool / Status / Result table. Never retype it. If the file is absent, write "**Check tiers:** Tier 1 only" and the table with all four rows (shellcheck, semgrep, bandit, trivy) as "Not run (pre-review facts not found)" with Result "—". -->
 
 <capability profile: table for Batch Connect, narrative for Passenger>
 

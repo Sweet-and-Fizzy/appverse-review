@@ -62,21 +62,17 @@ should look thinner, not identical to a full one.
    finding, cite the tool as corroborating evidence (e.g., "bandit B602:
    subprocess with shell=True"). Where a tool surfaces something the manual scan
    missed, add it.
-5. **Tier 2 — Read the pre-review results.** Read `<pre-review>/summary.json`.
-   Render the tool-scan summary from it: one row per check except `syntax` and
-   `catalog`; Status is `Run` for `ran` (shellcheck: `Run (ERB-stripped)`
-   when its `note` says `.sh.erb file(s) scanned ERB-stripped`),
-   `Not run (not installed)` for `not_installed`, `Not run (failed)` for `failed_to_run`, and
-   `Not run (<note>)` for `skipped`. Result is rendered verbatim from the
-   record's `finding_count` and `top_codes`, never counted or computed by
-   you: `—` when `finding_count` is null (the tool did not run), `0 findings`
-   when it is 0, otherwise `<finding_count> findings (<top_codes joined with
-   ", ">)` (`1 finding (...)` for one). Install hints and notes never go in
-   the Result column. Then read each tool's JSON and treat its findings exactly as
-   before: corroboration for a step-4 finding, or a new finding classified
-   under OODT. Never run a tool, never ask to run one, never write "pending
-   approval". If the pre-review directory is missing, every row is
-   `Not run (pre-review facts not found)` and tier 2 is reported as not run.
+5. **Tier 2 — Read the pre-review results.** The pre-review script has
+   already rendered the Check tiers line and the tool-scan table into
+   `<pre-review>/tool-table.md`. Paste that file's contents verbatim as the
+   Check tiers line and the table; never retype, reorder, recount, or reword
+   any of it. Then read `<pre-review>/summary.json` and each tool's JSON and
+   treat the findings exactly as before: corroboration for a step-4 finding,
+   or a new finding classified under OODT. Never run a tool, never ask to
+   run one, never write "pending approval". If `tool-table.md` is absent,
+   write the Check tiers line as `Tier 1 only` and the table with all four
+   rows (shellcheck, semgrep, bandit, trivy) as
+   `Not run (pre-review facts not found)` with Result `—`.
 6. **Tier 3 — Runtime checks** (when the app is runnable). Where the app has a
    WSGI/Rack entry point (`passenger_wsgi.py`, `config.ru`), a test harness, or
    is otherwise runnable, exercise security-relevant paths rather than only
@@ -124,22 +120,13 @@ Follow these rules for any runtime verification:
 
 ## Output
 
-- **Check tiers ran** — state which tiers were executed (e.g., "Tiers 1–2;
-  tier 3 not checked — no isolated execution environment"). Tier 2 counts as
-  run only if at least one tool in `summary.json` has status `ran`.
-- **Tool scan summary** (required) — a table with one row per relevant tool.
-  A reader must be able to distinguish "clean scan" from "scanner not installed":
-
-  | Tool | Status | Result |
-  |---|---|---|
-  | shellcheck | Run (ERB-stripped) | 2 findings (SC2164, SC2148) |
-  | semgrep | Not run (not installed) | — |
-  | bandit | Run | 0 findings |
-  | trivy | Not run (no applicable files) | — |
-
-  If no tools were available, use the table with every row showing
-  `Not run (not installed)` and Result `—`. Never omit the table — its
-  absence is indistinguishable from a clean scan.
+- **Check tiers ran and tool scan summary** (required) — the contents of
+  `<pre-review>/tool-table.md`, pasted verbatim: the Check tiers line, the
+  tier 3 line, and the four-row Tool / Status / Result table. Never retype
+  it. If the file is absent, write `**Check tiers:** Tier 1 only` and the
+  table with every row `Not run (pre-review facts not found)` and Result
+  `—`. Never omit the table — its absence is indistinguishable from a clean
+  scan.
 - The capability profile: a compact File / Capabilities / Anomalies table for
   Batch Connect apps; a short narrative for Passenger apps.
 
