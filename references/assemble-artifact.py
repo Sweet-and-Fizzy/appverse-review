@@ -237,8 +237,7 @@ def cross_check_reported(scope, reported, indicators):
     if not isinstance(reported, dict):
         _warn("{}: reported_signals is not an object; cross-check skipped".format(scope))
         return
-    # No security indicator (schema 1.2); a stale reported security signal is ignored.
-    reported = {k: v for k, v in reported.items() if k != "security"}
+    # No security indicator (schema 1.2): a stale reported security signal has nothing to compare against and is ignored.
     for axis, stated in reported.items():
         expected = REPORTED_SIGNAL_LEVELS.get(str(stated).lower().strip())
         computed = indicators.get(axis, {}).get("level")

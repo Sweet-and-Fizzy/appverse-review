@@ -535,13 +535,14 @@ echo "Test 10: reported signals cross-check"
 # with_reported <out> <app-a security> <maintenance> adds the report's stated
 # levels to the Test 5 fixture. Everything except the two arguments agrees with
 # the computed levels (Low=solid, Medium=some_notes, High=needs_attention). The
-# security key is stale (schema 1.2 has no security indicator) and is always
-# ignored, regardless of what value it carries.
+# security key is stale: schema 1.2 has no security indicator, so it has nothing
+# to compare against and is ignored, whatever value it carries. An optional
+# fifth argument overrides app-a's reported portability.
 with_reported() {
   python3 -c '
 import json, sys
 m = json.load(open(sys.argv[1]))
-m["apps"][0]["reported_signals"] = {"security": sys.argv[3], "portability": "Low", "documentation": "Medium"}
+m["apps"][0]["reported_signals"] = {"security": sys.argv[3], "portability": sys.argv[5] if len(sys.argv) > 5 else "Low", "documentation": "Medium"}
 m["apps"][1]["reported_signals"] = {"security": "Low", "portability": "Medium", "documentation": "Low"}
 m["maintenance_assessment"]["reported_signal"] = sys.argv[4]
 json.dump(m, open(sys.argv[2], "w"))
@@ -564,6 +565,12 @@ with_reported "$TMP/meta-mnt.json" "High" "High"
 python3 "$ASSEMBLE" --meta "$TMP/meta-mnt.json" --findings "$TMP/findings-ind.json" --md "r.md" --plugin-version "0.3.0" > /dev/null 2> "$TMP/warn9c.txt"
 grep -qi "maintenance" "$TMP/warn9c.txt" && MNTWARN=yes || MNTWARN=no
 check "report says High, computed solid: warns for maintenance" "yes" "$MNTWARN"
+
+with_reported "$TMP/meta-port.json" "Low" "Low" "High"
+python3 "$ASSEMBLE" --meta "$TMP/meta-port.json" --findings "$TMP/findings-ind.json" --md "r.md" --plugin-version "0.3.0" > /dev/null 2> "$TMP/warn9d.txt"
+grep "report states" "$TMP/warn9d.txt" | grep -q "app-a" && grep "report states" "$TMP/warn9d.txt" | grep -q "portability" && PORTWARN=yes || PORTWARN=no
+check "app-a report says portability High, computed solid: warns naming app-a and portability" "yes" "$PORTWARN"
+check "only that one axis and app warns" "1" "$(grep -c "report states" "$TMP/warn9d.txt")"
 
 # --- Test 11: grades are LLM-written strings ---
 echo ""
@@ -623,7 +630,7 @@ check "repo-wide 'root' findings do not warn" "no" "$ROOTWARN"
 
 # Any other unmatched app_id is a spelling mismatch between findings.json and
 # meta.apps. Routing those findings elsewhere would leave their real app with a
-# solid security level and all-pass criteria it did not earn, so the assembler
+# clean findings and all-pass criteria it did not earn, so the assembler
 # refuses instead: a red run beats a confident wrong artifact.
 cat > "$TMP/findings-typo.json" << 'EOF'
 [
@@ -690,7 +697,7 @@ check "…and the bad shape is named on stderr" "yes" "$SHAPEWARN"
 echo ""
 echo "Test 16: malformed findings.json"
 # A findings file that will not parse used to become "no findings", and the
-# artifact then claimed solid security for every app.
+# artifact then claimed clean findings for every app.
 printf '[{"app_id": "app-a", "rule": "OODT-01"' > "$TMP/findings-broken.json"
 if python3 "$ASSEMBLE" --meta "$TMP/meta-ind.json" --findings "$TMP/findings-broken.json" --md "r.md" --plugin-version "0.3.0" > "$TMP/art16.json" 2> "$TMP/warn16.txt"; then RC16=0; else RC16=$?; fi
 check "malformed findings: exit status non-zero" "1" "$RC16"

@@ -308,7 +308,7 @@ jobs:
           if [ -f "$JSON_FILE" ]; then
             if ! python3 -m json.tool "$JSON_FILE" > /dev/null 2>&1; then
               # Carrying on would assemble an artifact with no findings, which
-              # then claims solid security for every app.
+              # then claims clean findings for every app.
               echo "::error::Findings JSON is malformed — the review did not produce usable structured output"
               echo "First 500 chars of file:"
               head -c 500 "$JSON_FILE"
