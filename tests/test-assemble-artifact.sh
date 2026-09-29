@@ -325,16 +325,10 @@ EOF
 ART4=$(python3 "$ASSEMBLE" --meta "$TMP/meta-ind.json" --findings "$TMP/findings-ind.json" --md "r.md" --plugin-version "0.3.0" 2> "$TMP/warn4.txt")
 
 SCHEMA=$(echo "$ART4" | jget "d['schema_version']")
-check "schema_version bumped to 1.1" "1.1" "$SCHEMA"
+check "schema_version bumped to 1.2" "1.2" "$SCHEMA"
 
-SEC_A=$(echo "$ART4" | jget "d['apps'][0]['indicators']['security']['level']")
-check "app-a security level (Medium finding)" "needs_attention" "$SEC_A"
-
-SEC_A_SUM=$(echo "$ART4" | jget "d['apps'][0]['indicators']['security']['summary']")
-check "app-a security summary mechanical" "1 Medium, 1 Low" "$SEC_A_SUM"
-
-SEC_B=$(echo "$ART4" | jget "d['apps'][1]['indicators']['security']['level']")
-check "app-b security level (no OODT findings)" "solid" "$SEC_B"
+NO_SEC=$(echo "$ART4" | jget "'security' in d['apps'][0]['indicators']")
+check "no security indicator (schema 1.2)" "False" "$NO_SEC"
 
 PORT_A=$(echo "$ART4" | jget "d['apps'][0]['indicators']['portability']['level']")
 check "app-a portability solid (portable)" "solid" "$PORT_A"
@@ -351,8 +345,8 @@ check "app-b portability some_notes (partial)" "some_notes" "$PORT_B"
 MAINT=$(echo "$ART4" | jget "d['repo_level']['indicators']['maintenance']['level']")
 check "maintenance solid (active + 3 signals)" "solid" "$MAINT"
 
-ANCHOR=$(echo "$ART4" | jget "d['apps'][0]['indicators']['security']['anchor']")
-check "security anchor fragment" "#security" "$ANCHOR"
+ANCHOR=$(echo "$ART4" | jget "d['apps'][0]['indicators']['portability']['anchor']")
+check "portability anchor fragment" "#portability" "$ANCHOR"
 
 MAINT_ANCHOR=$(echo "$ART4" | jget "d['repo_level']['indicators']['maintenance']['anchor']")
 check "maintenance anchor fragment" "#upkeep" "$MAINT_ANCHOR"
@@ -367,9 +361,6 @@ check "app-a portability anchor" "#portability" "$PORT_ANCHOR_A"
 
 # Monorepo: every app repeats the same headings, and pandoc de-duplicates the
 # second occurrence as "-1". App index 1 must not link into app 0's section.
-SEC_ANCHOR_B=$(echo "$ART4" | jget "d['apps'][1]['indicators']['security']['anchor']")
-check "app-b security anchor (2nd app)" "#security-1" "$SEC_ANCHOR_B"
-
 PORT_ANCHOR_B=$(echo "$ART4" | jget "d['apps'][1]['indicators']['portability']['anchor']")
 check "app-b portability anchor (2nd app)" "#portability-1" "$PORT_ANCHOR_B"
 
@@ -433,9 +424,9 @@ python3 "$ASSEMBLE" --meta "$TMP/meta-x.json" --findings "$TMP/findings-x-pass.j
 grep -q "QUA-01" "$TMP/warn6b.txt" && XPASSWARN=yes || XPASSWARN=no
 check "QUA-01 with result PASS beside strong docs does not warn" "no" "$XPASSWARN"
 
-# --- Test 8: security severity boundaries ---
+# --- Test 8: OODT findings of varying severity stay in findings, untouched ---
 echo ""
-echo "Test 8: security severity boundaries"
+echo "Test 8: OODT findings of varying severity stay in findings, untouched"
 cat > "$TMP/meta-sev.json" << 'EOF'
 {
   "repo_url": "https://github.com/test/sev",
@@ -471,19 +462,19 @@ cat > "$TMP/findings-sev.json" << 'EOF'
 EOF
 ART7=$(python3 "$ASSEMBLE" --meta "$TMP/meta-sev.json" --findings "$TMP/findings-sev.json" --md "r.md" --plugin-version "0.3.0" 2> "$TMP/warn7.txt")
 
-SEC_CRIT=$(echo "$ART7" | jget "d['apps'][0]['indicators']['security']['level']")
-check "Critical finding -> needs_attention" "needs_attention" "$SEC_CRIT"
+CRIT_FINDING=$(echo "$ART7" | jget "d['apps'][0]['findings'][0]['rule']")
+check "Critical OODT finding stays in app-crit's findings" "OODT-01" "$CRIT_FINDING"
 
-SEC_CRIT_SUM=$(echo "$ART7" | jget "d['apps'][0]['indicators']['security']['summary']")
-check "Critical counted in summary" "1 Critical" "$SEC_CRIT_SUM"
+INFO_FINDING=$(echo "$ART7" | jget "d['apps'][1]['findings'][0]['rule']")
+check "Info OODT finding stays in app-info's findings" "OODT-03" "$INFO_FINDING"
 
-SEC_INFO=$(echo "$ART7" | jget "d['apps'][1]['indicators']['security']['level']")
-check "Info-only finding -> some_notes" "some_notes" "$SEC_INFO"
+NO_SEC_CRIT=$(echo "$ART7" | jget "'security' in d['apps'][0]['indicators']")
+check "no security indicator regardless of OODT severity" "False" "$NO_SEC_CRIT"
 
-# A high-severity STRUCTURE finding is not a security finding: the security
-# level keys on the OODT- rule prefix, not on severity alone.
-SEC_STR=$(echo "$ART7" | jget "d['apps'][2]['indicators']['security']['level']")
-check "High STR finding leaves security solid" "solid" "$SEC_STR"
+# A high-severity STRUCTURE finding is not an OODT finding, and there is no
+# security indicator to key on the OODT- rule prefix any more.
+SEC_STR=$(echo "$ART7" | jget "d['apps'][2]['findings'][0]['rule']")
+check "High STR finding stays in app-str's findings" "STR-03" "$SEC_STR"
 
 # --- Test 9: upkeep boundaries ---
 echo ""
@@ -543,7 +534,9 @@ echo "Test 10: reported signals cross-check"
 # The report states Low/Medium/High (LLM-derived); the artifact level is computed.
 # with_reported <out> <app-a security> <maintenance> adds the report's stated
 # levels to the Test 5 fixture. Everything except the two arguments agrees with
-# the computed levels (Low=solid, Medium=some_notes, High=needs_attention).
+# the computed levels (Low=solid, Medium=some_notes, High=needs_attention). The
+# security key is stale (schema 1.2 has no security indicator) and is always
+# ignored, regardless of what value it carries.
 with_reported() {
   python3 -c '
 import json, sys
@@ -564,10 +557,8 @@ check "reported_signals not copied into artifact" "False" "$LEAKED"
 
 with_reported "$TMP/meta-sec.json" "Low" "Low"
 python3 "$ASSEMBLE" --meta "$TMP/meta-sec.json" --findings "$TMP/findings-ind.json" --md "r.md" --plugin-version "0.3.0" > /dev/null 2> "$TMP/warn9b.txt"
-grep "app-a" "$TMP/warn9b.txt" | grep -qi "security" && SECWARN=yes || SECWARN=no
-check "report says Low, computed needs_attention: warns for app-a security" "yes" "$SECWARN"
-grep -qi "portability\|documentation\|app-b" "$TMP/warn9b.txt" && OVERWARN=yes || OVERWARN=no
-check "only the disagreeing axis warns" "no" "$OVERWARN"
+[ -s "$TMP/warn9b.txt" ] && SECQUIET=no || SECQUIET=yes
+check "reported_signals.security is ignored: no warning even though it disagrees" "yes" "$SECQUIET"
 
 with_reported "$TMP/meta-mnt.json" "High" "High"
 python3 "$ASSEMBLE" --meta "$TMP/meta-mnt.json" --findings "$TMP/findings-ind.json" --md "r.md" --plugin-version "0.3.0" > /dev/null 2> "$TMP/warn9c.txt"
@@ -673,10 +664,9 @@ cat > "$TMP/findings-result.json" << 'EOF'
 ]
 EOF
 ART14=$(python3 "$ASSEMBLE" --meta "$TMP/meta-ind.json" --findings "$TMP/findings-result.json" --md "r.md" --plugin-version "0.3.0" 2> "$TMP/warn14.txt")
-check "NOT CHECKED medium OODT record leaves security solid" "solid" "$(echo "$ART14" | jget "d['apps'][0]['indicators']['security']['level']")"
-check "NOT CHECKED records are named in the summary" "No security findings; 1 not checked" "$(echo "$ART14" | jget "d['apps'][0]['indicators']['security']['summary']")"
-check "PASS high OODT record does not move the level; WARN low does" "some_notes" "$(echo "$ART14" | jget "d['apps'][1]['indicators']['security']['level']")"
-check "PASS records are not counted in the summary" "1 Low" "$(echo "$ART14" | jget "d['apps'][1]['indicators']['security']['summary']")"
+check "NOT CHECKED OODT record is still present in findings" "OODT-01" "$(echo "$ART14" | jget "d['apps'][0]['findings'][0]['rule']")"
+check "NOT CHECKED result is preserved" "NOT CHECKED" "$(echo "$ART14" | jget "d['apps'][0]['findings'][0]['result']")"
+check "PASS and WARN OODT records both still present" "['OODT-02', 'OODT-08']" "$(echo "$ART14" | jget "[f['rule'] for f in d['apps'][1]['findings']]")"
 
 # --- Test 15: optional inputs with the wrong shape ---
 echo ""
@@ -692,7 +682,7 @@ json.dump(m, open(sys.argv[2], "w"))
 EOF
 if python3 "$ASSEMBLE" --meta "$TMP/meta-badshape.json" --findings "$TMP/findings-ind.json" --md "r.md" --plugin-version "0.3.0" > "$TMP/art15.json" 2> "$TMP/warn15.txt"; then RC15=0; else RC15=$?; fi
 check "list-shaped reported_signals + null signals: exit 0" "0" "$RC15"
-check "…and the indicators are still derived" "needs_attention" "$(jget "d['apps'][0]['indicators']['security']['level']" < "$TMP/art15.json")"
+check "…and the indicators are still derived" "solid" "$(jget "d['apps'][0]['indicators']['portability']['level']" < "$TMP/art15.json")"
 grep -qi "reported_signals" "$TMP/warn15.txt" && SHAPEWARN=yes || SHAPEWARN=no
 check "…and the bad shape is named on stderr" "yes" "$SHAPEWARN"
 

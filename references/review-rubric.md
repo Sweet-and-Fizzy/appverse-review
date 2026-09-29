@@ -21,7 +21,7 @@ this document.
    listed. They live in the Structure section. An app that fails one cannot be
    accepted until it is fixed.
 2. **Signals (Low / Medium / High).** A per-dimension reading for a deployer
-   on four axes: Security, Portability, Documentation, and Upkeep. **Low = the
+   on three axes: Portability, Documentation, and Upkeep. **Low = the
    good end; High = the most to read before deploying**, on every axis.
    Signals describe; they never decide. A High signal on its own does not
    reject an app, and a Low signal does not accept one.

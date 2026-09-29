@@ -31,14 +31,11 @@ from collections import defaultdict
 from datetime import datetime, timezone
 
 
-SCHEMA_VERSION = "1.1"
+SCHEMA_VERSION = "1.2"
 
 SOLID = "solid"
 SOME_NOTES = "some_notes"
 NEEDS_ATTENTION = "needs_attention"
-
-SEVERITY_ORDER = ["critical", "high", "medium", "low", "info"]
-SECURITY_ATTENTION_SEVERITIES = {"critical", "high", "medium"}
 
 GRADE_LEVELS = {
     "documentation": {
@@ -189,30 +186,6 @@ def _normalize_grade(grade):
     return str(grade).lower().strip().replace(" ", "_").replace("-", "_")
 
 
-def derive_security_indicator(app_findings, app_index):
-    # Findings carry no category field, so security findings are the OODT- rules.
-    security = [f for f in app_findings if f.get("rule", "").startswith("OODT-")]
-    severities = [str(f.get("severity", "")).lower() for f in security if _asserted(f)]
-    not_checked = sum(1 for f in security if _resolve_result(f) == "not_checked")
-    if not severities:
-        level = SOLID
-        summary = "No security findings"
-    else:
-        if any(s in SECURITY_ATTENTION_SEVERITIES for s in severities):
-            level = NEEDS_ATTENTION
-        else:
-            level = SOME_NOTES
-        labels = SEVERITY_ORDER + sorted(set(severities) - set(SEVERITY_ORDER))
-        summary = ", ".join(
-            "{} {}".format(severities.count(s), s.capitalize())
-            for s in labels
-            if s in severities
-        )
-    if not_checked:
-        summary = "{}; {} not checked".format(summary, not_checked)
-    return {"level": level, "summary": summary, "anchor": _anchor("security", app_index)}
-
-
 def derive_grade_indicator(axis, app_id, assessments, app_findings, app_index):
     grade = assessments.get(axis)
     level = GRADE_LEVELS[axis].get(_normalize_grade(grade))
@@ -264,6 +237,8 @@ def cross_check_reported(scope, reported, indicators):
     if not isinstance(reported, dict):
         _warn("{}: reported_signals is not an object; cross-check skipped".format(scope))
         return
+    # No security indicator (schema 1.2); a stale reported security signal is ignored.
+    reported = {k: v for k, v in reported.items() if k != "security"}
     for axis, stated in reported.items():
         expected = REPORTED_SIGNAL_LEVELS.get(str(stated).lower().strip())
         computed = indicators.get(axis, {}).get("level")
@@ -318,10 +293,10 @@ def assemble(meta, findings, md_path, pdf_path, html_path, plugin_version):
             app_entry["decision"] = normalize_decision(app_meta["decision"])
 
         # Indicators are all-or-nothing per app: without the quality grades a
-        # lone security level would read as a complete assessment.
+        # lone level would read as a complete assessment.
         assessments = app_meta.get("assessments")
         if assessments:
-            indicators = {"security": derive_security_indicator(app_f, app_index)}
+            indicators = {}
             for axis in ("portability", "documentation"):
                 indicator = derive_grade_indicator(axis, app_id, assessments, app_f, app_index)
                 if indicator:
@@ -341,8 +316,8 @@ def assemble(meta, findings, md_path, pdf_path, html_path, plugin_version):
     # list. In a monorepo that is every repo-wide finding filed under "root",
     # which is expected and kept at repo level. Any other unmatched id is a
     # spelling mismatch between findings.json and meta.apps; filing those
-    # findings anywhere else would leave their real app with a solid security
-    # level and all-pass criteria it did not earn, so refuse to assemble.
+    # findings anywhere else would leave their real app with all-pass criteria
+    # it did not earn, so refuse to assemble.
     if apps:
         known_app_ids = {app["app_id"] for app in apps}
         unmatched = sorted(a for a in app_findings_map if a not in known_app_ids and a != "root")
@@ -423,7 +398,7 @@ def main():
         meta = json.load(f)
 
     # A findings file that is named but will not load is an error, not "no
-    # findings": assembling without it would claim solid security for every app.
+    # findings": assembling without it would claim clean findings for every app.
     findings = []
     if args.findings:
         try:
