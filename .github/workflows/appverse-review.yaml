@@ -201,6 +201,7 @@ jobs:
             - appverse-review plugin: version ${{ steps.params.outputs.plugin_version }}, commit ${{ steps.params.outputs.plugin_sha }}
               (so the report's "Reviewed with" line reads
               appverse-review @ ${{ steps.params.outputs.plugin_version }} (`${{ steps.params.outputs.plugin_sha }}`, https://github.com/Sweet-and-Fizzy/appverse-review))
+            - Model: ${{ steps.params.outputs.model_id }}
 
             This is a non-interactive run: the session ends the moment your
             turn ends, and any sub-agent still running is abandoned with its
@@ -287,9 +288,12 @@ jobs:
           import re, sys
           p, model, ver, sha = sys.argv[1:5]
           s = open(p).read()
-          s, n1 = re.subn(r"(\*\*Model:\*\*)\s*\S+", r"\1 " + model, s, count=1)
-          s, n2 = re.subn(r"appverse-review @ [^\s(]+ \(`[^`]*`", "appverse-review @ " + ver + " (`" + sha + "`", s, count=1)
+          # Consume the whole value ("Claude Sonnet 4.6") up to the " · " separator.
+          s, n1 = re.subn(r"(\*\*Model:\*\*)\s*[^·\n]*?(?=\s*·|\s*$)", lambda m: m.group(1) + " " + model, s, count=1, flags=re.M)
+          s, n2 = re.subn(r"appverse-review @ [^\s(]+ \(`[^`]*`", lambda m: "appverse-review @ " + ver + " (`" + sha + "`", s, count=1)
           open(p, "w").write(s); print("header stamped: model", n1, "version", n2)
+          if not (n1 and n2):
+              print("::warning::header stamp: model {} version {}".format(n1, n2))
           EOF
           fi
 
@@ -331,12 +335,17 @@ jobs:
           fi
 
       - name: Check finding keys
-        if: inputs.review_aspects == 'all'
+        if: "!cancelled() && inputs.review_aspects == 'all'"
         run: |
           WS="${{ github.workspace }}"; SLUG="${{ steps.params.outputs.repo_slug }}"
           if [ -s "$WS/review-${SLUG}.findings.json" ]; then
-            if ! python3 "$WS/appverse-review/references/check-keys.py" "$WS/review-${SLUG}.findings.json" --target "$WS/target-repo"; then
-              echo "::error::Malformed defect keys (see INVALID lines above); their stable IDs would not be stable"
+            rc=0; python3 "$WS/appverse-review/references/check-keys.py" "$WS/review-${SLUG}.findings.json" --target "$WS/target-repo" || rc=$?
+            if [ "$rc" -ne 0 ]; then
+              if [ "$rc" -eq 2 ]; then
+                echo "::error::Finding-key check could not run (see error above)"
+              else
+                echo "::error::Malformed defect keys (see INVALID lines above); their stable IDs would not be stable"
+              fi
               exit 1
             fi
           else
@@ -344,12 +353,17 @@ jobs:
           fi
 
       - name: Check ratings against evidence
-        if: inputs.review_aspects == 'all'
+        if: "!cancelled() && inputs.review_aspects == 'all'"
         run: |
           WS="${{ github.workspace }}"; SLUG="${{ steps.params.outputs.repo_slug }}"
           if [ -s "$WS/review-${SLUG}.findings.json" ] && [ -s "$WS/review-${SLUG}.md" ]; then
-            if ! python3 "$WS/appverse-review/references/check-rating.py" "$WS/review-${SLUG}.md" "$WS/review-${SLUG}.findings.json"; then
-              echo "::error::A rating or signal does not follow the report's own evidence (see MISMATCH lines above)"
+            rc=0; python3 "$WS/appverse-review/references/check-rating.py" "$WS/review-${SLUG}.md" "$WS/review-${SLUG}.findings.json" || rc=$?
+            if [ "$rc" -ne 0 ]; then
+              if [ "$rc" -eq 2 ]; then
+                echo "::error::Rating check could not run (see error above)"
+              else
+                echo "::error::A rating or signal does not follow the report's own evidence (see MISMATCH lines above)"
+              fi
               exit 1
             fi
           else
