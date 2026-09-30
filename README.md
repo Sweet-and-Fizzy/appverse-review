@@ -108,7 +108,7 @@ for the workflow definition. It supports:
 - Dry-run mode for pipeline testing without API costs
 - PDF generation via pandoc + typst
 - Machine-readable `review-<slug>.artifact.json` for downstream integration —
-  the schema 1.1 envelope described in
+  the schema 1.2 envelope described in
   [`references/artifact-envelope.md`](references/artifact-envelope.md), with
   stable finding IDs and per-app indicator levels
 

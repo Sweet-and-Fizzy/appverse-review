@@ -21,7 +21,7 @@ this document.
    listed. They live in the Structure section. An app that fails one cannot be
    accepted until it is fixed.
 2. **Signals (Low / Medium / High).** A per-dimension reading for a deployer
-   on four axes: Security, Portability, Documentation, and Upkeep. **Low = the
+   on three axes: Portability, Documentation, and Upkeep. **Low = the
    good end; High = the most to read before deploying**, on every axis.
    Signals describe; they never decide. A High signal on its own does not
    reject an app, and a Low signal does not accept one.
@@ -31,9 +31,8 @@ this document.
 
 **Signals do not gate; the decision rubric does.** Two consequences worth
 stating: a fixable High-severity security finding is "request changes", not
-"reject", even though it makes the Security signal High; and a Documentation
-or Portability signal below the target for inclusion lands in "accept with
-suggestions", not "request changes".
+"reject"; and a Documentation or Portability signal below the target for
+inclusion lands in "accept with suggestions", not "request changes".
 
 **Code Quality** is a fourth kind of content: findings that are neither a gate
 nor a signal. They are reported as findings and the decision rubric sets a
@@ -138,14 +137,12 @@ consistent with the dependency file (`STR-08` if missing or inconsistent).
 
 ## Security
 
-Security is both a **signal** (how much a deployer should read before
-installing) and a source of **findings**, some of whose properties feed the
-decision rubric directly. Every finding is classified under the OODT taxonomy
-and rated on the five-level severity scale.
-
-**Security signal:** no security findings = Low; Low or Info severity only =
-Medium; any Medium, High, or Critical finding = High. The signal counts
-`OODT-` findings only; a high-severity Structure failure does not move it.
+Security is a list of **findings**, never a rating. The tool does not assert
+a security level; an app with no FAIL or WARN findings is reported as having
+no tool-detectable issues in the checked tiers, which is not a claim that it
+is safe. Some finding properties feed the decision rubric directly. Every
+finding is classified under the OODT taxonomy and rated on the five-level
+severity scale.
 
 **Decision role:** a finding tagged *potentially malicious*, or one that cannot
 be fixed without redesigning the app, is a reject trigger. A fixable High

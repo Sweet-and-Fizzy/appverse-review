@@ -107,18 +107,15 @@ string; if unavailable, write `unknown`.
 
 | Dimension | Level | Evidence |
 |---|---|---|
-| Security | Low / Medium / High | <one-line phrase from the security findings> |
 | Portability | Low / Medium / High | <one-line phrase> |
 | Documentation | Low / Medium / High | <one-line phrase> |
 
 <!-- DERIVE the level from the aspect ratings, do not invent it:
-     Security: count OODT findings with result FAIL or WARN only (a PASS or
-       NOT CHECKED record is not a finding). None = Low; Low or Info severity
-       only = Medium; any Medium, High, or Critical = High.
      Portability: Portable = Low; Partially portable = Medium; Not portable = High.
      Documentation: Strong/Exemplary = Low; Adequate = Medium; Minimal = High.
      Low = good/low-concern; High = most to read. Never invert; never style High as a hazard.
      Monorepo: one Signals block PER app. No repo-level signal aggregate.
+     There is no Security signal: security is the findings table below, never a level.
      These are the rules in ${CLAUDE_PLUGIN_ROOT}/references/artifact-envelope.md
      ("Indicators"). assemble-artifact.py computes the same levels from the
      findings and grades, and warns when a level written here disagrees. -->
@@ -145,6 +142,8 @@ Findings are classified under OODT (Open OnDemand App Threats); codes are define
 <capability profile: table for Batch Connect, narrative for Passenger>
 
 #### Findings
+
+<!-- When there are no FAIL/WARN findings, keep the table header and write exactly "No tool-detectable issues in the checked tiers." in place of the table rows; the Check tiers lines above stay as they are. Never write "safe". -->
 
 | Rule | Result | Severity | Tag | Summary | Evidence |
 |---|---|---|---|---|---|
@@ -323,7 +322,6 @@ Save to `review-<owner>-<repo>.meta.json`:
         "portability_summary": "<one-line evidence phrase>"
       },
       "reported_signals": {
-        "security": "Low | Medium | High",
         "portability": "Low | Medium | High",
         "documentation": "Low | Medium | High"
       }

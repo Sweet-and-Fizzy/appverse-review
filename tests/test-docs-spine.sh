@@ -67,9 +67,11 @@ echo "Test 6: three legs and derivation present"
 has "$RUBRIC" "Signals do not gate; the decision rubric does." "gate/signal separation stated"
 has "$RUBRIC" "| **Accept with suggestions** |" "decision table present"
 has "$RUBRIC" "Low = " "Low/High polarity stated"
-for dim in Security Portability Documentation Upkeep; do
+for dim in Portability Documentation Upkeep; do
   has "$RUBRIC" "**$dim signal:**" "$dim derivation line"
 done
+lacks "$RUBRIC" "**Security signal:**" "no Security signal derivation"
+lacks "$PROCESS" "Security: [Low" "process doc has no Security level"
 
 echo "Test 7: enumerated named checks"
 has "$RUBRIC" "check: icon-matches-target-os" "icon check"

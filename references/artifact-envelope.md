@@ -46,7 +46,6 @@ the skills that produce them refer here.
         "portability_summary": "one-line evidence phrase"
       },
       "reported_signals": {
-        "security": "Low | Medium | High",
         "portability": "Low | Medium | High",
         "documentation": "Low | Medium | High"
       }
@@ -91,14 +90,14 @@ stderr and still assemble.
 
 ```json
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
 
   "reviewed": {
     "repo_url":     "https://github.com/owner/app",
     "sha":          "6a4183c…",
     "ref":          "main",
     "at":           "2026-08-27T14:00:00Z",
-    "tool_version": "appverse-review@0.4.0",
+    "tool_version": "appverse-review@0.5.0",
     "repo_shape":   "inferred_single | declared_monorepo | declared_single"
   },
 
@@ -129,7 +128,7 @@ stderr and still assemble.
       "app_id":   "root | <subpath>",
       "name":     "App Name",
       "decision": "accept | accept_with_suggestions | request_changes | reject",
-      "findings": [ /* structure + security + quality findings */ ],
+      "findings": [ /* structure + OODT (security) + quality findings */ ],
       "criteria": {
         "metadata":   "pass | fail | warn | not_checked",
         "yaml_valid": "pass | fail | warn | not_checked",
@@ -137,7 +136,6 @@ stderr and still assemble.
         "references": "pass | fail | warn | not_checked"
       },
       "indicators": {
-        "security":      { "level": "needs_attention", "summary": "1 Medium, 1 Low", "anchor": "#security" },
         "portability":   { "level": "solid", "summary": "All site values in form.yml", "anchor": "#portability" },
         "documentation": { "level": "some_notes", "summary": "README covers install and config", "anchor": "#documentation" }
       }
@@ -167,11 +165,12 @@ stderr and still assemble.
   Any other `app_id` that matches no app is a spelling mismatch between
   `findings.json` and `meta.apps` (`apps/foo/` against `apps/foo`); the
   assembler refuses it (exit 1, the ids named on stderr) rather than file the
-  findings elsewhere, which would leave their real app with a `solid` security
-  level and all-pass criteria it did not earn. Every finding in `findings.json`
-  appears in the artifact exactly once.
-- **`apps[].findings`** contains structure, security, and quality findings,
-  filtered by `app_id`.
+  findings elsewhere, which would leave their real app with all-pass criteria
+  it did not earn. Every finding in `findings.json` appears in the artifact
+  exactly once.
+- **`apps[].findings`** contains structure, OODT (security), and quality
+  findings, filtered by `app_id`. There is no security indicator; a consumer
+  reads security from these records directly (see Indicators below).
 - **`artifacts`** holds filenames, not paths. The reports travel beside the
   artifact; the directory they were written to during the run is dropped.
 - **`apps[].criteria`** is derived from findings by `assemble-artifact.py` —
@@ -207,68 +206,82 @@ rules, the same split as stable IDs and criteria.
 
 | Indicator | `solid` | `some_notes` | `needs_attention` |
 |---|---|---|---|
-| `security` | No `OODT-` findings | Low or Info severity only | Any Medium, High, or Critical |
 | `portability` | `portable` | `partially_portable` | `not_portable` |
 | `documentation` | `strong`, `exemplary` | `adequate` | `minimal` |
 | `maintenance` | Active within 12 months and two or more good-practice signals | Active within 12 months; or the brand-new-app waiver | An MNT-01 finding; or inactive |
 
-- **Security keys on the `OODT-` rule prefix**, not on severity alone: a
-  high-severity structure finding (a missing LICENSE) does not move the security
-  level. The summary is a mechanical count in severity order, e.g.
-  `1 Medium, 1 Low`, or `No security findings`.
+There is no security indicator (schema 1.2). Security is the app's OODT-
+findings in `apps[].findings`, each with its severity and result; the portal
+shows the findings, not a level. An app with none is described as having no
+tool-detectable issues in the checked tiers, never as `safe`.
+
+A consumer that counts security findings counts `OODT-` records whose
+`result` is FAIL or WARN; a PASS record confirms a check and a NOT CHECKED
+record reports a skipped tier, and neither is a finding to review.
+
+**Portal.** The portal's `indicator_security` field and the reviewer's
+security-level override are retired with 1.2; the seeder tolerates the
+missing key, and the curation form's security level widget should be removed.
+
 - **Levels follow the record's `result`.** Only `FAIL` and `WARN` records assert
   a defect. A `PASS` record confirms a check and a `NOT CHECKED` record reports
   a skipped one (the security skill files tier 3 that way); neither moves a
-  level, whatever its severity. Not-checked security records are counted in the
-  summary — `No security findings; 1 not checked` — so a `solid` level never
-  hides a skipped tier. An MNT-01 record with result `PASS` does not mark the
-  repo stale. A record with no `result` counts as asserted, as it always has.
+  level, whatever its severity. An MNT-01 record with result `PASS` does not
+  mark the repo stale. A record with no `result` counts as asserted, as it
+  always has.
 - **Maintenance precedence:** an MNT-01 finding wins over the waiver (and warns,
   since the two contradict each other). When the waiver applies, the summary
   names it.
 - **Indicators are optional.** An app without `assessments` has no `indicators`
-  key at all, rather than a partial set — a lone security level would read as a
+  key at all, rather than a partial set — a lone level would read as a
   complete assessment. Likewise `repo_level` without `maintenance_assessment`.
   An unrecognized grade omits that one indicator. Consumers must tolerate a
   missing key; a 1.0-shaped meta still assembles.
 - **Display labels.** The report's Signals block shows the same levels as
   Low / Medium / High: `solid` = Low, `some_notes` = Medium,
   `needs_attention` = High. The enum is the machine value and the words differ
-  on purpose: findings already carry a low/medium/high `severity`, and a
-  Medium-severity finding produces a High signal, so sharing one vocabulary
-  would put two different scales side by side under the same names.
+  on purpose: findings already carry a low/medium/high `severity`, which is
+  per finding, while a signal level is per axis. They are different scales,
+  and sharing one vocabulary would put them side by side under the same names.
 - **`level` is the tool's default.** It is what the rules produce. A consumer
   may let a human reviewer override it; the artifact records only the tool's
   value.
-- **Anchors.** Per-app anchors are `#security`, `#portability`, and
-  `#documentation`; the repo-level anchor is `#upkeep` (the report's `## Upkeep` heading). Every app
+- **Anchors.** Per-app anchors are `#portability` and `#documentation`; the
+  repo-level anchor is `#upkeep` (the report's `## Upkeep` heading). Every app
   section repeats the same headings and pandoc de-duplicates repeats by
   appending `-1`, `-2`, …, so the app at index *n* in `apps[]` gets
-  `#security-n` (no suffix for the first). This holds under pandoc's `markdown`
-  and `gfm` readers, and rests on two properties of the report: apps appear in
-  the same order as in `meta.json`, and every app section includes all of the
-  dimension headings.
+  `#portability-n` (no suffix for the first). This holds under pandoc's
+  `markdown` and `gfm` readers, and rests on two properties of the report: apps
+  appear in the same order as in `meta.json`, and every app section includes
+  all of the dimension headings.
 
 `assemble-artifact.py` warns on stderr, and still emits the artifact, when:
 indicator inputs are missing; a grade is not in the vocabulary; a QUA-01 or
 QUA-02 record with result FAIL or WARN sits beside a grade that maps to `solid`
 (a PASS record is agreement, not contradiction); an MNT-01 finding
-accompanies the waiver; a `reported_signals` level disagrees with the computed
-one; or an optional input has the wrong shape (a `signals` block or
-`reported_signals` that is not an object), which is skipped.
+accompanies the waiver; a `reported_signals` level (`portability` or
+`documentation`) disagrees with the computed one — a stale `security` key in
+`reported_signals` is simply ignored, since schema 1.2 has no security
+indicator to cross-check it against; or an optional input has the wrong shape
+(a `signals` block or `reported_signals` that is not an object), which is
+skipped.
 
 It exits 1 and emits nothing when the input cannot be trusted: a `--findings`
 file that is missing or will not parse (assembling without it would claim
-`solid` security for every app), or a finding whose `app_id` matches no app.
+clean findings for every app), or a finding whose `app_id` matches no app.
 
 ## Versioning
 
 The `schema_version` field is semver. Consumers pin to a major version.
 Breaking changes (field removals, type changes) bump the major. Additive
 changes (new optional fields like `indicators`) bump the minor.
+Removing an optional indicator key is a minor bump: since 1.1, consumers must
+tolerate a missing indicator key (see Indicators), so 1.2's removal of
+`indicators.security` breaks no conforming consumer.
 
 | Version | Change |
 |---|---|
 | 1.0 | Initial envelope: reviewed, recommendation, findings, criteria, report paths. |
 | 1.0.1 | criteria values gain warn and not_checked; PASS records no longer flip a criterion to fail. |
 | 1.1 | Adds the optional `indicators` on `repo_level` and each `apps[]` entry. |
+| 1.2 | Removes `indicators.security`. Security is the app's OODT- findings in `apps[].findings`; there is no computed security level. |
