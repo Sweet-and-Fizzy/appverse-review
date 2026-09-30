@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+#
+# site-specific output job information
+echo "======================= Job information ======================="
+echo "Session ID      ERBVALUE"
+echo "Slurm job ID    ${SLURM_JOBID}"
+echo "Partition       ${SLURM_JOB_PARTITION}"
+echo "Node            ${SLURM_JOB_NODELIST}"
+echo "Cores           ${SLURM_CPUS_PER_TASK}"
+echo "Memory (MB)     ${SLURM_MEM_PER_NODE}"
+echo "GPUs            ERBVALUE"
+echo "Module          ERBVALUE"
+echo "==============================================================="
+
+
+# Clean the environment
+module purge
+
+set -x
+
+export WORKDIR=/scratch/$USER/$SLURM_JOBID 
+mkdir -p $WORKDIR
+
+# Set working directory to home directory
+cd $WORKDIR
+
+
+#
+# Launch Xfce Window Manager and Panel
+#
+
+
+# heredoc not necessary if not containerized
+#cat > myrun.sh <<EOF
+##!/bin/bash -l
+#
+#(
+  export SEND_256_COLORS_TO_REMOTE=1
+# not necessary to eliminate Applications menu
+#  export XDG_CONFIG_HOME="ERBVALUE"
+#  export XDG_DATA_HOME="ERBVALUE"
+#  export XDG_CACHE_HOME="\$(mktemp -d)"
+  module restore
+  set -x
+  xfwm4 --compositor=off --sm-client-disable &
+  xsetroot -solid "#D3D3D3"
+  xfsettingsd --sm-client-disable --daemon
+  (
+    # wait for the settings daemon to become available, or else the panel will not load its icons
+    while [ -z "$(dbus-send --session --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.ListNames | grep -F \"org.xfce.SettingsDaemon\")" ]; do
+      sleep 1
+      set +x
+    done
+    set -x
+    xfce4-panel --sm-client-disable
+  ) &
+#) &
+
+## don't ask why we need to invoke xfce4 terminal calling xfce4-terminal here .... 
+## it just does not work without
+COMMAND='xfce4-terminal -e "/bin/bash -l -c \"sas -dms\" "'
+
+# load sas module
+module load ERBVALUE
+
+# set oom_score_adj to 1000 in job script (parent) so it app is terminated in
+# the event the rsession (child) OOMs to avoid the appearance of the app
+# continuing to function in OOD/Slurm with a 502 Proxy error on reconnect
+echo 1000 > /proc/self/oom_score_adj
+(
+  echo 0 > /proc/self/oom_score_adj
+  eval exec $COMMAND
+)
+
+# this script cannot exit or Slurm will think the job is done and kill child processes
+wait
+
+#EOF
+#
+#chmod +x myrun.sh
+#
+### am I trying to run on GPUs?
+#export SING_GPU=""
+#
+#
+#export SING_GPU="--nv"
+#
+#
+### bind some extra stuff to be able to talk to slurm from within the container
+#export SING_BINDS=" -B /etc/nsswitch.conf -B /etc/sssd/ -B /var/lib/sss -B /etc/slurm -B /slurm -B /var/run/munge  -B `which sbatch ` -B `which srun ` -B `which sacct ` -B `which scontrol `  -B `which scancel` -B `which squeue` -B `which sinfo`  -B /usr/lib64/slurm/ "
+#
+## Load the required environment
+##export SINGULARITYENV_MATLAB_PREFDIR
+#singularity exec   $SING_GPU $SING_BINDS /n/singularity_images/OOD/OdysseyRD/current/xfce-el7-7.6.1810-remotedesktop.img ./myrun.sh  

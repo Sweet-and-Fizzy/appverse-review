@@ -1,0 +1,6 @@
+[floor] error: no '## Draft feedback' or '## Fix before submitting' section
+[keys] finding keys: 17/17 valid
+[rating] ratings: consistent
+[rows] check-rows: 1 app, 17 required rows, 0 problems
+[evidence] evidence: 17/17 valid; report rows: 29/29 valid
+exit: 2

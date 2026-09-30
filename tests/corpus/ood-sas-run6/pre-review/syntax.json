@@ -1,0 +1,14 @@
+[
+  {
+    "path": "template/before.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": ""
+  },
+  {
+    "path": "template/script.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": ""
+  }
+]

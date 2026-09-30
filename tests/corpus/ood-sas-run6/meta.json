@@ -1,0 +1,43 @@
+{
+  "repo_url": "https://github.com/fasrc/ood-sas",
+  "sha": "462790a1fdd1616038ea3536454a4e508c668471",
+  "ref": "462790a1fdd1616038ea3536454a4e508c668471",
+  "repo_shape": "inferred_single",
+  "not_archived": "pass",
+  "public": "pass",
+  "model": "claude-sonnet-4-6",
+  "recommendation": {
+    "decision": "Accept with suggestions",
+    "note": "Accept with suggestions (pending catalog checks). The app passes all structure gate criteria \u2014 a substantive README, MIT license, valid manifest.yml, complete Batch Connect layout, and clean shell syntax. Documentation is Adequate (meets the listing target) and configuration portability is Partially portable (meets the listing target). The primary improvement areas are: (1) the extra_slurm free-text field in submit.yml.erb passes user-supplied tokens directly as native Slurm options with no constraint, which allows --wrap=<cmd> to replace the job script entirely (medium OODT-01); (2) custom_memory_per_node and custom_num_cores are number_fields missing max bounds (medium QUA-07); (3) the /scratch/$USER/$SLURM_JOBID working-directory path is site-specific but absent from the README configuration table (medium QUA-02); (4) two form.yml attributes have duplicate help: keys that silently discard the first value (medium QUA-06); and (5) several copy-paste artifacts remain from the template the app was cloned from \u2014 a MATLAB reference in the sas_version help text, placeholder text in the troubleshooting section, and a CHANGELOG copied wholesale from OSC/bc_osc_matlab. None of these findings are High or Critical severity, and all are fixable without redesigning the app. Approval is conditional on the catalog checks above (duplicate check, software entry, vocabulary terms)."
+  },
+  "apps": [
+    {
+      "app_id": "root",
+      "name": "SAS",
+      "decision": "Accept with suggestions",
+      "assessments": {
+        "documentation": "adequate",
+        "documentation_summary": "Minimal and Adequate rungs fully met (overview, prerequisites, installation, configuration, known limitations all present with real content); Strong rung blocked by absent environment-variable docs section.",
+        "portability": "partially_portable",
+        "portability_summary": "Main form.yml site-specific values (cluster, module name, partition, resource defaults) are documented in the README configuration table; two undocumented site-specific items remain: the /scratch WORKDIR path in the script and the FASRC Slurm docs URL in the bc_queue help text."
+      },
+      "reported_signals": {
+        "portability": "Medium",
+        "documentation": "Medium"
+      }
+    }
+  ],
+  "maintenance_assessment": {
+    "active_within_12mo": true,
+    "waiver_brand_new": false,
+    "signals": {
+      "releases": false,
+      "changelog": false,
+      "ci": false,
+      "multiple_contributors": true,
+      "issues_responded": null
+    },
+    "summary": "Active (pushed 2026-07-08), 4 contributors, no releases, stale wrong-app CHANGELOG (OSC/bc_osc_matlab MATLAB entries), no CI",
+    "reported_signal": "Medium"
+  }
+}

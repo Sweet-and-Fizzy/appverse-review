@@ -1,0 +1,10 @@
+[floor] feedback floor: 12/12 fix-items covered
+[keys] finding keys: 34/34 valid
+[rating] MISMATCH . security: "No tool-detectable issues in the checked tiers." with 2 FAIL/WARN rows above it
+[rating] ratings: 1 mismatch
+[rows] check-rows: 1 app, 18 required rows, 0 problems
+[evidence] BAD report:numeric-field-bounds numeric-field-bounds form.yml:30,38; form.yml:15,27,65; reviewed OK: form.yml:47,72 (`min` is not on form.yml:30)
+[evidence] BAD report:numeric-field-bounds numeric-field-bounds form.yml:30,38; form.yml:15,27,65; reviewed OK: form.yml:47,72 (`max` is not on form.yml:30)
+[evidence] BAD report:numeric-field-bounds numeric-field-bounds form.yml:30,38; form.yml:15,27,65; reviewed OK: form.yml:47,72 (`pattern` is not on form.yml:30)
+[evidence] evidence: 34/34 valid; report rows: 18/19 valid
+exit: 1

@@ -1,0 +1,64 @@
+{
+  "dir": "template",
+  "files": [
+    "template/after.sh",
+    "template/before.sh.erb",
+    "template/bin/nginx",
+    "template/config/.gitkeep",
+    "template/create_nginx_conf.sh.erb",
+    "template/script.sh.erb"
+  ],
+  "icons": [],
+  "absolute_paths": [
+    {
+      "file": "template/before.sh.erb",
+      "line": 2,
+      "text": "/appl/profile/zz-csc-env.sh"
+    },
+    {
+      "file": "template/bin/nginx",
+      "line": 2,
+      "text": "/appl/opt/ood/"
+    },
+    {
+      "file": "template/script.sh.erb",
+      "line": 4,
+      "text": "/appl/opt/ood/"
+    },
+    {
+      "file": "template/script.sh.erb",
+      "line": 5,
+      "text": "/appl/opt/ood/"
+    },
+    {
+      "file": "template/script.sh.erb",
+      "line": 6,
+      "text": "/appl/opt/ood/"
+    }
+  ],
+  "numeric_literals": [
+    {
+      "file": "template/after.sh",
+      "line": 4,
+      "value": "300"
+    },
+    {
+      "file": "template/create_nginx_conf.sh.erb",
+      "line": 4,
+      "value": "128"
+    },
+    {
+      "file": "template/create_nginx_conf.sh.erb",
+      "line": 11,
+      "value": "403"
+    },
+    {
+      "file": "template/script.sh.erb",
+      "line": 25,
+      "value": "5000"
+    }
+  ],
+  "hex_colors": [],
+  "commented_code": [],
+  "skipped_files": []
+}

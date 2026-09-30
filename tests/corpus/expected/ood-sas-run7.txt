@@ -1,0 +1,10 @@
+[floor] feedback floor: 16/16 fix-items covered
+[keys] finding keys: 22/22 valid
+[rating] ratings: consistent
+[rows] error: cannot read apps.json 'tests/corpus/ood-sas-run7/pre-review/apps.json': [Errno 2] No such file or directory: 'tests/corpus/ood-sas-run7/pre-review/apps.json'
+[evidence] BAD MNT-03 CHANGELOG.md:no-changelog CHANGELOG.md:1–63 — all entries and comparison URLs reference OSC/bc_osc_matlab (line 63 past end of file, has 62 lines)
+[evidence] BAD report:numeric-field-bounds numeric-field-bounds form.yml:30,38 (no max on number fields); form.yml:15,27,65 (no pattern on text fields) (`min` is not on form.yml:30)
+[evidence] BAD report:numeric-field-bounds numeric-field-bounds form.yml:30,38 (no max on number fields); form.yml:15,27,65 (no pattern on text fields) (`max` is not on form.yml:30)
+[evidence] BAD report:numeric-field-bounds numeric-field-bounds form.yml:30,38 (no max on number fields); form.yml:15,27,65 (no pattern on text fields) (`pattern` is not on form.yml:30)
+[evidence] evidence: 21/22 valid; report rows: 1/2 valid
+exit: 2

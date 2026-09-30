@@ -1,0 +1,11 @@
+[floor] feedback floor: 18/18 fix-items covered
+[keys] finding keys: 22/22 valid
+[rating] ratings: consistent
+[rows] error: cannot read apps.json 'tests/corpus/ood-sas-36477767148/pre-review/apps.json': [Errno 2] No such file or directory: 'tests/corpus/ood-sas-36477767148/pre-review/apps.json'
+[evidence] BAD QUA-04 template/script.sh.erb:commented-out-code template/script.sh.erb:33-42,57,78-95 (line 95 past end of file, has 94 lines)
+[evidence] BAD QUA-06 README.md:readme-typo README.md:125 — notificationl; README.md:137 — forml.yml; README.md:235 — Univesity (README.md: line 235 past end of file, has 234 lines)
+[evidence] BAD report:numeric-field-bounds numeric-field-bounds form.yml:34, form.yml:39 (`custom_memory_per_node` is not on form.yml:34)
+[evidence] BAD report:numeric-field-bounds numeric-field-bounds form.yml:34, form.yml:39 (`custom_num_cores` is not on form.yml:34)
+[evidence] BAD report:numeric-field-bounds numeric-field-bounds form.yml:34, form.yml:39 (`max` is not on form.yml:34)
+[evidence] evidence: 20/22 valid; report rows: 1/2 valid
+exit: 2

@@ -1,0 +1,11 @@
+[floor] feedback floor: 10/10 fix-items covered
+[keys] INVALID STR-07 form.yml:missing-form (tag 'missing-form' not in STR-07 vocabulary; use other:<slug> for a novel defect)
+[keys] INVALID QUA-07 form.yml:other:missing-pattern (other:missing-pattern is the vocabulary tag 'missing-pattern')
+[keys] INVALID MNT-01 github/commits:stale-repo (anchor is not a repo path or allowed pseudo-anchor)
+[keys] INVALID MNT-02 github/releases:no-releases (anchor is not a repo path or allowed pseudo-anchor)
+[keys] finding keys: 23/27 valid
+[rating] MISMATCH Documentation rating (Strong claimed but 'environment variables' evidence is none; highest supported rung is Adequate)
+[rating] ratings: 1 mismatch
+[rows] error: cannot read apps.json 'tests/corpus/ood-sas-36477735864/pre-review/apps.json': [Errno 2] No such file or directory: 'tests/corpus/ood-sas-36477735864/pre-review/apps.json'
+[evidence] evidence: 27/27 valid; report rows: 0/0 valid
+exit: 2

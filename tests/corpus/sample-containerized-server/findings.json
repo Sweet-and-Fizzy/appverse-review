@@ -1,0 +1,184 @@
+[
+ {
+  "app_id": "root",
+  "rule": "OODT-05",
+  "defect_key": "template/create_nginx_conf.sh.erb:cors-wildcard",
+  "aspect": "security",
+  "severity": "high",
+  "result": "FAIL",
+  "tag": "unintentional",
+  "summary": "CORS open to all origins",
+  "evidence": "template/create_nginx_conf.sh.erb:17 add_header 'Access-Control-Allow-Origin' '*'",
+  "line": 17
+ },
+ {
+  "app_id": "root",
+  "rule": "OODT-05",
+  "defect_key": "template/script.sh.erb:bind-all-interfaces",
+  "aspect": "security",
+  "severity": "medium",
+  "result": "FAIL",
+  "tag": "unintentional",
+  "summary": "MLflow bound to 0.0.0.0",
+  "evidence": "template/script.sh.erb:24 --host 0.0.0.0",
+  "line": 24
+ },
+ {
+  "app_id": "root",
+  "rule": "OODT-01",
+  "defect_key": "template/script.sh.erb:unsanitized-user-input",
+  "aspect": "security",
+  "severity": "low",
+  "result": "WARN",
+  "tag": "unintentional",
+  "summary": "tracking_uri free text reaches the command line",
+  "evidence": "template/script.sh.erb:22 --backend-store-uri \"<%= context.tracking_uri %>\"; reviewed OK: template/script.sh.erb:9,23",
+  "line": 22
+ },
+ {
+  "app_id": "root",
+  "rule": "OODT-01",
+  "defect_key": "submit.yml.erb:unsanitized-user-input",
+  "aspect": "security",
+  "severity": "info",
+  "result": "PASS",
+  "tag": "unintentional",
+  "summary": "four quoted scheduler arguments",
+  "evidence": "submit.yml.erb:7,9,10,12"
+ },
+ {
+  "app_id": "root",
+  "rule": "QUA-02",
+  "defect_key": "template/script.sh.erb:hardcoded-path",
+  "aspect": "quality",
+  "severity": "low",
+  "result": "WARN",
+  "summary": "/appl paths",
+  "evidence": "template/script.sh.erb:4-6",
+  "line": 4
+ },
+ {
+  "app_id": "root",
+  "rule": "QUA-02",
+  "defect_key": "template/before.sh.erb:hardcoded-path",
+  "aspect": "quality",
+  "severity": "low",
+  "result": "WARN",
+  "summary": "CSC profile path",
+  "evidence": "template/before.sh.erb:2",
+  "line": 2
+ },
+ {
+  "app_id": "root",
+  "rule": "QUA-02",
+  "defect_key": "template/bin/nginx:hardcoded-path",
+  "aspect": "quality",
+  "severity": "low",
+  "result": "WARN",
+  "summary": "/appl path",
+  "evidence": "template/bin/nginx:2",
+  "line": 2
+ },
+ {
+  "app_id": "root",
+  "rule": "QUA-01",
+  "defect_key": "README.md:docs-minimal",
+  "aspect": "quality",
+  "severity": "low",
+  "result": "FAIL",
+  "summary": "Minimal README",
+  "evidence": "README.md:5 ## Requirements (no Installation or Configuration)"
+ },
+ {
+  "app_id": "root",
+  "rule": "QUA-08",
+  "defect_key": "template/create_nginx_conf.sh.erb:magic-number",
+  "aspect": "quality",
+  "severity": "low",
+  "result": "WARN",
+  "summary": "worker_connections 128",
+  "evidence": "template/create_nginx_conf.sh.erb:4 worker_connections 128; reviewed OK: template/create_nginx_conf.sh.erb:11",
+  "line": 4
+ },
+ {
+  "app_id": "root",
+  "rule": "QUA-08",
+  "defect_key": "template/script.sh.erb:magic-number",
+  "aspect": "quality",
+  "severity": "low",
+  "result": "WARN",
+  "summary": "port 5000",
+  "evidence": "template/script.sh.erb:25",
+  "line": 25
+ },
+ {
+  "app_id": "root",
+  "rule": "QUA-03",
+  "defect_key": "template/script.sh.erb:no-set-e",
+  "aspect": "quality",
+  "severity": "info",
+  "result": "PASS",
+  "summary": "set -e",
+  "evidence": "template/script.sh.erb:2"
+ },
+ {
+  "app_id": "root",
+  "rule": "QUA-08",
+  "defect_key": "template/after.sh:magic-number",
+  "aspect": "quality",
+  "severity": "info",
+  "result": "PASS",
+  "summary": "clean",
+  "evidence": "template/after.sh:4"
+ },
+ {
+  "app_id": "root",
+  "rule": "QUA-07",
+  "defect_key": "form.yml.erb:missing-min-max",
+  "aspect": "quality",
+  "severity": "info",
+  "result": "PASS",
+  "summary": "clean",
+  "evidence": "form.yml.erb:6"
+ },
+ {
+  "app_id": "root",
+  "rule": "QUA-09",
+  "defect_key": "template/script.sh.erb:duplicated-block",
+  "aspect": "quality",
+  "severity": "info",
+  "result": "PASS",
+  "summary": "clean",
+  "evidence": "template/script.sh.erb:15-25"
+ },
+ {
+  "app_id": "root",
+  "rule": "QUA-04",
+  "defect_key": "template/script.sh.erb:commented-out-code",
+  "aspect": "quality",
+  "severity": "info",
+  "result": "PASS",
+  "summary": "clean",
+  "evidence": "template/script.sh.erb:1"
+ },
+ {
+  "app_id": "root",
+  "rule": "QUA-10",
+  "defect_key": "submit.yml.erb:erb-missing-value-unhandled",
+  "aspect": "quality",
+  "severity": "info",
+  "result": "PASS",
+  "summary": "clean",
+  "evidence": "submit.yml.erb:11"
+ },
+ {
+  "app_id": "root",
+  "rule": "QUA-06",
+  "defect_key": "template/script.sh.erb:icon-os-mismatch",
+  "aspect": "quality",
+  "severity": "info",
+  "result": "PASS",
+  "summary": "clean",
+  "evidence": "template/script.sh.erb:1"
+ }
+]

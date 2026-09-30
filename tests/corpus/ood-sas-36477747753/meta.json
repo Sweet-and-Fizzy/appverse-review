@@ -1,0 +1,44 @@
+{
+  "repo_url": "https://github.com/fasrc/ood-sas",
+  "sha": "462790a1fdd1616038ea3536454a4e508c668471",
+  "ref": "main",
+  "repo_shape": "inferred_single",
+  "not_archived": "pass",
+  "public": "pass",
+  "model": "claude-sonnet-4-6",
+  "recommendation": {
+    "decision": "Accept with suggestions",
+    "note": "All repo-level gate criteria pass: the repository is public, has a substantive README, carries an MIT license, and is not archived. The security posture is clean — no OODT findings across tiers 1–2, and the capability profile is narrow and expected for a Batch Connect app. Documentation is Adequate and portability is Partially portable, both at the target for inclusion. The primary issues are code-quality improvements: the script lacks set -e error handling; numeric form fields custom_memory_per_node and custom_num_cores are missing upper bounds; the CHANGELOG is a copy-paste from the OSC MATLAB app and describes no SAS-specific changes; and several copy-paste artifacts remain in form.yml (MATLAB help text, duplicate YAML keys) and the README (typos, wrong attribute name in troubleshooting). These are all fixable improvements that do not block listing. This recommendation is conditional on the human reviewer confirming the catalog duplicate check (completed above: none found) and the absence of a conflicting submission."
+  },
+  "apps": [
+    {
+      "app_id": "root",
+      "name": "SAS",
+      "decision": "Accept with suggestions",
+      "assessments": {
+        "documentation": "adequate",
+        "documentation_summary": "Covers all four deployer questions plus troubleshooting and screenshots; no environment variable docs",
+        "portability": "partially_portable",
+        "portability_summary": "Cluster name and module version documented in README; /scratch working directory path not documented"
+      },
+      "reported_signals": {
+        "security": "Low",
+        "portability": "Medium",
+        "documentation": "Medium"
+      }
+    }
+  ],
+  "maintenance_assessment": {
+    "active_within_12mo": true,
+    "waiver_brand_new": false,
+    "signals": {
+      "releases": false,
+      "changelog": false,
+      "ci": false,
+      "multiple_contributors": true,
+      "issues_responded": null
+    },
+    "summary": "Active (last commit 2026-07-08); 4 contributors; no releases, wrong-app CHANGELOG (bc_osc_matlab), no CI",
+    "reported_signal": "Medium"
+  }
+}

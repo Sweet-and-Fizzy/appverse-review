@@ -1,0 +1,43 @@
+{
+  "repo_url": "https://github.com/fasrc/ood-sas",
+  "sha": "462790a1fdd1616038ea3536454a4e508c668471",
+  "ref": "462790a1fdd1616038ea3536454a4e508c668471",
+  "repo_shape": "inferred_single",
+  "not_archived": "pass",
+  "public": "pass",
+  "model": "claude-sonnet-4-6",
+  "recommendation": {
+    "decision": "Accept with suggestions",
+    "note": "Accept with suggestions \u2014 pending verification of the second catalog page for duplicates. The app passes all gate criteria: README is substantive, LICENSE is MIT, manifest.yml is valid with all required fields, the standard Batch Connect layout is present, and all template scripts pass syntax checks. Documentation rates Adequate (at the target for inclusion) and portability rates Partially portable (at the target). No security finding is tagged potentially malicious and no gate criterion fails. The quality findings \u2014 most notably the CHANGELOG describing MATLAB rather than SAS, the \"Loading the Matlab module\" help text in the SAS version selector, duplicate help: YAML keys in form.yml, commented-out dead code from an earlier Singularity approach, and the undocumented /scratch/ absolute path \u2014 are all fixable suggestions, not blockers. The reviewer should ask the contributor to address these before or after listing."
+  },
+  "apps": [
+    {
+      "app_id": "root",
+      "name": "SAS",
+      "decision": "Accept with suggestions",
+      "assessments": {
+        "documentation": "adequate",
+        "documentation_summary": "Overview, prerequisites, installation, configuration, and known limitations all present; troubleshooting section has unfilled template placeholders",
+        "portability": "partially_portable",
+        "portability_summary": "form.yml attributes documented in README; /scratch/ absolute path in script undocumented"
+      },
+      "reported_signals": {
+        "portability": "Medium",
+        "documentation": "Medium"
+      }
+    }
+  ],
+  "maintenance_assessment": {
+    "active_within_12mo": true,
+    "waiver_brand_new": false,
+    "signals": {
+      "releases": false,
+      "changelog": true,
+      "ci": false,
+      "multiple_contributors": null,
+      "issues_responded": null
+    },
+    "summary": "Last commit 2026-07-08; no releases, no CI; CHANGELOG present but describes MATLAB/bc_osc_matlab",
+    "reported_signal": "Medium"
+  }
+}

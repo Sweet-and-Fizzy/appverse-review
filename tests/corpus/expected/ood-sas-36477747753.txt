@@ -1,0 +1,7 @@
+[floor] feedback floor: 12/12 fix-items covered
+[keys] INVALID MNT-02 RELEASES:no-releases (anchor is not a repo path or allowed pseudo-anchor)
+[keys] finding keys: 13/14 valid
+[rating] ratings: consistent
+[rows] error: cannot read apps.json 'tests/corpus/ood-sas-36477747753/pre-review/apps.json': [Errno 2] No such file or directory: 'tests/corpus/ood-sas-36477747753/pre-review/apps.json'
+[evidence] evidence: 14/14 valid; report rows: 2/2 valid
+exit: 2

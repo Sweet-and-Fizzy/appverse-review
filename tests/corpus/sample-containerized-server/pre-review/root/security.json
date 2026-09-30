@@ -1,0 +1,163 @@
+{
+  "counts": {
+    "interpolation": 7,
+    "unquoted_expansion": 0,
+    "eval_exec": 0,
+    "network_call": 0,
+    "file_write_outside_job": 0,
+    "permission_change": 0,
+    "credential_string": 0,
+    "config_flag": 2,
+    "binary_in_template": 0
+  },
+  "scope": "batch_connect",
+  "files": [
+    "form.yml.erb",
+    "submit.yml.erb",
+    "template/after.sh",
+    "template/before.sh.erb",
+    "template/bin/nginx",
+    "template/config/.gitkeep",
+    "template/create_nginx_conf.sh.erb",
+    "template/script.sh.erb"
+  ],
+  "attributes": [
+    "tracking_uri",
+    "artifact_root",
+    "mlflow_version",
+    "csc_slurm_project",
+    "csc_slurm_partition",
+    "csc_cores",
+    "csc_time",
+    "csc_memory",
+    "csc_nvme"
+  ],
+  "candidates": [
+    {
+      "kind": "interpolation",
+      "check": "sec-interpolation",
+      "rule": "OODT-01",
+      "tag": "unsanitized-user-input",
+      "file": "submit.yml.erb",
+      "line": 7,
+      "text": "- \"<%= csc_cores %>\"",
+      "note": "csc_cores; under script.native",
+      "attributes": [
+        "csc_cores"
+      ],
+      "guarded": false,
+      "quoted": true
+    },
+    {
+      "kind": "interpolation",
+      "check": "sec-interpolation",
+      "rule": "OODT-01",
+      "tag": "unsanitized-user-input",
+      "file": "submit.yml.erb",
+      "line": 9,
+      "text": "- \"<%= csc_time %>\"",
+      "note": "csc_time; under script.native",
+      "attributes": [
+        "csc_time"
+      ],
+      "guarded": false,
+      "quoted": true
+    },
+    {
+      "kind": "interpolation",
+      "check": "sec-interpolation",
+      "rule": "OODT-01",
+      "tag": "unsanitized-user-input",
+      "file": "submit.yml.erb",
+      "line": 10,
+      "text": "- \"--mem=<%= csc_memory %>G\"",
+      "note": "csc_memory; under script.native",
+      "attributes": [
+        "csc_memory"
+      ],
+      "guarded": false,
+      "quoted": true
+    },
+    {
+      "kind": "interpolation",
+      "check": "sec-interpolation",
+      "rule": "OODT-01",
+      "tag": "unsanitized-user-input",
+      "file": "submit.yml.erb",
+      "line": 12,
+      "text": "- \"--gres=nvme:<%= csc_nvme %>\"",
+      "note": "csc_nvme; under script.native",
+      "attributes": [
+        "csc_nvme"
+      ],
+      "guarded": true,
+      "quoted": true
+    },
+    {
+      "kind": "config_flag",
+      "check": "sec-config-flag",
+      "rule": "OODT-05",
+      "tag": "cors-wildcard",
+      "file": "template/create_nginx_conf.sh.erb",
+      "line": 17,
+      "text": "add_header 'Access-Control-Allow-Origin' '*' always;",
+      "note": "CORS open to all origins"
+    },
+    {
+      "kind": "interpolation",
+      "check": "sec-interpolation",
+      "rule": "OODT-01",
+      "tag": "unsanitized-user-input",
+      "file": "template/script.sh.erb",
+      "line": 9,
+      "text": "module load <%= context.mlflow_version %>",
+      "note": "mlflow_version (select)",
+      "attributes": [
+        "mlflow_version"
+      ],
+      "guarded": false,
+      "quoted": false
+    },
+    {
+      "kind": "interpolation",
+      "check": "sec-interpolation",
+      "rule": "OODT-01",
+      "tag": "unsanitized-user-input",
+      "file": "template/script.sh.erb",
+      "line": 22,
+      "text": "--backend-store-uri \"<%= context.tracking_uri %>\" \\",
+      "note": "tracking_uri (text_field)",
+      "attributes": [
+        "tracking_uri"
+      ],
+      "guarded": false,
+      "quoted": true
+    },
+    {
+      "kind": "interpolation",
+      "check": "sec-interpolation",
+      "rule": "OODT-01",
+      "tag": "unsanitized-user-input",
+      "file": "template/script.sh.erb",
+      "line": 23,
+      "text": "--default-artifact-root \"<%= context.artifact_root %>\" \\",
+      "note": "artifact_root (path_selector)",
+      "attributes": [
+        "artifact_root"
+      ],
+      "guarded": false,
+      "quoted": true
+    },
+    {
+      "kind": "config_flag",
+      "check": "sec-config-flag",
+      "rule": "OODT-05",
+      "tag": "bind-all-interfaces",
+      "file": "template/script.sh.erb",
+      "line": 24,
+      "text": "--host 0.0.0.0 \\",
+      "note": "binds all interfaces"
+    }
+  ],
+  "skipped_files": []
+}

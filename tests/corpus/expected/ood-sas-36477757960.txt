@@ -1,0 +1,15 @@
+[floor] MISSING QUA-08 template/script.sh.erb:undocumented-hex-color (defect not described in feedback)
+[floor] feedback floor: 19/20 fix-items covered
+[keys] INVALID QUA-07 form.yml:other:missing-pattern-constraint (other:missing-pattern-constraint extends the vocabulary tag 'missing-pattern'; use 'missing-pattern' or a distinct slug)
+[keys] finding keys: 22/23 valid
+[rating] MISMATCH root MNT-04 .github/workflows:no-ci: good-practice signal recorded as FAIL
+[rating] ratings: 1 mismatch
+[rows] error: cannot read apps.json 'tests/corpus/ood-sas-36477757960/pre-review/apps.json': [Errno 2] No such file or directory: 'tests/corpus/ood-sas-36477757960/pre-review/apps.json'
+[evidence] BAD OODT-01 submit.yml.erb:unsanitized-user-input submit.yml.erb:15-18 (`--wrap=cmd` is not on submit.yml.erb:15)
+[evidence] BAD report:numeric-field-bounds numeric-field-bounds `form.yml:31-35,39-43` (`custom_memory_per_node` is not on form.yml:31)
+[evidence] BAD report:numeric-field-bounds numeric-field-bounds `form.yml:31-35,39-43` (`custom_num_cores` is not on form.yml:31)
+[evidence] BAD report:numeric-field-bounds numeric-field-bounds `form.yml:31-35,39-43` (`max` is not on form.yml:31)
+[evidence] BAD report:icon-matches-target-os icon-matches-target-os `template/config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml:41` (`button-icon` is not on template/config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml:41)
+[evidence] BAD report:icon-matches-target-os icon-matches-target-os `template/config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml:41` (`fedora-logo-icon` is not on template/config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml:41)
+[evidence] evidence: 22/23 valid; report rows: 0/2 valid
+exit: 2

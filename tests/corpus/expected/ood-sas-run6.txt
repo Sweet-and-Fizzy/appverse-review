@@ -1,0 +1,11 @@
+[floor] feedback floor: 16/16 fix-items covered
+[keys] finding keys: 23/23 valid
+[rating] ratings: consistent
+[rows] error: cannot read apps.json 'tests/corpus/ood-sas-run6/pre-review/apps.json': [Errno 2] No such file or directory: 'tests/corpus/ood-sas-run6/pre-review/apps.json'
+[evidence] BAD QUA-05 CHANGELOG.md:wrong-app-changelog CHANGELOG.md:9-63 — entries reference MATLAB versions; links point to https://github.com/OSC/bc_osc_matlab (line 63 past end of file, has 62 lines)
+[evidence] BAD MNT-03 CHANGELOG.md:no-changelog CHANGELOG.md:1-63 — all entries reference MATLAB versions and OSC/bc_osc_matlab URLs (line 63 past end of file, has 62 lines)
+[evidence] BAD report:numeric-field-bounds numeric-field-bounds form.yml:31, 38 (`custom_memory_per_node` is not on form.yml:31)
+[evidence] BAD report:numeric-field-bounds numeric-field-bounds form.yml:31, 38 (`min` is not on form.yml:31)
+[evidence] BAD report:numeric-field-bounds numeric-field-bounds form.yml:31, 38 (`max` is not on form.yml:31)
+[evidence] evidence: 21/23 valid; report rows: 1/2 valid
+exit: 2

@@ -1,0 +1,43 @@
+{
+  "repo_url": "https://github.com/UWrc/tillicum-llama-chat",
+  "sha": "f7c8d35004b824812d7c552c6dc17d9b7fd98653",
+  "ref": "f7c8d35004b824812d7c552c6dc17d9b7fd98653",
+  "repo_shape": "inferred_single",
+  "not_archived": "pass",
+  "public": "pass",
+  "model": "claude-sonnet-4-6",
+  "recommendation": {
+    "decision": "Request changes",
+    "note": "Request changes. The app has no LICENSE file, which is a hard gate criterion for catalog listing. All other aspects are sound: the README is detailed (architecture, troubleshooting, model catalog management), the Batch Connect layout is correct, all shell scripts pass syntax checking, security findings are low-to-medium severity and either intentional (advanced user fields) or architectural (0.0.0.0 proxy binding required for OOD routing), and the repo is active. Once a license is added, the remaining issues \u2014 documentation below Adequate (missing prerequisites and configuration sections) and portability improvements (the /gpfs/ paths in form.yml and template/ need updating at every new site) \u2014 put this in \"Accept with suggestions\" territory, conditional on the catalog duplicate check passing. This assessment is also conditional on the catalog duplicate and software-entry checks noted above, which could not be performed."
+  },
+  "apps": [
+    {
+      "app_id": "root",
+      "name": "Llama.cpp WebUI",
+      "decision": "Request changes",
+      "assessments": {
+        "documentation": "minimal",
+        "documentation_summary": "Strong architecture and troubleshooting sections; no prerequisites or configuration section prevents reaching Adequate",
+        "portability": "partially_portable",
+        "portability_summary": "Site-specific /gpfs/ paths and cluster name centralized in form.yml; README documents model catalog and deployment"
+      },
+      "reported_signals": {
+        "portability": "Medium",
+        "documentation": "High"
+      }
+    }
+  ],
+  "maintenance_assessment": {
+    "active_within_12mo": true,
+    "waiver_brand_new": false,
+    "signals": {
+      "releases": false,
+      "changelog": false,
+      "ci": false,
+      "multiple_contributors": null,
+      "issues_responded": null
+    },
+    "summary": "Active (last commit 2026-09-09); no releases, CHANGELOG, or CI confirmed",
+    "reported_signal": "Medium"
+  }
+}

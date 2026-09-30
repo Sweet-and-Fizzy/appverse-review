@@ -1,0 +1,181 @@
+{
+  "file": "README.md",
+  "headings": [
+    {
+      "level": 1,
+      "text": "Llama.cpp WebUI \u2014 Open OnDemand Application",
+      "line": 1
+    },
+    {
+      "level": 2,
+      "text": "Recent changes",
+      "line": 10
+    },
+    {
+      "level": 2,
+      "text": "Current defaults",
+      "line": 17
+    },
+    {
+      "level": 2,
+      "text": "Architecture",
+      "line": 34
+    },
+    {
+      "level": 2,
+      "text": "Application files",
+      "line": 61
+    },
+    {
+      "level": 2,
+      "text": "Slurm resources",
+      "line": 75
+    },
+    {
+      "level": 2,
+      "text": "Partition-aware models",
+      "line": 103
+    },
+    {
+      "level": 3,
+      "text": "Currently configured models",
+      "line": 111
+    },
+    {
+      "level": 3,
+      "text": "Adding another model",
+      "line": 135
+    },
+    {
+      "level": 2,
+      "text": "Advanced options",
+      "line": 175
+    },
+    {
+      "level": 3,
+      "text": "Adding another advanced field",
+      "line": 204
+    },
+    {
+      "level": 2,
+      "text": "llama-server invocation",
+      "line": 220
+    },
+    {
+      "level": 2,
+      "text": "Reverse proxy behavior",
+      "line": 246
+    },
+    {
+      "level": 2,
+      "text": "Deployment",
+      "line": 271
+    },
+    {
+      "level": 3,
+      "text": "Application version shown by OOD",
+      "line": 294
+    },
+    {
+      "level": 2,
+      "text": "Logs and validation",
+      "line": 312
+    },
+    {
+      "level": 2,
+      "text": "Verification checklist",
+      "line": 333
+    },
+    {
+      "level": 2,
+      "text": "Troubleshooting",
+      "line": 345
+    },
+    {
+      "level": 3,
+      "text": "Slurm rejects the MIG request",
+      "line": 347
+    },
+    {
+      "level": 3,
+      "text": "The wrong model remains selected after changing partitions",
+      "line": 359
+    },
+    {
+      "level": 3,
+      "text": "The generated job uses old form values",
+      "line": 366
+    },
+    {
+      "level": 3,
+      "text": "`Error: gzip is not supported by this browser`",
+      "line": 373
+    },
+    {
+      "level": 3,
+      "text": "The session connects but chat requests return 404 or spin",
+      "line": 379
+    },
+    {
+      "level": 3,
+      "text": "The model never becomes available",
+      "line": 385
+    },
+    {
+      "level": 3,
+      "text": "Port conflicts",
+      "line": 393
+    },
+    {
+      "level": 3,
+      "text": "Stale bundled WebUI",
+      "line": 399
+    }
+  ],
+  "placeholders": [],
+  "screenshots": [],
+  "env_vars": [
+    {
+      "line": 284,
+      "text": "overridden with the `LLAMA_PROXY_PY` environment variable. This removes the",
+      "match": "phrase"
+    },
+    {
+      "line": 329,
+      "text": "Set `PROXY_DEBUG=1` in the job environment for verbose proxy request logging.",
+      "match": "assignment"
+    }
+  ],
+  "rungs": {
+    "what it launches": {
+      "heading": "Llama.cpp WebUI \u2014 Open OnDemand Application",
+      "line": 3,
+      "placeholder": false,
+      "match": "intro"
+    },
+    "prerequisites": null,
+    "installation": {
+      "heading": "Deployment",
+      "line": 271,
+      "placeholder": false,
+      "match": "heading"
+    },
+    "configuration": null,
+    "known limitations": null,
+    "troubleshooting": {
+      "heading": "Troubleshooting",
+      "line": 345,
+      "placeholder": false,
+      "match": "heading"
+    },
+    "screenshots": null,
+    "environment variables": null,
+    "info panel": null,
+    "architecture": {
+      "heading": "Architecture",
+      "line": 34,
+      "placeholder": false,
+      "match": "heading"
+    }
+  }
+}

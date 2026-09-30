@@ -1,0 +1,9 @@
+[floor] feedback floor: 16/16 fix-items covered
+[keys] finding keys: 39/39 valid
+[rating] MISMATCH root security: "No tool-detectable issues in the checked tiers." with 4 FAIL/WARN rows above it
+[rating] ratings: 1 mismatch
+[rows] check-rows: 1 app, 18 required rows, 0 problems
+[evidence] BAD report:numeric-field-bounds numeric-field-bounds form.yml:19 (`--time=0:00` is not on form.yml:19)
+[evidence] BAD report:erb-missing-value erb-missing-value submit.yml.erb:12 (`--time=0:00` is not on submit.yml.erb:12)
+[evidence] evidence: 39/39 valid; report rows: 56/58 valid
+exit: 1

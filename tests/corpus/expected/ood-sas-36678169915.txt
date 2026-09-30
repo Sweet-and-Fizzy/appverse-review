@@ -1,0 +1,14 @@
+[floor] feedback floor: 13/13 fix-items covered
+[keys] finding keys: 36/36 valid
+[rating] MISMATCH root security: "No tool-detectable issues in the checked tiers." with 6 FAIL/WARN rows above it
+[rating] ratings: 1 mismatch
+[rows] check-rows: 1 app, 18 required rows, 0 problems
+[evidence] BAD report:str-04-references str-04-references submit.yml.erb:1 (`bc_email_on_started` is not on submit.yml.erb:1)
+[evidence] BAD report:sec-interpolation sec-interpolation submit.yml.erb:17 (`extra_slurm` is not on submit.yml.erb:17)
+[evidence] BAD report:hardcoded-site-paths hardcoded-site-paths template/script.sh.erb:21 (`$TMPDIR` is not on template/script.sh.erb:21)
+[evidence] BAD report:error-handling error-handling template/script.sh.erb:1 (`mkdir` is not on template/script.sh.erb:1)
+[evidence] BAD report:numeric-field-bounds numeric-field-bounds form.yml:15,27,65,72 (`pattern` is not on form.yml:15)
+[evidence] BAD report:numeric-field-bounds numeric-field-bounds form.yml:15,27,65,72 (`custom_num_gpus` is not on form.yml:15)
+[evidence] BAD report:dead-code dead-code template/script.sh.erb:33,39,78 (`SINGULARITYENV_MATLAB_PREFDIR` is not on template/script.sh.erb:33)
+[evidence] evidence: 36/36 valid; report rows: 22/28 valid
+exit: 1
