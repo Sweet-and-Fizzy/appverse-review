@@ -158,6 +158,21 @@ print(section_for(app, sections, single=True).strip())
 check "section body returned" "### Structure
 demo body" "$out"
 
+out=$(py "
+from report_parse import app_sections, section_for
+text = '''## App: Demo (elsewhere)
+
+### Structure
+fallback body
+'''
+sections = app_sections(text)
+app = {'app_id': 'root', 'path': '.'}
+print(section_for(app, sections, single=True).strip())
+"
+)
+check "no id match, single app with one section: the fallback returns it" "### Structure
+fallback body" "$out"
+
 echo "Test 9b: section_for -- no match and not single returns None"
 out=$(py "
 from report_parse import app_sections, section_for
