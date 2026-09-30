@@ -492,4 +492,14 @@ printf '## Draft feedback\n<!-- feedback-covers: template/script.sh.erb:commente
 check "prefix phrase in window: exit 0" 0 "$(run "$TMP/t39.json" "$TMP/t39.md")"
 check "reports 1/1" "feedback floor: 1/1 fix-items covered" "$(tail -1 "$TMP/out")"
 
+echo "Test 40: a one-character phrase word is a shell flag and matches only in flag form ('set e' in 'users can set e (environment) variables' does not satisfy no-set-e)"
+printf '## Draft feedback\n<!-- feedback-covers: template/script.sh.erb:no-set-e -->\nIn template/script.sh.erb, users can set e (environment) variables.\n' > "$TMP/t40.md"
+check "exit 1" 1 "$(run "$TMP/t37.json" "$TMP/t40.md")"
+check "reason" 1 "$(grep -cF 'MISSING QUA-03 template/script.sh.erb:no-set-e (defect not described in feedback)' "$TMP/out")"
+
+echo "Test 41: the flag form with a hyphen joined directly to the word ('no set-e') still satisfies no-set-e"
+printf '## Draft feedback\n<!-- feedback-covers: template/script.sh.erb:no-set-e -->\ntemplate/script.sh.erb has no set-e.\n' > "$TMP/t41.md"
+check "flag form set-e: exit 0" 0 "$(run "$TMP/t37.json" "$TMP/t41.md")"
+check "reports 1/1" "feedback floor: 1/1 fix-items covered" "$(tail -1 "$TMP/out")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

@@ -432,10 +432,20 @@ def phrase_named(defect_key, prose):
     shrinking prefixes (full sequence first, then one word shorter, down to
     2) lets a longer tag still match prose that only spells out its first
     two words (e.g. "commented-out-code" matched by "a commented-out
-    block")."""
+    block").
+
+    A phrase word of one character (after the first word) is read as a
+    shell flag, so it matches only in flag form: the separator before it
+    must end in a hyphen ('[ _]*-'), so "set -e" and "set-e" match but
+    "set e" (as in "users can set e (environment) variables") does not.
+    Words of two or more characters keep the '[-_ ]*' separator."""
     words = phrase_words(defect_key)
     for end in range(len(words), 1, -1):
-        pattern = r"\b" + r"[-_ ]*".join(re.escape(w) for w in words[:end]) + r"\b"
+        pattern = r"\b" + re.escape(words[0])
+        for w in words[1:end]:
+            sep = r"[ _]*-" if len(w) == 1 else r"[-_ ]*"
+            pattern += sep + re.escape(w)
+        pattern += r"\b"
         if re.search(pattern, prose, re.IGNORECASE):
             return True
     return False
