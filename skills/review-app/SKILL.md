@@ -37,7 +37,12 @@ review-security, review-quality, review-maintenance. Each subagent's prompt:
 > owner/repo: <owner/repo or unknown>; reviewed commit: <SHA> (<date>);
 > repo shape: <shape>; apps: <list of path + resolved fields>;
 > shared_paths: <list>; schema source: <live|cached>;
-> pre-review dir: <path to the pre-review output, or "absent">;
+> pre-review dir: <path to the pre-review output, or "absent">
+> (it holds `apps.json`, the app list with each `app_id`, `path` and
+> `app_type`, and one fact directory per app, `<pre-review>/<app_id>/`, with
+> `readme.json`, `form.json`, `template.json`, `entry_point.json` and
+> `security.json` as they apply);
+> checks manifest: `${CLAUDE_PLUGIN_ROOT}/references/checks.json`;
 > languages/frameworks detected: <e.g., Ruby/Sinatra, Python/Flask, shell>;
 > dependency manifests: <Gemfile.lock, package-lock.json, requirements.txt, or none>;
 > test suite: <command and result, or "none detected">.
@@ -45,6 +50,10 @@ review-security, review-quality, review-maintenance. Each subagent's prompt:
 > If a previous review of this repo is available, treat its findings as
 > context only. Verify the current state independently — a fix may be
 > incomplete, may have regressed, or may have introduced a new defect.
+>
+> For each app, answer every manifest check for that app's `app_type` in your
+> dimension, one row per check (Security: one row per candidate), each
+> row's Check column holding `check: <id>`.
 >
 > Return your findings as structured finding records (per target-setup.md §4),
 > any prose tables the skill specifies (capability profile, ratings), and any
@@ -121,14 +130,32 @@ string; if unavailable, write `unknown`.
      ("Indicators"). assemble-artifact.py computes the same levels from the
      findings and grades, and warns when a level written here disagrees. -->
 
+<!-- Every dimension table below has a Check column. A row that answers a
+     checks-manifest entry (references/checks.json, the entries whose
+     app_types include this app's app_type) holds exactly `check: <id>` there,
+     in manifest order; rows from the open-ended pass leave it empty.
+     Evidence cites file:line in exactly one of these forms: path:N,
+     path:N-M, or path:N,M (a comma list of lines or ranges), with the
+     repo-relative path as the fact file gives it; a path-only candidate may
+     be cited by the bare path. Never prose ("line 12 of script.sh",
+     "script.sh: line 12"). A row answers exactly the candidates its
+     Evidence cites: a PASS row clears a check that has candidates only by
+     citing every one; a plain PASS is for a check with none.
+     check-rows.py enforces this. -->
+
 ### Structure
-| Rule | Result | Severity | Summary | Evidence |
-|---|---|---|---|---|
-| STR-02 | PASS/FAIL/WARN/NOT CHECKED | ... | Required metadata fields | ... |
-| STR-03 | PASS/FAIL/WARN/NOT CHECKED | ... | YAML validity | ... |
-| STR-06 | PASS/FAIL/NOT CHECKED | ... | Template scripts syntactically correct | <N files pass \| M of N fail: paths> (from pre-review syntax.json) |
-| STR-07 | PASS/FAIL/WARN/NOT CHECKED | ... | Standard OOD structure | ... |
-| STR-04 | PASS/FAIL/WARN/NOT CHECKED | ... | No broken references | ... |
+| Rule | Check | Result | Severity | Summary | Evidence |
+|---|---|---|---|---|---|
+| STR-02 | `check: str-02-metadata` | PASS/FAIL/WARN/NOT CHECKED | ... | Required metadata fields | ... |
+| STR-03 | `check: str-03-yaml-valid` | PASS/FAIL/WARN/NOT CHECKED | ... | YAML validity | ... |
+| STR-06 | `check: str-06-syntax` | PASS/FAIL/NOT CHECKED | ... | Template scripts syntactically correct: <N files pass; M fail; K not checked> (from pre-review syntax.json) | <every syntax.json entry with ok false, as path:N or path> |
+| STR-07 | `check: str-07-layout` | PASS/FAIL/WARN/NOT CHECKED | ... | Standard OOD structure | ... |
+| STR-04 | `check: str-04-references` | PASS/FAIL/WARN/NOT CHECKED | ... | No broken references | ... |
+<!-- Passenger and companion apps: no str-06-syntax or str-07-layout row;
+     instead a `check: entry-point-parses` row (STR-07) from entry_point.json
+     (parses true = PASS, false = FAIL citing the file, "not_checked" = NOT
+     CHECKED), placed where str-06-syntax would be, plus an STR-08 row when
+     `consistent` is false. -->
 
 ### Security
 
@@ -136,48 +163,85 @@ Findings are classified under OODT (Open OnDemand App Threats); codes are define
 
 <!-- Paste <pre-review>/tool-table.md here verbatim: the Check tiers line, the tier 3 line, and the Tool / Status / Result table. Never retype it. If the file is absent, write "**Check tiers:** Tier 1 only" and the table with all four rows (shellcheck, semgrep, bandit, trivy) as "Not run (pre-review facts not found)" with Result "—". -->
 
-<capability profile: table for Batch Connect, narrative for Passenger>
-
 #### Findings
 
-<!-- When there are no FAIL/WARN findings, keep the table header and write exactly "No tool-detectable issues in the checked tiers." in place of the table rows; the Check tiers lines above stay as they are. Never write "safe". -->
+<!-- One row per candidate in <pre-review>/<app_id>/security.json, grouped
+     by check in manifest order (sec-interpolation, sec-eval-exec,
+     sec-credential-string, sec-permissive-mode, sec-network-call,
+     sec-file-write-outside-job, sec-config-flag, sec-binary-in-template),
+     each citing its candidate's path:N. A check with no candidates has no
+     row. Tag is the intent tag. When security.json is absent, write
+     "Candidate enumeration not run: <reason>." in place of the rows. -->
+
+| Rule | Check | Result | Severity | Tag | Summary | Evidence |
+|---|---|---|---|---|---|---|
+| OODT-XX | `check: sec-<id>` | FAIL/WARN/PASS | critical/high/medium/low/info | unintentional / potentially malicious | <one-line reason> | path:N |
+
+#### Additional observations (review)
+
+<!-- The open-ended pass after the candidate loop: what security.json did not
+     list, each summary saying so. `No findings.` when there is nothing. -->
 
 | Rule | Result | Severity | Tag | Summary | Evidence |
 |---|---|---|---|---|---|
-| OODT-XX | FAIL/WARN | critical/high/medium/low | unintentional / potentially malicious | <description> | file:line |
+| OODT-XX | FAIL/WARN | critical/high/medium/low | unintentional / potentially malicious | <description>; not listed by security.json | path:N |
+
+<!-- When no row in either table is FAIL or WARN, write exactly "No tool-detectable issues in the checked tiers." here; the Check tiers lines above stay as they are. Never write "safe". There is no security rating. -->
+
+<capability profile, a summary of the rows above: table for Batch Connect, narrative for Passenger>
 
 ### Portability
 - Rating: <Not portable | Partially portable | Portable> — <one-line justification>
-<!-- Portability findings, each with file:line -->
+
+| Rule | Check | Result | Severity | Summary | Evidence |
+|---|---|---|---|---|---|
+| QUA-02 | `check: hardcoded-site-paths` | PASS/WARN/NOT CHECKED | ... | <per template.json absolute_paths candidate, or a group in one file with one reason> | path:N |
+| QUA-02 | `check: portability-rating` | PASS/FAIL | ... | <rating; PASS at Partially portable or above> | ... |
 
 ### Documentation
 - Rating: <Minimal | Adequate | Strong | Exemplary> — <one-line justification>
-- Evidence per rung (a heading whose body is template placeholder text counts as none):
-  what it launches: <…>; prerequisites: <…>; installation: <README section + line, or none>;
+- Evidence per rung (from readme.json rungs; a placeholder heading counts as none):
+  what it launches: <"Heading", README.md:N, or none>; prerequisites: <…>; installation: <…>;
   configuration: <…>; known limitations: <…>;
   troubleshooting: <…>; screenshots: <…>; environment variables: <…>;
   info panel: <…>; architecture: <…>
-<!-- The rating is the highest rung with every requirement satisfied above.
-     Never claim a rung whose evidence line says none. Documentation findings, each with file:line -->
+<!-- Each line cites the readme.json rung: the heading text and README.md:N,
+     or none when the rung is null. placeholder true forces
+     "none (placeholder)". Screenshots and environment variables cite a
+     screenshots image line or an env_vars assignment/phrase line; a rung
+     whose only evidence is its heading says "heading only". A line may say
+     none with a reason where the section does not deliver its rung; it may
+     never cite a section readme.json does not list. The rating is the
+     highest rung with every requirement satisfied above. Never claim a rung
+     whose evidence line says none. -->
+
+| Rule | Check | Result | Severity | Summary | Evidence |
+|---|---|---|---|---|---|
+| QUA-01 | `check: documentation-rating` | PASS/FAIL | ... | <rating; PASS at Adequate or above> | README.md (bare: a pseudo-anchor takes no line) |
 
 ### Code Quality
-<!-- One row per check, ALWAYS, in this order; PASS with evidence when clean,
-     NOT CHECKED with the reason when it could not be examined. Never omit a
-     row: silence reads as clean. Then one row per correctness-&-polish
+<!-- At least one row per manifest check for this app's app_type, ALWAYS, in
+     manifest order (the code_quality entries of checks.json); PASS with
+     evidence when clean, NOT CHECKED with the reason when it could not be
+     examined. A check whose facts (form.json, template.json) list
+     candidates answers each one, FAIL/WARN or PASS citing it; candidates in
+     one file with one result and reason may share a row (path:N,M). Never
+     omit a row: silence reads as clean. Then one row per correctness-&-polish
      finding (copy-paste artifacts, duplicate YAML keys, wrong help text,
-     README typos). Code Quality is a findings category that feeds the
-     decision rubric — it is NOT a signal dimension. -->
+     README typos), with the Check column empty. Code Quality is a findings
+     category that feeds the decision rubric — it is NOT a signal
+     dimension. -->
 
-| Check | Rule | Result | Severity | Summary | Evidence |
+| Rule | Check | Result | Severity | Summary | Evidence |
 |---|---|---|---|---|---|
-| Error handling in scripts | QUA-03 | PASS/FAIL/WARN/NOT CHECKED | ... | ... | file:line |
-| Input validation on form fields (`check: numeric-field-bounds`) | QUA-07 | ... | ... | ... | ... |
-| Magic numbers / undocumented literals | QUA-08 | ... | ... | ... | ... |
-| Duplicated code blocks | QUA-09 | ... | ... | ... | ... |
-| Commented-out dead code | QUA-04 | ... | ... | ... | ... |
-| ERB handles missing/empty values | QUA-10 | ... | ... | ... | ... |
-| Desktop/panel icon matches target OS (`check: icon-matches-target-os`) | QUA-06 | ... | ... | ... | ... |
-| <correctness & polish finding> | QUA-05/QUA-06 | FAIL/WARN | ... | ... | file:line |
+| QUA-03 | `check: error-handling` | PASS/FAIL/WARN/NOT CHECKED | ... | Error handling in scripts | path:N |
+| QUA-07 | `check: numeric-field-bounds` | ... | ... | Input validation on form fields | ... |
+| QUA-08 | `check: magic-numbers` | ... | ... | Magic numbers / undocumented literals | ... |
+| QUA-09 | `check: duplicated-blocks` | ... | ... | Duplicated code blocks | ... |
+| QUA-04 | `check: dead-code` | ... | ... | Commented-out dead code | ... |
+| QUA-10 | `check: erb-missing-value` | ... | ... | ERB handles missing/empty values | ... |
+| QUA-06 | `check: icon-matches-target-os` | ... | ... | Desktop/panel icon matches target OS | ... |
+| QUA-05/QUA-06 | | FAIL/WARN | ... | <correctness & polish finding> | path:N |
 
 **Per-app decision:** <Accept | Accept with suggestions | Request changes | Reject>
 <!-- This is a decision, derived from the gate criteria and finding

@@ -21,8 +21,10 @@ up a code.
 
 The security review consists of three tiers, distinguished by what they require:
 
-- **Tier 1 — Static.** Source-level analysis: structure, capability profile,
-  pattern checks. Runs anywhere, including CI on a submitted PR.
+- **Tier 1 — Static.** Source-level analysis: every candidate site the
+  pre-review listed in `security.json`, answered one by one, then an
+  open-ended reading for what the enumeration missed, then the capability
+  profile. Runs anywhere, including CI on a submitted PR.
 - **Tier 2 — Tooling.** Static analysis tools (shellcheck, bandit, semgrep,
   trivy). Run before the review by references/run-pre-review.sh; the skill
   reads its output and never runs a tool itself. Needs installed binaries, no
@@ -36,39 +38,103 @@ should look thinner, not identical to a full one.
 
 ## Procedure
 
+The per-app security review is a loop over the checks manifest,
+`${CLAUDE_PLUGIN_ROOT}/references/checks.json` (human copy `checks.yml`): the
+entries with `dimension: security` whose `app_types` include the app's type.
+Their fact source is `<pre-review>/<app_id>/security.json`, which lists
+candidate sites, not verdicts. Security has no rating: the rows are the output.
+
 1. Determine each app's type (Batch Connect, Passenger, dashboard, widget) from
-   its manifest `role` / declared `app_type` — the capability baseline differs.
+   `<pre-review>/apps.json` (`app_type`), which resolves it from the manifest
+   `role` / declared `app_type` and the entry-point files; confirm it against
+   the manifest. The capability baseline differs by type.
 2. Identify in-scope files. Batch Connect: `form.yml(.erb)`, `submit.yml.erb`,
    `template/**`, `connection.yml`, container definitions. Passenger: the full
    application source (routes, controllers, views, config, scripts). Always
-   include `shared_paths`. List binary files that cannot be audited.
+   include `shared_paths`. `security.json`'s `scope` and `files` are the
+   scanner's view of the same set, and its `skipped_files` are the files it
+   could not read; list those, and any other binary file, as unauditable.
    If the app declares `shared_paths`, include those directories in the
    security review scope. `shared_paths` is scope input, not a pass/fail
    criterion.
-3. **Tier 1 — Capability profile.** Catalog what the code actually does: system
-   access, network calls, file reads and writes, spawned processes, dynamic code
-   loading, authentication posture.
-   - Batch Connect: compare against the narrow baseline; anomalies (network calls
-     from ERB, SSH-key reads, base64-decode-and-execute, writes to dotfiles or
-     cron) are strong signals — flag each as a finding. Record any binary file
-     under `template/` as a finding (OODT-04, tag `binary-in-template`) in
-     addition to listing it as unauditable.
-   - Passenger: report the full profile for transparency; flag only capabilities
-     in the rubric's "Flagged" column. Never penalize an app for its designed
-     purpose — a job composer running shell commands is its job; running them
-     with CORS open to all origins is a finding.
-4. **Tier 1 — Pattern checks.** Apply the rubric's pattern table across all
-   in-scope files. Where a tool finding from step 5 confirms or adds to a manual
-   finding, cite the tool as corroborating evidence (e.g., "bandit B602:
-   subprocess with shell=True"). Where a tool surfaces something the manual scan
-   missed, add it.
+3. **Tier 1 — Candidate loop.** Read `security.json`'s `candidates`. Each has
+   `kind`, `check` (the manifest id), `file` (repo-relative), `line`, `text`,
+   `rule`, `tag` (null where the scanner could not pick one), `note`, and for
+   `interpolation` also `attributes`, `guarded` and `quoted`. Go through the
+   security checks in manifest order, and within each check through its
+   candidates in file and line order:
+
+   | Check | Candidate kinds |
+   |---|---|
+   | `sec-interpolation` | `interpolation`, `unquoted_expansion` |
+   | `sec-eval-exec` | `eval_exec` |
+   | `sec-credential-string` | `credential_string` |
+   | `sec-permissive-mode` | `permission_change` |
+   | `sec-network-call` | `network_call` |
+   | `sec-file-write-outside-job` | `file_write_outside_job` |
+   | `sec-config-flag` | `config_flag` |
+   | `sec-binary-in-template` | `binary_in_template` |
+
+   For every candidate, decide FAIL, WARN or PASS and write one row with a
+   one-line reason; never skip a candidate, and never merge two candidates
+   into one row. Read the cited line in context before deciding:
+   - An `interpolation` that is `guarded` and `quoted`, or whose value cannot
+     reach a shell (a select whose options the app defines, a number field
+     with bounds), is usually PASS; say which. An unguarded, unquoted value
+     from a free-text field reaching a shell command is a finding.
+   - Batch Connect: compare against the narrow baseline. Network calls from
+     ERB, SSH-key reads, base64-decode-and-execute, and writes to dotfiles or
+     cron are strong signals and are FAIL. A `binary_in_template` candidate
+     is always a finding (OODT-04, `binary-in-template`), and the file is also
+     listed as unauditable.
+   - Passenger: a capability in the rubric's "Flagged" column is a finding;
+     one the app needs for its designed purpose is PASS, with the reason
+     ("job composer: running sbatch is its purpose"). Never penalize an app
+     for its designed purpose; running shell commands with CORS open to all
+     origins is a finding.
+
+   Each row answers exactly the candidate it cites (see Output for the row
+   and citation form). For each FAIL or WARN candidate write one finding
+   record: `rule` is the candidate's `rule` (the manifest's when absent),
+   `defect_key` is `{file}:{tag}` from the candidate's `file` and its `tag`,
+   falling back to the manifest entry's `tag`. A `config_flag` candidate with
+   no tag takes the vocabulary term for what the flag does: `disabled-auth`,
+   `bind-all-interfaces` or `cors-wildcard` under OODT-05, `disabled-ssl` or
+   another OODT-08 term under OODT-08. Candidates of one check with the same
+   file and tag share one record whose `evidence` lists every line (the
+   one-finding-per-file-per-mechanism rule in finding-codes.md); they still
+   get a row each. The candidates of a check answered PASS share one PASS
+   record, keyed `{file}:{tag}` from the first of them, whose `evidence`
+   lists every PASS candidate's `path:N`, unless a FAIL or WARN record of that
+   check already has that key, in which case the PASS candidates appear only
+   in their rows.
+   A check with no candidates has no row: Security rows are required only
+   where `security.json` lists a candidate (`row_required: when_candidates`).
+   If `security.json` is absent (the pre-review directory is absent, or
+   `summary.json`'s `security` record says the app was skipped or failed),
+   there are no candidate rows: say so in one line above the table
+   ("Candidate enumeration not run: <reason>") and do the whole pattern
+   table from the rubric in step 4.
+4. **Tier 1 — Additional observations (review).** After the loop, read the
+   in-scope files for anything the enumeration did not list: the rubric's
+   capability baseline and pattern table (CSRF on state-changing endpoints,
+   partial authentication coverage, disabled framework protections,
+   container isolation, debug output, a network call or dotfile write the
+   scanner missed). Record each as a finding under the vocabulary tag where
+   one fits, else `other:{short-description}`, in the "Additional
+   observations (review)" table, and say in its summary that `security.json`
+   did not list it: that note is the signal for improving the scanner. An
+   observation at a line a candidate already covers belongs in that
+   candidate's row, not here.
 5. **Tier 2 — Read the pre-review results.** The pre-review script has
    already rendered the Check tiers line and the tool-scan table into
    `<pre-review>/tool-table.md`. Paste that file's contents verbatim as the
    Check tiers line and the table; never retype, reorder, recount, or reword
-   any of it. Then read `<pre-review>/summary.json` and each tool's JSON and
-   treat the findings exactly as before: corroboration for a step-4 finding,
-   or a new finding classified under OODT. Never run a tool, never ask to
+   any of it. Then read `<pre-review>/summary.json` and each tool's JSON. A
+   tool finding at a candidate's line is corroboration: cite the tool and
+   finding ID in that row's summary (e.g., "bandit B602: subprocess with
+   shell=True"). A tool finding at no candidate's line is an additional
+   observation (step 4). Never run a tool, never ask to
    run one, never write "pending approval". If `tool-table.md` is absent,
    write the Check tiers line as `Tier 1 only` and the table with all four
    rows (shellcheck, semgrep, bandit, trivy) as
@@ -79,12 +145,20 @@ should look thinner, not identical to a full one.
    reading source. Library defaults, framework middleware, and proxy assumptions
    are frequently invisible in source. If the app cannot be run (CI, no runtime
    environment), report tier 3 as `NOT CHECKED — no isolated execution environment`.
-7. **Classify all findings.** After all tiers have run, classify every finding
-   under OODT-01..08, rate severity
-   Critical / High / Medium / Low per the rubric's "Rating findings" section
-   and the scale in `${CLAUDE_PLUGIN_ROOT}/references/finding-codes.md`, and
-   tag it unintentional or potentially malicious. Use the OODT mapping from
-   the tool lookup table to classify tool-originated findings.
+7. **Classify every row.** Every FAIL or WARN row and observation is
+   classified under OODT-01..08 (the candidate's `rule` is the default; a
+   `network_call` that exposes a service to other users is OODT-05 rather
+   than OODT-04), rated Critical / High / Medium / Low per the rubric's
+   "Rating findings" section and the scale in
+   `${CLAUDE_PLUGIN_ROOT}/references/finding-codes.md`, and tagged
+   unintentional or potentially malicious. A PASS row has severity `info`.
+   Use the OODT mapping from the tool lookup table to classify
+   tool-originated findings.
+8. **Capability profile.** Last, summarize what the code does (system
+   access, network calls, file reads and writes, spawned processes, dynamic
+   code loading, authentication posture), drawing on the rows above. It is a
+   summary for the reader and adds no findings: anything it would flag is
+   already a row or an observation.
 
 ## Safe probing
 
@@ -127,17 +201,41 @@ Follow these rules for any runtime verification:
   table with every row `Not run (pre-review facts not found)` and Result
   `—`. Never omit the table — its absence is indistinguishable from a clean
   scan.
-- The capability profile: a compact File / Capabilities / Anomalies table for
-  Batch Connect apps; a short narrative for Passenger apps.
 
 ### Findings
 
-- **Structured findings** per target-setup.md §4. Each finding uses an OODT-XX
-  rule code and a `defect_key` from the security mechanism-tag vocabulary in
-  `${CLAUDE_PLUGIN_ROOT}/references/finding-codes.md`. Tool-corroborated
-  findings include the tool name and finding ID in the `summary` field. Tag each
-  finding in a `tag` field on the record, value `unintentional` or
-  `potentially-malicious`, and repeat it in the report's Tag column, written
-  as *potentially malicious* in the column.
+- **Candidate rows**, one per `security.json` candidate, in the loop's
+  order:
 
-No decisions, no numeric risk scores.
+  | Rule | Check | Result | Severity | Tag | Summary | Evidence |
+  |---|---|---|---|---|---|---|
+  | OODT-01 | `check: sec-interpolation` | FAIL | medium | unintentional | `<%= jupyter_args %>` unquoted in the job script; a free-text value reaches the shell | template/script.sh.erb:12 |
+  | OODT-04 | `check: sec-network-call` | PASS | info | unintentional | `curl` to localhost health check; stays on the node | template/script.sh.erb:30 |
+
+  The Check column holds exactly `` `check: <id>` `` with the manifest id.
+  Result is exactly FAIL, WARN or PASS. Tag is the intent tag,
+  *unintentional* or *potentially malicious*. Evidence cites the candidate
+  as `path:N` (a range `path:N-M`, a list `path:N,M`), with the
+  repo-relative path exactly as `security.json` gives it; never prose such
+  as "line 12 of script.sh". A row answers exactly the candidates it cites.
+- **Additional observations (review)**, a second table under that heading
+  after the candidate rows, with the same columns minus Check (Rule / Result / Severity / Tag /
+  Summary / Evidence), one row per step-4 observation, each summary saying
+  that `security.json` did not list it. Write `No findings.` under the
+  heading when the open-ended pass found nothing.
+- When no row or observation is FAIL or WARN, write exactly "No
+  tool-detectable issues in the checked tiers." under the tables. Never
+  write "safe".
+- **Capability profile**, after the tables: a compact File / Capabilities
+  / Anomalies table for Batch Connect apps; a short narrative for Passenger
+  apps.
+- **Structured findings** per target-setup.md §4. Each finding uses an OODT-XX
+  rule code and a `defect_key` built as step 3 says, from the candidate and
+  the manifest, or for an observation from the security mechanism-tag
+  vocabulary in `${CLAUDE_PLUGIN_ROOT}/references/finding-codes.md`.
+  Tool-corroborated findings include the tool name and finding ID in the
+  `summary` field. Tag each finding in a `tag` field on the record, value
+  `unintentional` or `potentially-malicious`, and repeat it in the report's
+  Tag column, written as *potentially malicious* in the column.
+
+No security rating or level, no decisions, no numeric risk scores.

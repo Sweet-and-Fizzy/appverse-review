@@ -74,6 +74,16 @@ defect_key = "{anchor}:{mechanism_tag}"
   When reviewing findings with `other:` tags, check whether an existing
   vocabulary term fits; if a novel tag recurs across reviews, promote it
   to the vocabulary.
+- **Enumerated candidates.** A finding on a candidate the pre-review facts
+  list (a `security.json`, `form.json` or `template.json` entry) takes its
+  tag from the checks manifest (`references/checks.yml`): the `tag` of the
+  entry whose `check` the candidate answers, with the candidate's file as
+  the anchor. Those manifest tags are all in the vocabularies below, so two
+  runs that record the same candidate produce the same key. A security
+  candidate that carries its own `tag` (the scanner's more exact term under
+  the same threat, such as `curl-pipe-exec` or `cors-wildcard`) uses that
+  one instead. Where the manifest tag is null, the aspect skill names the
+  tag.
 - **Qualified tags.** Where the vocabulary shows a `{qualifier}` (e.g.
   `duplicate-yaml-key:{key_name}`, `readme-inconsistency:{topic}`), the
   qualifier is required and is the full dotted attribute path or the topic

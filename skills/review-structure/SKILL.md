@@ -28,6 +28,21 @@ record is NOT CHECKED with the note "pre-review facts not found".
 
 ## Per-app checks (use the resolved field set from setup)
 
+The per-app checks are the manifest entries with `dimension: structure` in
+`${CLAUDE_PLUGIN_ROOT}/references/checks.json` whose `app_types` include the
+app's type (`app_type` in `<pre-review>/apps.json`): `str-02-metadata`,
+`str-03-yaml-valid`, `str-06-syntax` and `str-07-layout` for Batch Connect,
+`entry-point-parses` in place of the last two for Passenger and companion
+apps, and `str-04-references`. Every one gets at least one row in the
+Structure table with its `` `check: <id>` `` marker, in manifest order: FAIL,
+WARN or PASS with evidence, NOT CHECKED with the reason. A check whose fact
+file lists candidates (`syntax.json` entries with `ok` false,
+`entry_point.json` with `parses` false) must cite each one in a row's
+Evidence as `path:N` or the bare path. Finding records use the manifest
+entry's `tag` in `defect_key` where it has one; where it is null, the tag
+the bullet below names. Anything else you notice goes after the checks, as
+its own finding with the vocabulary tag that fits or `other:`.
+
 - Required metadata fields for the repo shape, per the rubric's "Repository
   structure" section. For declared repos that includes `description`,
   `software`, `app_type`, `maintainer.name`, and `maintainer.support_url`; a
@@ -69,7 +84,10 @@ record is NOT CHECKED with the note "pre-review facts not found".
     stderr text).
   The gate table's STR-06 row summarises them: "N files pass; M fail:
   `<paths>`; K not checked: `<path>` (`<reason>`)", with refused symlinks
-  listed among the not-checked paths.
+  listed among the not-checked paths. Its Evidence column cites every
+  entry whose `ok` is false (failed, not checked, or refused), each as
+  `path:N` with the line from stderr or as the bare path; one row may cite
+  them all.
 - No broken references: variables and attributes used in `submit.yml.erb` and
   `template/` files exist in `form.yml` or `form.yml.erb`.
 - Batch Connect apps have the standard layout: `form.yml` or `form.yml.erb`,
@@ -79,20 +97,39 @@ record is NOT CHECKED with the note "pre-review facts not found".
   Detect by `manifest.yml` role (`passenger_app`) or by the presence of a
   recognized entry point (`config.ru` for Ruby/Rack, `passenger_wsgi.py` for
   Python/WSGI):
-  - Entry point exists and parses: `ruby -c config.ru` for Rack apps,
-    `python -c "import py_compile; py_compile.compile('passenger_wsgi.py')"` for
-    WSGI apps
+  - Entry point exists and parses (`check: entry-point-parses`, STR-07),
+    from `<pre-review>/<app_id>/entry_point.json`, never by running an
+    interpreter yourself. It has no candidate list; the row keys on its
+    fields. `parses` true: PASS, evidence the entry `file`. `parses` false:
+    FAIL (severity high), evidence the `file` (and the line from `error`
+    when it names one, as `path:N`) plus the first line of `error`,
+    `defect_key` `<file>:other:entry-point-parse-error`. `parses`
+    `"not_checked"` (the interpreter is not on PATH): NOT CHECKED with the
+    `note`. `entry_point.json` absent (no entry point, or pre-review absent):
+    no entry point is STR-07 `missing-entry-point` (anchor `root`, or the
+    app subpath); pre-review absent is NOT CHECKED, "pre-review facts not
+    found". `consistent` false is a separate STR-08 row and record
+    (`<dependency_manifest>:dependency-manifest-inconsistent`, with the
+    `note`); `consistent` null means not judged (Ruby, Node, or a Python
+    manifest other than `requirements.txt`): read the manifest yourself and
+    say so in the row.
   - If `manifest.yml` has a `role` field, it matches the layout (e.g.,
     `passenger_app` with an entry point, not a Batch Connect tree). A missing
     `role` is a WARN, not a FAIL — the app may still work
   - Dependency manifest (`Gemfile.lock`, `package-lock.json`, `requirements.txt`)
     present and consistent with the dependency file (STR-08,
-    `dependency-manifest-inconsistent`)
+    `dependency-manifest-inconsistent`); `entry_point.json`'s
+    `dependency_manifest` and `consistent` are the facts to start from
   - If the repo ships a test suite, note whether it passes. When execution is
     restricted (CI, untrusted repo), report as
     `NOT CHECKED — execution restricted`
 
 ## Output
+
+The Structure table (orchestrator template): Rule / Check / Result /
+Severity / Summary / Evidence, one row per manifest check with its
+`` `check: <id>` `` marker, then any other structure rows without a marker.
+Evidence is `path:N`, `path:N-M` or `path:N,M`, never prose.
 
 **Structured findings** per target-setup.md §4: one repo-level set, one per app.
 Each finding uses an STR-XX rule code and a `defect_key` from the structure

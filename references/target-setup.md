@@ -131,13 +131,43 @@ characters). See `finding-codes.md` for the full identity design.
 Also output the traditional table for readability — it is generated from the
 same findings, not written independently:
 
-| Rule | Result | Severity | Summary | Evidence |
-|---|---|---|---|---|
+| Rule | Check | Result | Severity | Summary | Evidence |
+|---|---|---|---|---|---|
+
+The **Check column** is the contract with the checks manifest
+(`references/checks.json`, human copy `checks.yml`). A row that answers a
+manifest entry holds exactly `` `check: <id>` `` with the entry's id; a row
+from the open-ended pass leaves it empty. Each aspect answers every entry of
+its dimension that applies to the app's `app_type` (from
+`<pre-review>/apps.json`): at least one row per entry, and where the entry's
+fact file lists candidates, every candidate cited by some row (Security:
+one row per candidate, and no row for a check with none). The orchestrator
+template names each dimension's columns (Security adds Tag).
+`check-rows.py` fails the run on a missing row or an uncited candidate.
+
+**Citation form.** Evidence cites a location in exactly one of these forms:
+`path:N`, `path:N-M` (a range), or `path:N,M` (a comma list of lines or
+ranges), with the path repo-relative (a monorepo app's path includes its
+subpath) and exactly as the fact file gives it; a candidate with no line
+(a `syntax.json` or `entry_point.json` file) is cited by its bare path.
+Never prose: "line 12 of script.sh" and "script.sh: line 12" cite nothing.
+A row answers exactly the candidates its Evidence cites, whatever its
+Result, so a PASS row for a check with candidates must cite each one it
+clears; a plain PASS with no citation is only for a check with no
+candidates. In a finding record, `evidence` starts with the same form
+followed by a short quote, and `check-evidence.py` fails the run on a path
+or line that does not exist in the reviewed tree.
 
 ### General rules
 
 - Skip vendored and build directories: `node_modules/`, `vendor/`, `dist/`,
   `.git/`.
-- Every FAIL or WARN must have `evidence` with a `file:line` reference.
+- Every FAIL or WARN must have `evidence` with a `file:line` reference in the
+  citation form above.
 - Use the mechanism-tag vocabulary in `finding-codes.md` for `defect_key`.
-  Novel findings use `other:{short-description}`.
+  A finding on a manifest candidate is keyed `{candidate file}:{tag}` with
+  the manifest entry's `tag` (security candidates carry their own `tag`,
+  which wins). Novel findings from the open-ended pass use the vocabulary
+  tag that fits, else `other:{short-description}`.
+- One finding record per FAIL or WARN row, and one PASS record per clean
+  check (see the aspect skill for its key).
