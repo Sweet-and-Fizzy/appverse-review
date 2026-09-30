@@ -95,37 +95,48 @@ the per-app dirs named in the previous apps.json are removed first):
 
   <app_id>/template.json  (Batch Connect and unknown app types) {dir,
                  files (every file under template/ that was scanned),
-                 icons [{file, line, name, kind}] (Icon= in a .desktop,
-                 button-icon in xfce4-panel.xml; kind desktop | xfce4-panel),
-                 absolute_paths [{file, line, text}] (SITE_PATH: /scratch,
-                 /project(s), /home, /opt, /usr/local, /usr/share, /appl,
-                 /apps, /sw, /software, /data, /work after a line start,
-                 space, quote or =), numeric_literals [{file, line, value}]
-                 (shell files only: bare integers and hex, except sleep's
-                 argument, 0, 1, ports 22/80/443, array indices, redirect
-                 fds, decimals and dotted versions, path parts, and any
-                 literal on a line with a # comment or after one),
-                 commented_code [{file, line, count}] (shell files only:
-                 three or more consecutive #-lines whose text with the #
-                 removed is not blank and passes bash -n; a block bash
-                 rejects is not code, so under bash < 4 a block in bash 4
-                 syntax is not reported and the record's note says so),
-                 skipped_files [{file, reason}] (refused under the
-                 shell-file rule, or binary)}. .erb files are ERB-stripped
-                 first, so a literal inside a tag is not seen. Candidates
-                 only; every file is repo-relative (with the app subpath).
+                 icons [{file, line, name, kind}] (Icon= in a .desktop, a
+                 button-icon property in xfce4-panel.xml: value attribute in
+                 either order, else its <value> element; read from the raw
+                 text, so an ERB name stays as written; kind desktop |
+                 xfce4-panel), absolute_paths [{file, line, text}]
+                 (SITE_PATH: /scratch, /project(s), /home, /opt, /usr/local,
+                 /usr/share, /appl, /apps, /sw, /software, /data, /work after
+                 a line start, space, quote, = or :; sought in the stripped
+                 and the raw text, so a path inside an ERB tag counts; one
+                 per (line, text)), numeric_literals [{file, line, value}]
+                 (shell files only: bare integers and hex, except 0, 1,
+                 ports 22/80/443, array indices, sleep's argument, exit
+                 statuses, kill -N, chmod/umask modes, $? comparisons,
+                 redirect fds, decimals and dotted versions, path parts,
+                 hex colours, and any literal on a line with a # comment or
+                 after one), hex_colors [{file, line, value}] (#rrggbb in
+                 any file), commented_code [{file, line, count}] (shell
+                 files only: a run of consecutive #-lines, count its length,
+                 with three or more non-blank comment lines, at least one
+                 reading as shell (an assignment, $, |, <, >, ;, &&, a
+                 backtick, or a first word in SHELL_WORDS), whose text with
+                 the # removed passes bash -n; a block bash rejects is not
+                 code, so under bash < 4 a block in bash 4 syntax is not
+                 reported and the record's note says so), skipped_files
+                 [{file, reason}] (refused under the shell-file rule, or
+                 binary)}. .erb files are ERB-stripped first, so a literal
+                 inside a tag is not seen. Candidates only; every file is
+                 repo-relative (with the app subpath).
   <app_id>/entry_point.json  (Passenger) {file (config.ru, else
                  passenger_wsgi.py, else app.js), language (ruby | python |
                  node), parses (true | false | "not_checked" when ruby /
                  node is not on PATH; Python is checked in process with
-                 compile(), so no .pyc lands in the target), error,
+                 compile(), so no .pyc lands in the target), error (starts
+                 with the interpreter and version; paths repo-relative),
                  dependency_manifest (Gemfile; requirements.txt,
                  pyproject.toml, Pipfile, setup.py; package.json; or
                  null), consistent (Python: every third-party import in the
-                 app's .py files, stdlib and local modules excluded, is
-                 named in requirements.txt, with IMPORT_DIST for names that
-                 differ; null when not judged: Ruby, Node, another Python
-                 manifest), note}.
+                 app's .py files, except setup.py, tests/ and test_*.py,
+                 with stdlib and local modules (src/ layout included)
+                 excluded, is named in requirements.txt, with IMPORT_DIST
+                 for names that differ; null when not judged: Ruby, Node,
+                 another Python manifest), note}.
 
 summary.json also carries "facts": one record per fact scanner (readme,
 form, template, entry_point), with the record fields above plus per_app
@@ -1469,17 +1480,29 @@ def check_form(target, apps, out):
 
 
 # template.json: candidates the quality skill judges (QUA-02, QUA-04, QUA-06, QUA-08).
-SITE_PATH = re.compile(r"(^|[\s\"'=])(/(?:scratch|projects?|home|opt|usr/local|usr/share|appl|apps|sw|"
+SITE_PATH = re.compile(r"(^|[\s\"'=:])(/(?:scratch|projects?|home|opt|usr/local|usr/share|appl|apps|sw|"
                        r"software|data|work)[/\w.-]*)")
 # A bare integer or hex literal: not part of a word, a decimal, a path, a
-# $N parameter, a word-number (cuda-11) or a date; nor a redirect's fd (2>, >&2).
-NUMERIC = re.compile(r"(?<![\w.$/&])(?<!\w-)(0[xX][0-9a-fA-F]+|\d+)(?![\w./<>])(?!-\w)")
+# $N parameter, a hex colour, a word-number (cuda-11) or a date; nor a
+# redirect's fd (2>, >&2).
+NUMERIC = re.compile(r"(?<![\w.$/&#])(?<!\w-)(0[xX][0-9a-fA-F]+|\d+)(?![\w./<>])(?!-\w)")
 NUMERIC_OK = {"0", "1", "22", "80", "443"}
+# the text before a literal that makes it not a magic number: sleep's
+# argument, an exit status, a kill signal, a chmod/umask mode, a $? comparison
+NUMERIC_CONTEXT = re.compile(r"(\bsleep\s+[\"']?|\bexit\s+|\bkill\s+-|\b(?:chmod|umask)\s+(?:-\w+\s+)*"
+                             r"|\$\?[\"']?\s+-(?:eq|ne|gt|ge|lt|le)\s+[\"']?)$")
+HEX_COLOR = re.compile(r"(?<![\w&])#[0-9a-fA-F]{6}(?![\w])")
 COMMENT = re.compile(r"(^|\s)#")
 COMMENT_LINE = re.compile(r"^\s*#")
 UNCOMMENT = re.compile(r"^\s*#+ ?")
+# a commented line reads as shell when it carries one of these, or starts with SHELL_WORDS
+SHELL_TOKEN = re.compile(r"[A-Za-z_]\w*=|\$[\w{(?]|[|<>;`]|&&")
+SHELL_WORDS = {"if", "for", "while", "until", "case", "function", "cd", "export", "module", "mkdir",
+               "rm", "cp", "mv", "echo", "source", "set", "exec", "kill", "sleep", "chmod"}
 DESKTOP_ICON = re.compile(r"^\s*Icon\s*=\s*(.*?)\s*$")
-PANEL_ICON = re.compile(r"""name\s*=\s*["']button-icon["'][^>]*?value\s*=\s*["']([^"']*)["']""")
+PROPERTY_TAG = re.compile(r"<property\b[^>]*>", re.S)
+BUTTON_ICON = re.compile(r"""\bname\s*=\s*["']button-icon["']""")
+VALUE_ATTR = re.compile(r"""\bvalue\s*=\s*["']([^"']*)["']""")
 SHEBANG_SHELL = re.compile(r"^#!\s*\S*/(?:env\s+)?(?:ba|z|k|da)?sh\b")
 NO_TEMPLATE = "no template/ directory"
 
@@ -1495,8 +1518,9 @@ def _has_comment(line):
 
 
 def _numeric_literals(lines):
-    """[(line, value)]: bare integers/hex, except sleep's argument, 0, 1, the
-    ports 22/80/443, array indices ([N]) and any literal on a line that has a
+    """[(line, value)]: bare integers/hex, except 0, 1, the ports 22/80/443,
+    array indices ([N]), the NUMERIC_CONTEXT cases (sleep, exit, kill -N,
+    chmod/umask modes, $? comparisons) and any literal on a line that has a
     # comment or follows one."""
     found = []
     for i, line in enumerate(lines):
@@ -1504,7 +1528,7 @@ def _numeric_literals(lines):
             continue
         for m in NUMERIC.finditer(line):
             value, before, after = m.group(1), line[:m.start()], line[m.end():]
-            if value in NUMERIC_OK or re.search(r"\bsleep\s+[\"']?$", before) or \
+            if value in NUMERIC_OK or NUMERIC_CONTEXT.search(before) or \
                     (before.endswith("[") and after.startswith("]")):
                 continue
             found.append((i + 1, value))
@@ -1512,27 +1536,30 @@ def _numeric_literals(lines):
 
 
 def _commented_code(lines, bash):
-    """[(first line, count)]: runs of three or more #-lines (a line-1 shebang
-    excluded) whose text, # removed, is not blank and passes bash -n. A run
-    bash rejects is not code, whatever bash's version (an old bash rejects
-    bash 4 syntax, so such a block goes unreported there)."""
+    """[(first line, count)]: runs of consecutive #-lines (a line-1 shebang
+    excluded; count is the run's length) holding three or more non-blank
+    comment lines, at least one of which reads as shell (SHELL_TOKEN or a
+    first word in SHELL_WORDS), whose text with the # removed passes
+    bash -n. A run bash rejects is not code, whatever bash's version (an old
+    bash rejects bash 4 syntax, so such a block goes unreported there)."""
     runs, start = [], None
     for i, line in enumerate(lines + [""]):
         is_comment = COMMENT_LINE.match(line) and not (i == 0 and line.startswith("#!"))
         if is_comment and start is None:
             start = i
         elif not is_comment and start is not None:
-            if i - start >= 3:
-                runs.append((start, i))
+            runs.append((start, i))
             start = None
     found = []
     for a, b in runs:
-        block = "\n".join(UNCOMMENT.sub("", l, count=1) for l in lines[a:b]) + "\n"
-        if not block.strip() or bash is None:
+        text = [UNCOMMENT.sub("", l, count=1) for l in lines[a:b]]
+        body = [t for t in text if t.strip()]
+        if len(body) < 3 or bash is None or not any(
+                SHELL_TOKEN.search(t) or t.split()[0] in SHELL_WORDS for t in body):
             continue
         try:
-            p = subprocess.run([bash, "-n"], input=block, capture_output=True, text=True,
-                               errors="replace", timeout=60)
+            p = subprocess.run([bash, "-n"], input="\n".join(text) + "\n", capture_output=True,
+                               text=True, errors="replace", timeout=60)
         except Exception:
             continue
         if p.returncode == 0:
@@ -1540,20 +1567,62 @@ def _commented_code(lines, bash):
     return found
 
 
-def _icons(rel, lines):
+def _line_at(text, pos):
+    return text.count("\n", 0, pos) + 1
+
+
+def _icons(rel, text):
+    """[(line, name, kind)] from the raw text (an ERB tag stays as written):
+    Icon= in a .desktop; a button-icon property in xfce4-panel.xml, its value
+    from the tag's value attribute (either order), else the first <value>
+    element's value attribute or text, else the property's own text."""
     name = rel.rsplit("/", 1)[-1]
     base = name[:-4] if name.endswith(".erb") else name
     found = []
-    for i, line in enumerate(lines):
-        if base.endswith(".desktop"):
+    if base.endswith(".desktop"):
+        for i, line in enumerate(text.split("\n")):
             m = DESKTOP_ICON.match(line)
             if m:
                 found.append((i + 1, m.group(1), "desktop"))
-        elif base == "xfce4-panel.xml":
-            m = PANEL_ICON.search(line)
+    elif base == "xfce4-panel.xml":
+        for tag in PROPERTY_TAG.finditer(text):
+            if not BUTTON_ICON.search(tag.group(0)):
+                continue
+            m = VALUE_ATTR.search(tag.group(0))
             if m:
-                found.append((i + 1, m.group(1), "xfce4-panel"))
+                value = m.group(1)
+            elif tag.group(0).endswith("/>"):
+                continue
+            else:
+                end = text.find("</property>", tag.end())
+                inner = text[tag.end():end if end >= 0 else len(text)]
+                v = re.search(r"<value\b([^>]*)>(.*?)</value>|<value\b([^>]*)/>", inner, re.S)
+                if v:
+                    attr = VALUE_ATTR.search(v.group(1) or v.group(3) or "")
+                    value = attr.group(1) if attr else (v.group(2) or "").strip()
+                else:
+                    value = re.sub(r"<[^>]*>", "", inner).strip()
+            found.append((_line_at(text, tag.start()), value, "xfce4-panel"))
     return found
+
+
+def _site_paths(raw, stripped):
+    """[(line, text)]: SITE_PATH over the ERB-stripped text, then over the raw
+    text (a path inside an ERB tag); one per (line, text), and a raw match
+    dropped when a stripped match on its line extends it (/projects/ vs
+    /projects/ERBVALUE/runs)."""
+    found = []
+    for i, line in enumerate(stripped.split("\n")):
+        for m in SITE_PATH.finditer(line):
+            if (i + 1, m.group(2)) not in found:
+                found.append((i + 1, m.group(2)))
+    if raw is not stripped:
+        for i, line in enumerate(raw.split("\n")):
+            for m in SITE_PATH.finditer(line):
+                t = m.group(2)
+                if not any(l == i + 1 and s.startswith(t) for l, s in found):
+                    found.append((i + 1, t))
+    return sorted(found, key=lambda x: x[0])
 
 
 def _app_rel(app_dir, target):
@@ -1565,7 +1634,8 @@ def scan_template(app_dir, target):
     """template.json for one app directory, or None when it has no template/
     directory. Every file under template/ is read under the shell-file rule
     (refused and binary files are listed in skipped_files); .erb files are
-    ERB-stripped first. absolute_paths and icons come from every file,
+    ERB-stripped first (site paths are also sought in the raw text, icons
+    only there). absolute_paths, hex_colors and icons come from every file,
     numeric_literals and commented_code from shell files (by suffix or
     shebang). A template/ that is itself a symlink leaving the target (or
     not a directory) raises Refused."""
@@ -1585,27 +1655,28 @@ def scan_template(app_dir, target):
     files.sort()
     bash = shutil.which("bash")
     result = {"dir": prefix + "template", "files": [], "icons": [], "absolute_paths": [],
-              "numeric_literals": [], "commented_code": [], "skipped_files": []}
+              "numeric_literals": [], "hex_colors": [], "commented_code": [], "skipped_files": []}
     skipped = [(r, why) for r, why in rejected.items()]
     for r in files:
         rel = prefix + "template/" + r
         try:
-            text = _read_fact(target, os.path.join(tdir, r), rel)
+            raw = _read_fact(target, os.path.join(tdir, r), rel)
         except Refused as e:
             skipped.append((r, str(e).split(": ", 1)[1]))
             continue
-        if "\x00" in text:
+        if "\x00" in raw:
             skipped.append((r, "binary file, not scanned"))
             continue
         result["files"].append(rel)
-        if rel.endswith(".erb"):
-            text = strip_erb(text)
+        text = strip_erb(raw) if rel.endswith(".erb") else raw
         lines = text.split("\n")
-        for line, name, kind in _icons(rel, lines):
+        for line, name, kind in _icons(rel, raw):
             result["icons"].append({"file": rel, "line": line, "name": name, "kind": kind})
+        for line, path in _site_paths(raw, text):
+            result["absolute_paths"].append({"file": rel, "line": line, "text": path})
         for i, line in enumerate(lines):
-            for m in SITE_PATH.finditer(line):
-                result["absolute_paths"].append({"file": rel, "line": i + 1, "text": m.group(2)})
+            for m in HEX_COLOR.finditer(line):
+                result["hex_colors"].append({"file": rel, "line": i + 1, "value": m.group(0)})
         if _is_shell(rel, text):
             for line, value in _numeric_literals(lines):
                 result["numeric_literals"].append({"file": rel, "line": line, "value": value})
@@ -1614,7 +1685,6 @@ def scan_template(app_dir, target):
     result["skipped_files"] = [{"file": prefix + "template/" + r, "reason": why}
                                for r, why in sorted(skipped)]
     return result
-
 
 # entry_point.json: the Passenger entry point's parse and its dependency manifest.
 ENTRY_LANGUAGE = {"config.ru": "ruby", "passenger_wsgi.py": "python", "app.js": "node"}
@@ -1671,13 +1741,27 @@ def _stdlib_names(names=getattr(sys, "stdlib_module_names", None)):
     return found
 
 
+def _py_skip(rel):
+    """Files whose imports are not the app's runtime dependencies: setup.py,
+    anything under a tests/ directory, test_*.py."""
+    parts = rel.split("/")
+    return parts[-1] == "setup.py" or parts[-1].startswith("test_") or "tests" in parts[:-1]
+
+
 def _python_consistency(app_dir, target, manifest, exclude):
     """(consistent, note): every third-party import (not stdlib, not a module
     or package in the app) is named in requirements.txt. Best effort: a
     manifest other than requirements.txt is not judged."""
     stdlib = _stdlib_names()
-    files = [p for p in _classify(app_dir, exclude)[0] if p.endswith(".py")]
-    local = {p.split("/")[0][:-3] if p.count("/") == 0 else p.split("/")[0] for p in files}
+    files = [p for p in _classify(app_dir, exclude)[0] if p.endswith(".py") and not _py_skip(p)]
+    local = set()
+    for p in _classify(app_dir, exclude)[0]:
+        if not p.endswith(".py"):
+            continue
+        parts = p.split("/")
+        if parts[0] == "src" and len(parts) > 1:  # src layout: src/<pkg>/ or src/<mod>.py
+            parts = parts[1:]
+        local.add(parts[0][:-3] if len(parts) == 1 else parts[0])
     third = sorted(n for n in _python_imports(app_dir, target, files)
                    if n not in stdlib and n not in local and n != "__future__")
     if manifest is None:
@@ -1698,22 +1782,32 @@ def _python_consistency(app_dir, target, manifest, exclude):
         else "no third-party imports"
 
 
-def _parse_entry(language, app_dir, target, rel):
-    """(parses, error): True / False, or "not_checked" when the checker is absent."""
-    text = _read_fact(target, os.path.join(app_dir, rel), rel)
+def _parse_entry(language, app_dir, target, rel, shown):
+    """(parses, error): True / False, or "not_checked" when the checker is
+    absent. error starts with the interpreter and its version; paths in it
+    are shown (the repo-relative path, with the app subpath)."""
+    text = _read_fact(target, os.path.join(app_dir, rel), shown)
     if language == "python":
+        ver = "python %d.%d.%d" % sys.version_info[:3]
         try:  # the py_compile check, in process, so no .pyc lands in the target
-            compile(text, rel, "exec")
+            compile(text, shown, "exec")
             return True, None
         except SyntaxError as e:
-            return False, ("line %s: %s" % (e.lineno, e.msg))[:STDERR_CHARS]
+            return False, ("%s: line %s: %s" % (ver, e.lineno, e.msg))[:STDERR_CHARS]
+        except ValueError as e:  # e.g. null bytes, on Pythons that raise ValueError for them
+            return False, ("%s: %s" % (ver, e))[:STDERR_CHARS]
     tool = {"ruby": ["ruby", "-c"], "node": ["node", "--check"]}[language]
     if shutil.which(tool[0]) is None:
         return "not_checked", "%s not found on PATH" % tool[0]
     rc, _, err, error = run(tool + [_arg(rel)], timeout=60, cwd=app_dir)
     if error:
         return "not_checked", error
-    return (True, None) if rc == 0 else (False, (err.strip() or "exit %s" % rc)[:STDERR_CHARS])
+    if rc == 0:
+        return True, None
+    err = (err.strip() or "exit %s" % rc).replace(_arg(rel), shown)
+    ver = " ".join(tool_version(tool[0]).split()[:2])  # "ruby 2.6.10p210", "v24.2.0"
+    ver = ver if ver.startswith(tool[0]) else "%s %s" % (tool[0], ver)
+    return False, ("%s: %s" % (ver, err))[:STDERR_CHARS]
 
 
 def scan_entry_point(app_dir, target, exclude=None):
@@ -1725,7 +1819,7 @@ def scan_entry_point(app_dir, target, exclude=None):
     if entry is None:
         return None
     language = ENTRY_LANGUAGE[entry]
-    parses, error = _parse_entry(language, app_dir, target, entry)
+    parses, error = _parse_entry(language, app_dir, target, entry, prefix + entry)
     manifest = next((f for f in DEPENDENCY_MANIFESTS[language]
                      if os.path.lexists(os.path.join(app_dir, f))), None)
     if language == "python":

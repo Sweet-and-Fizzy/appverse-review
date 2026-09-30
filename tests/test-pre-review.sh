@@ -674,8 +674,15 @@ cat > "$A1/template/xfce4-panel.xml" <<'XML'
   <property name="plugin-5" type="string" value="launcher">
     <property name="button-icon" type="string" value="firefox"/>
   </property>
+  <property value="terminal" type="string" name="button-icon"/>
+  <property name="button-icon" type="string">
+    <value type="string">thunar</value>
+  </property>
+  <property name="size" type="uint" value="4096"/>
+  4096
 </channel>
 XML
+printf '[Desktop Entry]\nIcon=<%%= icon_name %%>\n' > "$A1/template/sub/app.desktop.erb"
 cat > "$A1/template/run.sh" <<'SH'
 #!/bin/bash
 sleep 30
@@ -709,18 +716,42 @@ ulimit -n 4096
 # Start the server
 # wait a bit
 # and exit
+
+# ==========================
+# Launch the Xfce desktop
+# ==========================
+
+# Copyright 2024 Example University
+# Permission is hereby granted free of charge
+# to any person obtaining a copy of this software
+
+# cd /tmp
+#
+# ls
+
+exit 3
+kill -9 "$pid"
+chmod 755 x; chmod -R 0700 y; umask 077
+if [ $? -eq 2 ]; then echo; fi
+color="#ff0000"; bg="#1a2b3c"
+retry 7
+
+# module load gcc
+# module load openmpi
+# cd work
 SH
-printf '#!/bin/bash\ncd /scratch/$USER\ncp x "/home/a b" --dir=/work/x\nsource /etc/profile; ls $HOME/data\ncd /projects/<%%= account %%>/runs\n' > "$A1/template/paths.sh.erb"
+printf '#!/bin/bash\ncd /scratch/$USER\ncp x "/home/a b" --dir=/work/x\nsource /etc/profile; ls $HOME/data\ncd /projects/<%%= account %%>/runs\nCFG=<%%= x || "/opt/site/cfg" %%>\nexport PATH=$PATH:/apps/x/bin; singularity exec --bind /scratch:/scratch img\n' > "$A1/template/paths.sh.erb"
 printf 'ab\0cd /opt/x 4096\n' > "$A1/template/tool.bin"
 OUTSIDE41="$TMP/outside41"; mkdir -p "$OUTSIDE41"; printf 'cd /scratch/SECRET41\n' > "$OUTSIDE41/x.sh"
 ln -s "$OUTSIDE41/x.sh" "$A1/template/leak.sh"
-check "files (repo-relative, app subpath)" "apps/one/template|apps/one/template/paths.sh.erb,apps/one/template/run.sh,apps/one/template/sub/term.desktop,apps/one/template/xfce4-panel.xml" "$(tp "$A1" "$T" "'%s|%s' % (d['dir'], ','.join(d['files']))")"
+check "files (repo-relative, app subpath)" "apps/one/template|apps/one/template/paths.sh.erb,apps/one/template/run.sh,apps/one/template/sub/app.desktop.erb,apps/one/template/sub/term.desktop,apps/one/template/xfce4-panel.xml" "$(tp "$A1" "$T" "'%s|%s' % (d['dir'], ','.join(d['files']))")"
 check "skipped files: symlink out, binary" "apps/one/template/leak.sh:symlink outside target, not checked,apps/one/template/tool.bin:binary file, not scanned" "$(tp "$A1" "$T" "','.join('%s:%s' % (x['file'], x['reason']) for x in d['skipped_files'])")"
-check "icons" "apps/one/template/sub/term.desktop:3:utilities-terminal:desktop,apps/one/template/xfce4-panel.xml:4:firefox:xfce4-panel" "$(tp "$A1" "$T" "','.join('%s:%s:%s:%s' % (x['file'], x['line'], x['name'], x['kind']) for x in d['icons'])")"
-check "absolute paths (ERB stripped; /etc and \$HOME/data are not)" "apps/one/template/paths.sh.erb:2:/scratch/,apps/one/template/paths.sh.erb:3:/home/a,apps/one/template/paths.sh.erb:3:/work/x,apps/one/template/paths.sh.erb:5:/projects/ERBVALUE/runs" "$(tp "$A1" "$T" "','.join('%s:%s:%s' % (x['file'], x['line'], x['text']) for x in d['absolute_paths'])")"
-check "numeric literals (sleep, ports, 0/1, index, comments, fds, decimals excluded; hex kept)" "3:8080,11:0x1F,13:4096" "$(tp "$A1" "$T" "','.join('%s:%s' % (x['line'], x['value']) for x in d['numeric_literals'] if x['file'].endswith('run.sh'))")"
-check "no literals from .desktop/.xml" "True" "$(tp "$A1" "$T" "all(x['file'].endswith('.sh') for x in d['numeric_literals'])")"
-check "commented code: the loop and the parseable prose block, not the note, the pair or the banner" "apps/one/template/run.sh:15:3,apps/one/template/run.sh:30:3" "$(tp "$A1" "$T" "','.join('%s:%s:%s' % (x['file'], x['line'], x['count']) for x in d['commented_code'])")"
+check "icons (raw ERB name; attribute order; <value> element)" "apps/one/template/sub/app.desktop.erb:2:<%= icon_name %>:desktop,apps/one/template/sub/term.desktop:3:utilities-terminal:desktop,apps/one/template/xfce4-panel.xml:4:firefox:xfce4-panel,apps/one/template/xfce4-panel.xml:6:terminal:xfce4-panel,apps/one/template/xfce4-panel.xml:7:thunar:xfce4-panel" "$(tp "$A1" "$T" "','.join('%s:%s:%s:%s' % (x['file'], x['line'], x['name'], x['kind']) for x in d['icons'])")"
+check "absolute paths (ERB stripped, plus inside tags; after :; one per line and text; /etc and \$HOME/data are not)" "apps/one/template/paths.sh.erb:2:/scratch/,apps/one/template/paths.sh.erb:3:/home/a,apps/one/template/paths.sh.erb:3:/work/x,apps/one/template/paths.sh.erb:5:/projects/ERBVALUE/runs,apps/one/template/paths.sh.erb:6:/opt/site/cfg,apps/one/template/paths.sh.erb:7:/apps/x/bin,apps/one/template/paths.sh.erb:7:/scratch" "$(tp "$A1" "$T" "','.join('%s:%s:%s' % (x['file'], x['line'], x['text']) for x in d['absolute_paths'])")"
+check "numeric literals (sleep, ports, 0/1, index, comments, fds, decimals, exit, kill, modes, \$? excluded; hex kept)" "3:8080,11:0x1F,13:4096,51:7" "$(tp "$A1" "$T" "','.join('%s:%s' % (x['line'], x['value']) for x in d['numeric_literals'] if x['file'].endswith('run.sh'))")"
+check "hex colours listed on their own, not as literals" "run.sh:50:#ff0000,run.sh:50:#1a2b3c" "$(tp "$A1" "$T" "','.join('%s:%s:%s' % (x['file'].rsplit('/',1)[-1], x['line'], x['value']) for x in d['hex_colors'])")"
+check "no literals from .desktop/.xml (the xml has a bare 4096)" "True" "$(tp "$A1" "$T" "all(x['file'].endswith('.sh') for x in d['numeric_literals'])")"
+check "commented code: the loop and the module block; not prose, banners, licence headers, pairs or blank-padded pairs" "apps/one/template/run.sh:15:3,apps/one/template/run.sh:53:3" "$(tp "$A1" "$T" "','.join('%s:%s:%s' % (x['file'], x['line'], x['count']) for x in d['commented_code'])")"
 check "nothing read from outside" "0" "$(tp "$A1" "$T" "str(d).count('SECRET41')")"
 T2="$TMP/t41b"; mkdir -p "$T2/template"; printf '#!/bin/bash\necho hi\n' > "$T2/template/a.sh"
 printf 'x=1\n# case "$x" in\n#   a) echo a ;;&\n#   *) echo b ;;\n# esac\n' > "$T2/template/b.sh"
@@ -742,7 +773,9 @@ check "no .pyc written into the target" "0" "$(find "$D" -name '*.pyc' | wc -l |
 check "stdlib fallback (Python < 3.10) lists the stdlib, not site-packages" "True|False" "$(px "n=pr._stdlib_names(None); r='%s|%s' % (set(['os','json','subprocess','ast']) <= n, 'flask' in n)")"
 check "template record carries no bash note for a Passenger app" "" "$(fct "$TMP/flask" template note)"
 T="$TMP/t42a"; mkdir -p "$T"; printf 'def x(:\n    pass\n' > "$T/passenger_wsgi.py"
-check "python syntax error" "False|True" "$(ep "$T" "$T" "'%s|%s' % (d['parses'], d['error'].startswith('line 1: '))")"
+check "python syntax error names the interpreter" "False|True|True" "$(ep "$T" "$T" "'%s|%s|%s' % (d['parses'], d['error'].startswith('python 3.'), ': line 1: ' in d['error'])")"
+printf 'x = 1\0\n' > "$T/passenger_wsgi.py"
+check "null byte fails to parse, not a crash" "False|True" "$(ep "$T" "$T" "'%s|%s' % (d['parses'], d['error'].startswith('python 3.'))")"
 T="$TMP/t42b"; mkdir -p "$T/pkg"; printf 'import numpy\nimport os\nfrom pkg import mod\nfrom . import rel\nfrom app import application\n' > "$T/passenger_wsgi.py"
 printf 'import yaml\n' > "$T/app.py"; : > "$T/pkg/__init__.py"
 check "no manifest, third-party imports: inconsistent" "None|False|no dependency manifest; third-party imports: numpy, yaml" "$(ep "$T" "$T" "'%s|%s|%s' % (d['dependency_manifest'], d['consistent'], d['note'])")"
@@ -750,13 +783,27 @@ printf 'PyYAML>=6\n' > "$T/requirements.txt"
 check "requirements missing one import" "requirements.txt|False|not in requirements.txt: numpy" "$(ep "$T" "$T" "'%s|%s|%s' % (d['dependency_manifest'], d['consistent'], d['note'])")"
 printf 'PyYAML>=6\nnumpy==2.0 ; python_version>"3"\n' > "$T/requirements.txt"
 check "requirements complete (PyYAML provides yaml)" "True" "$(ep "$T" "$T" "d['consistent']")"
+T="$TMP/t42f"; mkdir -p "$T/src/mypkg"; printf 'import flask\nimport mypkg\n' > "$T/passenger_wsgi.py"; : > "$T/src/mypkg/__init__.py"; printf 'flask\n' > "$T/requirements.txt"
+check "a src/ package is local" "True|third-party imports all in requirements.txt: flask" "$(ep "$T" "$T" "'%s|%s' % (d['consistent'], d['note'])")"
+printf 'import setuptools\n' > "$T/setup.py"
+check "setup.py imports are not runtime dependencies" "True" "$(ep "$T" "$T" "d['consistent']")"
+mkdir -p "$T/tests"; printf 'import pytest\n' > "$T/tests/conftest.py"; printf 'import hypothesis\n' > "$T/test_smoke.py"
+check "tests/ and test_*.py imports are not runtime dependencies" "True" "$(ep "$T" "$T" "d['consistent']")"
 T="$TMP/t42c"; mkdir -p "$T"; printf 'run lambda { |env| [200, {}, ["ok"]] }\n' > "$T/config.ru"; printf "source 'https://rubygems.org'\n" > "$T/Gemfile"
 check "config.ru without ruby on PATH: not_checked" "config.ru|ruby|not_checked|Gemfile|None" "$(PATH="$FBF" px "d=pr.scan_entry_point(A[0], A[1]); r='|'.join(str(d[k]) for k in ('file','language','parses','dependency_manifest','consistent'))" "$T" "$T")"
 if command -v ruby >/dev/null 2>&1; then
   check "config.ru parses under ruby -c" "True" "$(ep "$T" "$T" "d['parses']")"
   T="$TMP/t42d"; mkdir -p "$T"; printf 'run lambda {\n' > "$T/config.ru"
   check "bad config.ru fails ruby -c" "False|True" "$(ep "$T" "$T" "'%s|%s' % (d['parses'], bool(d['error']))")"
-else skip "ruby not installed"; skip "ruby not installed"; fi
+  T="$TMP/t42g"; mkdir -p "$T/apps/rb"; printf 'apps:\n  - path: apps/rb\n' > "$T/appverse.yml"; printf 'run lambda {\n' > "$T/apps/rb/config.ru"
+  check "monorepo ruby error names the repo path and the ruby version" "apps/rb/config.ru|True|True|False" "$(ep "$T/apps/rb" "$T" "'%s|%s|%s|%s' % (d['file'], d['error'].startswith('ruby '), 'apps/rb/config.ru' in d['error'], './config.ru' in d['error'])")"
+else skip "ruby not installed"; skip "ruby not installed"; skip "ruby not installed"; fi
+if command -v node >/dev/null 2>&1; then
+  T="$TMP/t42h"; mkdir -p "$T"; printf 'const x = 1;\n' > "$T/app.js"
+  check "app.js parses under node --check" "app.js|node|True|package.json" "$(printf '{}' > "$T/package.json"; ep "$T" "$T" "'|'.join(str(d[k]) for k in ('file','language','parses','dependency_manifest'))")"
+  printf 'const = ;\n' > "$T/app.js"
+  check "bad app.js fails node --check, error names node" "False|True" "$(ep "$T" "$T" "'%s|%s' % (d['parses'], d['error'].startswith('node v'))")"
+else skip "node not installed"; skip "node not installed"; fi
 T="$TMP/t42e"; mkdir -p "$T"; ln -s "$OUTSIDE/README.md" "$T/passenger_wsgi.py"
 check "entry point symlinked out: skipped" "skipped|root: passenger_wsgi.py: symlink outside target, not checked|False" "$(rec entry_point "$T" "$TMP/o42e" "'%s|%s' % (c['status'], c['note'])")|$(yn test -e "$TMP/o42e/root/entry_point.json")"
 
