@@ -87,4 +87,3 @@ A link to container orchestration files that can reproduce a container from scra
 A link to a pre-existing container that can be downloaded
 Some general info on how to obtain and configure the software
 If this documentation is too large or unwieldy, consider adding it to a separate markdown file
-[MIT License](LICENSE)

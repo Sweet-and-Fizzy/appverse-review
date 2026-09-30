@@ -638,10 +638,11 @@ cat > "$T/template.md" <<'MD'
 MD
 check "every section body is template placeholder text: stub" "True|0" "$(sf "$T/template.md")"
 { printf 'This line is real text.\nSo is this one, above the title.\nAnd a third real line.\n\n'; cat "$T/template.md"; } > "$T/template3.md"
-check "three real lines outside any section, every section body placeholder: still a stub" "True|3" "$(sf "$T/template3.md")"
+check "three real lines before the first heading, every section body placeholder: not a stub (the preamble counts)" "False|3" "$(sf "$T/template3.md")"
 # The Appverse README template's generic sections, verbatim
 # (tamu-edu/appverse_readme_template README.md lines 158-215: Testing through
-# License). Every line is template text, so no content line is left.
+# License). Every line but the generic "[MIT License](LICENSE)" is template
+# text, so one content line is left.
 cat > "$T/template-tail.md" <<'MD'
 # [Application Name]
 
@@ -704,7 +705,11 @@ If this documentation is too large or unwieldy, consider adding it to a separate
 
 [MIT License](LICENSE)
 MD
-check "the template's Testing, Contributing, References and License text is placeholder: stub" "True|0" "$(sf "$T/template-tail.md")"
+check "the template's Testing, Contributing, References and License text is placeholder: stub" "True|1" "$(sf "$T/template-tail.md")"
+printf '# App\n\n## Installation\n\nTo verify your installation:\nlaunch a one-core session\n' > "$T/colon.md"
+check "a placeholder phrase ending in ':' marks only its own line, not the author's next line" "5|placeholder,content" "$(rd "$T/colon.md" "','.join(str(p['line']) for p in d['placeholders'])")|$(px "r=','.join(pr.readme_line_kinds(open(A[0]).read(), pr.load_placeholders())[4:6])" "$T/colon.md")"
+printf '# App\n\nLaunches a notebook server on a compute node.\nNeeds Jupyter on the compute nodes.\n\n## License\n\n[MIT License](LICENSE)\n' > "$T/license.md"
+check "a real README's license line is content, so three lines are not a stub" "False|3|content" "$(sf "$T/license.md")|$(px "r=pr.readme_line_kinds(open(A[0]).read(), pr.load_placeholders())[7]" "$T/license.md")"
 cat > "$T/fences.md" <<'MD'
 # App
 

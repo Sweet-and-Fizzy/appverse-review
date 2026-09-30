@@ -1319,7 +1319,9 @@ def _readme_parse(text, placeholders):
             continue
         continues = i and not _unit_start(i) and not _unit_start(i - 1)
         p = phrase_of(line) if not continues else (phrase_of(line) or paragraph_phrase)
-        paragraph_phrase = p if not _unit_start(i) else None
+        # a phrase ending in ':' introduces what follows (the author's own
+        # text in a filled-in README), so it marks only its own line
+        paragraph_phrase = p if not _unit_start(i) and not (p or "").endswith(":") else None
         if p:
             placeholder_rows.append({"line": i + 1, "text": line.strip(), "phrase": p})
     return lines, flags, headings, heading_lines, underlines, table_rules, placeholder_rows, phrase_of
@@ -1365,8 +1367,14 @@ def _stub(headings, kinds, phrase_of):
     content lines, or when every heading whose own body (to the next heading
     of any level) holds a content or placeholder line is placeholder text
     (its heading text carries a phrase, or its body lines are all
-    placeholder lines)."""
+    placeholder lines) and the preamble (the lines before the first
+    heading) holds no content line either: real prose above the first
+    heading counts, so a README with three real lines there and
+    placeholder sections is not a stub."""
     count = kinds.count("content")
+    first = headings[0]["line"] if headings else len(kinds) + 1
+    if "content" in kinds[:first - 1]:
+        return count < STUB_CONTENT_LINES, count
     bodies = []
     for idx, h in enumerate(headings):
         end = headings[idx + 1]["line"] if idx + 1 < len(headings) else len(kinds) + 1

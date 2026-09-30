@@ -391,7 +391,7 @@ Minimal is rated Below minimal, with a QUA-01 `docs-minimal` FAIL, as
 for Minimal (both miss the Adequate target). Whether
 a README is a stub is decided once, by the pre-review facts
 (`readme.json` `stub`: fewer than 3 content lines, or every section body
-template placeholder text), never by the rating: a stub is the Structure
+template placeholder text with no real text above the first heading), never by the rating: a stub is the Structure
 gate failure (QUA-01 `docs-stub`), not a rating, and the report says
 "Minimal — not supported (stub README; see QUA-01)".
 

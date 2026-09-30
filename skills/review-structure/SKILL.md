@@ -24,7 +24,8 @@ record is NOT CHECKED with the note "pre-review facts not found".
   judgment: it is `stub` false in the pre-review `readme.json` whose `file`
   is the root `README.md` (`<pre-review>/root/readme.json` for a single-app
   repo). `stub` is true for fewer than 3 content lines (a title and a
-  contact line) or when every section body is template placeholder text.
+  contact line) or when every section body is template placeholder text
+  and there is no real text above the first heading.
   Record STR-01 `readme-not-substantive` FAIL when `stub` is true and PASS
   when it is false; with no such `readme.json`, NOT CHECKED with the
   reason.
