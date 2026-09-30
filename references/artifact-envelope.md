@@ -24,6 +24,8 @@ Scripts then process these:
 | `check-keys.py` | findings JSON (+ target checkout) | exit status: every `defect_key` is `{anchor}:{tag}` with a real or allowed anchor and a vocabulary tag |
 | `check-rating.py` | report MD + findings JSON | exit status: Documentation only; the rating follows its evidence lines and the Documentation signal follows the rating (the findings JSON is accepted but not read) |
 | `compare-runs.py` | findings JSON + pre-review facts, two or more runs | pairwise Jaccard of fix-item keys, and per-candidate recall (how many runs recorded each candidate site); Jaccard only when no run has fact files |
+| `check-rows.py` | report MD + findings JSON + checks JSON + pre-review dir | exit status: every applicable manifest check has a row, and every pre-review candidate is cited (`MISSING`/`UNCITED` lines) |
+| `check-evidence.py` | findings JSON (+ target checkout) | exit status: every finding's `file:line` evidence citation names a real file and an in-range line (`BAD` lines) |
 
 The LLM produces the judgment; the scripts produce the structure.
 

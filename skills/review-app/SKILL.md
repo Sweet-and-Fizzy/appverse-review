@@ -387,4 +387,20 @@ externally by the API provider.
   already checked out for you (CI: `$GITHUB_WORKSPACE/target-repo`), pass that
   path instead. In submitter mode use `.`.)
 
+- Then check rows and evidence, and fix the report or the findings until both
+  pass:
+
+      python3 "${CLAUDE_PLUGIN_ROOT}/references/check-rows.py" \
+        review-<owner>-<repo>.md review-<owner>-<repo>.findings.json \
+        "${CLAUDE_PLUGIN_ROOT}/references/checks.json" <pre-review-dir>
+      python3 "${CLAUDE_PLUGIN_ROOT}/references/check-evidence.py" \
+        review-<owner>-<repo>.findings.json --target "$TMP/repo"
+
+  (`check-rows.py` checks that every manifest check applicable to an app has
+  a row and that every pre-review candidate is cited; `check-evidence.py`
+  checks that every finding's `file:line` citation names a real file and
+  line. `<pre-review-dir>` is `$TMP/pre-review` in reviewer mode, or the
+  run-supplied pre-review directory in CI. `check-evidence.py`'s `--target`
+  follows the same rule as `check-keys.py` above.)
+
 - Reviewer mode: remove the temp clone (`rm -rf "$TMP"`).

@@ -396,6 +396,47 @@ jobs:
             echo "::warning::report or findings missing — ratings not checked"
           fi
 
+      - name: Check rows
+        id: rows
+        if: "!cancelled() && inputs.review_aspects == 'all'"
+        run: |
+          WS="${{ github.workspace }}"; SLUG="${{ steps.params.outputs.repo_slug }}"
+          if [ -s "$WS/review-${SLUG}.md" ] && [ -s "$WS/review-${SLUG}.findings.json" ] && [ -d "$WS/pre-review" ]; then
+            rc=0; python3 "$WS/appverse-review/references/check-rows.py" \
+              "$WS/review-${SLUG}.md" "$WS/review-${SLUG}.findings.json" \
+              "$WS/appverse-review/references/checks.json" "$WS/pre-review" || rc=$?
+            if [ "$rc" -ne 0 ]; then
+              if [ "$rc" -eq 2 ]; then
+                echo "::error::Row check could not run (see error above)"
+              else
+                echo "::error::Report is missing rows or leaves candidates uncited (see MISSING/UNCITED lines above)"
+              fi
+              exit 1
+            fi
+          else
+            echo "::warning::report, findings JSON, or pre-review dir missing — rows not checked"
+          fi
+
+      - name: Check evidence
+        id: evidence
+        if: "!cancelled() && inputs.review_aspects == 'all'"
+        run: |
+          WS="${{ github.workspace }}"; SLUG="${{ steps.params.outputs.repo_slug }}"
+          if [ -s "$WS/review-${SLUG}.findings.json" ]; then
+            rc=0; python3 "$WS/appverse-review/references/check-evidence.py" \
+              "$WS/review-${SLUG}.findings.json" --target "$WS/target-repo" || rc=$?
+            if [ "$rc" -ne 0 ]; then
+              if [ "$rc" -eq 2 ]; then
+                echo "::error::Evidence check could not run (see error above)"
+              else
+                echo "::error::Finding evidence cites a bad file:line (see BAD lines above)"
+              fi
+              exit 1
+            fi
+          else
+            echo "::warning::findings JSON missing — evidence not checked"
+          fi
+
       - name: Generate PDF and HTML from review
         if: always()
         run: |
@@ -480,11 +521,13 @@ jobs:
           FLOOR_OUTCOME: ${{ steps.floor.outcome }}
           KEYS_OUTCOME: ${{ steps.keys.outcome }}
           RATINGS_OUTCOME: ${{ steps.ratings.outcome }}
+          ROWS_OUTCOME: ${{ steps.rows.outcome }}
+          EVIDENCE_OUTCOME: ${{ steps.evidence.outcome }}
         run: |
           # A failed check stays red, but the steps above still assembled and
           # uploaded the artifact so the reviewer can see what the check saw.
           check_failed=0
-          for pair in "feedback floor:$FLOOR_OUTCOME" "finding keys:$KEYS_OUTCOME" "rating:$RATINGS_OUTCOME"; do
+          for pair in "feedback floor:$FLOOR_OUTCOME" "finding keys:$KEYS_OUTCOME" "rating:$RATINGS_OUTCOME" "rows:$ROWS_OUTCOME" "evidence:$EVIDENCE_OUTCOME"; do
             if [ "${pair##*:}" = "failure" ]; then
               echo "::error::Review produced its outputs but the ${pair%%:*} check failed; see that step's INVALID/MISSING/MISMATCH lines"
               check_failed=1
