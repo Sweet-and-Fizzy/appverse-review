@@ -4,15 +4,13 @@
     python3 references/compare-runs.py <run-dir>... [--json]
 
 Each <run-dir> is searched recursively for one `review-*.findings.json` (a
-JSON list of finding records, or `{"findings": [...]}`) and one `pre-review/`
-directory (holding `apps.json` and, per app, `<app_id>/{form,template,
-security}.json`). A run missing the findings file is skipped with a
-warning; at least two runs with a findings file are required. The
-denominator for "recorded_by X/N" is N = every run that has a readable
-findings file, whether or not that run has fact files: a run's own
-candidate list may be empty (no fact files) while it still has an opinion
-(findings) on candidates another run's facts named, so it must count in the
-denominator to be judged fairly.
+JSON list of finding records, or `{"findings": [...]}`), one `review-*.md`
+report (optional) and one `pre-review/` directory (apps.json, syntax.json
+and the per-app `<app_id>/*.json` fact files). A run missing the findings
+file is skipped with a warning; at least two runs with a findings file are
+required. N, the denominator, is every run with a readable findings file,
+whether or not that run has fact files: a run with no candidate list of its
+own still has verdicts on candidates another run's facts named.
 
 Two things are reported:
 
@@ -21,47 +19,38 @@ severity is above info. Its stable key is `(rule, defect_key)`. For every
 pair of runs, the Jaccard index of their fix-item key sets is printed
 (1.0 when both are empty).
 
-Per-candidate recall. The candidate list is the union, across all runs'
-fact files, of `security.json` candidates (`kind`, `file`, `line`, `rule`
--- each candidate's own `rule`, since one kind such as `config_flag` can
-carry different rules per match, e.g. OODT-05 vs OODT-08), `template.json`
-list items (`absolute_paths`, `numeric_literals`, `hex_colors`,
-`commented_code`, `icons`; `file`, `line`, rule from checks.json by check
-id), and `form.json` `attributes[]` (`line`, rule from checks.json).
-security.json and template.json paths are already repo-relative (baked in
-by pre-review.py at scan time); form.json's `file` is app-relative, so it is
-prefixed with the app's `path` from apps.json the way check-rows.py's
-app_prefix/paths_for does (only when the path doesn't already carry that
-prefix, so a repo-relative path already matching is left alone) -- a
-monorepo candidate then matches a finding that cites the repo-relative
-path. A candidate is recorded by a run when that run has a
-FAIL/WARN or PASS finding whose evidence contains, anywhere in the string
-(not only at the start), a `path:line` (or `path:line-line`, or a comma
-list of those) citation covering the candidate's exact file and line. A
-finding's evidence can carry more than one citation group -- a FAIL/WARN
-record and a PASS record can otherwise collide on the same stable key
-(file and tag), so a skill may add a second citation after a semicolon to
-distinguish them, e.g. `template/script.sh.erb:22; reviewed OK:
-template/script.sh.erb:9,23` -- and every such group is checked, not only
-the first. This is deliberately the only test: an earlier version also
-credited a finding whose defect_key anchor matched the candidate's file and
-whose rule matched the candidate's kind, but that fallback over-counts -- a
-single FAIL anchored `submit.yml.erb:some-tag` with rule OODT-01 would then
-mark every OODT-01 candidate in that file as recorded, whether or not the
-finding actually addressed that candidate's line. A finding whose evidence
-carries no parseable line anywhere (a bare path, or free-text prose) can
-never record a candidate, by design: without a line, there is no way to
-tell which candidate in a multi-candidate file it addresses. For each
-candidate the table prints how many of the runs with a findings file
-recorded it and which did. When no run under the given directories has any
-fact file, per-candidate recall is not computable (there is no candidate
-list), so only the Jaccard section is printed, with a note that
-per-candidate is unavailable.
+Per-candidate verdicts. The candidate list is the union, across all runs,
+of exactly the candidates check-rows.py requires an answer for: check-rows
+is imported and its `candidates()` (security kinds, template keys, the form
+rules, syntax.json and entry_point.json) is run for every app in apps.json
+and every checks.json check that applies to the app's type. Each candidate
+belongs to one check id; its rule is its own fact's rule when it carries one
+(a security.json config_flag can be OODT-05 or OODT-08), else the check's.
+
+For each candidate and run, the verdict is read from that run's report: the
+FAIL/WARN/PASS rows of the candidate's check (`check: <id>` in the app's
+section) whose Evidence cites the candidate, by check-rows' citation test
+(repo_paths.parse_citations). A row of another check never counts, so a
+QUA-10 row citing submit.yml.erb:17 does not answer the OODT-01 candidate
+there. A NOT CHECKED row answers nothing. When the run has no report, or the
+report has no `check:` rows, the findings records stand in: records of the
+candidate's rule whose evidence cites it. In both, a `; reviewed OK:`
+segment of the Evidence is PASS for what it cites, and the rest takes the
+row's (record's) result. Several answers give the worst (FAIL > WARN >
+PASS) and, among those, the highest severity.
+
+The table prints, per run, F, W or P (with the severity for F and W) or -
+(no answer), then two columns: recorded, the runs that FAIL or WARN the
+candidate, and answered, the runs that give any verdict, each as n/N. When
+no run has fact files, per-candidate verdicts are not computable (there is
+no candidate list), so only the Jaccard section is printed, with a note.
 
 --json prints {"runs": [...], "jaccard": [{"a", "b", "value"}, ...],
-"candidates": [{"file", "line", "kind", "rule", "n_runs", "recorded_by": n,
-"runs": [...]}]} (the same data, "candidates" empty and a "note" key set
-when no run has fact files) instead of the Markdown report.
+"candidates": [{"app_id", "check", "candidate", "file", "line", "rule",
+"n_runs", "recorded_by": n, "answered_by": n, "runs": [recording runs],
+"verdicts": {run: {"result": "F"|"W"|"P"|"-", "severity": s}}}]} (the same
+data, "candidates" empty and a "note" key set when no run has fact files)
+instead of the Markdown report.
 
 Exit 0 on a normal comparison (Jaccard, with or without per-candidate).
 Exit 2 when fewer than two run directories are given, a run directory does
@@ -69,6 +58,7 @@ not exist, or fewer than two runs have a readable findings file.
 """
 import argparse
 import glob
+import importlib.util
 import itertools
 import json
 import os
@@ -77,30 +67,16 @@ import sys
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CHECKS_JSON = os.path.join(SCRIPT_DIR, "checks.json")
+sys.path.insert(0, SCRIPT_DIR)
+from repo_paths import split_reviewed_ok  # noqa: E402
 
-# template.json/form.json list key -> the checks.json check id that covers it.
-# (security.json candidates carry their own "rule" field instead -- one kind,
-# e.g. config_flag, can carry different rules per match -- so no table is
-# needed for those.)
-TEMPLATE_CHECK_ID = {
-    "absolute_paths": "hardcoded-site-paths",
-    "numeric_literals": "magic-numbers",
-    "hex_colors": "magic-numbers",
-    "commented_code": "dead-code",
-    "icons": "icon-matches-target-os",
-}
-FORM_CHECK_ID = "numeric-field-bounds"  # erb-missing-value shares QUA-* territory but
-                                        # numeric-field-bounds is the form.json rule of record here
-# A citation is a path token (no whitespace or ':', so it stops at the colon
-# and does not cross into the next citation's prose) followed by ':' and a
-# line-list: N, N-M or N–M (en dash), or a comma list of those. Found
-# anywhere in the evidence string with finditer, so a second citation group
-# after prose (e.g. a semicolon-separated "reviewed OK: ...") is picked up
-# too, not just a leading one.
-LINE_SPEC = r"\d+(?:\s*[-–]\s*\d+)?(?!\d)"
-LINE_LIST = LINE_SPEC + r"(?:\s*,\s*" + LINE_SPEC + r")*"
-CITATION = re.compile(r"([^\s:]+):(" + LINE_LIST + r")")
-RANGE_SPEC = re.compile(r"(\d+)(?:\s*[-–]\s*(\d+))?")
+_spec = importlib.util.spec_from_file_location("check_rows", os.path.join(SCRIPT_DIR, "check-rows.py"))
+check_rows = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(check_rows)
+
+RANK = {"PASS": 1, "WARN": 2, "FAIL": 3}
+LETTER = {"PASS": "P", "WARN": "W", "FAIL": "F", None: "-"}
+SEVERITIES = ("info", "low", "medium", "high", "critical")
 
 
 class InputError(Exception):
@@ -115,16 +91,16 @@ def load_json(path, what):
         raise InputError("cannot read {} '{}': {}".format(what, path, e))
 
 
-def load_rule_table(path=CHECKS_JSON):
-    """{check_id: rule} from checks.json, or {} when it cannot be read."""
+def load_checks(path=CHECKS_JSON):
+    """The checks.json check list, or [] when it cannot be read."""
     try:
         data = load_json(path, "checks manifest")
     except InputError:
-        return {}
+        return []
     checks = data.get("checks") if isinstance(data, dict) else None
     if not isinstance(checks, list):
-        return {}
-    return {c["id"]: c.get("rule") for c in checks if isinstance(c, dict) and c.get("id")}
+        return []
+    return [c for c in checks if isinstance(c, dict) and c.get("id")]
 
 
 def find_one(run_dir, name_glob):
@@ -143,90 +119,104 @@ def load_findings(run_dir):
     return path, records
 
 
+def load_report(run_dir):
+    path = find_one(run_dir, "review-*.md")
+    if path is None:
+        return None
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return None
+
+
 def find_pre_review(run_dir):
     hits = sorted(glob.glob(os.path.join(run_dir, "**", "pre-review"), recursive=True))
     return hits[0] if hits else None
 
 
-def fact(pre_review, app_id, name):
-    path = os.path.join(pre_review, app_id, name)
-    if not os.path.isfile(path):
-        return None
-    try:
-        return load_json(path, name)
-    except InputError:
-        return None
-
-
-def app_prefix(app):
-    """Repo-relative prefix for an app-relative path, per check-rows.py's app_prefix:
-    'root' / '.' / '' -> no prefix; otherwise '<path>/' with any leading './' and
-    surrounding slashes stripped."""
-    p = (app.get("path") or ".").strip().strip("/")
-    p = p[2:] if p.startswith("./") else p
-    return "" if p in ("", ".") else p + "/"
-
-
-def repo_relative(prefix, path):
-    """path, prefixed with the app's prefix unless it is already repo-relative
-    (security.json/template.json paths are baked in at scan time; only
-    form.json's `file` is app-relative) -- check-rows.py's paths_for."""
-    if prefix and not path.startswith(prefix):
-        return prefix + path
-    return path
-
-
-def load_candidates(pre_review, rule_table):
-    """[(file, line, kind, rule)] deduplicated, from every app's fact files."""
+def load_apps(pre_review):
     if pre_review is None:
-        return []
-    apps_path = os.path.join(pre_review, "apps.json")
-    if not os.path.isfile(apps_path):
-        return []
+        return None
     try:
-        apps = load_json(apps_path, "apps.json")
+        apps = load_json(os.path.join(pre_review, "apps.json"), "apps.json")
     except InputError:
-        return []
+        return None
     if not isinstance(apps, list):
-        return []
-    found = []
-    for app in apps:
-        if not isinstance(app, dict) or not app.get("app_id"):
+        return None
+    return [a for a in apps if isinstance(a, dict) and a.get("app_id")]
+
+
+def load_candidates(pre_review, apps, checks):
+    """{(app_id, check_id, label): {...}} -- check-rows' candidates, per app
+    and applicable check."""
+    found = {}
+    for app in apps or []:
+        app_type = app.get("app_type")
+        app_type = app_type if app_type in check_rows.APP_TYPES else "batch_connect"
+        for check in checks:
+            if app_type not in (check.get("app_types") or []):
+                continue
+            for lab, cites, rule in check_rows.candidates(check, app, pre_review):
+                key = (app["app_id"], check["id"], lab)
+                if key not in found:
+                    found[key] = {"app_id": app["app_id"], "check": check["id"],
+                                  "candidate": lab, "file": cites[0][0], "line": cites[0][1],
+                                  "rule": rule or check.get("rule"), "cites": cites}
+    return found
+
+
+def norm_severity(cell):
+    s = re.sub(r"[^a-z]", "", str(cell or "").lower())
+    return s if s in SEVERITIES else ""
+
+
+def answers_from_report(text, apps):
+    """{(app_id, check_id): [(result, severity, evidence)]} from the report's
+    FAIL/WARN/PASS rows, or None when the report has no `check:` rows."""
+    if not text:
+        return None
+    sections = check_rows.app_sections(text)
+    out, any_rows = {}, False
+    for app in apps or []:
+        body = check_rows.section_for(app, sections, single=len(apps) == 1)
+        if body is None:
             continue
-        app_id = app["app_id"]
-        prefix = app_prefix(app)
+        for cid, rows in check_rows.rows_by_check(body).items():
+            any_rows = True
+            for r in rows:
+                if r["result"] in RANK:
+                    out.setdefault((app["app_id"], cid), []).append(
+                        (r["result"], norm_severity(r["severity"]), r["evidence"]))
+    return out if any_rows else None
 
-        sec = fact(pre_review, app_id, "security.json")
-        if isinstance(sec, dict):
-            for c in sec.get("candidates") or []:
-                if c.get("file") and c.get("line") is not None:
-                    found.append((repo_relative(prefix, c["file"]), c["line"],
-                                  c.get("kind"), c.get("rule")))
 
-        tpl = fact(pre_review, app_id, "template.json")
-        if isinstance(tpl, dict):
-            for key, check_id in TEMPLATE_CHECK_ID.items():
-                rule = rule_table.get(check_id)
-                for c in tpl.get(key) or []:
-                    if c.get("file") and c.get("line") is not None:
-                        found.append((repo_relative(prefix, c["file"]), c["line"], key, rule))
+def cites_candidate(evidence, cand):
+    return any(check_rows.cited(evidence, p, n) for p, n in cand["cites"])
 
-        form = fact(pre_review, app_id, "form.json")
-        if isinstance(form, dict):
-            rule = rule_table.get(FORM_CHECK_ID)
-            ffile = form.get("file") or "form.yml"
-            for a in form.get("attributes") or []:
-                if a.get("line") is not None:
-                    found.append((repo_relative(prefix, ffile), a["line"], "form_attribute", rule))
 
-    seen, unique = set(), []
-    for file_, line, kind, rule in found:
-        key = (file_, line, kind)
-        if key not in seen:
-            seen.add(key)
-            unique.append((file_, line, kind, rule))
-    unique.sort(key=lambda c: (c[0], c[1], c[2] or ""))
-    return unique
+def verdict(answers, cand):
+    """(result or None, severity) for the candidate from its answers."""
+    best = None
+    for result, severity, evidence in answers:
+        main, ok = split_reviewed_ok(evidence if isinstance(evidence, str) else "")
+        for res, sev, text in ((result, severity, main), ("PASS", "", ok)):
+            if not text or not cites_candidate(text, cand):
+                continue
+            key = (RANK[res], SEVERITIES.index(sev) if sev in SEVERITIES else -1)
+            if best is None or key > best[0]:
+                best = (key, res, sev)
+    return (best[1], best[2]) if best else (None, "")
+
+
+def run_verdict(run, cand):
+    if run["report_answers"] is not None:
+        answers = run["report_answers"].get((cand["app_id"], cand["check"]), [])
+    else:
+        answers = [(r.get("result"), norm_severity(r.get("severity")), r.get("evidence"))
+                   for r in run["records"]
+                   if r.get("result") in RANK and r.get("rule") == cand["rule"]]
+    return verdict(answers, cand)
 
 
 def is_fix_item(rec):
@@ -237,49 +227,14 @@ def fix_key(rec):
     return (rec.get("rule"), rec.get("defect_key"))
 
 
-def citations(evidence):
-    """[(path, low, high), ...] from every `path:N`, `path:N-M`, or comma
-    list of those found anywhere in evidence -- not only a leading one, since
-    a FAIL/WARN record's evidence may carry a second citation group after a
-    semicolon (e.g. a note distinguishing it from a PASS on the same file and
-    tag: "template/script.sh.erb:22; reviewed OK: template/script.sh.erb:9,23").
-    Prose between citations (and prose with no citation at all) contributes
-    nothing. Each comma-separated piece of a citation's line-list becomes its
-    own (path, low, high) entry."""
-    if not isinstance(evidence, str):
-        return []
-    out = []
-    for m in CITATION.finditer(evidence):
-        path, spec = m.group(1), m.group(2)
-        for piece in spec.split(","):
-            lm = RANGE_SPEC.search(piece)
-            if not lm:
-                continue
-            lo = int(lm.group(1))
-            hi = int(lm.group(2)) if lm.group(2) else lo
-            out.append((path, lo, hi))
-    return out
-
-
-def records_candidate(records, file_, line):
-    """Whether any FAIL/WARN/PASS record in this run cites the candidate's exact file:line."""
-    for rec in records:
-        if rec.get("result") not in ("FAIL", "WARN", "PASS"):
-            continue
-        for path, lo, hi in citations(rec.get("evidence")):
-            if path == file_ and lo <= line <= hi:
-                return True
-    return False
-
-
 def jaccard(a, b):
     if not a and not b:
         return 1.0
     return len(a & b) / len(a | b)
 
 
-def gather_runs(run_dirs, rule_table):
-    """[(label, findings_records, candidates)]; raises InputError on a bad dir."""
+def gather_runs(run_dirs, checks):
+    """[run dict]; raises InputError on a bad dir."""
     runs = []
     for d in run_dirs:
         if not os.path.isdir(d):
@@ -291,30 +246,45 @@ def gather_runs(run_dirs, rule_table):
                   file=sys.stderr)
             continue
         pre_review = find_pre_review(d)
-        candidates = load_candidates(pre_review, rule_table)
-        runs.append((label, records, candidates))
+        apps = load_apps(pre_review)
+        runs.append({
+            "label": label, "records": records, "has_facts": apps is not None,
+            "candidates": load_candidates(pre_review, apps, checks),
+            "report_answers": answers_from_report(load_report(d), apps),
+        })
     return runs
 
 
 def build_report(runs):
-    labels = [r[0] for r in runs]
-    fix_sets = {label: set(fix_key(r) for r in records if is_fix_item(r))
-                for label, records, _ in runs}
+    labels = [r["label"] for r in runs]
+    fix_sets = {r["label"]: set(fix_key(x) for x in r["records"] if is_fix_item(x)) for r in runs}
     pairs = []
-    for (la, _, _), (lb, _, _) in itertools.combinations(runs, 2):
-        pairs.append({"a": la, "b": lb, "value": round(jaccard(fix_sets[la], fix_sets[lb]), 4)})
+    for ra, rb in itertools.combinations(runs, 2):
+        pairs.append({"a": ra["label"], "b": rb["label"],
+                      "value": round(jaccard(fix_sets[ra["label"]], fix_sets[rb["label"]]), 4)})
 
     all_candidates = {}
-    for _, _, cands in runs:
-        for file_, line, kind, rule in cands:
-            all_candidates[(file_, line, kind)] = rule
+    for r in runs:
+        for key, cand in r["candidates"].items():
+            all_candidates.setdefault(key, cand)
 
     candidate_rows = []
-    for (file_, line, kind), rule in sorted(all_candidates.items(), key=lambda kv: (kv[0][0], kv[0][1])):
-        recorded_in = [label for label, records, _ in runs if records_candidate(records, file_, line)]
+    order = lambda kv: (kv[0][0], kv[0][1], kv[1]["file"], kv[1]["line"] or 0)
+    for _, cand in sorted(all_candidates.items(), key=order):
+        verdicts, recorded, answered = {}, [], 0
+        for r in runs:
+            result, severity = run_verdict(r, cand)
+            verdicts[r["label"]] = {"result": LETTER[result],
+                                    "severity": severity if result in ("FAIL", "WARN") else ""}
+            if result is not None:
+                answered += 1
+            if result in ("FAIL", "WARN"):
+                recorded.append(r["label"])
         candidate_rows.append({
-            "file": file_, "line": line, "kind": kind, "rule": rule,
-            "n_runs": len(runs), "recorded_by": len(recorded_in), "runs": recorded_in,
+            "app_id": cand["app_id"], "check": cand["check"], "candidate": cand["candidate"],
+            "file": cand["file"], "line": cand["line"], "rule": cand["rule"],
+            "n_runs": len(runs), "recorded_by": len(recorded), "answered_by": answered,
+            "runs": recorded, "verdicts": verdicts,
         })
 
     return {"runs": labels, "jaccard": pairs, "candidates": candidate_rows}
@@ -330,14 +300,22 @@ def render_markdown(report):
     if report.get("note"):
         lines.append(report["note"])
         return "\n".join(lines)
-    lines.append("## Per-candidate recall")
+    lines.append("## Per-candidate verdicts")
     lines.append("")
-    lines.append("| File:Line | Kind | Rule | Recorded by | Runs |")
-    lines.append("|---|---|---|---|---|")
+    lines.append("F/W/P = FAIL/WARN/PASS (severity for F and W), - = no answer. "
+                 "Recorded = FAIL or WARN; answered = any verdict.")
+    lines.append("")
+    runs = report["runs"]
+    lines.append("| Candidate | Check | Rule | " + " | ".join(runs) + " | Recorded | Answered |")
+    lines.append("|---|---|---|" + "---|" * len(runs) + "---|---|")
     for c in report["candidates"]:
-        lines.append("| {}:{} | {} | {} | {}/{} | {} |".format(
-            c["file"], c["line"], c["kind"] or "", c["rule"] or "",
-            c["recorded_by"], c["n_runs"], ", ".join(c["runs"]) or "(none)"))
+        cells = []
+        for r in runs:
+            v = c["verdicts"][r]
+            cells.append((v["result"] + " " + v["severity"]).strip())
+        lines.append("| {} | {} | {} | {} | {}/{} | {}/{} |".format(
+            c["candidate"], c["check"], c["rule"] or "", " | ".join(cells),
+            c["recorded_by"], c["n_runs"], c["answered_by"], c["n_runs"]))
     return "\n".join(lines)
 
 
@@ -350,9 +328,9 @@ def main(argv):
         print("usage: compare-runs.py <run-dir>... [--json]  (at least two run dirs required)",
               file=sys.stderr)
         return 2
-    rule_table = load_rule_table()
+    checks = load_checks()
     try:
-        runs = gather_runs(args.run_dirs, rule_table)
+        runs = gather_runs(args.run_dirs, checks)
     except InputError as e:
         print("error: {}".format(e), file=sys.stderr)
         return 2
@@ -360,11 +338,11 @@ def main(argv):
         print("error: fewer than two runs had a readable findings file", file=sys.stderr)
         return 2
 
-    has_facts = any(cands for _, _, cands in runs)
+    has_facts = any(r["has_facts"] for r in runs)
     report = build_report(runs)
     if not has_facts:
         report["candidates"] = []
-        report["note"] = ("per-candidate recall is unavailable: no run under the given "
+        report["note"] = ("per-candidate verdicts are unavailable: no run under the given "
                            "directories has pre-review fact files")
 
     if args.json:

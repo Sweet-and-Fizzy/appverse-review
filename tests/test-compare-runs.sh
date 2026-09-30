@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Test compare-runs.py: pairwise Jaccard of fix-item keys, and per-candidate
-# recall across N run directories.
+# verdicts (F/W/P/-, recorded and answered) across N run directories.
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 CHECK="$SCRIPT_DIR/references/compare-runs.py"
@@ -63,19 +63,19 @@ echo "Test 2: pairwise Jaccard section present with three pairs"
 check "three jaccard data rows" 3 "$(grep -c '| [0-9.]* |$' "$TMP/out")"
 check "jaccard header present" 1 "$(grep -c '## Pairwise Jaccard' "$TMP/out")"
 
-echo "Test 3: per-candidate recall table present, 3 candidates listed"
+echo "Test 3: per-candidate verdict table present, 3 candidates listed"
 check "eval_exec candidate row" 1 "$(grep -c 'template/script.sh.erb:10' "$TMP/out")"
 check "network_call candidate row" 1 "$(grep -c 'template/before.sh.erb:4' "$TMP/out")"
 check "absolute_paths candidate row" 1 "$(grep -c 'template/script.sh.erb:22' "$TMP/out")"
 
 echo "Test 4: eval_exec candidate recorded by 2 of 3 runs (a, b; not c)"
-check "2/3 recorded" 1 "$(grep 'template/script.sh.erb:10' "$TMP/out" | grep -c '2/3')"
+check "verdicts, recorded 2/3, answered 2/3" "| template/script.sh.erb:10 | sec-eval-exec | OODT-01 | F high | F high | - | 2/3 | 2/3 |" "$(grep -F '| template/script.sh.erb:10 |' "$TMP/out")"
 
-echo "Test 5: a PASS citing the candidate counts as recorded (network_call, run b)"
-check "network_call 1/3 recorded" 1 "$(grep 'template/before.sh.erb:4' "$TMP/out" | grep -c '1/3')"
+echo "Test 5: a PASS citing the candidate is answered, not recorded (network_call, run b)"
+check "network_call P in run b, recorded 0/3, answered 1/3" "| template/before.sh.erb:4 | sec-network-call | OODT-04 | - | P | - | 0/3 | 1/3 |" "$(grep -F '| template/before.sh.erb:4 |' "$TMP/out")"
 
 echo "Test 6: a range citation (20-25) counts for the line-22 candidate (run a, run c both record it)"
-check "absolute_paths 2/3 recorded" 1 "$(grep 'template/script.sh.erb:22' "$TMP/out" | grep -c '2/3')"
+check "absolute_paths W medium / - / F medium, 2/3" "| template/script.sh.erb:22 | hardcoded-site-paths | QUA-02 | W medium | - | F medium | 2/3 | 2/3 |" "$(grep -F '| template/script.sh.erb:22 |' "$TMP/out")"
 
 echo "Test 7: --json shape"
 out_json=$(run "$TMP/a" "$TMP/b" "$TMP/c" --json)
@@ -298,31 +298,33 @@ for c in d['candidates']:
         print(c['recorded_by'])
 ")"
 
-echo "Test 17: citations() finds every path:line group anywhere in evidence, not only"
-echo "the leading one (a FAIL/WARN evidence carrying a second citation after a semicolon,"
-echo "to avoid colliding on the same stable key as a PASS on the same file and tag)"
-check "three citations parsed from the semicolon-joined evidence" "[('template/script.sh.erb', 22, 22), ('template/script.sh.erb', 9, 9), ('template/script.sh.erb', 23, 23)]" "$(python3 -c "
+echo "Test 17: compare-runs uses the shared parser: every group, a backticked path and a ./ path"
+check "groups from the semicolon-joined evidence" "[('template/script.sh.erb', [22]), ('template/script.sh.erb', [9, 23])]" "$(python3 -c "
 import sys
 sys.path.insert(0, '$SCRIPT_DIR/references')
-import importlib.util
-spec = importlib.util.spec_from_file_location('compare_runs', '$CHECK')
-cr = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(cr)
-ev = 'template/script.sh.erb:22; reviewed OK: template/script.sh.erb:9,23'
-print(cr.citations(ev))
+from repo_paths import parse_citations
+print(parse_citations('template/script.sh.erb:22; reviewed OK: template/script.sh.erb:9,23'))
 ")"
-check "prose-only evidence yields no citations" "[]" "$(python3 -c "
-import sys
-sys.path.insert(0, '$SCRIPT_DIR/references')
-import importlib.util
-spec = importlib.util.spec_from_file_location('compare_runs', '$CHECK')
-cr = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(cr)
-print(cr.citations('reviewed manually, looks fine'))
+mkdir -p "$TMP/bt"; cp -R "$TMP/a/pre-review" "$TMP/bt/"
+printf '%s' "$(printf '[%s,%s]' \
+  "$(finding OODT-01 template/script.sh.erb:eval-exec FAIL high '`template/script.sh.erb:10`')" \
+  "$(finding OODT-04 template/before.sh.erb:network-call WARN low './template/before.sh.erb:4')")" > "$TMP/bt/review-app.findings.json"
+run "$TMP/bt" "$TMP/c" --json > /dev/null
+check "backticked path recorded" "F high" "$(python3 -c "
+import json
+d = json.load(open('$TMP/out'))
+for c in d['candidates']:
+    if c['line'] == 10: print(c['verdicts']['bt']['result'], c['verdicts']['bt']['severity'])
+")"
+check "./ path recorded" "W low" "$(python3 -c "
+import json
+d = json.load(open('$TMP/out'))
+for c in d['candidates']:
+    if c['line'] == 4: print(c['verdicts']['bt']['result'], c['verdicts']['bt']['severity'])
 ")"
 
-echo "Test 18: end-to-end -- a candidate at line 9 and one at line 23 in the same file are"
-echo "both recorded by the one FAIL/WARN finding whose evidence carries both, after the semicolon"
+echo "Test 18: end-to-end -- the lines after '; reviewed OK:' are PASS (answered, not"
+echo "recorded); the leading citation takes the record's WARN"
 mkdir -p "$TMP/sc1/pre-review/root" "$TMP/sc2/pre-review/root"
 cat > "$TMP/sc1/pre-review/apps.json" <<'EOF'
 [{"app_id": "root", "path": ".", "app_type": "batch_connect", "readme": "README.md"}]
@@ -351,17 +353,59 @@ d = json.load(open('$TMP/out'))
 for c in d['candidates']:
     if c['line'] == 22: print(c['recorded_by'])
 ")"
-check "line 9 recorded 1/2 (from the second citation group)" "1" "$(python3 -c "
+check "line 9 PASS, recorded 0, answered 1" "P 0 1" "$(python3 -c "
 import json
 d = json.load(open('$TMP/out'))
 for c in d['candidates']:
-    if c['line'] == 9: print(c['recorded_by'])
+    if c['line'] == 9: print(c['verdicts']['sc1']['result'], c['recorded_by'], c['answered_by'])
 ")"
-check "line 23 recorded 1/2 (from the comma list in the second group)" "1" "$(python3 -c "
+check "line 23 PASS (comma list in the reviewed-OK group)" "P 0 1" "$(python3 -c "
 import json
 d = json.load(open('$TMP/out'))
 for c in d['candidates']:
-    if c['line'] == 23: print(c['recorded_by'])
+    if c['line'] == 23: print(c['verdicts']['sc1']['result'], c['recorded_by'], c['answered_by'])
 ")"
+
+echo "Test 19: two runs, run A FAILs a candidate and run B PASSes it: F/P, recorded 1/2, answered 2/2"
+mkdir -p "$TMP/fa" "$TMP/fb"; cp -R "$TMP/a/pre-review" "$TMP/fa/"; cp -R "$TMP/a/pre-review" "$TMP/fb/"
+printf '%s' "$(printf '[%s]' "$(finding OODT-01 template/script.sh.erb:eval-exec FAIL high template/script.sh.erb:10)")" > "$TMP/fa/review-app.findings.json"
+printf '%s' "$(printf '[%s]' "$(finding OODT-01 template/script.sh.erb:eval-exec PASS info template/script.sh.erb:10)")" > "$TMP/fb/review-app.findings.json"
+check "exit 0" 0 "$(run "$TMP/fa" "$TMP/fb")"
+check "row" "| template/script.sh.erb:10 | sec-eval-exec | OODT-01 | F high | P | 1/2 | 2/2 |" "$(grep -F '| template/script.sh.erb:10 |' "$TMP/out")"
+
+echo "Test 20: the report's rows are read per check: a QUA-10 row citing the line does not"
+echo "answer the OODT-01 candidate there; a NOT CHECKED row answers nothing; reviewed OK is PASS"
+mkdir -p "$TMP/ra/pre-review/root" "$TMP/rb"
+echo '[{"app_id": "root", "path": ".", "app_type": "batch_connect", "readme": "README.md"}]' > "$TMP/ra/pre-review/apps.json"
+cat > "$TMP/ra/pre-review/root/security.json" <<'EOF'
+{"candidates": [
+  {"kind": "interpolation", "file": "submit.yml.erb", "line": 17, "text": "<%= x %>", "rule": "OODT-01", "note": ""},
+  {"kind": "interpolation", "file": "submit.yml.erb", "line": 18, "text": "<%= y %>", "rule": "OODT-01", "note": ""},
+  {"kind": "interpolation", "file": "submit.yml.erb", "line": 19, "text": "<%= z %>", "rule": "OODT-01", "note": ""}
+]}
+EOF
+cp -R "$TMP/ra/pre-review" "$TMP/rb/"
+echo '[]' > "$TMP/ra/review-app.findings.json"; echo '[]' > "$TMP/rb/review-app.findings.json"
+cat > "$TMP/ra/review-app.md" <<'EOF'
+## App: X (root)
+
+| Rule | Check | Result | Severity | Tag | Summary | Evidence |
+|---|---|---|---|---|---|---|
+| QUA-10 | `check: erb-missing-value` | FAIL | medium | — | no default | submit.yml.erb:17 |
+| OODT-01 | `check: sec-interpolation` | NOT CHECKED | — | — | too dynamic | submit.yml.erb:17 |
+| OODT-01 | `check: sec-interpolation` | WARN | **low** | unintentional | free text | `submit.yml.erb:18`; reviewed OK: submit.yml.erb:19 |
+EOF
+cat > "$TMP/rb/review-app.md" <<'EOF'
+## App: X (root)
+
+| Rule | Check | Result | Severity | Tag | Summary | Evidence |
+|---|---|---|---|---|---|---|
+| OODT-01 | `check: sec-interpolation` | FAIL | high | unintentional | `echo x | sh` | submit.yml.erb:17 |
+| OODT-01 | `check: sec-interpolation` | PASS | info | — | quoted | submit.yml.erb:18-19 |
+EOF
+check "exit 0" 0 "$(run "$TMP/ra" "$TMP/rb")"
+check "line 17: ra has only a QUA-10 row and a NOT CHECKED row" "| submit.yml.erb:17 | sec-interpolation | OODT-01 | - | F high | 1/2 | 1/2 |" "$(grep -F '| submit.yml.erb:17 |' "$TMP/out")"
+check "line 18: W low / P" "| submit.yml.erb:18 | sec-interpolation | OODT-01 | W low | P | 1/2 | 2/2 |" "$(grep -F '| submit.yml.erb:18 |' "$TMP/out")"
+check "line 19: reviewed OK is P" "| submit.yml.erb:19 | sec-interpolation | OODT-01 | P | P | 0/2 | 2/2 |" "$(grep -F '| submit.yml.erb:19 |' "$TMP/out")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
