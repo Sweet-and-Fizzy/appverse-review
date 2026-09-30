@@ -350,12 +350,19 @@ jobs:
             echo "::warning::No findings JSON found — review may not have produced structured output"
           fi
 
+      # Runs even when an earlier step failed (the review step failing is when
+      # the report most needs checking); a missing pre-review dir is passed
+      # through, so the checkers that need it report that they could not run
+      # instead of the whole check being skipped.
       - name: Check report and findings (floor, keys, rating, rows, evidence)
         id: checks
-        if: inputs.review_aspects == 'all'
+        if: "!cancelled() && inputs.review_aspects == 'all'"
         run: |
           WS="${{ github.workspace }}"; SLUG="${{ steps.params.outputs.repo_slug }}"
-          if [ -s "$WS/review-${SLUG}.md" ] && [ -s "$WS/review-${SLUG}.findings.json" ] && [ -d "$WS/pre-review" ]; then
+          if [ -s "$WS/review-${SLUG}.md" ] && [ -s "$WS/review-${SLUG}.findings.json" ]; then
+            if [ ! -d "$WS/pre-review" ]; then
+              echo "::warning::pre-review dir missing; the checkers that read it will report that they could not run"
+            fi
             rc=0; python3 "$WS/appverse-review/references/check-all.py" \
               "$WS/review-${SLUG}.md" "$WS/review-${SLUG}.findings.json" \
               "$WS/appverse-review/references/checks.json" "$WS/pre-review" \
@@ -369,7 +376,7 @@ jobs:
               exit 1
             fi
           else
-            echo "::warning::report, findings JSON, or pre-review dir missing — checks not run"
+            echo "::warning::report or findings JSON missing — checks not run"
           fi
 
       - name: Generate PDF and HTML from review
