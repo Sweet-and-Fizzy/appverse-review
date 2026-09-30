@@ -183,6 +183,10 @@ has references/finding-codes.md "entry-point-parse-error" "finding-codes.md list
 has skills/review-structure/SKILL.md ":entry-point-parse-error\` (STR-07" "structure skill files entry-point-parse-error under STR-07"
 lacks "$QUA_SKILL" "expected to fail" "review-quality has no stale check-rating expected-to-fail wording"
 
+tr '\n' ' ' < skills/review-maintenance/SKILL.md | grep -q -F -- "Records under MNT-02 to MNT-06 are WARN at most" \
+  && ok "maintenance skill states check-rating rejects a good-practice FAIL" \
+  || bad "maintenance skill states check-rating rejects a good-practice FAIL"
+
 echo "Test 12: every code_quality check's manifest weight matches its rubric row"
 WEIGHTS_OUT=$(mktemp)
 python3 - "$MANIFEST" > "$WEIGHTS_OUT" 2>&1 <<'PY'
