@@ -1,6 +1,8 @@
+# expected: the [rating] STR-01 README gate MISMATCH is real — the report's gate row says FAIL while its own text and readme.json say the README is substantive; rule 5 exists because of this run.
 [floor] feedback floor: 16/16 fix-items covered
 [keys] finding keys: 47/47 valid
-[rating] ratings: consistent
+[rating] MISMATCH root STR-01 README gate: FAIL but readme.json says stub: false
+[rating] ratings: 1 mismatch
 [rows] check-rows: 1 app, 19 required rows, 0 problems
 [evidence] NOTE report:str-02-metadata str-02-metadata manifest.yml:1 (`category` is not on manifest.yml:1)
 [evidence] NOTE report:str-02-metadata str-02-metadata manifest.yml:1 (`description` is not on manifest.yml:1)
@@ -21,4 +23,4 @@
 [evidence] NOTE report:magic-numbers magic-numbers template/script.sh.erb:59 (`script.sh.erb:59` is not on template/script.sh.erb:59)
 [evidence] NOTE report:erb-missing-value erb-missing-value submit.yml.erb:5,9,12 (`"normal"` is not on submit.yml.erb:5)
 [evidence] evidence: 47/47 valid; report rows: 37/37 valid
-exit: 0
+exit: 1

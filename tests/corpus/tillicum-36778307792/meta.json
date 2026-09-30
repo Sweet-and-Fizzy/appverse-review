@@ -1,0 +1,43 @@
+{
+  "repo_url": "https://github.com/UWrc/tillicum-llama-chat",
+  "sha": "f7c8d35004b824812d7c552c6dc17d9b7fd98653",
+  "ref": "f7c8d35004b824812d7c552c6dc17d9b7fd98653",
+  "repo_shape": "inferred_single",
+  "not_archived": "pass",
+  "public": "pass",
+  "model": "claude-sonnet-4-6",
+  "recommendation": {
+    "decision": "Reject",
+    "note": "The repository has no LICENSE file \u2014 a required gate criterion that the decision rubric places in the Reject category. Adding an open-source LICENSE (MIT is recommended) and resubmitting would resolve this gate failure. Separately, the documentation is rated Minimal (below the Adequate target) and the app is Not portable due to Tillicum-specific values throughout form.yml; both would move the decision to Accept with suggestions once the license is present. The medium-severity security findings (proxy binding to 0.0.0.0 and the CORS origin-reflection in proxy.py) are Request-changes-class issues \u2014 fixable, tagged unintentional, and without a redesign requirement. No finding is tagged potentially malicious."
+  },
+  "apps": [
+    {
+      "app_id": "root",
+      "name": "Llama.cpp WebUI",
+      "decision": "Reject",
+      "assessments": {
+        "documentation": "minimal",
+        "documentation_summary": "what it launches, prerequisites, installation, and troubleshooting documented; no configuration or known-limitations section",
+        "portability": "not_portable",
+        "portability_summary": "cluster name, all model paths, SIF path, partition names, and home-directory prefix hardcoded throughout form.yml and template/"
+      },
+      "reported_signals": {
+        "portability": "High",
+        "documentation": "High"
+      }
+    }
+  ],
+  "maintenance_assessment": {
+    "active_within_12mo": true,
+    "waiver_brand_new": true,
+    "signals": {
+      "releases": false,
+      "changelog": false,
+      "ci": false,
+      "multiple_contributors": false,
+      "issues_responded": null
+    },
+    "summary": "single commit 2026-09-09; brand-new submission; no releases, CI, or CHANGELOG; single contributor",
+    "reported_signal": "Medium"
+  }
+}
