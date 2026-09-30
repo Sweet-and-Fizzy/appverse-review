@@ -238,9 +238,9 @@ Follow these rules for any runtime verification:
   lists no candidates and there are no observations, write the single line
   "security.json lists no candidates; no observations." in place of both
   tables.
-- When no row or observation is FAIL or WARN, write exactly "No
+- When no row in either table is FAIL or WARN, write exactly "No
   tool-detectable issues in the checked tiers." under the tables. Never
-  write "safe".
+  write it when any row is FAIL or WARN, and never write "safe".
 - **Capability profile**, after the tables: a compact File / Capabilities
   / Anomalies table for Batch Connect apps; a short narrative for Passenger
   apps.

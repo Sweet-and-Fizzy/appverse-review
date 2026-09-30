@@ -187,6 +187,11 @@ tr '\n' ' ' < skills/review-maintenance/SKILL.md | grep -q -F -- "Records under 
   && ok "maintenance skill states check-rating rejects a good-practice FAIL" \
   || bad "maintenance skill states check-rating rejects a good-practice FAIL"
 
+echo "Test 11c: the security-claim sentence bullet follows the rows, in both docs"
+has "$SEC_SKILL" "no row in either table is FAIL or WARN" "review-security states the sentence follows the rows"
+has "$SEC_SKILL" "write it when any row is FAIL or WARN" "review-security states the never-write-it-with-a-row rule"
+has "$RUBRIC" "no row in either table is FAIL or WARN" "rubric states the sentence follows the rows"
+
 echo "Test 12: every code_quality check's manifest weight matches its rubric row"
 WEIGHTS_OUT=$(mktemp)
 python3 - "$MANIFEST" > "$WEIGHTS_OUT" 2>&1 <<'PY'

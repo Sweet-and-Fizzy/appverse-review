@@ -183,7 +183,8 @@ for what the enumeration cannot see (a missing CSRF defense, partial
 authentication, container isolation, an unusual way of phoning home) and
 records each under "Additional observations (review)", saying the
 enumeration missed it. "No tool-detectable issues in the checked tiers" is
-the claim when neither produces a FAIL or WARN, never "safe".
+the claim when no row in either table is FAIL or WARN; never write it when
+any row is FAIL or WARN, and never write "safe".
 
 Two complementary methods feed the same classification:
 

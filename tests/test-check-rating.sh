@@ -40,6 +40,8 @@ No findings.
 | Rule | Result | Severity | Tag | Summary | Evidence |
 |---|---|---|---|---|---|
 
+No tool-detectable issues in the checked tiers.
+
 ### Portability
 - Rating: **Partially portable** — x
 
@@ -236,6 +238,86 @@ cat > "$TMP/f24.json" <<'EOF'
 ]
 EOF
 check "exit 0" 0 "$(run "$TMP/r24.md" "$TMP/f24.json")"
+check "summary" "ratings: consistent" "$(tail -1 "$TMP/out")"
+
+# report() with the Security section replaced wholesale: $1 = doc rating, $2 = documentation
+# signal, $3 = evidence block, $4 = the Security section body (between "### Security" and
+# the next "### ").
+report_sec() {
+  report "$1" "$2" "$3" | python3 -c '
+import re, sys
+text = sys.stdin.read()
+body = sys.argv[1]
+text = re.sub(r"(?ms)^### Security\n.*?(?=^### )", "### Security\n\n" + body + "\n", text, count=1)
+sys.stdout.write(text)
+' "$4"
+}
+
+echo "Test 25: two WARN security rows under the sentence is a MISMATCH naming the count (the report:80 audit case)"
+SEC_TWO_WARN='#### Findings
+
+| Rule | Check | Result | Severity | Tag | Summary | Evidence |
+|---|---|---|---|---|---|---|
+| OODT-01 | `check: sec-interpolation` | WARN | low | unintentional | text_field interpolated | submit.yml.erb:6 |
+| OODT-08 | `check: sec-config-flag` | WARN | info | unintentional | set -x tracing enabled | template/script.sh.erb:19 |
+
+#### Additional observations (review)
+
+No findings.
+
+No tool-detectable issues in the checked tiers.'
+report_sec Strong Low "$FULL" "$SEC_TWO_WARN" > "$TMP/r25.md"
+check "exit 1" 1 "$(run "$TMP/r25.md" "$TMP/f1.json")"
+check "reason" 1 "$(grep -cF 'MISMATCH root security: "No tool-detectable issues in the checked tiers." with 2 FAIL/WARN rows above it' "$TMP/out")"
+
+echo "Test 26: only PASS security rows with the sentence is consistent"
+SEC_PASS_ONLY='#### Findings
+
+| Rule | Check | Result | Severity | Tag | Summary | Evidence |
+|---|---|---|---|---|---|---|
+| OODT-01 | `check: sec-interpolation` | PASS | info | — | quoted scheduler argument | submit.yml.erb:6 |
+
+#### Additional observations (review)
+
+No findings.
+
+No tool-detectable issues in the checked tiers.'
+report_sec Strong Low "$FULL" "$SEC_PASS_ONLY" > "$TMP/r26.md"
+check "exit 0" 0 "$(run "$TMP/r26.md" "$TMP/f1.json")"
+check "summary" "ratings: consistent" "$(tail -1 "$TMP/out")"
+
+echo "Test 27: only PASS security rows with no sentence is a MISMATCH"
+SEC_PASS_NO_SENTENCE='#### Findings
+
+| Rule | Check | Result | Severity | Tag | Summary | Evidence |
+|---|---|---|---|---|---|---|
+| OODT-01 | `check: sec-interpolation` | PASS | info | — | quoted scheduler argument | submit.yml.erb:6 |
+
+#### Additional observations (review)
+
+No findings.'
+report_sec Strong Low "$FULL" "$SEC_PASS_NO_SENTENCE" > "$TMP/r27.md"
+check "exit 1" 1 "$(run "$TMP/r27.md" "$TMP/f1.json")"
+check "reason" 1 "$(grep -cF 'MISMATCH root security: no FAIL/WARN rows but the sentence "No tool-detectable issues in the checked tiers." is missing' "$TMP/out")"
+
+echo "Test 28: the no-candidates form needs no sentence"
+SEC_NO_CANDIDATES='security.json lists no candidates; no observations.'
+report_sec Strong Low "$FULL" "$SEC_NO_CANDIDATES" > "$TMP/r28.md"
+check "exit 0" 0 "$(run "$TMP/r28.md" "$TMP/f1.json")"
+check "summary" "ratings: consistent" "$(tail -1 "$TMP/out")"
+
+echo "Test 29: a FAIL row without the sentence, and a table with no Check column (rule uses the second cell), is consistent"
+SEC_NO_CHECK_COL='#### Findings
+
+| Rule | Result | Severity | Tag | Summary | Evidence |
+|---|---|---|---|---|---|
+| OODT-05 | FAIL | high | unintentional | CORS wildcard | template/create_nginx_conf.sh.erb:17 |
+
+#### Additional observations (review)
+
+No findings.'
+report_sec Strong Low "$FULL" "$SEC_NO_CHECK_COL" > "$TMP/r29.md"
+check "exit 0" 0 "$(run "$TMP/r29.md" "$TMP/f1.json")"
 check "summary" "ratings: consistent" "$(tail -1 "$TMP/out")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

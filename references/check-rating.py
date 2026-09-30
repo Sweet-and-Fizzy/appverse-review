@@ -29,6 +29,15 @@ rating does. Rule 2 still applies (Minimal maps to High).
      tag. A maintenance record matches when its rule is one of MNT-02
      through MNT-06 (MNT-01, activity, is a real failure and is untouched).
      This rule is general — it is not keyed to any particular app or run.
+  4. Within each app's "### Security" section (up to the next "### "),
+     count table rows whose first cell is an OODT-xx code and whose
+     Result — the cell after the Check cell when the table has one, else
+     the second cell — normalises to FAIL or WARN (normalize_result,
+     imported from check-rows.py). "No tool-detectable issues in the
+     checked tiers." must appear exactly when that count is 0, except
+     that a section reading "security.json lists no candidates; no
+     observations." (the no-findings form) never requires the sentence.
+     This rule is general — it is not keyed to any particular app or run.
 
 The findings argument is read: for the stub-README exception above, and for
 rule 3, which scans every record regardless of app section.
@@ -36,6 +45,7 @@ rule 3, which scans every record regardless of app section.
 Exit 0 when consistent, 1 with one MISMATCH line per problem, 2 when the
 report or findings cannot be read or a needed section is missing.
 """
+import importlib.util
 import json
 import os
 import re
@@ -44,7 +54,15 @@ import sys
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CHECKS_JSON = os.path.join(SCRIPT_DIR, "checks.json")
 
+_spec = importlib.util.spec_from_file_location("check_rows", os.path.join(SCRIPT_DIR, "check-rows.py"))
+check_rows = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(check_rows)
+
 GOOD_PRACTICE_RULES = {"MNT-02", "MNT-03", "MNT-04", "MNT-05", "MNT-06"}
+
+SECURITY_CLAIM_SENTENCE = "No tool-detectable issues in the checked tiers."
+NO_CANDIDATES_LINE = "security.json lists no candidates; no observations."
+OODT_ROW_RE = re.compile(r"^\|\s*(OODT-\d+)\s*\|")
 
 RUNGS = [
     ("Minimal", ["what it launches", "prerequisites"]),
@@ -184,6 +202,43 @@ def never_fail_mismatches(findings, suggestion_checks):
     return lines
 
 
+def count_flagged_security_rows(security):
+    """Count table rows in a '### Security' body whose first cell is an
+    OODT-xx code and whose Result cell (the cell after Check when the
+    table's header has one, else the second cell) normalises to FAIL or
+    WARN."""
+    result_index = 1  # default: no Check column ("Rule | Result | ...")
+    count = 0
+    for line in security.splitlines():
+        if not OODT_ROW_RE.match(line):
+            if line.strip().startswith("|") and "Check" in line:
+                header = check_rows.split_row(line)
+                if "Check" in header:
+                    result_index = header.index("Check") + 1
+            continue
+        cells = check_rows.split_row(line)
+        if result_index >= len(cells):
+            continue
+        if check_rows.normalize_result(cells[result_index]) in ("FAIL", "WARN"):
+            count += 1
+    return count
+
+
+def security_claim_mismatch(app_id, security):
+    """MISMATCH line(s) for a '### Security' body where the presence of the
+    sentence "No tool-detectable issues in the checked tiers." disagrees
+    with whether any row is FAIL or WARN. None when they agree."""
+    count = count_flagged_security_rows(security)
+    has_sentence = SECURITY_CLAIM_SENTENCE in security
+    if count > 0 and has_sentence:
+        return ('MISMATCH {} security: "{}" with {} FAIL/WARN row{} above it'
+                .format(app_id, SECURITY_CLAIM_SENTENCE, count, "" if count == 1 else "s"))
+    if count == 0 and not has_sentence and NO_CANDIDATES_LINE not in security:
+        return ('MISMATCH {} security: no FAIL/WARN rows but the sentence "{}" is missing'
+                .format(app_id, SECURITY_CLAIM_SENTENCE))
+    return None
+
+
 def signal(body, dim):
     m = re.search(r"^\|\s*(?:\*\*)?" + dim + r"(?:\*\*)?\s*\|\s*(?:\*\*)?(Low|Medium|High)(?:\*\*)?\s*\|",
                   body, flags=re.M)
@@ -250,6 +305,14 @@ def main(argv):
         if doc_sig != DOC_SIGNAL[rating]:
             problems += 1
             print("MISMATCH Documentation signal (report says {}; rating {} maps to {})".format(doc_sig, rating, DOC_SIGNAL[rating]))
+
+        security = subsection(body, "Security")
+        if security is not None:
+            app_id = app_id_of(heading) or "root"
+            claim_problem = security_claim_mismatch(app_id, security)
+            if claim_problem:
+                problems += 1
+                print(claim_problem)
     if seen == 0:
         print("error: no '## App:' section in report", file=sys.stderr)
         return 2
