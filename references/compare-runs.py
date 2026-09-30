@@ -73,6 +73,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CHECKS_JSON = os.path.join(SCRIPT_DIR, "checks.json")
 sys.path.insert(0, SCRIPT_DIR)
 from repo_paths import split_reviewed_ok  # noqa: E402
+from report_parse import app_sections, rows_by_check, section_for  # noqa: E402
 
 _spec = importlib.util.spec_from_file_location("check_rows", os.path.join(SCRIPT_DIR, "check-rows.py"))
 check_rows = importlib.util.module_from_spec(_spec)
@@ -192,13 +193,13 @@ def answers_from_report(text, apps):
     code-naming rule; harmless for every other check)."""
     if not text:
         return None
-    sections = check_rows.app_sections(text)
+    sections = app_sections(text)
     out, any_rows = {}, False
     for app in apps or []:
-        body = check_rows.section_for(app, sections, single=len(apps) == 1)
+        body = section_for(app, sections, single=len(apps) == 1)
         if body is None:
             continue
-        for cid, rows in check_rows.rows_by_check(body).items():
+        for cid, rows in rows_by_check(body).items():
             any_rows = True
             for r in rows:
                 if r["result"] in RANK:

@@ -33,7 +33,7 @@ rating does. Rule 2 still applies (Minimal maps to High).
      count table rows whose first cell is an OODT-xx code and whose
      Result — the cell after the Check cell when that row's own table has
      one, else the second cell — normalises to FAIL or WARN
-     (normalize_result, imported from check-rows.py). The section can
+     (normalize_result, imported from report_parse.py). The section can
      hold more than one table (Findings, then Additional observations
      (review)); each table's header (a '|' row immediately followed by a
      '|---'-style separator row, the separator itself required to contain
@@ -52,7 +52,6 @@ rule 3, which scans every record regardless of app section.
 Exit 0 when consistent, 1 with one MISMATCH line per problem, 2 when the
 report or findings cannot be read or a needed section is missing.
 """
-import importlib.util
 import json
 import os
 import re
@@ -60,10 +59,10 @@ import sys
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CHECKS_JSON = os.path.join(SCRIPT_DIR, "checks.json")
-
-_spec = importlib.util.spec_from_file_location("check_rows", os.path.join(SCRIPT_DIR, "check-rows.py"))
-check_rows = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(check_rows)
+sys.path.insert(0, SCRIPT_DIR)
+from report_parse import (  # noqa: E402
+    app_sections as _app_sections, normalize_result, split_row,
+)
 
 GOOD_PRACTICE_RULES = {"MNT-02", "MNT-03", "MNT-04", "MNT-05", "MNT-06"}
 
@@ -91,11 +90,12 @@ def is_none(value):
 
 
 def app_sections(text):
-    """Yield (app_heading, body) for each '## App:' section."""
-    parts = re.split(r"^(## App:[^\n]*)$", text, flags=re.M)
-    for i in range(1, len(parts) - 1, 2):
-        body = parts[i + 1].split("\n## ", 1)[0]
-        yield parts[i].strip(), body
+    """Yield (app_heading, body) for each '## App:' section. Thin wrapper
+    around report_parse.app_sections (the shared parser check-rows.py and
+    compare-runs.py also use), dropping the paren-value key this module
+    does not need."""
+    for heading, _key, body in _app_sections(text):
+        yield heading, body
 
 
 def subsection(body, name):
@@ -230,15 +230,15 @@ def count_flagged_security_rows(security):
         next_line = lines[i + 1].strip() if i + 1 < len(lines) else ""
         if (stripped.startswith("|") and "|" in next_line and
                 SEPARATOR_ROW_RE.match(next_line)):
-            header = check_rows.split_row(line)
+            header = split_row(line)
             result_index = header.index("Check") + 1 if "Check" in header else 1
             continue
         if not OODT_ROW_RE.match(line):
             continue
-        cells = check_rows.split_row(line)
+        cells = split_row(line)
         if result_index >= len(cells):
             continue
-        if check_rows.normalize_result(cells[result_index]) in ("FAIL", "WARN"):
+        if normalize_result(cells[result_index]) in ("FAIL", "WARN"):
             count += 1
     return count
 

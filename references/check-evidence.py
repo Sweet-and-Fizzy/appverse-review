@@ -86,7 +86,6 @@ its groups are, and (with --report) all its report rows are too.
 that cannot be read.
 """
 import argparse
-import importlib.util
 import json
 import os
 import re
@@ -95,15 +94,7 @@ import sys
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SCRIPT_DIR)
 from repo_paths import PSEUDO_ANCHORS, exists_case_exact, parse_citations  # noqa: E402
-
-# check-rows.py's row/table parsing (split_row, rows_by_check, header_name) is
-# reused for --report scanning rather than duplicated; a later task moves the
-# shared pieces into their own module, so this is the only place that imports
-# check-rows.py this way (the pattern compare-runs.py and check-rating.py
-# already use for the same reason).
-_spec = importlib.util.spec_from_file_location("check_rows", os.path.join(SCRIPT_DIR, "check-rows.py"))
-check_rows = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(check_rows)
+from report_parse import rows_by_check  # noqa: E402
 
 MAX_LINE_COUNT_BYTES = 5 * 1024 * 1024  # 5 MB
 
@@ -279,41 +270,16 @@ def validate(finding, target, line_cache, skipped, text_cache=None):
 def report_rows(text):
     """[(check_id, evidence, summary), ...] for every table row, in any
     '## App:' section or not, that carries a `check:` marker in its Check
-    column and a recognized Result. Built the same way check-rows.py's
-    rows_by_check walks tables (split_row/is_separator/header_name/MARKER,
-    reused via the check_rows import above), but also keeps the Summary
-    cell, which rows_by_check discards."""
+    column and a recognized Result. report_parse.rows_by_check walks tables
+    the same way (split_row/is_separator/header_name/MARKER) and, since it
+    keeps each row's Summary cell too, scanning the whole report text with
+    it (it does not care about '## App:' boundaries) gives the same rows;
+    this just flattens its {check_id: [row, ...]} grouping back into one
+    tuple per row."""
     out = []
-    lines = text.splitlines()
-    i = 0
-    while i < len(lines):
-        if lines[i].lstrip().startswith("|") and i + 1 < len(lines) and check_rows.is_separator(lines[i + 1]):
-            head = [check_rows.header_name(c) for c in check_rows.split_row(lines[i])]
-            i += 2
-            if "check" not in head:
-                while i < len(lines) and lines[i].lstrip().startswith("|"):
-                    i += 1
-                continue
-            ci = head.index("check")
-            ri = head.index("result") if "result" in head else None
-            ei = head.index("evidence") if "evidence" in head else None
-            sumi = head.index("summary") if "summary" in head else None
-            while i < len(lines) and lines[i].lstrip().startswith("|"):
-                cells = check_rows.split_row(lines[i])
-                get = lambda k: cells[k] if k is not None and k < len(cells) else ""
-                result = check_rows.normalize_result(get(ri))
-                if result is None:
-                    i += 1
-                    continue
-                evidence = get(ei)
-                if ei is not None and len(cells) > len(head):
-                    evidence = " | ".join(cells[ei:])
-                cids = check_rows.MARKER.findall(get(ci))
-                if cids:
-                    out.append((", ".join(cids), evidence, get(sumi)))
-                i += 1
-            continue
-        i += 1
+    for cid, rows in rows_by_check(text).items():
+        for row in rows:
+            out.append((cid, row["evidence"], row["summary"]))
     return out
 
 
