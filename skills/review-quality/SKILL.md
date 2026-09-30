@@ -171,7 +171,8 @@ These rows carry no `check:` marker.
   with a QUA-01 record (`docs-minimal`, anchored at the README path, its
   evidence citing `README.md:N`). When no rung supports Minimal, the rating
   line reads `Below minimal` (a Documentation signal of High) and the
-  `docs-minimal` record is WARN. Whether the README is a stub is not yours
+  `docs-minimal` record is FAIL, as it is for Minimal: both miss the
+  Adequate target. Whether the README is a stub is not yours
   to decide: it is `readme.json`'s `stub`. Only when `stub` is true, the
   rating line reads `Minimal — not supported (stub README; see QUA-01)`
   and the record is QUA-01 `docs-stub` FAIL; `check-rating.py` rejects

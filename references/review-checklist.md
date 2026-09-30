@@ -229,7 +229,7 @@ For Monorepos: repeat the per-app criteria and decision for each entry in `apps[
 ### Signals
 - Security: findings classified under OODT, with severity and file:line evidence (no level)
 - Portability: [Low / Medium / High] — [Not portable / Partially portable / Portable]
-- Documentation: [Low / Medium / High] — [Minimal / Adequate / Strong / Exemplary]
+- Documentation: [Low / Medium / High] — [Below minimal / Minimal / Adequate / Strong / Exemplary]
 - Upkeep (repo): [Low / Medium / High] — last commit, releases, CI, CHANGELOG
 
 ### Code quality

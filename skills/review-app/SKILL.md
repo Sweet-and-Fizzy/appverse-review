@@ -129,7 +129,7 @@ string; if unavailable, write `unknown`.
 
 <!-- DERIVE the level from the aspect ratings, do not invent it:
      Portability: Portable = Low; Partially portable = Medium; Not portable = High.
-     Documentation: Strong/Exemplary = Low; Adequate = Medium; Minimal = High.
+     Documentation: Strong/Exemplary = Low; Adequate = Medium; Minimal or Below minimal = High.
      Low = good/low-concern; High = most to read. Never invert; never style High as a hazard.
      Monorepo: one Signals block PER app. No repo-level signal aggregate.
      There is no Security signal: security is the findings table below, never a level.
@@ -209,7 +209,7 @@ Findings are classified under OODT (Open OnDemand App Threats); codes are define
 | QUA-02 | `check: portability-rating` | PASS/FAIL | ... | <rating; PASS at Partially portable or above; a FAIL cites the hardcoded-* records and adds no record> | ... |
 
 ### Documentation
-- Rating: <Minimal | Adequate | Strong | Exemplary> — <one-line justification>
+- Rating: <Below minimal | Minimal | Adequate | Strong | Exemplary> — <one-line justification>
 - Evidence per rung (from readme.json rungs; a placeholder heading counts as none):
   what it launches: <"Heading", README.md:N, or none>; prerequisites: <…>; installation: <…>;
   configuration: <…>; known limitations: <…>;
@@ -219,11 +219,16 @@ Findings are classified under OODT (Open OnDemand App Threats); codes are define
      or none when the rung is null. placeholder true forces
      "none (placeholder)". Screenshots and environment variables cite a
      screenshots image line or an env_vars assignment/phrase line; a rung
-     whose only evidence is its heading says "heading only". A line may say
-     none with a reason where the section does not deliver its rung; it may
-     never cite a section readme.json does not list. The rating is the
-     highest rung with every requirement satisfied above. Never claim a rung
-     whose evidence line says none. -->
+     whose only evidence is its heading says "heading only". A rung with no
+     readme.json heading may cite the one README line that delivers it as
+     content: README.md:N (a text line, which check-evidence.py verifies).
+     A line may say none with a reason where the section does not deliver
+     its rung; it may never claim a rung without a citation. The rating is
+     the highest rung with every requirement satisfied above; with none for
+     Minimal it is Below minimal. Never claim a rung whose evidence line
+     says none. Only when readme.json stub is true does the rating line
+     read "Minimal — not supported (stub README; see QUA-01)". In
+     meta.json assessments, Below minimal and a stub are "minimal". -->
 
 | Rule | Check | Result | Severity | Summary | Evidence |
 |---|---|---|---|---|---|

@@ -204,6 +204,9 @@ CONTENT_FORM=$(grep -o '`content: README.md:N`' "$QUA_SKILL" | head -1 | tr -d '
   && ok "review-quality's content: citation form is the one check-evidence parses" || bad "review-quality's content: citation form is the one check-evidence parses"
 has "$RUBRIC" "\`$CONTENT_FORM\`" "rubric writes the same content: citation form"
 has skills/review-structure/SKILL.md "readme-not-substantive" "review-structure records STR-01 readme-not-substantive, the record check-rating falls back to"
+STUB_N=$(checker references/pre-review.py 'STUB_CONTENT_LINES')
+has "$RUBRIC" "fewer than $STUB_N content lines" "rubric states pre-review's stub threshold"
+has skills/review-structure/SKILL.md "fewer than $STUB_N content lines" "review-structure states pre-review's stub threshold"
 
 echo "Test 12: every code_quality check's manifest weight matches its rubric row"
 WEIGHTS_OUT=$(mktemp)

@@ -387,7 +387,8 @@ Overview-type heading, a descriptive paragraph under the README's title
 satisfies "what it launches" (`readme.json` records it as the intro). The
 level is the highest one whose requirements, and every lower level's, all
 have evidence. A README that is not a stub but has no evidence even for
-Minimal is rated Below minimal, with a QUA-01 `docs-minimal` WARN. Whether
+Minimal is rated Below minimal, with a QUA-01 `docs-minimal` FAIL, as
+for Minimal (both miss the Adequate target). Whether
 a README is a stub is decided once, by the pre-review facts
 (`readme.json` `stub`: fewer than 3 content lines, or every section body
 template placeholder text), never by the rating: a stub is the Structure

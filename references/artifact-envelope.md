@@ -22,10 +22,10 @@ Scripts then process these:
 | `assemble-artifact.py` | meta JSON + findings JSON + file paths | **artifact JSON** (this contract) |
 | `check-feedback-floor.py` | findings JSON + report MD | exit status: every Low+ fix-item named in the Draft Feedback |
 | `check-keys.py` | findings JSON (+ target checkout) | exit status: every `defect_key` is `{anchor}:{tag}` with a real or allowed anchor and a vocabulary tag |
-| `check-rating.py` | report MD + findings JSON | exit status: Documentation only; the rating follows its evidence lines and the Documentation signal follows the rating; the stub-README line is accepted only when the findings hold a QUA-01 `docs-stub` FAIL record |
+| `check-rating.py` | report MD + findings JSON + pre-review dir | exit status: Documentation only; the rating follows its evidence lines and the Documentation signal follows the rating; `Below minimal` needs a QUA-01 `docs-minimal` WARN or FAIL record; the stub-README line needs a QUA-01 `docs-stub` FAIL record and `readme.json` `stub` true (with no stub fact, a STR-01 `readme-not-substantive` FAIL record) |
 | `compare-runs.py` | findings JSON + report MD + pre-review facts, two or more runs | pairwise Jaccard of fix-item keys, and a per-candidate table: each run's verdict (F/W/P/- with severity) from the report row of the candidate's check, recorded (FAIL or WARN) in n of N, answered in n of N; Jaccard only when no run has fact files |
 | `check-rows.py` | report MD + findings JSON + checks JSON + pre-review dir | exit status: every applicable manifest check has a row, and every pre-review candidate is cited (`MISSING`/`UNCITED` lines) |
-| `check-evidence.py` | findings JSON (+ target checkout) | exit status: every finding's `file:line` evidence citation names a real file and an in-range line (`BAD` lines) |
+| `check-evidence.py` | findings JSON (+ target checkout) | exit status: every finding's `file:line` evidence citation names a real file and an in-range line (`BAD` lines), and every `content: README.md:N` citation names a README content line |
 
 The LLM produces the judgment; the scripts produce the structure.
 
@@ -210,7 +210,7 @@ rules, the same split as stable IDs and criteria.
 | Indicator | `solid` | `some_notes` | `needs_attention` |
 |---|---|---|---|
 | `portability` | `portable` | `partially_portable` | `not_portable` |
-| `documentation` | `strong`, `exemplary` | `adequate` | `minimal` |
+| `documentation` | `strong`, `exemplary` | `adequate` | `minimal` (a Below minimal or stub README is also `minimal`) |
 | `maintenance` | Active within 12 months and two or more good-practice signals | Active within 12 months; or the brand-new-app waiver | An MNT-01 finding; or inactive |
 
 There is no security indicator (schema 1.2). Security is the app's OODT-

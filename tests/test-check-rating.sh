@@ -262,6 +262,8 @@ printf '[{"app_id":"root","rule":"QUA-01","defect_key":"README.md:docs-minimal",
 check "Below minimal, zero supported rungs, a docs-minimal WARN record: exit 0" 0 "$(run "$TMP/r22h.md" "$TMP/f22h.json" "$TMP/pre-real")"
 check "summary" "ratings: consistent" "$(tail -1 "$TMP/out")"
 check "without facts too: exit 0" 0 "$(run "$TMP/r22h.md" "$TMP/f22h.json")"
+sed 's/"result":"WARN"/"result":"FAIL"/' "$TMP/f22h.json" > "$TMP/f22hf.json"
+check "a docs-minimal FAIL record (what the skill writes, as for Minimal): exit 0" 0 "$(run "$TMP/r22h.md" "$TMP/f22hf.json" "$TMP/pre-real")"
 check "without the docs-minimal record: exit 1" 1 "$(run "$TMP/r22h.md" "$TMP/f1.json")"
 check "reason" "MISMATCH root documentation: Below minimal rating but no QUA-01 docs-minimal WARN or FAIL record" "$(head -1 "$TMP/out")"
 sed 's/"result":"WARN"/"result":"PASS"/' "$TMP/f22h.json" > "$TMP/f22i.json"
