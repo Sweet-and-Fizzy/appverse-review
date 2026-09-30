@@ -82,7 +82,10 @@ the per-app dirs named in the previous apps.json are removed first):
                  contact line (contains '@' or starts with Contact), a
                  badge/image line (starts with '![' or '[!['), or a table's
                  header or |---| row (readme_line_kinds). stub is true when
-                 content_line_count is under STUB_CONTENT_LINES (3), or when
+                 content_line_count is under STUB_CONTENT_LINES (3: the
+                 largest value that keeps broken-app, 0, a stub and
+                 passenger-flask-app and containerized-server, 3 each, and
+                 the monorepo root README, 4, not), or when
                  every heading whose own body (to the next heading) holds a
                  content or placeholder line is placeholder text. It is the
                  one stub decision: STR-01 reads it, and check-rating.py
@@ -716,6 +719,10 @@ RUNGS = (
 )
 # readme.json "stub": fewer content lines than this, or every section body
 # placeholder text. A content line is what readme_line_kinds calls "content".
+# 3, not more: broken-app (a title and a contact line, 0) must be a stub,
+# while passenger-flask-app (3), containerized-server (3), the monorepo root
+# README (4) and a seven-line README of an intro, a prerequisite sentence and
+# an install line (3) must not; 3 is the largest value that holds for all.
 STUB_CONTENT_LINES = 3
 CONTACT_LINE = re.compile(r"^[\s>*_+-]*contact\b", re.I)
 APP_TYPES = {"batch-connect-basic": "batch_connect", "batch-connect-vnc": "batch_connect",

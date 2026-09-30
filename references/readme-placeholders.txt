@@ -74,3 +74,17 @@ The module name in `form.yml` doesn't match your system.
 The app may need more time to start. Increase the connection timeout
 Launch the app from the OOD dashboard with default settings
 Confirm the application loads in the browser
+To verify your installation:
+Contributions are welcome. To contribute:
+Fork this repository
+Create a feature branch (`git checkout -b feature/my-improvement`)
+Submit a pull request with a description of your changes
+This app is part of the [OOD Appverse](https://ondemand.connectci.org/affinity-groups/ood-appverse)
+[Open OnDemand](https://openondemand.org/) — the HPC portal framework
+Steps on how to install the software from source, including critical dependencies
+Steps on how to install and enable a Python environment with the software
+A link to container orchestration files that can reproduce a container from scratch
+A link to a pre-existing container that can be downloaded
+Some general info on how to obtain and configure the software
+If this documentation is too large or unwieldy, consider adding it to a separate markdown file
+[MIT License](LICENSE)

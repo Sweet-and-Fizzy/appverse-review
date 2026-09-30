@@ -639,6 +639,72 @@ MD
 check "every section body is template placeholder text: stub" "True|0" "$(sf "$T/template.md")"
 { printf 'This line is real text.\nSo is this one, above the title.\nAnd a third real line.\n\n'; cat "$T/template.md"; } > "$T/template3.md"
 check "three real lines outside any section, every section body placeholder: still a stub" "True|3" "$(sf "$T/template3.md")"
+# The Appverse README template's generic sections, verbatim
+# (tamu-edu/appverse_readme_template README.md lines 158-215: Testing through
+# License). Every line is template text, so no content line is left.
+cat > "$T/template-tail.md" <<'MD'
+# [Application Name]
+
+## Testing
+
+<!-- Where has this app been deployed and verified? -->
+
+| Site | OOD Version | Scheduler | Status |
+|------|-------------|-----------|--------|
+| [Your Institution] | 3.1 | Slurm 23.02 | Tested |
+
+<!-- How can a deployer verify it works? -->
+
+To verify your installation:
+
+1. Launch the app from the OOD dashboard with default settings
+2. Confirm the application loads in the browser
+3. [Any app-specific verification, e.g., "run a small test job"]
+
+## Known Limitations
+
+<!-- Be honest about what doesn't work or hasn't been tested. -->
+
+- [e.g., Multi-node jobs are not supported]
+- [e.g., GPU rendering requires VirtualGL, which is not configured by default]
+- [e.g., Only tested on RHEL 8; may not work on Ubuntu]
+
+## Contributing
+
+Contributions are welcome. To contribute:
+
+1. Fork this repository
+2. Create a feature branch (`git checkout -b feature/my-improvement`)
+3. Submit a pull request with a description of your changes
+
+For bugs or feature requests, [open an issue](https://github.com/YOUR-ORG/YOUR-APP/issues).
+
+This app is part of the [OOD Appverse](https://ondemand.connectci.org/affinity-groups/ood-appverse). Join the [Appverse Affinity Group](https://ondemand.connectci.org/affinity-groups/ood-appverse) to connect with other contributors.
+
+## References
+
+<!-- Credit upstream projects and any code you borrowed. -->
+
+- [Software Name](https://example.com) — the application launched by this OOD app
+- [Open OnDemand](https://openondemand.org/) — the HPC portal framework
+
+### Software Installation
+
+In this optional section you can include details of how to install the underlying software that is launched by this app. For example, include information about Blender if you are publishing a Blender Batch Connect App. You could potentially include the following:
+
+* Steps on how to install the software from source, including critical dependencies
+* Steps on how to install and enable a Python environment with the software
+* A link to container orchestration files that can reproduce a container from scratch
+* A link to a pre-existing container that can be downloaded
+* Some general info on how to obtain and configure the software, especially if it is distributed as binaries and/or is commercial or proprietary software
+
+If this documentation is too large or unwieldy, consider adding it to a separate markdown file and linking it here.
+
+## License
+
+[MIT License](LICENSE)
+MD
+check "the template's Testing, Contributing, References and License text is placeholder: stub" "True|0" "$(sf "$T/template-tail.md")"
 cat > "$T/fences.md" <<'MD'
 # App
 
