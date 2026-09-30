@@ -183,6 +183,33 @@ has references/finding-codes.md "entry-point-parse-error" "finding-codes.md list
 has skills/review-structure/SKILL.md ":entry-point-parse-error\` (STR-07" "structure skill files entry-point-parse-error under STR-07"
 lacks "$QUA_SKILL" "expected to fail" "review-quality has no stale check-rating expected-to-fail wording"
 
+echo "Test 12: every code_quality check's manifest weight matches its rubric row"
+WEIGHTS_OUT=$(mktemp)
+python3 - "$MANIFEST" > "$WEIGHTS_OUT" 2>&1 <<'PY'
+import json, sys
+checks = json.load(open(sys.argv[1]))["checks"]
+for c in checks:
+    if c["dimension"] == "code_quality":
+        print(c["id"], c.get("weight", ""))
+PY
+while read -r id weight; do
+  [ -n "$id" ] || continue
+  case "$weight" in
+    target)
+      has "$RUBRIC" "\`check: $id\`) | Target for inclusion |" "$id row: Target for inclusion" ;;
+    suggestion)
+      if grep -q -F -- "\`check: $id\`) | Suggestion |" "$RUBRIC"; then
+        ok "$id row: Suggestion"
+      elif grep -q -F -- "\`check: $id\` — " "$RUBRIC"; then
+        ok "$id named as a Code Quality check (polish finding, not a Target-for-inclusion table row)"
+      else
+        bad "$id row: Suggestion"
+      fi ;;
+    *) bad "$id has a recognised manifest weight (got '$weight')" ;;
+  esac
+done < "$WEIGHTS_OUT"
+rm -f "$WEIGHTS_OUT"
+
 echo
 echo "Done: $pass passed, $fail failed."
 [ "$fail" -eq 0 ]

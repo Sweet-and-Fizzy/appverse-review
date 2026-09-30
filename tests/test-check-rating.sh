@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Test check-rating.py: Documentation rating follows its evidence lines; Documentation signal follows the rating.
-# Only Documentation is checked (no security rating, design R4); the findings JSON is read only for a stub README rating (QUA-01 docs-stub).
+# Test check-rating.py: Documentation rating follows its evidence lines; Documentation signal follows the rating;
+# a suggestion-class check or an MNT-02..MNT-06 good-practice signal recorded as FAIL is a mismatch.
+# Only Documentation is checked among ratings/signals (no security rating, design R4); the findings JSON is also
+# read for a stub README rating (QUA-01 docs-stub) and for the suggestion/good-practice FAIL scan (rule 3).
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 CHECK="$SCRIPT_DIR/references/check-rating.py"
@@ -212,5 +214,28 @@ check "signal reason" 1 "$(grep -cF "MISMATCH Documentation signal (report says 
 report Minimal High "$STUB" > "$TMP/r22f.md"
 check "plain Minimal with the record still fails rule 1: exit 1" 1 "$(run "$TMP/r22f.md" "$TMP/f22.json")"
 check "unreadable findings: exit 2" 2 "$(run "$TMP/r22.md" "$TMP/nope.json")"
+
+echo "Test 23: a suggestion check or a maintenance good-practice signal recorded as FAIL is a MISMATCH"
+report Strong Low "$FULL" > "$TMP/r23.md"
+cat > "$TMP/f23.json" <<'EOF'
+[
+  {"app_id":"root","rule":"QUA-04","defect_key":"template/script.sh.erb:commented-out-code","aspect":"quality","severity":"low","result":"FAIL","summary":"dead code","evidence":"template/script.sh.erb:12"},
+  {"app_id":"root","rule":"MNT-02","defect_key":"releases:no-releases","aspect":"maintenance","severity":"low","result":"FAIL","summary":"no releases","evidence":"releases"}
+]
+EOF
+check "exit 1" 1 "$(run "$TMP/r23.md" "$TMP/f23.json")"
+check "QUA-04 line" 1 "$(grep -cF 'MISMATCH root QUA-04 template/script.sh.erb:commented-out-code: suggestion (check dead-code) recorded as FAIL' "$TMP/out")"
+check "MNT-02 line" 1 "$(grep -cF 'MISMATCH root MNT-02 releases:no-releases: good-practice signal recorded as FAIL' "$TMP/out")"
+
+echo "Test 24: a target check FAIL and an MNT-01 FAIL are not mismatches"
+report Strong Low "$FULL" > "$TMP/r24.md"
+cat > "$TMP/f24.json" <<'EOF'
+[
+  {"app_id":"root","rule":"QUA-03","defect_key":"template/script.sh.erb:no-set-e","aspect":"quality","severity":"low","result":"FAIL","summary":"missing set -e","evidence":"template/script.sh.erb:1"},
+  {"app_id":"root","rule":"MNT-01","defect_key":"commits:stale-repo","aspect":"maintenance","severity":"high","result":"FAIL","summary":"stale repo","evidence":"commits"}
+]
+EOF
+check "exit 0" 0 "$(run "$TMP/r24.md" "$TMP/f24.json")"
+check "summary" "ratings: consistent" "$(tail -1 "$TMP/out")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

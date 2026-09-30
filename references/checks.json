@@ -257,7 +257,8 @@
       "rule": "QUA-03",
       "tag": "no-set-e",
       "row_required": "always",
-      "dimension": "code_quality"
+      "dimension": "code_quality",
+      "weight": "target"
     },
     {
       "id": "numeric-field-bounds",
@@ -269,7 +270,8 @@
       "rule": "QUA-07",
       "tag": "missing-min-max",
       "row_required": "always",
-      "dimension": "code_quality"
+      "dimension": "code_quality",
+      "weight": "target"
     },
     {
       "id": "magic-numbers",
@@ -281,7 +283,8 @@
       "rule": "QUA-08",
       "tag": "magic-number",
       "row_required": "always",
-      "dimension": "code_quality"
+      "dimension": "code_quality",
+      "weight": "suggestion"
     },
     {
       "id": "duplicated-blocks",
@@ -296,7 +299,8 @@
       "rule": "QUA-09",
       "tag": "duplicated-block",
       "row_required": "always",
-      "dimension": "code_quality"
+      "dimension": "code_quality",
+      "weight": "suggestion"
     },
     {
       "id": "dead-code",
@@ -308,7 +312,8 @@
       "rule": "QUA-04",
       "tag": "commented-out-code",
       "row_required": "always",
-      "dimension": "code_quality"
+      "dimension": "code_quality",
+      "weight": "suggestion"
     },
     {
       "id": "erb-missing-value",
@@ -320,7 +325,8 @@
       "rule": "QUA-10",
       "tag": "erb-missing-value-unhandled",
       "row_required": "always",
-      "dimension": "code_quality"
+      "dimension": "code_quality",
+      "weight": "suggestion"
     },
     {
       "id": "icon-matches-target-os",
@@ -335,7 +341,8 @@
       "rule": "QUA-06",
       "tag": "icon-os-mismatch",
       "row_required": "always",
-      "dimension": "code_quality"
+      "dimension": "code_quality",
+      "weight": "suggestion"
     }
   ]
 }

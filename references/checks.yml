@@ -25,6 +25,9 @@
 #                a row only when the facts list a candidate (Security is
 #                row-per-candidate)
 #   dimension    structure, security, portability, documentation, code_quality
+#   weight       code_quality checks only: target (a decision-rubric target
+#                for inclusion) or suggestion (never a failure) — from the
+#                rubric's Code Quality table
 #
 # Passenger apps: str-06-syntax and the Batch Connect facts (form.json,
 # template.json) do not apply; entry-point-parses applies instead.
@@ -190,6 +193,7 @@ checks:
     tag: no-set-e
     row_required: always
     dimension: code_quality
+    weight: target
   - id: numeric-field-bounds
     section: Code Quality
     app_types: [batch_connect]
@@ -198,6 +202,7 @@ checks:
     tag: missing-min-max
     row_required: always
     dimension: code_quality
+    weight: target
   - id: magic-numbers
     section: Code Quality
     app_types: [batch_connect]
@@ -206,6 +211,7 @@ checks:
     tag: magic-number
     row_required: always
     dimension: code_quality
+    weight: suggestion
   - id: duplicated-blocks
     section: Code Quality
     app_types: [batch_connect, passenger, companion, widget]
@@ -214,6 +220,7 @@ checks:
     tag: duplicated-block
     row_required: always
     dimension: code_quality
+    weight: suggestion
   - id: dead-code
     section: Code Quality
     app_types: [batch_connect]
@@ -222,6 +229,7 @@ checks:
     tag: commented-out-code
     row_required: always
     dimension: code_quality
+    weight: suggestion
   - id: erb-missing-value
     section: Code Quality
     app_types: [batch_connect]
@@ -230,6 +238,7 @@ checks:
     tag: erb-missing-value-unhandled
     row_required: always
     dimension: code_quality
+    weight: suggestion
   - id: icon-matches-target-os
     section: Code Quality
     app_types: [batch_connect]
@@ -238,3 +247,4 @@ checks:
     tag: icon-os-mismatch
     row_required: always
     dimension: code_quality
+    weight: suggestion

@@ -8,8 +8,8 @@ Per "## App:" section:
      requirements, and every lower rung's, all have non-"none" evidence lines.
   2. The Signals table's Documentation level must be the one the rating maps to
      (Strong/Exemplary -> Low, Adequate -> Medium, Minimal -> High).
-Only Documentation is checked: there is no Security signal (R4); only the
-Documentation rating and signal are checked.
+Only Documentation is checked among ratings/signals: there is no Security
+signal (R4); only the Documentation rating and signal are checked.
 
 A stub README. The rating line `Minimal — not supported (stub README; see
 QUA-01)` (the form the quality skill mandates when even Minimal has no
@@ -19,12 +19,32 @@ parenthesised id) whose defect_key tag is `docs-stub`. Without that record
 the line is read as a Minimal claim and fails rule 1 as any unsupported
 rating does. Rule 2 still applies (Minimal maps to High).
 
+  3. A suggestion-class check, or a maintenance good-practice signal
+     (MNT-02 to MNT-06), recorded as FAIL is a mismatch — the rubric holds
+     both are never a failure. A check counts as suggestion-class when
+     checks.json (loaded from beside this script) marks it `"weight":
+     "suggestion"`; a record matches a check when its rule equals the
+     check's rule and its tag (the part of defect_key after the first ':',
+     itself truncated before any further ':' qualifier) equals the check's
+     tag. A maintenance record matches when its rule is one of MNT-02
+     through MNT-06 (MNT-01, activity, is a real failure and is untouched).
+     This rule is general — it is not keyed to any particular app or run.
+
+The findings argument is read: for the stub-README exception above, and for
+rule 3, which scans every record regardless of app section.
+
 Exit 0 when consistent, 1 with one MISMATCH line per problem, 2 when the
 report or findings cannot be read or a needed section is missing.
 """
 import json
+import os
 import re
 import sys
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+CHECKS_JSON = os.path.join(SCRIPT_DIR, "checks.json")
+
+GOOD_PRACTICE_RULES = {"MNT-02", "MNT-03", "MNT-04", "MNT-05", "MNT-06"}
 
 RUNGS = [
     ("Minimal", ["what it launches", "prerequisites"]),
@@ -113,6 +133,57 @@ def has_stub_record(findings, app_id, single):
     return False
 
 
+def defect_tag(defect_key):
+    """The mechanism tag out of a defect_key: the part after the first ':'
+    (the anchor), truncated before any further ':' qualifier."""
+    key = str(defect_key or "")
+    tag = key.split(":", 1)[1] if ":" in key else key
+    return tag.split(":", 1)[0]
+
+
+def load_suggestion_checks(path=CHECKS_JSON):
+    """id -> (rule, tag) for every checks.json entry marked weight: suggestion.
+    [] / {} when checks.json cannot be read or has no checks list."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    checks = data.get("checks") if isinstance(data, dict) else None
+    if not isinstance(checks, list):
+        return {}
+    return {
+        c["id"]: (c.get("rule"), c.get("tag"))
+        for c in checks
+        if isinstance(c, dict) and c.get("weight") == "suggestion" and c.get("id")
+    }
+
+
+def never_fail_mismatches(findings, suggestion_checks):
+    """MISMATCH lines for suggestion-class checks and MNT-02..MNT-06
+    good-practice signals recorded as FAIL — the rubric holds neither is
+    ever a failure. One line per matching FAIL record."""
+    lines = []
+    for r in findings:
+        if r.get("result") != "FAIL":
+            continue
+        rule = r.get("rule")
+        tag = defect_tag(r.get("defect_key"))
+        app_id = str(r.get("app_id") or "").strip().strip("/") or "root"
+        for check_id, (check_rule, check_tag) in suggestion_checks.items():
+            if rule == check_rule and tag == check_tag:
+                lines.append(
+                    "MISMATCH {} {} {}: suggestion (check {}) recorded as FAIL".format(
+                        app_id, rule, r.get("defect_key"), check_id))
+                break
+        else:
+            if rule in GOOD_PRACTICE_RULES:
+                lines.append(
+                    "MISMATCH {} {} {}: good-practice signal recorded as FAIL".format(
+                        app_id, rule, r.get("defect_key")))
+    return lines
+
+
 def signal(body, dim):
     m = re.search(r"^\|\s*(?:\*\*)?" + dim + r"(?:\*\*)?\s*\|\s*(?:\*\*)?(Low|Medium|High)(?:\*\*)?\s*\|",
                   body, flags=re.M)
@@ -182,6 +253,12 @@ def main(argv):
     if seen == 0:
         print("error: no '## App:' section in report", file=sys.stderr)
         return 2
+
+    suggestion_checks = load_suggestion_checks()
+    for line in never_fail_mismatches(findings, suggestion_checks):
+        problems += 1
+        print(line)
+
     print("ratings: consistent" if not problems else "ratings: {} mismatch{}".format(problems, "" if problems == 1 else "es"))
     return 1 if problems else 0
 
