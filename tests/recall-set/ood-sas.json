@@ -148,11 +148,12 @@
       "note": "Bill's magic-numbers item; no run recorded it (submit.yml.erb:9 appears only after reviewed OK:, which never counts)"
     },
     {
-      "defect": "orphaned template/config/ directory referenced at script.sh.erb:40",
+      "defect": "orphaned template/config/ directory referenced at template/script.sh.erb:40",
       "rule": "QUA-04",
       "candidate": false,
       "keys": [],
-      "note": "no run recorded it and no run used a key for it; no lines either, because run 767148's commented-out-code record cites the :33-42 block, which is a different defect"
+      "lines": {"template/script.sh.erb": [40]},
+      "note": "no run recorded it and no run used a key for it; line 40 is the commented-out XDG_CONFIG_HOME export naming template/config/, inside several runs' broader commented-out-code ranges (e.g. 767148's :33-42), so a hit here may credit that different, coarser defect rather than this one"
     }
   ]
 }
