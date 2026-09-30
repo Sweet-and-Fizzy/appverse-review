@@ -141,7 +141,7 @@ profiles Passenger apps and catches command injection.
 | 6 | Mutable default argument | `cloud_auth/utils.py:8` | Quality | WARN — QUA-06 `other:mutable-default-arg` |
 | 7 | Hardcoded Slurm binary path | `app.py:9` | Quality | QUA-02 `hardcoded-path` — Not portable |
 | 8 | Hardcoded SMTP relay | `app.py:10` | Quality | QUA-02 `hardcoded-cluster` — Not portable |
-| 9 | README below Minimal (no prerequisites, install or config sections; 3 content lines, so not a stub) | `README.md` | Quality | FAIL — QUA-01 `docs-minimal` — Below minimal |
+| 9 | README below Minimal (no prerequisites, install or config sections; 176 characters of content, so not a stub) | `README.md` | Quality | FAIL — QUA-01 `docs-minimal` — Below minimal |
 | 10 | No `form.yml` or `appverse.yml`, no `role` in manifest | (absent / `manifest.yml`) | Structure | Repo shape: inferred (manifest.yml present). WARN — STR-02 `missing-field:role`; app detected as Passenger via `passenger_wsgi.py` entry point |
 
 **Key behavior to verify:**
