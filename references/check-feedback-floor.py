@@ -74,11 +74,22 @@ STOPWORDS = {
 }
 
 
+PREHEADING_LOOKBACK = 5
+
+
 def feedback_section(report_text):
     """The Draft Feedback / Fix before submitting section, ending at the
     next '## ' heading OR the structured-findings ```json block, whichever
     comes first — the JSON block is machine-readable data, not prose the
-    reviewer wrote, and must never satisfy the inclusion floor."""
+    reviewer wrote, and must never satisfy the inclusion floor.
+
+    Returns (preheading, body): `body` is the section's own text as before;
+    `preheading` is the up-to-five lines immediately before the heading
+    line, joined as text. A model sometimes writes the
+    '<!-- feedback-covers: ... -->' comment just above '## Draft feedback'
+    instead of inside it (observed 2026-09-29); `preheading` lets main()
+    also look there without treating that text as prose the floor checks
+    for file/defect mentions."""
     lines = report_text.splitlines()
     start = None
     in_fence = False
@@ -91,6 +102,7 @@ def feedback_section(report_text):
             break
     if start is None:
         return None
+    preheading = "\n".join(lines[max(0, start - 1 - PREHEADING_LOOKBACK):start - 1])
     body = []
     in_fence = False
     for line in lines[start:]:
@@ -103,7 +115,7 @@ def feedback_section(report_text):
         if not in_fence and line.startswith("## "):
             break
         body.append(line)
-    return "\n".join(body)
+    return preheading, "\n".join(body)
 
 
 def strip_fences(text):
@@ -242,14 +254,18 @@ def main(argv):
     except (OSError, ValueError) as e:
         print("error: {}".format(e), file=sys.stderr)
         return 2
-    section = feedback_section(report)
-    if section is None:
+    parsed = feedback_section(report)
+    if parsed is None:
         print("error: no '## Draft feedback' or '## Fix before submitting' section", file=sys.stderr)
         return 2
-    m = COVERS.search(section)
+    preheading, section = parsed
+    # A covers comment may sit just above the heading (preheading) or inside
+    # the section; if both are present, or either has more than one, the
+    # last one wins.
+    matches = list(COVERS.finditer(preheading)) + list(COVERS.finditer(section))
     covered = set()
-    if m:
-        covered = {k.strip() for k in m.group(1).split(",") if k.strip()}
+    if matches:
+        covered = {k.strip() for k in matches[-1].group(1).split(",") if k.strip()}
     prose = strip_fences(COVERS.sub("", section))
 
     fix_items = [

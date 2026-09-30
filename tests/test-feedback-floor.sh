@@ -276,4 +276,36 @@ check "exit 1" 1 "$(run "$TMP/testing-table.json" "$TMP/testing-table-uncovered.
 check "names the finding with the new reason" 1 \
   "$(grep -c 'MISSING QUA-06 README.md:readme-inconsistency:testing-table (defect not described in feedback)' "$TMP/out")"
 
+echo "Test 21: a covers comment placed just above the '## Draft feedback' heading (within five lines) is honored"
+cat > "$TMP/above-heading.md" <<'EOF'
+# Appverse Review: x
+## Overall recommendation
+Accept with suggestions.
+<!-- feedback-covers: submit.yml.erb:unsanitized-input, template/script.sh.erb:no-error-handling, root:changelog-wrong-app, root:no-releases, form.yml:hardcoded-module-version -->
+
+## Draft feedback — edit before sending
+Please validate the free-text fields in submit.yml.erb; the input is unsanitized. It has no error handling, so add set -e to template/script.sh.erb.
+CHANGELOG.md describes a different, wrong app; please rewrite it. Consider tagging a release.
+form.yml hardcodes a module version at line 63; please make it configurable.
+EOF
+check "exit 0" 0 "$(run "$TMP/findings.json" "$TMP/above-heading.md")"
+check "reports 5/5" "feedback floor: 5/5 fix-items covered" "$(tail -1 "$TMP/out")"
+
+echo "Test 22: a covers comment far above the heading (more than five lines) is still ignored"
+cat > "$TMP/far-above.md" <<'EOF'
+# Appverse Review: x
+<!-- feedback-covers: submit.yml.erb:unsanitized-input, template/script.sh.erb:no-error-handling, root:changelog-wrong-app, root:no-releases, form.yml:hardcoded-module-version -->
+## Overall recommendation
+Accept with suggestions.
+Line filler one.
+Line filler two.
+
+## Draft feedback — edit before sending
+Please validate the free-text fields in submit.yml.erb; the input is unsanitized. It has no error handling, so add set -e to template/script.sh.erb.
+CHANGELOG.md describes a different, wrong app; please rewrite it. Consider tagging a release.
+form.yml hardcodes a module version at line 63; please make it configurable.
+EOF
+check "exit 1" 1 "$(run "$TMP/findings.json" "$TMP/far-above.md")"
+check "reports 0/5" "feedback floor: 0/5 fix-items covered" "$(tail -1 "$TMP/out")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
