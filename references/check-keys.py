@@ -29,6 +29,9 @@ PSEUDO_ANCHORS = {
 # missing-license and missing-readme are not here: LICENSE and README.md are
 # pseudo-anchors already, and STR-01 also covers an insufficient file that
 # exists under another name (LICENSE.txt), which keeps its real path.
+# missing-readme is repo-level only, even in a monorepo (special-cased in
+# validate() beside missing-entry-point): a per-app README falls back to the
+# root README, so the anchor is always the bare README.md.
 ABSENT_FILE_ANCHORS = {
     "missing-manifest": ("manifest.yml",),
     "missing-appverse-yml": ("appverse.yml",),
@@ -97,6 +100,25 @@ def not_repo_relative(path):
     )
 
 
+def exists_case_exact(root, anchor):
+    """Whether anchor (repo-relative) exists under root with every segment's
+    case matching exactly. os.path.exists is case-insensitive on some
+    filesystems (APFS default, most of Windows), which would let
+    'readme.md:readme-typo' validate locally and fail in CI or vice versa.
+    Walk the anchor's segments and require each to appear byte-for-byte in
+    os.listdir() of its parent."""
+    current = root
+    for seg in anchor.split("/"):
+        try:
+            entries = os.listdir(current)
+        except OSError:
+            return False
+        if seg not in entries:
+            return False
+        current = os.path.join(current, seg)
+    return True
+
+
 def validate(finding, vocab, target):
     rule = finding.get("rule") or "<missing>"
     key = finding.get("defect_key")
@@ -116,6 +138,9 @@ def validate(finding, vocab, target):
     if tag == "missing-entry-point":
         if anchor != app_id:
             return rule, key, "absent-file tag 'missing-entry-point' must use anchor 'root' (or the app subpath in a monorepo)"
+    elif tag == "missing-readme":
+        if anchor != "README.md":
+            return rule, key, "missing-readme is repo-level; use README.md"
     elif expected is not None:
         if app_id != "root":
             # A monorepo's anchors are repo-root-relative, so the app prefix is required.
@@ -140,7 +165,7 @@ def validate(finding, vocab, target):
             )
             if not in_target:
                 return rule, key, "anchor must be a repo-relative path"
-            if not os.path.exists(resolved_anchor):
+            if not exists_case_exact(resolved_target, anchor):
                 return rule, key, "anchor is not a repo path or allowed pseudo-anchor"
         elif not looks_like_path:
             return rule, key, "anchor is not a repo path or allowed pseudo-anchor"

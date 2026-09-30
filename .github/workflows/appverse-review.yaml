@@ -264,7 +264,7 @@ jobs:
           echo "Dry-run report written to $REPORT_FILE"
 
       - name: Stamp run provenance
-        if: inputs.review_aspects != 'dry-run'
+        if: "!cancelled() && inputs.review_aspects != 'dry-run'"
         env:
           WS: ${{ github.workspace }}
           SLUG: ${{ steps.params.outputs.repo_slug }}
@@ -302,7 +302,7 @@ jobs:
           fi
 
       - name: Compute stable finding IDs
-        if: inputs.review_aspects != 'dry-run'
+        if: "!cancelled() && inputs.review_aspects != 'dry-run'"
         run: |
           JSON_FILE="${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.findings.json"
           if [ -f "$JSON_FILE" ]; then

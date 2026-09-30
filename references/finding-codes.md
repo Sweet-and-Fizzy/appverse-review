@@ -111,6 +111,10 @@ defect_key = "{anchor}:{mechanism_tag}"
     `RELEASES` and `github/commits` are invalid. `missing-license` and
     `missing-readme` use `LICENSE` and `README.md` from this set, or the path
     of an insufficient file that exists under another name (`LICENSE.txt`).
+    `missing-readme` is repo-level only, even in a monorepo: a per-app README
+    is never a finding on its own, since a subpath app falls back to the root
+    README and the Documentation rating covers what it lacks, so the anchor
+    is always the bare `README.md`, never `<app_id>/README.md`.
   - Anything else must be a repo-relative path that exists in the reviewed
     tree.
 - **Prior finding disappears but code unchanged**: flag as "prior finding not

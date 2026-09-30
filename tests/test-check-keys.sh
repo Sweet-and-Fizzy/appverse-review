@@ -174,4 +174,21 @@ check "absolute app_id reason" 1 "$(grep -cF "INVALID STR-01 /abs/form.yml:missi
 printf '[%s]' "$(recapp apps/x STR-01 apps/x/form.yml:missing-form)" > "$TMP/i3.json"
 check "apps/x prefixed still valid" 0 "$(run "$TMP/i3.json" --target "$TMP/empty")"
 
+echo "Test 22: missing-readme is repo-level only, even in a monorepo"
+printf '[%s]' "$(recapp apps/y STR-01 apps/y/README.md:missing-readme)" > "$TMP/j1.json"
+check "app-prefixed exit 1" 1 "$(run "$TMP/j1.json" --target "$TMP/empty")"
+check "app-prefixed reason" 1 "$(grep -cxF "INVALID STR-01 apps/y/README.md:missing-readme (missing-readme is repo-level; use README.md)" "$TMP/out")"
+printf '[%s]' "$(recapp apps/y STR-01 README.md:missing-readme)" > "$TMP/j2.json"
+check "bare README.md exit 0" 0 "$(run "$TMP/j2.json" --target "$TMP/empty")"
+
+echo "Test 23: path existence is case-exact even on a case-insensitive filesystem"
+printf '[%s]' "$(rec QUA-06 readme.md:readme-typo)" > "$TMP/k1.json"
+check "lowercase readme.md exit 1" 1 "$(run "$TMP/k1.json" --target "$TMP/t")"
+check "lowercase readme.md reason" 1 "$(grep -cxF "INVALID QUA-06 readme.md:readme-typo (anchor is not a repo path or allowed pseudo-anchor)" "$TMP/out")"
+printf '[%s]' "$(rec QUA-06 README.md:readme-typo)" > "$TMP/k2.json"
+check "exact-case README.md exit 0" 0 "$(run "$TMP/k2.json" --target "$TMP/t")"
+printf '[%s]' "$(rec QUA-02 Template/script.sh.erb:hardcoded-path)" > "$TMP/k3.json"
+check "mid-path case mismatch exit 1" 1 "$(run "$TMP/k3.json" --target "$TMP/t")"
+check "mid-path case mismatch reason" 1 "$(grep -cxF "INVALID QUA-02 Template/script.sh.erb:hardcoded-path (anchor is not a repo path or allowed pseudo-anchor)" "$TMP/out")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
