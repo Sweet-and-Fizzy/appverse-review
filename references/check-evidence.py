@@ -76,6 +76,19 @@ against otherwise) and only for a group that already passed the
 path/line-existence checks above (an already-BAD group is not also
 value-checked).
 
+A citation written `content: <path>:N` (the quality skill's form for a
+Documentation rung met by a cited line rather than a matching heading)
+must also cite content: each cited line must be what pre-review.py's
+readme_line_kinds calls a content line (the one definition readme.json's
+content_line_count counts), else `<path>:N is a heading, not content`, `is
+inside a code fence`, `is a placeholder line`, `is blank`, and so on. This
+applies to a finding's evidence, a `check:` row's Evidence cell and, with
+--report, every other `content:` citation in the report text (the
+Documentation "Evidence per rung" lines are not table rows); those
+report-text citations are reported as `BAD report:content content
+<citation> (<reason>)` and, when there are any, counted in the summary as
+`; content citations: X/Y valid`. Checked only with --target.
+
 Exit 0 when every evidence citation is valid, 1 when any is not (one BAD
 line per bad citation group, in the form `BAD <rule> <defect_key>
 <evidence> (<reason>)`; when the evidence has more than one group the
@@ -86,6 +99,7 @@ its groups are, and (with --report) all its report rows are too.
 that cannot be read.
 """
 import argparse
+import importlib.util
 import json
 import os
 import re
@@ -93,12 +107,66 @@ import sys
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SCRIPT_DIR)
-from repo_paths import PSEUDO_ANCHORS, exists_case_exact, parse_citations  # noqa: E402
+from repo_paths import CITATION_RE, PSEUDO_ANCHORS, exists_case_exact, parse_citations  # noqa: E402
 from report_parse import rows_by_check  # noqa: E402
 
 MAX_LINE_COUNT_BYTES = 5 * 1024 * 1024  # 5 MB
 
 BACKTICK_RE = re.compile(r"`([^`]+)`")
+CONTENT_RE = re.compile(r"(?<![\w-])content:\s*[`*]*")
+KIND_PHRASE = {
+    "heading": "a heading", "fence": "inside a code fence", "comment": "an HTML comment",
+    "blank": "blank", "placeholder": "a placeholder line", "contact": "a contact line",
+    "badge": "a badge or image line", "table-header": "a table header row",
+    "table-rule": "a table rule row",
+}
+_PRE_REVIEW = []
+_KINDS = {}  # full path -> readme_line_kinds, per run
+
+
+def pre_review():
+    """pre-review.py, imported once, for readme_line_kinds and the
+    placeholder phrases (the file name has a hyphen, so by path)."""
+    if not _PRE_REVIEW:
+        spec = importlib.util.spec_from_file_location("pre_review", os.path.join(SCRIPT_DIR, "pre-review.py"))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        _PRE_REVIEW.append((mod, mod.load_placeholders()))
+    return _PRE_REVIEW[0]
+
+
+def content_citations(text):
+    """[(path, [lines], citation text), ...] for every citation written
+    directly after `content:` in text."""
+    out = []
+    if not isinstance(text, str):
+        return out
+    for m in CONTENT_RE.finditer(text):
+        c = CITATION_RE.match(text[m.end():])
+        if c:
+            out.append((c.group(1), parse_citations(c.group(0))[0][1], c.group(0).rstrip("`*")))
+    return out
+
+
+def content_reason(path, full, lines, kinds_cache=_KINDS):
+    """None when every cited line of full is a content line, else the
+    reason naming the first line that is not."""
+    if full not in kinds_cache:
+        mod, placeholders = pre_review()
+        try:
+            with open(full, "rb") as f:
+                text = f.read().decode("utf-8", "replace")
+        except OSError:
+            text = None
+        kinds_cache[full] = None if text is None else mod.readme_line_kinds(text, placeholders)
+    kinds = kinds_cache[full]
+    if kinds is None:
+        return None
+    for n in lines:
+        kind = kinds[n - 1] if 1 <= n <= len(kinds) else "blank"  # a trailing empty line
+        if kind != "content":
+            return "{}:{} is {}, not content".format(path, n, KIND_PHRASE.get(kind, kind))
+    return None
 LINT_CODE_RE = re.compile(r"^[A-Z]+[0-9]+$")
 
 def not_repo_relative(path, target):
@@ -251,6 +319,9 @@ def validate(finding, target, line_cache, skipped, text_cache=None):
     key = finding.get("defect_key") or "<missing>"
     evidence = finding.get("evidence")
     groups = parse_citations(evidence)
+    content = content_citations(evidence)
+    # `content:README.md:3` (no space) is not a citation to parse_citations
+    groups += [(p, l) for p, l, _ in content if (p, l) not in groups]
     reasons = []
     good_paths = {}
     before = len(skipped)
@@ -262,6 +333,12 @@ def validate(finding, target, line_cache, skipped, text_cache=None):
             good_paths[path] = full
     if len(skipped) > before:
         del skipped[before + 1:]  # count a finding once in the not-checked tally
+    if text_cache is not None:
+        for path, lines, _ in content:
+            if path in good_paths:
+                reason = content_reason(path, good_paths[path], lines)
+                if reason:
+                    reasons.append(reason)
     if text_cache is not None and not reasons:
         reasons.extend(check_values(finding.get("summary"), groups, good_paths, text_cache))
     return rule, key, evidence, reasons
@@ -341,6 +418,21 @@ def main(argv):
                 print("BAD {} {} {} ({})".format(rule, key, ev, reason))
         summary += "; report rows: {}/{} valid".format(len(rows) - row_bad, len(rows))
         bad += row_bad
+        if args.target is not None:
+            prose = "\n".join(l for l in report_text.splitlines() if not l.lstrip().startswith("|"))
+            cites = content_citations(prose)
+            content_bad = 0
+            for _, _, cite in cites:
+                rule, key, ev, reasons = validate(
+                    {"rule": "report:content", "defect_key": "content", "evidence": "content: " + cite},
+                    args.target, line_cache, skipped, text_cache)
+                if reasons:
+                    content_bad += 1
+                for reason in reasons:
+                    print("BAD {} {} {} ({})".format(rule, key, ev, reason))
+            if cites:
+                summary += "; content citations: {}/{} valid".format(len(cites) - content_bad, len(cites))
+            bad += content_bad
     if skipped:
         summary += " ({} line count not checked: file over 5 MB)".format(len(skipped))
     print(summary)

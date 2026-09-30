@@ -252,4 +252,60 @@ check "row summary line" "evidence: 0/0 valid; report rows: 0/0 valid" "$(tail -
 echo "Test 21d: --report naming an unreadable file is exit 2"
 check "exit 2" 2 "$(run "$TMP/empty.json" --target "$TMP/t" --report "$TMP/nope-report.md")"
 
+echo "Test 22: a content: citation must cite a content line"
+mkdir -p "$TMP/c"
+cat > "$TMP/c/README.md" <<'MD'
+# Llama WebUI
+
+Batch Connect app that starts llama-server on a GPU node.
+
+## Current defaults
+
+```text
+cluster: tillicum
+```
+
+Needs Apptainer and one GPU on the compute node.
+Contact: someone@example.edu
+MD
+printf '[%s]' "$(rec QUA-01 README.md:docs-minimal 'content: README.md:5')" > "$TMP/g1.json"
+check "a heading: exit 1" 1 "$(run "$TMP/g1.json" --target "$TMP/c")"
+check "a heading: reason" "BAD QUA-01 README.md:docs-minimal content: README.md:5 (README.md:5 is a heading, not content)" "$(head -1 "$TMP/out")"
+printf '[%s]' "$(rec QUA-01 README.md:docs-minimal 'content: README.md:8')" > "$TMP/g2.json"
+check "inside a fence: exit 1" 1 "$(run "$TMP/g2.json" --target "$TMP/c")"
+check "inside a fence: reason" "BAD QUA-01 README.md:docs-minimal content: README.md:8 (README.md:8 is inside a code fence, not content)" "$(head -1 "$TMP/out")"
+printf '[%s]' "$(rec QUA-01 README.md:docs-minimal 'content: README.md:12')" > "$TMP/g3.json"
+check "a contact line: exit 1" 1 "$(run "$TMP/g3.json" --target "$TMP/c")"
+check "a contact line: reason" "BAD QUA-01 README.md:docs-minimal content: README.md:12 (README.md:12 is a contact line, not content)" "$(head -1 "$TMP/out")"
+printf '[%s,%s]' "$(rec QUA-01 README.md:docs-minimal 'prerequisites: content: README.md:11')" "$(rec QUA-01 README.md:docs-minimal 'content:README.md:3')" > "$TMP/g4.json"
+check "content lines (spaced and unspaced): exit 0" 0 "$(run "$TMP/g4.json" --target "$TMP/c")"
+check "summary" "evidence: 2/2 valid" "$(tail -1 "$TMP/out")"
+printf '[%s]' "$(rec QUA-01 README.md:docs-minimal 'content: README.md:11-12')" > "$TMP/g5.json"
+check "a range: every line must be content: exit 1" 1 "$(run "$TMP/g5.json" --target "$TMP/c")"
+printf '[%s]' "$(rec QUA-01 README.md:docs-minimal 'content: README.md:40')" > "$TMP/g6.json"
+check "past EOF is the existence reason, once" "BAD QUA-01 README.md:docs-minimal content: README.md:40 (line 40 past end of file, has 12 lines)|evidence: 0/1 valid" "$(run "$TMP/g6.json" --target "$TMP/c" > /dev/null; paste -sd'|' "$TMP/out")"
+printf '[%s]' "$(rec QUA-01 README.md:docs-minimal 'README.md:5')" > "$TMP/g7.json"
+check "a plain citation of a heading is still fine (the rule is only for content:): exit 0" 0 "$(run "$TMP/g7.json" --target "$TMP/c")"
+printf '[%s]' "$(rec QUA-01 README.md:docs-minimal 'content: README.md:5')" > "$TMP/g8.json"
+check "without --target a README.md line stays the pseudo-anchor BAD, never a content reason" "BAD QUA-01 README.md:docs-minimal content: README.md:5 (pseudo-anchor, not a file)" "$(run "$TMP/g8.json" > /dev/null; head -1 "$TMP/out")"
+
+echo "Test 22b: --report checks content: citations in the Documentation evidence lines"
+cat > "$TMP/g.md" <<'MD'
+## App: Llama (root)
+
+### Documentation
+- Rating: **Minimal** — x
+- Evidence per rung:
+  - what it launches: "Batch Connect app" (intro), README.md:3
+  - prerequisites: content: README.md:11
+  - installation: none
+MD
+check "a content line in the evidence block: exit 0" 0 "$(run "$TMP/empty.json" --target "$TMP/c" --report "$TMP/g.md")"
+check "summary counts it" "evidence: 0/0 valid; report rows: 0/0 valid; content citations: 1/1 valid" "$(tail -1 "$TMP/out")"
+sed 's/content: README.md:11/content: README.md:5/' "$TMP/g.md" > "$TMP/g2.md"
+check "a heading in the evidence block: exit 1" 1 "$(run "$TMP/empty.json" --target "$TMP/c" --report "$TMP/g2.md")"
+check "reason" "BAD report:content content content: README.md:5 (README.md:5 is a heading, not content)" "$(head -1 "$TMP/out")"
+sed 's/  - prerequisites: content: README.md:11/  - prerequisites: "Requirements", README.md:5/' "$TMP/g.md" > "$TMP/g3.md"
+check "a report with no content: citation keeps the old summary: exit 0" "0|evidence: 0/0 valid; report rows: 0/0 valid" "$(run "$TMP/empty.json" --target "$TMP/c" --report "$TMP/g3.md")|$(tail -1 "$TMP/out")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

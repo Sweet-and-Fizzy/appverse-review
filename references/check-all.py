@@ -7,7 +7,7 @@
 Runs, in order:
   1. check-feedback-floor.py <findings.json> <report.md>
   2. check-keys.py <findings.json> --target <target-dir>
-  3. check-rating.py <report.md> <findings.json>
+  3. check-rating.py <report.md> <findings.json> <pre-review-out-dir>
   4. check-rows.py <report.md> <findings.json> <checks.json> <pre-review-out-dir>
   5. check-evidence.py <findings.json> --target <target-dir> --report <report.md>
 
@@ -40,7 +40,7 @@ CHECKERS = [
     ("keys", "check-keys.py",
      lambda a: [a.findings, "--target", a.target]),
     ("rating", "check-rating.py",
-     lambda a: [a.report, a.findings]),
+     lambda a: [a.report, a.findings, a.pre_review_dir]),
     ("rows", "check-rows.py",
      lambda a: [a.report, a.findings, a.checks, a.pre_review_dir]),
     ("evidence", "check-evidence.py",

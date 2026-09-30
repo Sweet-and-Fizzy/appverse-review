@@ -10,7 +10,7 @@ TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 pass=0; fail=0
 check() { local name="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then echo "  PASS  $name"; pass=$((pass+1)); else echo "  FAIL  $name: expected '$expected', got '$actual'"; fail=$((fail+1)); fi; }
-run() { python3 "$CHECK" "$1" "$2" > "$TMP/out" 2>&1; echo $?; }
+run() { python3 "$CHECK" "$@" > "$TMP/out" 2>&1; echo $?; }
 
 report() { # $1 = doc rating, $2 = documentation signal, $3 = evidence block (bullet form)
 cat <<EOF
@@ -199,8 +199,9 @@ echo "Test 22: a stub README rating is accepted only with a QUA-01 docs-stub FAI
 STUB='  - what it launches: none (stub README)
   - prerequisites: none'
 report "Minimal — not supported (stub README; see QUA-01)" High "$STUB" > "$TMP/r22.md"
-printf '[{"app_id":"root","rule":"QUA-01","defect_key":"README.md:docs-stub","aspect":"quality","severity":"high","result":"FAIL","summary":"stub","evidence":"README.md:1"}]' > "$TMP/f22.json"
-check "with the docs-stub record: exit 0" 0 "$(run "$TMP/r22.md" "$TMP/f22.json")"
+STR01='{"app_id":"root","rule":"STR-01","defect_key":"README.md:readme-not-substantive","aspect":"structure","severity":"high","result":"FAIL","summary":"title and contact line only","evidence":"README.md:1"}'
+printf '[{"app_id":"root","rule":"QUA-01","defect_key":"README.md:docs-stub","aspect":"quality","severity":"high","result":"FAIL","summary":"stub","evidence":"README.md:1"},%s]' "$STR01" > "$TMP/f22.json"
+check "with the docs-stub record (and, with no facts, the STR-01 record): exit 0" 0 "$(run "$TMP/r22.md" "$TMP/f22.json")"
 check "summary" "ratings: consistent" "$(tail -1 "$TMP/out")"
 check "without it: exit 1" 1 "$(run "$TMP/r22.md" "$TMP/f1.json")"
 check "mismatch as today" 1 "$(grep -cF "MISMATCH Documentation rating (Minimal claimed but 'what it launches' evidence is none; highest supported rung is none)" "$TMP/out")"
@@ -216,6 +217,87 @@ check "signal reason" 1 "$(grep -cF "MISMATCH Documentation signal (report says 
 report Minimal High "$STUB" > "$TMP/r22f.md"
 check "plain Minimal with the record still fails rule 1: exit 1" 1 "$(run "$TMP/r22f.md" "$TMP/f22.json")"
 check "unreadable findings: exit 2" 2 "$(run "$TMP/r22.md" "$TMP/nope.json")"
+
+echo "Test 22b: the stub line is accepted only when the facts say stub"
+DOCSTUB='{"app_id":"root","rule":"QUA-01","defect_key":"README.md:docs-stub","aspect":"quality","severity":"high","result":"FAIL","summary":"stub","evidence":"README.md:1"}'
+printf '[%s]' "$DOCSTUB" > "$TMP/f22s.json"
+mkdir -p "$TMP/pre-stub/root" "$TMP/pre-real/root" "$TMP/pre-old/root" "$TMP/pre-none" "$TMP/pre-bad/root"
+printf '{"file": "README.md", "stub": true, "content_line_count": 0}' > "$TMP/pre-stub/root/readme.json"
+printf '{"file": "README.md", "stub": false, "content_line_count": 184}' > "$TMP/pre-real/root/readme.json"
+printf '{"file": "README.md", "rungs": {}}' > "$TMP/pre-old/root/readme.json"
+printf '{"file": ' > "$TMP/pre-bad/root/readme.json"
+check "stub: true facts and a docs-stub FAIL record: exit 0" 0 "$(run "$TMP/r22.md" "$TMP/f22s.json" "$TMP/pre-stub")"
+check "summary" "ratings: consistent" "$(tail -1 "$TMP/out")"
+check "stub: false facts: exit 1" 1 "$(run "$TMP/r22.md" "$TMP/f22.json" "$TMP/pre-real")"
+check "stub: false facts: the reason (a STR-01 record does not override the fact)" "MISMATCH root documentation: stub rating but readme.json says the README is not a stub|ratings: 1 mismatch" "$(paste -sd'|' "$TMP/out")"
+check "no facts: the STR-01 record decides (absent): exit 1" 1 "$(run "$TMP/r22.md" "$TMP/f22s.json")"
+check "no facts, no STR-01 record: the reason" "MISMATCH root documentation: stub rating but no STR-01 readme-not-substantive FAIL record and no readme.json stub fact" "$(head -1 "$TMP/out")"
+check "no facts: the STR-01 record decides (present): exit 0" 0 "$(run "$TMP/r22.md" "$TMP/f22.json")"
+sed 's/"result":"FAIL","summary":"title/"result":"PASS","summary":"title/' "$TMP/f22.json" > "$TMP/f22p.json"
+check "no facts: a STR-01 PASS record does not count: exit 1" 1 "$(run "$TMP/r22.md" "$TMP/f22p.json")"
+check "facts written before the stub key: the STR-01 record decides: exit 0|1" "0|1" "$(run "$TMP/r22.md" "$TMP/f22.json" "$TMP/pre-old")|$(run "$TMP/r22.md" "$TMP/f22s.json" "$TMP/pre-old")"
+check "a pre-review dir with no readme.json for the app: the STR-01 record decides: exit 0|1" "0|1" "$(run "$TMP/r22.md" "$TMP/f22.json" "$TMP/pre-none")|$(run "$TMP/r22.md" "$TMP/f22s.json" "$TMP/pre-none")"
+check "unreadable readme.json: exit 2" 2 "$(run "$TMP/r22.md" "$TMP/f22s.json" "$TMP/pre-bad")"
+sed 's/## App: X (root)/## App: X (.)/' "$TMP/r22.md" > "$TMP/r22dot.md"
+printf '[%s]' "$(echo "$DOCSTUB" | sed 's/"app_id":"root"/"app_id":"."/')" > "$TMP/f22dot.json"
+check "an app written as (.) reads root/readme.json: exit 0|1" "0|1" "$(run "$TMP/r22dot.md" "$TMP/f22dot.json" "$TMP/pre-stub")|$(run "$TMP/r22dot.md" "$TMP/f22dot.json" "$TMP/pre-real")"
+check "stub: true facts without a docs-stub record is still rule 1: exit 1" 1 "$(run "$TMP/r22.md" "$TMP/f1.json" "$TMP/pre-stub")"
+check "four arguments: exit 2" 2 "$(run "$TMP/r22.md" "$TMP/f22s.json" "$TMP/pre-stub" extra)"
+report Adequate Medium "$SEMIOK" > "$TMP/r22g.md"
+check "a non-stub rating ignores the facts: exit 0" 0 "$(run "$TMP/r22g.md" "$TMP/f1.json" "$TMP/pre-stub")"
+
+echo "Test 22c: Below minimal is its own rating"
+NONE='  - what it launches: README.md:3
+  - prerequisites: none
+  - installation: none
+  - configuration: none
+  - known limitations: none
+  - troubleshooting: none
+  - screenshots: none
+  - environment variables: none
+  - info panel: none
+  - architecture: none'
+report "Below minimal" High "$NONE" > "$TMP/r22h.md"
+printf '[{"app_id":"root","rule":"QUA-01","defect_key":"README.md:docs-minimal","aspect":"quality","severity":"medium","result":"WARN","summary":"below minimal","evidence":"README.md:3"}]' > "$TMP/f22h.json"
+check "Below minimal, zero supported rungs, a docs-minimal WARN record: exit 0" 0 "$(run "$TMP/r22h.md" "$TMP/f22h.json" "$TMP/pre-real")"
+check "summary" "ratings: consistent" "$(tail -1 "$TMP/out")"
+check "without facts too: exit 0" 0 "$(run "$TMP/r22h.md" "$TMP/f22h.json")"
+check "without the docs-minimal record: exit 1" 1 "$(run "$TMP/r22h.md" "$TMP/f1.json")"
+check "reason" "MISMATCH root documentation: Below minimal rating but no QUA-01 docs-minimal WARN or FAIL record" "$(head -1 "$TMP/out")"
+sed 's/"result":"WARN"/"result":"PASS"/' "$TMP/f22h.json" > "$TMP/f22i.json"
+check "a PASS docs-minimal record does not count: exit 1" 1 "$(run "$TMP/r22h.md" "$TMP/f22i.json")"
+report "Below minimal" Medium "$NONE" > "$TMP/r22j.md"
+check "Below minimal maps to High: exit 1" 1 "$(run "$TMP/r22j.md" "$TMP/f22h.json")"
+check "signal reason" "MISMATCH Documentation signal (report says Medium; rating Below minimal maps to High)" "$(head -1 "$TMP/out")"
+report "Minimal" High "$NONE" > "$TMP/r22k.md"
+check "Minimal with zero supported rungs: exit 1" 1 "$(run "$TMP/r22k.md" "$TMP/f22h.json")"
+check "reason" "MISMATCH Documentation rating (Minimal claimed but 'prerequisites' evidence is none; highest supported rung is none)" "$(head -1 "$TMP/out")"
+report "Below Minimal" High "$NONE" > "$TMP/r22l.md"
+check "the rating word's case does not matter: exit 0" 0 "$(run "$TMP/r22l.md" "$TMP/f22h.json")"
+
+echo "Test 22d: a rung met by cited content counts as evidence"
+CONTENT='  - what it launches: "Llama.cpp WebUI" (intro), README.md:3
+  - prerequisites: content: README.md:19
+  - installation: none'
+report Minimal High "$CONTENT" > "$TMP/r22m.md"
+check "prerequisites: content: README.md:19 supports Minimal: exit 0" 0 "$(run "$TMP/r22m.md" "$TMP/f1.json" "$TMP/pre-real")"
+BCONTENT='  - what it launches: "Llama.cpp WebUI" (intro), README.md:3
+  - **prerequisites:** `content: README.md:19`
+  - installation: none'
+report Minimal High "$BCONTENT" > "$TMP/r22n.md"
+check "bold key, backticked content citation: exit 0" 0 "$(run "$TMP/r22n.md" "$TMP/f1.json")"
+report Adequate Medium "$CONTENT" > "$TMP/r22o.md"
+check "one content rung does not lift the rating past the next none: exit 1" 1 "$(run "$TMP/r22o.md" "$TMP/f1.json")"
+
+echo "Test 22e: legitimate reports the old rule accepted still pass rule 1 and the stub check"
+# The committed corpus reports (the three pr2m ood-sas runs, the Task 6
+# containerized-server sample, tillicum): no rule-1 MISMATCH, with their
+# own pre-review facts.
+for run in ood-sas-36678163506 ood-sas-36678169915 ood-sas-36678176175 sample-containerized-server; do
+  D="$SCRIPT_DIR/tests/corpus/$run"
+  run "$D/report.md" "$D/findings.json" "$D/pre-review" > /dev/null
+  check "$run: no Documentation MISMATCH" 0 "$(grep -cE 'MISMATCH (Documentation|[^ ]+ documentation:)' "$TMP/out")"
+done
 
 echo "Test 23: a suggestion check or a maintenance good-practice signal recorded as FAIL is a MISMATCH"
 report Strong Low "$FULL" > "$TMP/r23.md"

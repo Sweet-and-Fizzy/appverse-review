@@ -1,23 +1,40 @@
 #!/usr/bin/env python3
 """Check that judged levels in the report follow their own evidence.
 
-    python3 references/check-rating.py review-<slug>.md review-<slug>.findings.json
+    python3 references/check-rating.py review-<slug>.md review-<slug>.findings.json [<pre-review-dir>]
 
 Per "## App:" section:
   1. The Documentation rating may not exceed the highest rung whose
      requirements, and every lower rung's, all have non-"none" evidence lines.
+     Evidence of the form `content: README.md:N` (a rung met by a cited
+     content line rather than a matching heading) is non-"none" like any
+     other citation; check-evidence.py verifies that line N is a content
+     line.
   2. The Signals table's Documentation level must be the one the rating maps to
-     (Strong/Exemplary -> Low, Adequate -> Medium, Minimal -> High).
+     (Strong/Exemplary -> Low, Adequate -> Medium, Minimal and Below minimal
+     -> High).
 Only Documentation is checked among ratings/signals: there is no Security
 signal (R4); only the Documentation rating and signal are checked.
 
+Below minimal. The rating `Below minimal` (no rung supports Minimal and the
+README is not a stub) claims no rung, so rule 1 cannot fail it; it is
+accepted when the findings JSON has a QUA-01 `docs-minimal` record for that
+app whose result is WARN or FAIL, and is a MISMATCH without one.
+
 A stub README. The rating line `Minimal — not supported (stub README; see
-QUA-01)` (the form the quality skill mandates when even Minimal has no
-evidence) is accepted in place of rule 1 when the findings JSON has a
-QUA-01 FAIL record for that app (its app_id is the section heading's
-parenthesised id) whose defect_key tag is `docs-stub`. Without that record
-the line is read as a Minimal claim and fails rule 1 as any unsupported
-rating does. Rule 2 still applies (Minimal maps to High).
+QUA-01)` is accepted in place of rule 1 when the findings JSON has a QUA-01
+FAIL record for that app (its app_id is the section heading's parenthesised
+id) whose defect_key tag is `docs-stub`, and the README is a stub by the
+facts. With a pre-review directory, the facts are
+<pre-review-dir>/<app_id>/readme.json's `stub` (app_id "root" when the
+heading has none, or has "."): false is a MISMATCH naming readme.json. When
+that file or its `stub` key is absent (no directory given, or facts written
+before the key existed), the findings JSON decides instead: a STR-01 FAIL
+record whose tag is `readme-not-substantive`, for the app or the repo
+(app_id "root" or none), and a MISMATCH without one. The Markdown gate
+table is never read for this. Without the docs-stub record the line is
+read as a Minimal claim and fails rule 1 as any unsupported rating does.
+Rule 2 still applies (Minimal maps to High).
 
   3. A suggestion-class check, or a maintenance good-practice signal
      (MNT-02 to MNT-06), recorded as FAIL is a mismatch — the rubric holds
@@ -46,11 +63,13 @@ rating does. Rule 2 still applies (Minimal maps to High).
      requires prose that isn't there. This rule is general — it is not
      keyed to any particular app or run.
 
-The findings argument is read: for the stub-README exception above, and for
-rule 3, which scans every record regardless of app section.
+The findings argument is read: for the Below minimal and stub-README
+exceptions above, and for rule 3, which scans every record regardless of
+app section.
 
 Exit 0 when consistent, 1 with one MISMATCH line per problem, 2 when the
-report or findings cannot be read or a needed section is missing.
+report or findings cannot be read, a needed section is missing, or a
+readme.json the stub check reads is not valid JSON.
 """
 import json
 import os
@@ -76,7 +95,13 @@ RUNGS = [
     ("Exemplary", ["info panel", "architecture"]),
 ]
 RATING_ORDER = [r for r, _ in RUNGS]
-DOC_SIGNAL = {"Minimal": "High", "Adequate": "Medium", "Strong": "Low", "Exemplary": "Low"}
+BELOW_MINIMAL = "Below minimal"
+DOC_SIGNAL = {BELOW_MINIMAL: "High", "Minimal": "High", "Adequate": "Medium", "Strong": "Low",
+              "Exemplary": "Low"}
+RATING_RE = re.compile(r"Rating:\s*\**\s*((?i:below\s+minimal)|Minimal|Adequate|Strong|Exemplary)")
+STUB_NOT_STUB = "stub rating but readme.json says the README is not a stub"
+STUB_NO_RECORD = "stub rating but no STR-01 readme-not-substantive FAIL record and no readme.json stub fact"
+BELOW_NO_RECORD = "Below minimal rating but no QUA-01 docs-minimal WARN or FAIL record"
 NONE_WORDS = {"none", "n/a", "na", "absent", "missing", "not", "no"}
 STUB_RATING = re.compile(r"Rating:\s*\**\s*Minimal\s*(?:\u2014|\u2013|--?)\s*not supported\s*"
                          r"\(stub README; see QUA-01\)")
@@ -142,19 +167,67 @@ def app_id_of(heading):
     return m.group(1).strip().strip("/") if m else None
 
 
+def has_record(findings, rule, tag, results, app_ids, single):
+    """Whether findings hold a `rule` record with one of `results` whose
+    defect_key tag is `tag` (or `tag:<qualifier>`), for an app_id in
+    app_ids (or, in a single-app report, a record with no app_id)."""
+    for r in findings:
+        if r.get("rule") != rule or r.get("result") not in results:
+            continue
+        key_tag = str(r.get("defect_key") or "").split(":", 1)[-1]
+        if key_tag != tag and not key_tag.startswith(tag + ":"):
+            continue
+        rid = str(r.get("app_id") or "").strip().strip("/")
+        if rid in app_ids or (single and not rid):
+            return True
+    return False
+
+
 def has_stub_record(findings, app_id, single):
     """Whether findings hold a QUA-01 FAIL docs-stub record for app_id (or,
     in a single-app report, a record with no app_id)."""
-    for r in findings:
-        if r.get("rule") != "QUA-01" or r.get("result") != "FAIL":
-            continue
-        tag = str(r.get("defect_key") or "").split(":", 1)[-1]
-        if tag != "docs-stub" and not tag.startswith("docs-stub:"):
-            continue
-        rid = str(r.get("app_id") or "").strip().strip("/")
-        if rid == (app_id or "") or (single and not rid):
-            return True
-    return False
+    return has_record(findings, "QUA-01", "docs-stub", ("FAIL",), {app_id or ""}, single)
+
+
+def fact_app_id(app_id):
+    """The pre-review directory name for a heading's app id: "root" for a
+    single app written with no id or as "."."""
+    return "root" if app_id in (None, "", ".") else app_id
+
+
+def readme_stub_fact(pre_review_dir, app_id):
+    """readme.json's `stub` for the app: True/False, or None when there is
+    no directory, no readme.json, or no `stub` key. Raises ValueError when
+    the file exists but is not a JSON object."""
+    if not pre_review_dir:
+        return None
+    path = os.path.join(pre_review_dir, fact_app_id(app_id), "readme.json")
+    if not os.path.isfile(path):
+        return None
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError) as e:
+        raise ValueError("{}: {}".format(path, e))
+    if not isinstance(data, dict):
+        raise ValueError("{}: not a JSON object".format(path))
+    stub = data.get("stub")
+    return stub if isinstance(stub, bool) else None
+
+
+def stub_problem(findings, app_id, single, pre_review_dir):
+    """None when the stub rating line is backed by the facts (readme.json
+    stub true) or, with no stub fact, by a STR-01 readme-not-substantive
+    FAIL record for the app or the repo; else the MISMATCH reason."""
+    fact = readme_stub_fact(pre_review_dir, app_id)
+    if fact is True:
+        return None
+    if fact is False:
+        return STUB_NOT_STUB
+    ids = {app_id or "", fact_app_id(app_id), "root"}
+    if has_record(findings, "STR-01", "readme-not-substantive", ("FAIL",), ids, True):
+        return None
+    return STUB_NO_RECORD
 
 
 def defect_tag(defect_key):
@@ -263,9 +336,10 @@ def signal(body, dim):
 
 
 def main(argv):
-    if len(argv) != 3:
-        print("usage: check-rating.py <report.md> <findings.json>", file=sys.stderr)
+    if len(argv) not in (3, 4):
+        print("usage: check-rating.py <report.md> <findings.json> [<pre-review-dir>]", file=sys.stderr)
         return 2
+    pre_review_dir = argv[3] if len(argv) == 4 else None
     try:
         report = open(argv[1]).read()
         with open(argv[2], encoding="utf-8") as f:
@@ -287,11 +361,13 @@ def main(argv):
         if doc is None:
             print("error: {} has no '### Documentation' section".format(heading), file=sys.stderr)
             return 2
-        rm = re.search(r"Rating:\s*\**\s*(Minimal|Adequate|Strong|Exemplary)", doc)
+        rm = RATING_RE.search(doc)
         if not rm:
             print("error: {} has no Documentation rating".format(heading), file=sys.stderr)
             return 2
         rating = rm.group(1)
+        if rating.lower().split() == ["below", "minimal"]:
+            rating = BELOW_MINIMAL
         evidence = parse_evidence(doc)
         supported = highest_supported_rung(evidence)
 
@@ -304,9 +380,24 @@ def main(argv):
             print("error: {} has no Signals row for Documentation".format(heading), file=sys.stderr)
             return 2
 
+        app_id = app_id_of(heading)
+        single = len(sections) == 1
         stub_ok = (STUB_RATING.search(doc) is not None and
-                   has_stub_record(findings, app_id_of(heading), len(sections) == 1))
-        if not stub_ok and (supported is None or RATING_ORDER.index(rating) > RATING_ORDER.index(supported)):
+                   has_stub_record(findings, app_id, single))
+        if stub_ok:
+            try:
+                reason = stub_problem(findings, app_id, single, pre_review_dir)
+            except ValueError as e:
+                print("error: {}".format(e), file=sys.stderr)
+                return 2
+            if reason:
+                problems += 1
+                print("MISMATCH {} documentation: {}".format(fact_app_id(app_id), reason))
+        elif rating == BELOW_MINIMAL:
+            if not has_record(findings, "QUA-01", "docs-minimal", ("WARN", "FAIL"), {app_id or ""}, single):
+                problems += 1
+                print("MISMATCH {} documentation: {}".format(fact_app_id(app_id), BELOW_NO_RECORD))
+        elif supported is None or RATING_ORDER.index(rating) > RATING_ORDER.index(supported):
             # name the first requirement that blocks the claimed rung
             blocker = None
             for rung, reqs in RUNGS:
@@ -325,8 +416,7 @@ def main(argv):
 
         security = subsection(body, "Security")
         if security is not None:
-            app_id = app_id_of(heading) or "root"
-            claim_problem = security_claim_mismatch(app_id, security)
+            claim_problem = security_claim_mismatch(app_id or "root", security)
             if claim_problem:
                 problems += 1
                 print(claim_problem)
