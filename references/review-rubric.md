@@ -154,8 +154,9 @@ block "accept with suggestions" (see Decision rubric).
 The security review has three tiers, named in every report so a thinner
 review looks thinner rather than identical to a full one:
 
-- **Tier 1 — Static.** Source-level reading: capability profile and pattern
-  checks. Runs anywhere, including CI on a submitted pull request.
+- **Tier 1 — Static.** Source-level reading: the candidate loop and the
+  open-ended pass below, then the capability profile. Runs anywhere,
+  including CI on a submitted pull request.
 - **Tier 2 — Tooling.** Static analysis tools (shellcheck, bandit, semgrep,
   trivy, and others per the plugin's `security-tools.md`). Needs installed
   binaries, not a running app. Best-effort: the review proceeds without them.
@@ -165,6 +166,24 @@ review looks thinner rather than identical to a full one:
   disposable environment (never on a reviewer's own machine or a shared host).
   Reported as `NOT CHECKED — no isolated execution environment` when none is
   available, which is the usual case.
+
+Tier 1 is a loop, not an open-ended read. The plugin's pre-review script
+lists every **candidate site** in the app: each ERB interpolation of a form
+value in `submit.yml.erb` and `template/` (with whether it is quoted and
+guarded), each unquoted expansion of a form value, each `eval`/`exec`,
+credential-shaped string, `chmod`/`chown`/`umask`, network call, write
+outside the job directory, security-relevant config flag (`--no-auth`,
+`--disable-ssl`, `0.0.0.0`, a CORS wildcard), and binary file under
+`template/`. Each candidate names its file, line and the OODT code it would
+fall under. The review answers every candidate with its own row in the
+report: FAIL or WARN with category and severity, or PASS with one line of
+why it is acceptable. The candidate list is the same on every run, so every
+run is asked about the same sites. After the loop, an open-ended pass looks
+for what the enumeration cannot see (a missing CSRF defense, partial
+authentication, container isolation, an unusual way of phoning home) and
+records each under "Additional observations (review)", saying the
+enumeration missed it. "No tool-detectable issues in the checked tiers" is
+the claim when neither produces a FAIL or WARN, never "safe".
 
 Two complementary methods feed the same classification:
 
@@ -349,6 +368,23 @@ should follow the [Appverse README Template](https://github.com/tamu-edu/appvers
 **Documentation signal:** Strong or Exemplary = Low; Adequate = Medium;
 Minimal = High.
 
+**Evidence:** the rating rests on one evidence line per requirement in the
+table above (what it launches through architecture), each citing the
+README heading and line the pre-review's `readme.json` maps to that
+requirement, or `none`. A heading whose section is only the README
+template's placeholder text counts as `none`. A screenshots or
+environment-variables heading with no image or variable under it is
+"heading only", weaker evidence the reviewer checks. The reviewer may judge
+that a listed section does not satisfy its requirement; a requirement
+`readme.json` shows nothing for (no heading, and for screenshots and
+environment variables no image or variable either) is `none`. With no
+Overview-type heading, a descriptive paragraph under the README's title
+satisfies "what it launches" (`readme.json` records it as the intro). The
+level is the highest one whose requirements, and every lower level's, all
+have evidence. A README without evidence even for Minimal is a stub: that
+is the Structure gate failure (QUA-01 `docs-stub`), not a rating, and the
+report says "Minimal — not supported (stub README; see QUA-01)".
+
 **Target for inclusion:** Adequate or above. Below the target is "accept with
 suggestions" when the gate criteria pass. A README that fails the Structure
 gate (stub or unfilled template) is a gate failure, not a Minimal rating. The
@@ -370,12 +406,12 @@ target for the first two.
 
 | Check | Target |
 |-------|--------|
-| Error handling in scripts (`set -e` or explicit checks) | Target for inclusion |
-| Input validation on form fields (min/max/required) | Target for inclusion |
-| No undocumented magic numbers or hardcoded literals (resource limits, tunables, ports, hex colors, module versions) without comments | Suggestion |
-| No large blocks of duplicated code (`QUA-09`) | Suggestion |
-| No commented-out dead code | Suggestion |
-| ERB templates handle missing/empty values gracefully (`QUA-10`) | Suggestion |
+| Error handling in scripts (`set -e` or explicit checks) (`check: error-handling`) | Target for inclusion |
+| Input validation on form fields (min/max/required) (`check: numeric-field-bounds`) | Target for inclusion |
+| No undocumented magic numbers or hardcoded literals (resource limits, tunables, ports, hex colors, module versions) without comments (`check: magic-numbers`) | Suggestion |
+| No large blocks of duplicated code (`QUA-09`, `check: duplicated-blocks`) | Suggestion |
+| No commented-out dead code (`check: dead-code`) | Suggestion |
+| ERB templates handle missing/empty values gracefully (`QUA-10`, `check: erb-missing-value`) | Suggestion |
 
 **Correctness and polish** defects are also Code Quality findings: copy-paste
 artifacts from the template an app was cloned from (a MATLAB reference in a
