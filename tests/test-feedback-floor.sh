@@ -452,7 +452,7 @@ check "exit 1" 1 "$(run "$TMP/t34.json" "$TMP/t34a.md")"
 check "reports 0/2" "feedback floor: 0/2 fix-items covered" "$(tail -1 "$TMP/out")"
 check "commits reason" 1 "$(grep -cF 'MISSING MNT-01 commits:stale-repo (subject not named in feedback)' "$TMP/out")"
 check "issues reason" 1 "$(grep -cF 'MISSING MNT-05 issues:unresponsive-issues (subject not named in feedback)' "$TMP/out")"
-printf '## Draft feedback\n<!-- feedback-covers: commits:stale-repo, issues:unresponsive-issues -->\nThe last commit was over a year ago. There are open issues with no maintainer response.\n' > "$TMP/t34b.md"
+printf '## Draft feedback\n<!-- feedback-covers: commits:stale-repo, issues:unresponsive-issues -->\nThe last commit was over a year ago, so the repo is stale. There are open issues with no maintainer response, so they look unresponsive.\n' > "$TMP/t34b.md"
 check "subjects named: exit 0" 0 "$(run "$TMP/t34.json" "$TMP/t34b.md")"
 
 echo "Test 35: a 'root' pseudo-anchor whose mechanism tag has no distinctive word is MISSING with 'no subject for pseudo-anchor root', not a silent pass"
@@ -501,5 +501,57 @@ echo "Test 41: the flag form with a hyphen joined directly to the word ('no set-
 printf '## Draft feedback\n<!-- feedback-covers: template/script.sh.erb:no-set-e -->\ntemplate/script.sh.erb has no set-e.\n' > "$TMP/t41.md"
 check "flag form set-e: exit 0" 0 "$(run "$TMP/t37.json" "$TMP/t41.md")"
 check "reports 1/1" "feedback floor: 1/1 fix-items covered" "$(tail -1 "$TMP/out")"
+
+echo "Test 42: a pseudo-anchor's subject names it but does not describe it: rule 3 needs a mechanism word or an evidence number"
+cat > "$TMP/t42.json" <<'EOF'
+[{"app_id":"root","rule":"MNT-01","defect_key":"commits:stale-repo","result":"FAIL","severity":"high","evidence":"last commit 2023-04-11 (536 days)"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: commits:stale-repo -->\nPlease commit a LICENSE file before resubmitting.\n' > "$TMP/t42a.md"
+check "subject only: exit 1" 1 "$(run "$TMP/t42.json" "$TMP/t42a.md")"
+check "subject only: reason" "MISSING MNT-01 commits:stale-repo (defect not described in feedback)" "$(head -1 "$TMP/out")"
+printf '## Draft feedback\n<!-- feedback-covers: commits:stale-repo -->\nNo commit has landed in a long time, so the repo looks stale.\n' > "$TMP/t42b.md"
+check "mechanism word in the subject window: exit 0" 0 "$(run "$TMP/t42.json" "$TMP/t42b.md")"
+printf '## Draft feedback\n<!-- feedback-covers: commits:stale-repo -->\nThe last commit was on 2023-04-11.\n' > "$TMP/t42c.md"
+check "an evidence date in the subject window: exit 0" 0 "$(run "$TMP/t42.json" "$TMP/t42c.md")"
+cat > "$TMP/t42d.json" <<'EOF'
+[{"app_id":"root","rule":"MNT-02","defect_key":"releases:no-releases","result":"WARN","severity":"low","evidence":"GitHub releases API: 0"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: releases:no-releases -->\nConsider tagging a release.\n' > "$TMP/t42d.md"
+check "a tag with nothing beyond its subject (no-releases) stays subject-only: exit 0" 0 "$(run "$TMP/t42d.json" "$TMP/t42d.md")"
+
+echo "Test 43: a tag word that names the anchor (changelog for CHANGELOG.md) does not describe the defect"
+cat > "$TMP/t43.json" <<'EOF'
+[{"app_id":"root","rule":"QUA-05","defect_key":"CHANGELOG.md:wrong-app-changelog","result":"WARN","severity":"low","evidence":"CHANGELOG.md:9-62"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: CHANGELOG.md:wrong-app-changelog -->\nThanks for adding CHANGELOG.md. The README.md looks good.\n' > "$TMP/t43a.md"
+check "file named, only the anchor word: exit 1" 1 "$(run "$TMP/t43.json" "$TMP/t43a.md")"
+check "reason" "MISSING QUA-05 CHANGELOG.md:wrong-app-changelog (defect not described in feedback)" "$(head -1 "$TMP/out")"
+printf '## Draft feedback\n<!-- feedback-covers: CHANGELOG.md:wrong-app-changelog -->\nCHANGELOG.md describes the wrong app (MATLAB).\n' > "$TMP/t43b.md"
+check "the tag's other words describe it: exit 0" 0 "$(run "$TMP/t43.json" "$TMP/t43b.md")"
+
+echo "Test 44: a one-character flag word matches inside a flag cluster (set -euo pipefail covers no-set-e)"
+printf '## Draft feedback\n<!-- feedback-covers: template/script.sh.erb:no-set-e -->\nAdd set -euo pipefail near the top of template/script.sh.erb.\n' > "$TMP/t44.md"
+check "flag cluster: exit 0" 0 "$(run "$TMP/t37.json" "$TMP/t44.md")"
+printf '## Draft feedback\n<!-- feedback-covers: template/script.sh.erb:no-set-e -->\nIn template/script.sh.erb, remove set -xv on line 19.\n' > "$TMP/t44b.md"
+check "a cluster without the flag letter first (set -xv): exit 1" 1 "$(run "$TMP/t37.json" "$TMP/t44b.md")"
+
+echo "Test 45: an all-capitals stem names its file (the README names README.md); a lowercase stem does not"
+cat > "$TMP/t45.json" <<'EOF'
+[{"app_id":"root","rule":"QUA-06","defect_key":"README.md:readme-typo","result":"WARN","severity":"low","evidence":"README.md:125"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: README.md:readme-typo -->\nThe README also has minor typos.\n' > "$TMP/t45.md"
+check "the README: exit 0" 0 "$(run "$TMP/t45.json" "$TMP/t45.md")"
+printf '## Draft feedback\n<!-- feedback-covers: README.md:readme-typo -->\nThe readme has minor typos.\n' > "$TMP/t45b.md"
+check "lowercase readme: exit 1" 1 "$(run "$TMP/t45.json" "$TMP/t45b.md")"
+check "lowercase readme: reason" "MISSING QUA-06 README.md:readme-typo (file not named in feedback)" "$(head -1 "$TMP/out")"
+
+echo "Test 46: a concrete value quoted from the evidence describes the defect; the file name alone still does not"
+cat > "$TMP/t46.json" <<'EOF'
+[{"app_id":"root","rule":"QUA-05","defect_key":"CHANGELOG.md:wrong-app-changelog","result":"WARN","severity":"low","evidence":"CHANGELOG.md:55-62 (all diff links reference OSC/bc_osc_matlab)"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: CHANGELOG.md:wrong-app-changelog -->\nThe CHANGELOG is copied from the `bc_osc_matlab` repository; please replace it.\n' > "$TMP/t46.md"
+check "evidence value in the window: exit 0" 0 "$(run "$TMP/t46.json" "$TMP/t46.md")"
+printf '## Draft feedback\n<!-- feedback-covers: CHANGELOG.md:wrong-app-changelog -->\nThanks for adding CHANGELOG.md; the diff links all reference upstream.\n' > "$TMP/t46b.md"
+check "file named, plain words from the evidence only: exit 1" 1 "$(run "$TMP/t46.json" "$TMP/t46b.md")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
