@@ -373,6 +373,26 @@ printf '[%s]' "$(recs QUA-02 form.yml:host 'form.yml:16' 'pinned to `1.2.3.`, se
 run "$TMP/v7.json" --target "$TMP/v" > /dev/null
 check "a version (trailing period stripped) on its line and file names are not NOTEs" 0 "$(note)"
 
+echo "Test 23b: an extensionless file name under --target (Dockerfile, LICENSE, README) is not a literal"
+: > "$TMP/v/LICENSE"
+: > "$TMP/v/Dockerfile"
+: > "$TMP/v/README"
+printf '[%s]' "$(recs QUA-02 form.yml:host 'form.yml:16' 'see `LICENSE` for terms')" > "$TMP/v8.json"
+run "$TMP/v8.json" --target "$TMP/v" > /dev/null
+check "LICENSE is not checked as a literal" 0 "$(note)"
+printf '[%s]' "$(recs QUA-02 form.yml:host 'form.yml:16' 'also ships a `Dockerfile`')" > "$TMP/v9.json"
+run "$TMP/v9.json" --target "$TMP/v" > /dev/null
+check "Dockerfile is not checked as a literal" 0 "$(note)"
+printf '[%s]' "$(recs QUA-02 form.yml:host 'form.yml:16' 'see `README` for details')" > "$TMP/v10.json"
+run "$TMP/v10.json" --target "$TMP/v" > /dev/null
+check "README (no extension) is not checked as a literal" 0 "$(note)"
+
+echo "Test 23c: a token naming a file elsewhere under --target (not the finding's own file) is still not a literal"
+printf 'Title\nnum_cores caps at 2\n' > "$TMP/v/README.md"
+printf '[%s]' "$(recs QUA-06 README.md:readme-inconsistency 'README.md:2' 'README.md says 4 cores but `form.yml` caps at 2')" > "$TMP/v11.json"
+run "$TMP/v11.json" --target "$TMP/v" > /dev/null
+check "form.yml, cited against README.md, is still not a literal" 0 "$(note)"
+
 echo "Test 24: with --pre-review, a value within 2 lines of a check-rows candidate line is on it"
 printf '[{"app_id":"root","path":".","app_type":"batch_connect"}]' > "$TMP/v/pr/apps.json"
 printf '{"candidates":[{"kind":"interpolation","rule":"OODT-01","file":"submit.yml.erb","line":6}]}' > "$TMP/v/pr/root/security.json"
@@ -397,5 +417,14 @@ check "no apps.json: no tolerance, exit 0" 0 "$(run "$TMP/empty.json" --target "
 check "no apps.json: the NOTE line" 1 "$(note)"
 check "--pre-review that is not a directory is exit 2" 2 "$(run "$TMP/empty.json" --target "$TMP/v" --pre-review "$TMP/nope")"
 check "its error line" "error: --pre-review is not a directory: '$TMP/nope'" "$(cat "$TMP/out")"
+
+echo "Test 25: a missing references/readme-placeholders.txt exits 2 with one error line, not a traceback"
+cp -r "$SCRIPT_DIR/references" "$TMP/refs-no-placeholders"
+rm "$TMP/refs-no-placeholders/readme-placeholders.txt"
+printf '[%s]' "$(rec QUA-01 README.md:docs-minimal 'content: README.md:2')" > "$TMP/w.json"
+python3 "$TMP/refs-no-placeholders/check-evidence.py" "$TMP/w.json" --target "$TMP/v" > "$TMP/out" 2>&1
+check "exit 2" 2 "$?"
+check "one error line, no traceback" "error: cannot read placeholder list $TMP/refs-no-placeholders/readme-placeholders.txt (No such file or directory)" "$(cat "$TMP/out")"
+check "exactly one line of output" 1 "$(wc -l < "$TMP/out" | tr -d ' ')"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

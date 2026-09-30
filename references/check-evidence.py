@@ -66,7 +66,8 @@ no whitespace or `/`, is not purely digits or a lint code (`SC2086`), and
 is 6+ characters or holds a digit, `=` or a quote, or holds a `.` without
 naming a file (a file under --target, by path or basename, or a file
 extension: hostnames and versions count, `form.yml` and `script.sh.erb`
-do not). Bare short identifiers (`max`, `pattern`) are skipped. A token is
+do not). Bare short identifiers under 6 characters with no digit, `=` or
+quote (`max`, `min`) are skipped as bare key names, not values. A token is
 also skipped when its own sentence, before it, holds a negation or
 recommendation word (NEGATION_WORDS: no, not, missing, absent, without,
 lacks, lacking, should, recommend, recommended, add, consider, e.g., such
@@ -251,14 +252,17 @@ def target_files(target):
 
 
 def names_a_file(value, target):
-    """Whether a dotted value is a file name rather than a literal: it names
-    a file under target (by path or basename) or ends in a file extension
-    (one a file under target carries, or a common one)."""
+    """Whether a value is a file name rather than a literal: it names a file
+    under target (by path or basename, dotted or not — `Dockerfile`,
+    `LICENSE` and `README` count) or ends in a file extension (one a file
+    under target carries, or a common one)."""
     names, exts = target_files(target) if target else (set(), set())
     if value in names or os.path.basename(value) in names:
         return True
     if target and os.path.isfile(os.path.join(target, value)):
         return True
+    if "." not in value:
+        return False
     ext = value.rsplit(".", 1)[1].lower()
     return ext in FILE_EXTENSIONS or ext in exts
 
@@ -266,18 +270,23 @@ def names_a_file(value, target):
 def is_literal(value, target=None):
     """Whether a backticked token reads as a literal value worth finding on
     the cited line: no whitespace, no '/', not purely digits, not a lint
-    code, and then 6+ characters, or a digit, '=' or quote in it, or a '.'
-    that does not make it a file name (hostnames and versions count;
-    `form.yml` and `script.sh.erb` do not). A dotted token is never a
-    literal on length alone. Bare short identifiers (`max`, `min`,
-    `pattern`) are skipped: they name a key, often one the summary says is
-    absent. No value is special-cased by name: only this shape test."""
+    code, not a file name (a file under --target, by path or basename,
+    dotted or not — `Dockerfile`, `LICENSE`, `form.yml` and
+    `script.sh.erb` all count; hostnames and versions are not files and
+    still count as literals), and then 6+ characters, or a digit, '=' or
+    quote in it, or a '.' (a dotted token is never a literal on length
+    alone). Bare short identifiers under 6 characters with no digit, '='
+    or quote (`max`, `min`) are skipped: at that length, with none of
+    those marks, a token reads as a key name rather than a value. No
+    value is special-cased by name: only this shape test."""
     if not value or re.search(r"\s", value) or "/" in value or value.isdigit():
         return False
     if LINT_CODE_RE.match(value):
         return False
+    if names_a_file(value, target):
+        return False
     if "." in value:
-        return not names_a_file(value, target)
+        return True
     return len(value) >= 6 or bool(re.search(r"[0-9=\"']", value))
 
 
@@ -511,6 +520,17 @@ def main(argv):
     if args.pre_review is not None and (not args.pre_review or not os.path.isdir(args.pre_review)):
         print("error: --pre-review is not a directory: '{}'".format(args.pre_review), file=sys.stderr)
         return 2
+    if args.target is not None:
+        # content: citations (checked whenever --target is given) need
+        # pre-review.py's placeholder list; fail loudly here rather than
+        # letting PlaceholdersMissing surface later as a traceback.
+        try:
+            pre_review()
+        except Exception as e:
+            if type(e).__name__ != "PlaceholdersMissing":
+                raise
+            print("error: {}".format(e), file=sys.stderr)
+            return 2
     try:
         with open(args.findings) as f:
             findings = json.load(f)
