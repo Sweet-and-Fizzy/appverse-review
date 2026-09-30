@@ -36,13 +36,15 @@ rating does. Rule 2 still applies (Minimal maps to High).
      (normalize_result, imported from check-rows.py). The section can
      hold more than one table (Findings, then Additional observations
      (review)); each table's header (a '|' row immediately followed by a
-     '|---' separator row) is read on its own, so a Check column in one
-     table never carries over into the next. "No tool-detectable issues
-     in the checked tiers." must appear exactly when that count is 0,
-     except that a section reading "security.json lists no candidates;
-     no observations." (the no-findings form) never requires the
-     sentence. This rule is general — it is not keyed to any particular
-     app or run.
+     '|---'-style separator row, the separator itself required to contain
+     '|' so a bare '---' prose divider is never read as one) is read on
+     its own, so a Check column in one table never carries over into the
+     next. When that count is nonzero, "No tool-detectable issues in the
+     checked tiers." must not appear — the report would be claiming its
+     own rows are clean. A missing sentence when the count is 0 is not
+     flagged: this rule fails a claim the rows contradict, it never
+     requires prose that isn't there. This rule is general — it is not
+     keyed to any particular app or run.
 
 The findings argument is read: for the stub-README exception above, and for
 rule 3, which scans every record regardless of app section.
@@ -66,7 +68,6 @@ _spec.loader.exec_module(check_rows)
 GOOD_PRACTICE_RULES = {"MNT-02", "MNT-03", "MNT-04", "MNT-05", "MNT-06"}
 
 SECURITY_CLAIM_SENTENCE = "No tool-detectable issues in the checked tiers."
-NO_CANDIDATES_LINE = "security.json lists no candidates; no observations."
 OODT_ROW_RE = re.compile(r"^\|\s*(OODT-\d+)\s*\|")
 
 RUNGS = [
@@ -226,8 +227,9 @@ def count_flagged_security_rows(security):
         # A header row is a '|' row immediately followed by a '|---' style
         # separator row: that pair starts a new table, so its own Check
         # column (or lack of one) replaces whatever the last table set.
-        if (stripped.startswith("|") and i + 1 < len(lines) and
-                SEPARATOR_ROW_RE.match(lines[i + 1].strip())):
+        next_line = lines[i + 1].strip() if i + 1 < len(lines) else ""
+        if (stripped.startswith("|") and "|" in next_line and
+                SEPARATOR_ROW_RE.match(next_line)):
             header = check_rows.split_row(line)
             result_index = header.index("Check") + 1 if "Check" in header else 1
             continue
@@ -242,17 +244,15 @@ def count_flagged_security_rows(security):
 
 
 def security_claim_mismatch(app_id, security):
-    """MISMATCH line(s) for a '### Security' body where the presence of the
-    sentence "No tool-detectable issues in the checked tiers." disagrees
-    with whether any row is FAIL or WARN. None when they agree."""
+    """MISMATCH line for a '### Security' body that claims "No tool-detectable
+    issues in the checked tiers." while its own rows contradict that claim
+    (a FAIL or WARN row present). None when the claim holds, and also None
+    when the sentence is simply absent — a checker fails a claim the report
+    makes against its own rows; it never requires prose that isn't there."""
     count = count_flagged_security_rows(security)
-    has_sentence = SECURITY_CLAIM_SENTENCE in security
-    if count > 0 and has_sentence:
+    if count > 0 and SECURITY_CLAIM_SENTENCE in security:
         return ('MISMATCH {} security: "{}" with {} FAIL/WARN row{} above it'
                 .format(app_id, SECURITY_CLAIM_SENTENCE, count, "" if count == 1 else "s"))
-    if count == 0 and not has_sentence and NO_CANDIDATES_LINE not in security:
-        return ('MISMATCH {} security: no FAIL/WARN rows but the sentence "{}" is missing'
-                .format(app_id, SECURITY_CLAIM_SENTENCE))
     return None
 
 

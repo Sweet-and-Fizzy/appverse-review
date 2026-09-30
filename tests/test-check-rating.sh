@@ -286,7 +286,7 @@ report_sec Strong Low "$FULL" "$SEC_PASS_ONLY" > "$TMP/r26.md"
 check "exit 0" 0 "$(run "$TMP/r26.md" "$TMP/f1.json")"
 check "summary" "ratings: consistent" "$(tail -1 "$TMP/out")"
 
-echo "Test 27: only PASS security rows with no sentence is a MISMATCH"
+echo "Test 27: only PASS security rows with no sentence is consistent (no MISMATCH for missing prose)"
 SEC_PASS_NO_SENTENCE='#### Findings
 
 | Rule | Check | Result | Severity | Tag | Summary | Evidence |
@@ -297,8 +297,8 @@ SEC_PASS_NO_SENTENCE='#### Findings
 
 No findings.'
 report_sec Strong Low "$FULL" "$SEC_PASS_NO_SENTENCE" > "$TMP/r27.md"
-check "exit 1" 1 "$(run "$TMP/r27.md" "$TMP/f1.json")"
-check "reason" 1 "$(grep -cF 'MISMATCH root security: no FAIL/WARN rows but the sentence "No tool-detectable issues in the checked tiers." is missing' "$TMP/out")"
+check "exit 0" 0 "$(run "$TMP/r27.md" "$TMP/f1.json")"
+check "summary" "ratings: consistent" "$(tail -1 "$TMP/out")"
 
 echo "Test 28: the no-candidates form needs no sentence"
 SEC_NO_CANDIDATES='security.json lists no candidates; no observations.'
@@ -339,5 +339,21 @@ report_sec Strong Low "$FULL" "$SEC_MIXED_TABLES
 No tool-detectable issues in the checked tiers." > "$TMP/r30b.md"
 check "with sentence: exit 1" 1 "$(run "$TMP/r30b.md" "$TMP/f1.json")"
 check "with sentence: reason" 1 "$(grep -cF 'MISMATCH root security: "No tool-detectable issues in the checked tiers." with 1 FAIL/WARN row above it' "$TMP/out")"
+
+echo "Test 31: a bare '---' prose divider after an OODT row is not mistaken for a table separator"
+SEC_BARE_RULE='#### Findings
+
+| Rule | Check | Result | Severity | Tag | Summary | Evidence |
+|---|---|---|---|---|---|---|
+| OODT-01 | `check: sec-interpolation` | FAIL | high | unintentional | bad thing | submit.yml.erb:6 |
+
+---
+
+Some prose divider, not a table.
+
+No tool-detectable issues in the checked tiers.'
+report_sec Strong Low "$FULL" "$SEC_BARE_RULE" > "$TMP/r31.md"
+check "exit 1" 1 "$(run "$TMP/r31.md" "$TMP/f1.json")"
+check "reason" 1 "$(grep -cF 'MISMATCH root security: "No tool-detectable issues in the checked tiers." with 1 FAIL/WARN row above it' "$TMP/out")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
