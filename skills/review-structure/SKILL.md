@@ -105,10 +105,15 @@ its own finding with the vocabulary tag that fits or `other:`.
     when it names one, as `path:N`) plus the first line of `error`,
     `defect_key` `<file>:other:entry-point-parse-error`. `parses`
     `"not_checked"` (the interpreter is not on PATH): NOT CHECKED with the
-    `note`. `entry_point.json` absent (no entry point, or pre-review absent):
-    no entry point is STR-07 `missing-entry-point` (anchor `root`, or the
-    app subpath); pre-review absent is NOT CHECKED, "pre-review facts not
-    found". `consistent` false is a separate STR-08 row and record
+    `note`. When `entry_point.json` is absent, key on
+    `summary.json`'s `facts` record for `entry_point`, its `per_app` status
+    for this app: `skipped` (no entry point found) is FAIL, STR-07
+    `missing-entry-point` (anchor `root`, or the app subpath);
+    `not_applicable` means the scanner does not cover this app type, so
+    list the app's files, look for the entry point yourself, and make the
+    row NOT CHECKED for parsing with that reason; a pre-review directory
+    that is absent altogether is NOT CHECKED, "pre-review facts not
+    found". The rule is the same for Passenger and companion apps. `consistent` false is a separate STR-08 row and record
     (`<dependency_manifest>:dependency-manifest-inconsistent`, with the
     `note`); `consistent` null means not judged (Ruby, Node, or a Python
     manifest other than `requirements.txt`): read the manifest yourself and

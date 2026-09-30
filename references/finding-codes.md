@@ -82,8 +82,14 @@ defect_key = "{anchor}:{mechanism_tag}"
   runs that record the same candidate produce the same key. A security
   candidate that carries its own `tag` (the scanner's more exact term under
   the same threat, such as `curl-pipe-exec` or `cors-wildcard`) uses that
-  one instead. Where the manifest tag is null, the aspect skill names the
-  tag.
+  one instead. The only other exceptions are fixed: a `form.json` free-text
+  field without a `pattern` is QUA-07 `missing-pattern`, a `number_field`
+  without `min` and `max` is QUA-07 `missing-min-max`, and a
+  `template.json` `hex_colors` entry is QUA-08 `undocumented-hex-color`.
+  Where the manifest tag is null, the aspect skill names the tag. One
+  record per file per tag: candidates sharing a file and a tag share one
+  record, whose `evidence` may carry several citations
+  (`path:22; reviewed OK: path:9,23`).
 - **Qualified tags.** Where the vocabulary shows a `{qualifier}` (e.g.
   `duplicate-yaml-key:{key_name}`, `readme-inconsistency:{topic}`), the
   qualifier is required and is the full dotted attribute path or the topic

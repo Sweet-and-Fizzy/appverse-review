@@ -52,7 +52,7 @@ review-security, review-quality, review-maintenance. Each subagent's prompt:
 > incomplete, may have regressed, or may have introduced a new defect.
 >
 > For each app, answer every manifest check for that app's `app_type` in your
-> dimension, one row per check (Security: one row per candidate), each
+> dimension, at least one row per check (Security: one row per candidate), each
 > row's Check column holding `check: <id>`.
 >
 > Return your findings as structured finding records (per target-setup.md §4),
@@ -170,12 +170,15 @@ Findings are classified under OODT (Open OnDemand App Threats); codes are define
      sec-credential-string, sec-permissive-mode, sec-network-call,
      sec-file-write-outside-job, sec-config-flag, sec-binary-in-template),
      each citing its candidate's path:N. A check with no candidates has no
-     row. Tag is the intent tag. When security.json is absent, write
-     "Candidate enumeration not run: <reason>." in place of the rows. -->
+     row. Tag is the intent tag on a FAIL/WARN row and "—" on a PASS row.
+     When security.json is absent, write "Candidate enumeration not run:
+     <reason>." in place of the rows. When it lists no candidates and the
+     open-ended pass found nothing, write the single line "security.json
+     lists no candidates; no observations." in place of both tables. -->
 
 | Rule | Check | Result | Severity | Tag | Summary | Evidence |
 |---|---|---|---|---|---|---|
-| OODT-XX | `check: sec-<id>` | FAIL/WARN/PASS | critical/high/medium/low/info | unintentional / potentially malicious | <one-line reason> | path:N |
+| OODT-XX | `check: sec-<id>` | FAIL/WARN/PASS | critical/high/medium/low/info | unintentional / potentially malicious / — (PASS) | <one-line reason> | path:N |
 
 #### Additional observations (review)
 
@@ -196,7 +199,7 @@ Findings are classified under OODT (Open OnDemand App Threats); codes are define
 | Rule | Check | Result | Severity | Summary | Evidence |
 |---|---|---|---|---|---|
 | QUA-02 | `check: hardcoded-site-paths` | PASS/WARN/NOT CHECKED | ... | <per template.json absolute_paths candidate, or a group in one file with one reason> | path:N |
-| QUA-02 | `check: portability-rating` | PASS/FAIL | ... | <rating; PASS at Partially portable or above> | ... |
+| QUA-02 | `check: portability-rating` | PASS/FAIL | ... | <rating; PASS at Partially portable or above; a FAIL cites the hardcoded-* records and adds no record> | ... |
 
 ### Documentation
 - Rating: <Minimal | Adequate | Strong | Exemplary> — <one-line justification>
@@ -217,7 +220,7 @@ Findings are classified under OODT (Open OnDemand App Threats); codes are define
 
 | Rule | Check | Result | Severity | Summary | Evidence |
 |---|---|---|---|---|---|
-| QUA-01 | `check: documentation-rating` | PASS/FAIL | ... | <rating; PASS at Adequate or above> | README.md (bare: a pseudo-anchor takes no line) |
+| QUA-01 | `check: documentation-rating` | PASS/FAIL | ... | <rating; PASS at Adequate or above> | README.md:N |
 
 ### Code Quality
 <!-- At least one row per manifest check for this app's app_type, ALWAYS, in
@@ -225,7 +228,8 @@ Findings are classified under OODT (Open OnDemand App Threats); codes are define
      evidence when clean, NOT CHECKED with the reason when it could not be
      examined. A check whose facts (form.json, template.json) list
      candidates answers each one, FAIL/WARN or PASS citing it; candidates in
-     one file with one result and reason may share a row (path:N,M). Never
+     one file with one result and reason may share a row (path:N,M), but
+     candidates with different results never share a row. Never
      omit a row: silence reads as clean. Then one row per correctness-&-polish
      finding (copy-paste artifacts, duplicate YAML keys, wrong help text,
      README typos), with the Check column empty. Code Quality is a findings

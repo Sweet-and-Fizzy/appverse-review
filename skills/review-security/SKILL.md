@@ -75,6 +75,25 @@ candidate sites, not verdicts. Security has no rating: the rows are the output.
    | `sec-config-flag` | `config_flag` |
    | `sec-binary-in-template` | `binary_in_template` |
 
+   **Records: one record per file per tag.** Every finding record is keyed
+   `{file}:{tag}`, and a key appears once per app. Candidates of one check
+   that share a file and a tag share one record, whose `evidence` may carry
+   several citations. FAIL and WARN candidates lead: `path:N,M` plus a short
+   quote. PASS candidates in that file follow, after a semicolon, as
+   `reviewed OK: path:N,M` (for example `template/script.sh.erb:22;
+   reviewed OK: template/script.sh.erb:9,23`). A file whose candidates are
+   all PASS gets one PASS record for the check, with `evidence` listing
+   every PASS line in that file as `path:N,M`. A row still answers each
+   candidate on its own.
+
+   The key's parts: `rule` is the candidate's `rule` (the manifest's when
+   absent), and the tag is the candidate's `tag`, falling back to the
+   manifest entry's `tag`. A `config_flag` candidate with no tag takes the
+   vocabulary term for what the flag does: `disabled-auth`,
+   `bind-all-interfaces` or `cors-wildcard` under OODT-05, `disabled-ssl` or
+   another OODT-08 term under OODT-08. Each row answers exactly the
+   candidate it cites (see Output for the row and citation form).
+
    For every candidate, decide FAIL, WARN or PASS and write one row with a
    one-line reason; never skip a candidate, and never merge two candidates
    into one row. Read the cited line in context before deciding:
@@ -93,21 +112,6 @@ candidate sites, not verdicts. Security has no rating: the rows are the output.
      for its designed purpose; running shell commands with CORS open to all
      origins is a finding.
 
-   Each row answers exactly the candidate it cites (see Output for the row
-   and citation form). For each FAIL or WARN candidate write one finding
-   record: `rule` is the candidate's `rule` (the manifest's when absent),
-   `defect_key` is `{file}:{tag}` from the candidate's `file` and its `tag`,
-   falling back to the manifest entry's `tag`. A `config_flag` candidate with
-   no tag takes the vocabulary term for what the flag does: `disabled-auth`,
-   `bind-all-interfaces` or `cors-wildcard` under OODT-05, `disabled-ssl` or
-   another OODT-08 term under OODT-08. Candidates of one check with the same
-   file and tag share one record whose `evidence` lists every line (the
-   one-finding-per-file-per-mechanism rule in finding-codes.md); they still
-   get a row each. The candidates of a check answered PASS share one PASS
-   record, keyed `{file}:{tag}` from the first of them, whose `evidence`
-   lists every PASS candidate's `path:N`, unless a FAIL or WARN record of that
-   check already has that key, in which case the PASS candidates appear only
-   in their rows.
    A check with no candidates has no row: Security rows are required only
    where `security.json` lists a candidate (`row_required: when_candidates`).
    If `security.json` is absent (the pre-review directory is absent, or
@@ -151,7 +155,9 @@ candidate sites, not verdicts. Security has no rating: the rows are the output.
    than OODT-04), rated Critical / High / Medium / Low per the rubric's
    "Rating findings" section and the scale in
    `${CLAUDE_PLUGIN_ROOT}/references/finding-codes.md`, and tagged
-   unintentional or potentially malicious. A PASS row has severity `info`.
+   unintentional or potentially malicious. A PASS row has severity `info`
+   and `—` in the Tag column; its PASS record's `tag` field is
+   `unintentional`, since the record schema requires one.
    Use the OODT mapping from the tool lookup table to classify
    tool-originated findings.
 8. **Capability profile.** Last, summarize what the code does (system
@@ -210,11 +216,12 @@ Follow these rules for any runtime verification:
   | Rule | Check | Result | Severity | Tag | Summary | Evidence |
   |---|---|---|---|---|---|---|
   | OODT-01 | `check: sec-interpolation` | FAIL | medium | unintentional | `<%= jupyter_args %>` unquoted in the job script; a free-text value reaches the shell | template/script.sh.erb:12 |
-  | OODT-04 | `check: sec-network-call` | PASS | info | unintentional | `curl` to localhost health check; stays on the node | template/script.sh.erb:30 |
+  | OODT-04 | `check: sec-network-call` | PASS | info | — | `curl` to localhost health check; stays on the node | template/script.sh.erb:30 |
 
   The Check column holds exactly `` `check: <id>` `` with the manifest id.
   Result is exactly FAIL, WARN or PASS. Tag is the intent tag,
-  *unintentional* or *potentially malicious*. Evidence cites the candidate
+  *unintentional* or *potentially malicious*, on a FAIL or WARN row and `—`
+  on a PASS row. Evidence cites the candidate
   as `path:N` (a range `path:N-M`, a list `path:N,M`), with the
   repo-relative path exactly as `security.json` gives it; never prose such
   as "line 12 of script.sh". A row answers exactly the candidates it cites.
@@ -222,7 +229,10 @@ Follow these rules for any runtime verification:
   after the candidate rows, with the same columns minus Check (Rule / Result / Severity / Tag /
   Summary / Evidence), one row per step-4 observation, each summary saying
   that `security.json` did not list it. Write `No findings.` under the
-  heading when the open-ended pass found nothing.
+  heading when the open-ended pass found nothing. When `security.json`
+  lists no candidates and there are no observations, write the single line
+  "security.json lists no candidates; no observations." in place of both
+  tables.
 - When no row or observation is FAIL or WARN, write exactly "No
   tool-detectable issues in the checked tiers." under the tables. Never
   write "safe".

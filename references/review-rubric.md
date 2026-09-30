@@ -377,8 +377,13 @@ environment-variables heading with no image or variable under it is
 "heading only", weaker evidence the reviewer checks. The reviewer may judge
 that a listed section does not satisfy its requirement; a requirement
 `readme.json` shows nothing for (no heading, and for screenshots and
-environment variables no image or variable either) is `none`. The level is the highest one whose
-requirements, and every lower level's, all have evidence.
+environment variables no image or variable either) is `none`. With no
+Overview-type heading, a descriptive paragraph under the README's title
+satisfies "what it launches" (`readme.json` records it as the intro). The
+level is the highest one whose requirements, and every lower level's, all
+have evidence. A README without evidence even for Minimal is a stub: that
+is the Structure gate failure (QUA-01 `docs-stub`), not a rating, and the
+report says "Minimal — not supported (stub README)".
 
 **Target for inclusion:** Adequate or above. Below the target is "accept with
 suggestions" when the gate criteria pass. A README that fails the Structure

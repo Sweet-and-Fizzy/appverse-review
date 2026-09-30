@@ -152,7 +152,7 @@ subpath) and exactly as the fact file gives it; a candidate with no line
 (a `syntax.json` or `entry_point.json` file) is cited by its bare path.
 Never prose: "line 12 of script.sh" and "script.sh: line 12" cite nothing.
 A row answers exactly the candidates its Evidence cites, whatever its
-Result, so a PASS row for a check with candidates must cite each one it
+Result; candidates with different results never share a row, so a PASS row for a check with candidates must cite each one it
 clears; a plain PASS with no citation is only for a check with no
 candidates. In a finding record, `evidence` starts with the same form
 followed by a short quote, and `check-evidence.py` fails the run on a path
@@ -166,8 +166,15 @@ or line that does not exist in the reviewed tree.
   citation form above.
 - Use the mechanism-tag vocabulary in `finding-codes.md` for `defect_key`.
   A finding on a manifest candidate is keyed `{candidate file}:{tag}` with
-  the manifest entry's `tag` (security candidates carry their own `tag`,
-  which wins). Novel findings from the open-ended pass use the vocabulary
+  the manifest entry's `tag`, except for the fixed exceptions in
+  `finding-codes.md` (security candidates carry their own `tag`, which
+  wins). Novel findings from the open-ended pass use the vocabulary
   tag that fits, else `other:{short-description}`.
-- One finding record per FAIL or WARN row, and one PASS record per clean
-  check (see the aspect skill for its key).
+- One record per file per tag: a `defect_key` appears once per app.
+  Candidates of a check that share a file and a tag share one record, and
+  its `evidence` may carry several citations separated by semicolons: the
+  FAIL/WARN lines first, then the PASS lines in that file as
+  `reviewed OK: path:N,M` (`template/script.sh.erb:22; reviewed OK:
+  template/script.sh.erb:9,23`). A file whose candidates are all PASS gets
+  one PASS record listing every PASS line as `path:N,M`. The aspect skill
+  names the key for a check with no candidates.

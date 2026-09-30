@@ -51,11 +51,14 @@ For each app, and for each manifest entry above in manifest order:
    PASS with that reason; an OOM score or a panel size
    nobody explains is a finding. Candidates of one check in one file with
    the same result and the same reason may share a row citing each line
-   (`path:N,M`); otherwise one row per candidate. A check with no
-   candidates gets one row: PASS with evidence, unless your own reading
-   finds a defect the facts did not list, which you record as a finding
-   whose row summary says the facts step missed it ("not in
-   template.json"). That note is the signal for improving the scanner.
+   (`path:N,M`); otherwise one row per candidate. Never group candidates
+   with different results in one row. A check with no candidates gets one
+   row: PASS with evidence. Any defect your own reading finds for a check
+   whose `fact_source` names a fact file, whether or not that file listed
+   candidates, is recorded as a finding whose row summary says the facts
+   step missed it ("not in template.json"); that note is the signal for
+   improving the scanner. A `fact_source: none` check has no facts to
+   miss, so its rows never carry the note.
 3. **Write the rows** in the dimension's table (see Output): Check
    `` `check: <id>` ``, Rule from the manifest, Result, Severity, Summary,
    Evidence citing each candidate the row answers as `path:N`,
@@ -66,20 +69,31 @@ For each app, and for each manifest entry above in manifest order:
    plain PASS with no citation is only for a check with no candidates.
    Unexaminable is NOT CHECKED with the reason (for example QUA-07 and QUA-10
    when `form.json` has an `error`).
-4. **Write the records.** One finding record per FAIL or WARN defect, with
-   `defect_key` `{anchor}:{tag}`: the anchor is the candidate's file, the
-   tag is the manifest entry's `tag`. Where the rule's vocabulary has a more
-   exact term for what you found, use it: a free-text field with no
-   `pattern` is QUA-07 `missing-pattern`, a script that checks exit codes
-   but not everywhere is QUA-03 `no-error-check`. Several FAIL/WARN
-   candidates in one file with one tag are one record listing every line
-   (finding-codes.md, one finding per file per mechanism). A clean check
-   gets one PASS record keyed on the file it examined (the first cited
-   candidate's file, the form file for the form checks, the main template
-   script otherwise, or `root` / the app subpath when no single file fits)
-   and the manifest tag, unless a FAIL/WARN record already has that key.
-   The two rating checks (manifest tag null) get no PASS record: the
-   assessments block carries them.
+4. **Write the records: one record per file per tag.** `defect_key` is
+   `{anchor}:{tag}`, the anchor being the candidate's file, and a key
+   appears once per app. The tag is fixed, not chosen:
+
+   | Candidate | Tag |
+   |---|---|
+   | `numeric-field-bounds`: a free-text field without a `pattern` | QUA-07 `missing-pattern` |
+   | `numeric-field-bounds`: a `number_field` without `min` and `max` | QUA-07 `missing-min-max` |
+   | `magic-numbers`: a `hex_colors` entry | QUA-08 `undocumented-hex-color` |
+   | any other candidate | the manifest entry's `tag` |
+
+   The candidates in one file that share a tag share one record, whose
+   `evidence` may carry several citations: the FAIL and WARN lines first
+   (`path:N,M` plus a short quote), then, after a semicolon, the PASS lines
+   in that file as `reviewed OK: path:N,M` (for example
+   `template/script.sh.erb:25 port 5000; reviewed OK:
+   template/script.sh.erb:9`). A file whose candidates for a check are all
+   PASS gets one PASS record for that check, with `evidence` listing every
+   PASS line in the file as `path:N,M`. A check with no candidates that
+   passes gets one PASS record keyed on the file it examined (the form file
+   for the form checks, the main template script otherwise, or `root` / the
+   app subpath when no single file fits) with the manifest tag. The two
+   rating checks (manifest tag null) get no record of their own: the
+   assessments block carries a rating that meets its target, and below
+   target see "What each check asks".
 
 After the loop, the **open-ended pass**: anything else worth fixing that no
 check above covers, recorded as its own finding with `file:line` evidence,
@@ -105,7 +119,8 @@ These rows carry no `check:` marker.
   `hardcoded-module-version`, `site-specific-mixin`) and the missed-by-facts
   note. Then rate Not portable / Partially portable / Portable in the
   `portability-rating` row: PASS when Partially portable or above, FAIL
-  below, citing the QUA-02 records that set it. Documented site-specific
+  below. A FAIL row cites the `hardcoded-*` records that set it and adds
+  no record of its own. Documented site-specific
   values count toward Partially portable; undocumented ones count against
   it.
 - **Documentation** (`check: documentation-rating`): rate Minimal /
@@ -116,6 +131,10 @@ These rows carry no `check:` marker.
   environment variables, info panel, architecture) from `readme.json`:
   - A rung `readme.json` maps to a heading: the heading text and its line,
     `"Installation", README.md:12` (the README path from `apps.json`).
+  - What it launches, when `readme.json` shows no Overview-type heading for
+    it: a descriptive paragraph under the H1 satisfies it (`readme.json`
+    records it with `match: "intro"`), cited as
+    `"<first words>" (intro), README.md:N`.
   - A rung that is `null`: `none`.
   - A rung whose `placeholder` is true: `none (placeholder)`, whatever the
     heading says.
@@ -131,11 +150,13 @@ These rows carry no `check:` marker.
   highest rung whose requirements, and every lower rung's, all have
   evidence; never claim a rung with a `none` line. The
   `documentation-rating` row is PASS at Adequate or above and FAIL below,
-  with a QUA-01 record (`docs-minimal`, anchored at the README path). A
-  finding's `evidence` names the root README as bare `README.md`, never
-  `README.md:N`: `README.md` is a pseudo-anchor and `check-evidence.py`
-  rejects a line number on one (a monorepo app's own README,
-  `apps/x/README.md:N`, is a real path and takes lines). Flag
+  with a QUA-01 record (`docs-minimal`, anchored at the README path, its
+  evidence citing `README.md:N`). When even Minimal is unsupported (no
+  what-it-launches or no prerequisites evidence), the README is a stub:
+  that is the Structure gate failure, recorded as QUA-01 `docs-stub`, and
+  the rating line reads `Minimal — not supported (stub README; see
+  QUA-01)`. `check-rating.py` is expected to fail on that report until the
+  README exists. Flag
   as QUA-01 a README that references another institution's paths, cluster
   names, or module names without saying they must change.
 - **Code quality** (the `code_quality` entries): error handling
