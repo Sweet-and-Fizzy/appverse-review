@@ -20,7 +20,8 @@ Most of the checking is done by **Appverse Review**, which produces an
 evidence-backed report covering structure, security, quality, and maintenance,
 with `file:line` findings, Low / Medium / High signals for portability,
 documentation, and upkeep, and a recommended decision. The reviewer receives
-that report, verifies it, curates the feedback, and makes the call. The review recommends; a human decides.
+that report, verifies it, curates the feedback, and makes the call. The review
+recommends; a human decides.
 
 ## Before you start
 

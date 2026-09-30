@@ -8,8 +8,8 @@ Per "## App:" section:
      requirements, and every lower rung's, all have non-"none" evidence lines.
   2. The Signals table's Documentation level must be the one the rating maps to
      (Strong/Exemplary -> Low, Adequate -> Medium, Minimal -> High).
-Only Documentation is checked: there is no Security signal (R4); only the
-Documentation rating and signal are checked. The findings JSON argument is
+Only Documentation is checked: there is no Security signal (R4). The
+findings JSON argument is
 kept so the command line does not change, but it is not read.
 Exit 0 when consistent, 1 with one MISMATCH line per problem, 2 when the
 report cannot be read or a needed section is missing.
