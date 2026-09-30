@@ -20,9 +20,12 @@ list; do not add or drop a check from memory of the rubric.
 `${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` first. The pre-review
 directory holds `apps.json` (each app's `app_id`, `path`, `app_type`,
 `readme`) and, per app, `<app_id>/readme.json`, `form.json` and
-`template.json`. A fact file is absent when the pre-review directory is
-absent or the app was skipped (`summary.json`'s `facts` record says why);
-then read the files yourself and say in the row that the facts were absent.
+`template.json`. `apps.json`'s `app_id` is the same `app_id` a finding
+record uses ("root" for a single-app repo, the normalised subpath for a
+monorepo app), and the per-app fact directory is `<pre-review>/<app_id>/`. A
+fact file is absent when the pre-review directory is absent or the app was
+skipped (`summary.json`'s `facts` record says why); then read the files
+yourself and say in the row that the facts were absent.
 
 ## Per-app loop
 
@@ -71,7 +74,11 @@ For each app, and for each manifest entry above in manifest order:
    when `form.json` has an `error`).
 4. **Write the records: one record per file per tag.** `defect_key` is
    `{anchor}:{tag}`, the anchor being the candidate's file, and a key
-   appears once per app. The tag is fixed, not chosen:
+   appears once per app. `erb-missing-value` (QUA-10 `erb-missing-value-unhandled`)
+   anchors on the submit file (`submit.yml.erb`, where `submit_lines` cites
+   the interpolation), never on `form.yml`; `numeric-field-bounds`'s QUA-07
+   tags anchor on `form.yml` (the candidate's `file`), never on the submit
+   file. The tag is fixed, not chosen:
 
    | Candidate | Tag |
    |---|---|
@@ -87,7 +94,11 @@ For each app, and for each manifest entry above in manifest order:
    `template/script.sh.erb:25 port 5000; reviewed OK:
    template/script.sh.erb:9`). A file whose candidates for a check are all
    PASS gets one PASS record for that check, with `evidence` listing every
-   PASS line in the file as `path:N,M`. A check with no candidates that
+   PASS line in the file as `path:N,M`. **The record merge rule:** when
+   several candidates merge into one record this way, the record's
+   `result` is the worst among them (FAIL > WARN > PASS) and its `severity`
+   the highest; the report's rows stay per candidate regardless. A check
+   with no candidates that
    passes gets one PASS record keyed on the file it examined (the form file
    for the form checks, the main template script otherwise, or `root` / the
    app subpath when no single file fits) with the manifest tag. The two
@@ -155,8 +166,8 @@ These rows carry no `check:` marker.
   what-it-launches or no prerequisites evidence), the README is a stub:
   that is the Structure gate failure, recorded as QUA-01 `docs-stub`, and
   the rating line reads `Minimal — not supported (stub README; see
-  QUA-01)`. `check-rating.py` is expected to fail on that report until the
-  README exists. Flag
+  QUA-01)`. `check-rating.py` accepts that report as long as a QUA-01
+  `docs-stub` FAIL record is present. Flag
   as QUA-01 a README that references another institution's paths, cluster
   names, or module names without saying they must change.
 - **Code quality** (the `code_quality` entries): error handling

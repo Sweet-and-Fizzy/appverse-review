@@ -82,7 +82,7 @@ its own finding with the vocabulary tag that fits or `other:`.
   - Anything else (a binary file, a permission error, a timeout, a file too
     large to check): NOT CHECKED (severity info, evidence `<path>:1` plus the
     stderr text).
-  The gate table's STR-06 row summarises them: "N files pass; M fail:
+  The per-app Structure table's STR-06 row summarises them: "N files pass; M fail:
   `<paths>`; K not checked: `<path>` (`<reason>`)", with refused symlinks
   listed among the not-checked paths. Its Evidence column cites every
   entry whose `ok` is false (failed, not checked, or refused), each as
@@ -103,7 +103,8 @@ its own finding with the vocabulary tag that fits or `other:`.
     fields. `parses` true: PASS, evidence the entry `file`. `parses` false:
     FAIL (severity high), evidence the `file` (and the line from `error`
     when it names one, as `path:N`) plus the first line of `error`,
-    `defect_key` `<file>:other:entry-point-parse-error`. `parses`
+    `defect_key` `<file>:entry-point-parse-error` (STR-07, not
+    `other:entry-point-parse-error`). `parses`
     `"not_checked"` (the interpreter is not on PATH): NOT CHECKED with the
     `note`. When `entry_point.json` is absent, key on
     `summary.json`'s `facts` record for `entry_point`, its `per_app` status

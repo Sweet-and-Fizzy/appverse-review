@@ -59,8 +59,9 @@ candidate sites, not verdicts. Security has no rating: the rows are the output.
    criterion.
 3. **Tier 1 — Candidate loop.** Read `security.json`'s `candidates`. Each has
    `kind`, `check` (the manifest id), `file` (repo-relative), `line`, `text`,
-   `rule`, `tag` (null where the scanner could not pick one), `note`, and for
-   `interpolation` also `attributes`, `guarded` and `quoted`. Go through the
+   `rule`, `tag` (the scanner always emits one), `note`, and for
+   `interpolation` also `attributes`, `guarded`, `presence_checked` and
+   `quoted`. Go through the
    security checks in manifest order, and within each check through its
    candidates in file and line order:
 
@@ -83,16 +84,16 @@ candidate sites, not verdicts. Security has no rating: the rows are the output.
    `reviewed OK: path:N,M` (for example `template/script.sh.erb:22;
    reviewed OK: template/script.sh.erb:9,23`). A file whose candidates are
    all PASS gets one PASS record for the check, with `evidence` listing
-   every PASS line in that file as `path:N,M`. A row still answers each
-   candidate on its own.
+   every PASS line in that file as `path:N,M`. **The record merge rule:**
+   when several candidates merge into one record this way, the record's
+   `result` is the worst among them (FAIL > WARN > PASS) and its `severity`
+   the highest; the report's rows stay per candidate regardless — a row
+   still answers each candidate on its own.
 
    The key's parts: `rule` is the candidate's `rule` (the manifest's when
-   absent), and the tag is the candidate's `tag`, falling back to the
-   manifest entry's `tag`. A `config_flag` candidate with no tag takes the
-   vocabulary term for what the flag does: `disabled-auth`,
-   `bind-all-interfaces` or `cors-wildcard` under OODT-05, `disabled-ssl` or
-   another OODT-08 term under OODT-08. Each row answers exactly the
-   candidate it cites (see Output for the row and citation form).
+   absent), and the tag is the candidate's `tag` — the scanner always emits
+   one, so there is no no-tag fallback to apply. Each row answers exactly
+   the candidate it cites (see Output for the row and citation form).
 
    For every candidate, decide FAIL, WARN or PASS and write one row with a
    one-line reason; never skip a candidate, and never merge two candidates
@@ -101,6 +102,10 @@ candidate sites, not verdicts. Security has no rating: the rows are the output.
      reach a shell (a select whose options the app defines, a number field
      with bounds), is usually PASS; say which. An unguarded, unquoted value
      from a free-text field reaching a shell command is a finding.
+     `presence_checked: true` is not a guard — a presence test only confirms
+     a value was supplied, it does not sanitise it, so a candidate that is
+     `presence_checked` but not `guarded` is judged the same as one with
+     neither.
    - Batch Connect: compare against the narrow baseline. Network calls from
      ERB, SSH-key reads, base64-decode-and-execute, and writes to dotfiles or
      cron are strong signals and are FAIL. A `binary_in_template` candidate

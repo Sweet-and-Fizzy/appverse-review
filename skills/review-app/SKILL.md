@@ -41,7 +41,9 @@ review-security, review-quality, review-maintenance. Each subagent's prompt:
 > (it holds `apps.json`, the app list with each `app_id`, `path` and
 > `app_type`, and one fact directory per app, `<pre-review>/<app_id>/`, with
 > `readme.json`, `form.json`, `template.json`, `entry_point.json` and
-> `security.json` as they apply);
+> `security.json` as they apply; `apps.json`'s `app_id` is the same `app_id`
+> a finding record uses, "root" for a single-app repo, the normalised
+> subpath for a monorepo app);
 > checks manifest: `${CLAUDE_PLUGIN_ROOT}/references/checks.json`;
 > languages/frameworks detected: <e.g., Ruby/Sinatra, Python/Flask, shell>;
 > dependency manifests: <Gemfile.lock, package-lock.json, requirements.txt, or none>;

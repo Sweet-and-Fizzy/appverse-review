@@ -158,6 +158,30 @@ STUB_JSON="$MANIFEST" PYTHONPATH="$STUB" python3 references/checks-sync.py --ver
 STUB_JSON="$MANIFEST" STUB_DRIFT=1 PYTHONPATH="$STUB" python3 references/checks-sync.py --verify > /dev/null 2>&1
 [ $? -eq 1 ] && ok "verify fails (exit 1) when they differ" || bad "verify fails (exit 1) when they differ"
 
+echo "Test 11: fix-wave sentences present and consistent (drift-catchers)"
+SEC_SKILL=skills/review-security/SKILL.md
+QUA_SKILL=skills/review-quality/SKILL.md
+APP_SKILL=skills/review-app/SKILL.md
+MERGE_SENTENCE="result\` is the worst among them (FAIL > WARN > PASS) and its \`severity\`"
+has "$SEC_SKILL" "$MERGE_SENTENCE" "review-security states the record merge rule"
+has "$QUA_SKILL" "$MERGE_SENTENCE" "review-quality states the record merge rule"
+has "$QUA_SKILL" "anchors on the submit file (\`submit.yml.erb\`" "erb-missing-value anchors on submit.yml.erb"
+has "$QUA_SKILL" "tags anchor on \`form.yml\`" "numeric-field-bounds/QUA-07 tags anchor on form.yml"
+APP_ID_SENTENCE="\"root\" for a single-app repo, the normalised"
+has "$APP_SKILL" "$APP_ID_SENTENCE" "review-app states apps.json app_id = finding app_id"
+has "$QUA_SKILL" "$APP_ID_SENTENCE" "review-quality states apps.json app_id = finding app_id"
+has references/security-tools.md "$APP_ID_SENTENCE" "security-tools.md ties app_id to apps.json"
+has references/target-setup.md "Same value as \`apps.json\`'s \`app_id\`" "target-setup.md ties app_id to apps.json"
+has .github/workflows/appverse-review.yaml "references/check-rows.py" "workflow prompt names check-rows.py"
+has .github/workflows/appverse-review.yaml "references/check-evidence.py" "workflow prompt names check-evidence.py"
+has .github/workflows/appverse-review.yaml "references/checks.json" "workflow prompt names checks.json"
+has .github/workflows/appverse-review.yaml "INVALID/MISSING/MISMATCH/UNCITED/BAD" "verify step lists UNCITED and BAD"
+lacks "$SEC_SKILL" "tag may be null" "security skill has no stale tag-may-be-null text"
+lacks "$SEC_SKILL" "config_flag\` candidate with no tag" "security skill has no config_flag no-tag fallback"
+has "$SEC_SKILL" "presence_checked: true\` is not a guard" "security skill states presence_checked is not a guard"
+has references/finding-codes.md "entry-point-parse-error" "finding-codes.md lists entry-point-parse-error under STR-07"
+lacks "$QUA_SKILL" "expected to fail" "review-quality has no stale check-rating expected-to-fail wording"
+
 echo
 echo "Done: $pass passed, $fail failed."
 [ "$fail" -eq 0 ]

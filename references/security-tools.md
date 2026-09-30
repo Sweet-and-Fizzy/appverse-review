@@ -17,7 +17,10 @@ never replace, the manual analysis.
   `<out-dir>/shellcheck.json`, `semgrep.json`, `bandit.json`, `trivy.json` (the
   tool's own JSON, present only when that tool ran).
 - **Candidate sites:** `<out-dir>/<app_id>/security.json`, the sites the
-  security skill must answer (see "Candidate enumeration" below).
+  security skill must answer (see "Candidate enumeration" below). `app_id`
+  here is the same `app_id` `apps.json` gives the app and a finding record
+  uses ("root" for a single-app repo, the normalised subpath for a monorepo
+  app); the per-app fact directory is `<out-dir>/<app_id>/`.
 - **Finding counts:** each record carries `finding_count` (null when the
   tool did not run) and `top_codes` (up to five most frequent codes); the
   skill's Result column is rendered from these, never recounted.

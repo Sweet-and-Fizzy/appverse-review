@@ -209,10 +209,19 @@ jobs:
             re-cloning. This is reviewer mode.
 
             Pre-review facts are in ${{ github.workspace }}/pre-review/
-            (summary.json, syntax.json, and the tool JSON files). Read them;
-            the security and structure skills tell you how.
+            (summary.json, syntax.json, the tool JSON files, apps.json, and
+            the per-app fact files: readme.json, form.json, template.json,
+            entry_point.json and security.json). Read them; the security and
+            structure skills tell you how.
             The pre-review script has already run for this checkout; do not run
             references/run-pre-review.sh yourself.
+
+            Before finishing, verify your own report and findings against
+            references/checks.json by running (as the review-app skill's §6
+            gives them):
+              python3 references/check-rows.py review-<slug>.md review-<slug>.findings.json references/checks.json ${{ github.workspace }}/pre-review
+              python3 references/check-evidence.py review-<slug>.findings.json --target ${{ github.workspace }}/target-repo
+            and fix whatever they report before finishing.
 
             These values are already resolved; use them as given rather
             than running git for them:
@@ -529,7 +538,7 @@ jobs:
           check_failed=0
           for pair in "feedback floor:$FLOOR_OUTCOME" "finding keys:$KEYS_OUTCOME" "rating:$RATINGS_OUTCOME" "rows:$ROWS_OUTCOME" "evidence:$EVIDENCE_OUTCOME"; do
             if [ "${pair##*:}" = "failure" ]; then
-              echo "::error::Review produced its outputs but the ${pair%%:*} check failed; see that step's INVALID/MISSING/MISMATCH lines"
+              echo "::error::Review produced its outputs but the ${pair%%:*} check failed; see that step's INVALID/MISSING/MISMATCH/UNCITED/BAD lines"
               check_failed=1
             fi
           done

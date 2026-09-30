@@ -241,7 +241,8 @@ file, a permission error, a timeout, an oversized file) is NOT CHECKED with
 the stderr text as evidence.
 
 **STR-07:**
-`missing-entry-point`, `missing-submit-yml`, `layout-mismatch`
+`missing-entry-point`, `missing-submit-yml`, `layout-mismatch`,
+`entry-point-parse-error`
 
 **STR-08:**
 `dependency-manifest-inconsistent`

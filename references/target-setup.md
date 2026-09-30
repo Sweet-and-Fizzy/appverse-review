@@ -110,7 +110,7 @@ Field definitions:
 
 | Field | Required | Identity (hashed) | Description |
 |---|---|---|---|
-| `app_id` | Yes | Yes | `"root"` for single-app repos; subpath for monorepos |
+| `app_id` | Yes | Yes | `"root"` for single-app repos; subpath for monorepos. Same value as `apps.json`'s `app_id` for the app; the per-app pre-review fact directory is `<pre-review>/<app_id>/` |
 | `rule` | Yes | Yes | Code from `finding-codes.md` (OODT-XX, STR-XX, QUA-XX, MNT-XX) |
 | `defect_key` | Yes | Yes | `{anchor}:{mechanism_tag}` per `finding-codes.md`. The anchor is relative to the repo root, so a monorepo app's anchor includes its subpath (`apps/good-app/form.yml:missing-min-max`) |
 | `aspect` | Yes | No | `security`, `structure`, `quality`, or `maintenance` |
