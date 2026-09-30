@@ -203,6 +203,21 @@
       "dimension": "security"
     },
     {
+      "id": "sec-tool-finding",
+      "section": "Tier 2 — Tooling",
+      "app_types": [
+        "batch_connect",
+        "passenger",
+        "companion",
+        "widget"
+      ],
+      "fact_source": "security.json",
+      "rule": null,
+      "tag": null,
+      "row_required": "when_candidates",
+      "dimension": "security"
+    },
+    {
       "id": "hardcoded-site-paths",
       "section": "Portability",
       "app_types": [

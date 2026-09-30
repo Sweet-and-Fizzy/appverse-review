@@ -2044,7 +2044,7 @@ def check_entry_point(target, apps, out):
 # security.json: the candidate sites the security skill must answer (R4).
 SEC_KINDS = ("interpolation", "unquoted_expansion", "eval_exec", "network_call",
              "file_write_outside_job", "permission_change", "credential_string", "config_flag",
-             "binary_in_template")
+             "binary_in_template", "tool_finding")
 # kind -> (manifest check id, rule, default mechanism tag)
 SEC_KIND = {
     "interpolation": ("sec-interpolation", "OODT-01", "unsanitized-user-input"),
@@ -2056,7 +2056,13 @@ SEC_KIND = {
     "credential_string": ("sec-credential-string", "OODT-02", "hardcoded-credential"),
     "config_flag": ("sec-config-flag", "OODT-08", None),
     "binary_in_template": ("sec-binary-in-template", "OODT-04", "binary-in-template"),
+    "tool_finding": ("sec-tool-finding", None, None),
 }
+# tool_finding: shellcheck levels below this are excluded (style); semgrep
+# severities below this are excluded (INFO). bandit has no excluded level.
+SHELLCHECK_EXCLUDED_LEVELS = ("style",)
+SEMGREP_EXCLUDED_SEVERITIES = ("INFO",)
+TOOL_FINDING_CEILING = 15
 TEXT_CAP = 200
 NO_SCOPE = "no in-scope files"
 BC_FILES = ("submit.yml.erb", "submit.yml", "form.yml", "form.yml.erb", "connection.yml",
@@ -2664,11 +2670,92 @@ def _binary_kind(path):
     return kind if ext in MAGIC_EXTS.get(kind, ()) else "binary"
 
 
+def _tool_finding_candidates(files, out):
+    """tool_finding candidates from shellcheck.json / semgrep.json /
+    bandit.json in out (pre-review's out-dir), one per (tool, code, file),
+    filtered to files (the app's security scope, {repo-relative: absolute}).
+    shellcheck style level and semgrep INFO severity are excluded; bandit has
+    no severity floor. out may be None (no tool-finding candidates then)."""
+    if not out:
+        return []
+    groups = {}  # (tool, code, file) -> {"lines": set, "level": str, "text": str}
+
+    def add(tool, code, rel, line, level, text):
+        if rel not in files:
+            return
+        key = (tool, code, rel)
+        g = groups.setdefault(key, {"lines": set(), "level": level, "text": text})
+        g["lines"].add(line)
+
+    sc_path = os.path.join(out, "shellcheck.json")
+    if os.path.isfile(sc_path):
+        try:
+            items = json.load(open(sc_path, encoding="utf-8"))
+        except (ValueError, OSError):
+            items = []
+        for item in items or []:
+            level = item.get("level")
+            if level in SHELLCHECK_EXCLUDED_LEVELS:
+                continue
+            code = "SC%s" % item.get("code")
+            add("shellcheck", code, item.get("file"), item.get("line"), level, item.get("message") or "")
+
+    sg_path = os.path.join(out, "semgrep.json")
+    if os.path.isfile(sg_path):
+        try:
+            data = json.load(open(sg_path, encoding="utf-8"))
+        except (ValueError, OSError):
+            data = {}
+        for r in (data.get("results") or []):
+            severity = (r.get("extra") or {}).get("severity")
+            if severity in SEMGREP_EXCLUDED_SEVERITIES:
+                continue
+            code = str(r.get("check_id"))
+            line = (r.get("start") or {}).get("line")
+            text = (r.get("extra") or {}).get("message") or ""
+            add("semgrep", code, r.get("path"), line, severity, text)
+
+    bd_path = os.path.join(out, "bandit.json")
+    if os.path.isfile(bd_path):
+        try:
+            data = json.load(open(bd_path, encoding="utf-8"))
+        except (ValueError, OSError):
+            data = {}
+        for r in (data.get("results") or []):
+            code = str(r.get("test_id"))
+            level = r.get("issue_severity")
+            add("bandit", code, r.get("filename"), r.get("line_number"), level, r.get("issue_text") or "")
+
+    cands = []
+    for (tool, code, rel), g in groups.items():
+        lines = sorted(g["lines"])
+        cands.append({"kind": "tool_finding", "check": "sec-tool-finding", "rule": None, "tag": None,
+                      "tool": tool, "code": code, "file": rel, "lines": lines, "line": lines[0],
+                      "level": g["level"], "text": g["text"].strip()[:TEXT_CAP], "note": ""})
+    cands.sort(key=lambda c: (c["file"], c["lines"][0], c["tool"], c["code"]))
+
+    if len(cands) > TOOL_FINDING_CEILING:
+        collapsed = {}
+        for c in cands:
+            key = (c["tool"], c["code"])
+            if key not in collapsed:
+                collapsed[key] = {"kind": "tool_finding", "check": "sec-tool-finding", "rule": None,
+                                  "tag": None, "tool": c["tool"], "code": c["code"], "file": None,
+                                  "lines": ["%s:%d" % (c["file"], n) for n in c["lines"]],
+                                  "line": None, "level": c["level"], "text": c["text"], "note": ""}
+            else:
+                collapsed[key]["lines"].extend("%s:%d" % (c["file"], n) for n in c["lines"])
+        cands = sorted(collapsed.values(), key=lambda c: (c["tool"], c["code"]))
+    return cands
+
+
 def scan_security(app_dir, target, app_type, exclude=None):
     """security.json for one app directory, or None when nothing is in scope.
     Every in-scope file is read under the shell-file rule (refused files are
     listed in skipped_files); a binary under template/ is a
-    binary_in_template candidate, elsewhere it is skipped."""
+    binary_in_template candidate, elsewhere it is skipped. exclude doubles as
+    the pre-review out-dir: when given, tool_finding candidates are read from
+    its shellcheck.json / semgrep.json / bandit.json."""
     scope, files, skipped = _security_scope(app_dir, target, app_type, exclude)
     prefix = _app_rel(app_dir, target)
     attrs = _form_attrs(target, app_dir)
@@ -2760,9 +2847,14 @@ def scan_security(app_dir, target, app_type, exclude=None):
                     break
     order = {k: n for n, k in enumerate(SEC_KINDS)}
     cands.sort(key=lambda c: (c["file"], c["line"], order[c["kind"]]))
+    tool_cands = _tool_finding_candidates(files, exclude)
+    collapsed = any(c.get("line") is None for c in tool_cands)
+    cands = cands + tool_cands
     if not scanned and not cands and not skipped:
         return None
     counts = {k: sum(1 for c in cands if c["kind"] == k) for k in SEC_KINDS}
+    if collapsed:
+        counts["tool_finding_collapsed"] = True
     return {"counts": counts, "scope": scope, "files": scanned, "attributes": list(attrs),
             "candidates": cands,
             "skipped_files": [{"file": f, "reason": r} for f, r in sorted(set(skipped))]}

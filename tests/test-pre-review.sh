@@ -908,9 +908,11 @@ check "monorepo without template dirs: skipped, noted" "{'apps/good-app': 'skipp
 echo "Test 44: security candidates, fixtures"
 # sc <app dir> <target> <app_type> <expression over d (security facts)>
 sc() { px "d=pr.scan_security(A[0], A[1], A[2]); r=$4" "$1" "$2" "$3"; }
+# sco <app dir> <target> <app_type> <out> <expression over d>: scan_security with a pre-review out-dir, so tool_finding candidates are read
+sco() { px "d=pr.scan_security(A[0], A[1], A[2], A[3]); r=$5" "$1" "$2" "$3" "$4"; }
 CL="','.join('%s:%s:%s' % (c['kind'], c['file'], c['line']) for c in d['candidates'])"
 NZ="','.join('%s=%s' % kv for kv in d['counts'].items() if kv[1])"
-KINDS="interpolation,unquoted_expansion,eval_exec,network_call,file_write_outside_job,permission_change,credential_string,config_flag,binary_in_template"
+KINDS="interpolation,unquoted_expansion,eval_exec,network_call,file_write_outside_job,permission_change,credential_string,config_flag,binary_in_template,tool_finding"
 BY="[c for c in d['candidates'] if c['kind']=="
 IF="[c for c in d['candidates'] if c['kind']=='interpolation' and c['file']=="
 FL3="'|'.join('%s:%s:%s:%s' % (c['line'], ','.join(c['attributes']), c['guarded'], c['quoted']) for c in"
@@ -978,10 +980,13 @@ echo 1000 > /proc/self/oom_score_adj
 CPP_FILE="<%= session.staged_root %>/.vscode/c.json"
 SH
 printf '<?xml version="1.0"?>\n<!DOCTYPE Menu PUBLIC "-//freedesktop//DTD Menu 1.0//EN"\n "http://www.freedesktop.org/standards/menu-spec/1.0/menu.dtd">\n<Menu/>\n' > "$T/template/menu.xml"
-check "every kind once, by file then line" "binary_in_template:template/bin/tool:1,interpolation:template/script.sh.erb:3,unquoted_expansion:template/script.sh.erb:4,network_call:template/script.sh.erb:5,eval_exec:template/script.sh.erb:6,file_write_outside_job:template/script.sh.erb:7,permission_change:template/script.sh.erb:8,credential_string:template/script.sh.erb:9,config_flag:template/script.sh.erb:10" "$(sc "$T" "$T" batch_connect "$CL")"
-check "counts all 1" "$(echo "$KINDS" | tr ',' '\n' | sed 's/$/=1/' | paste -sd, -)" "$(sc "$T" "$T" batch_connect "$NZ")"
-check "rules and checks by kind" "OODT-04:sec-binary-in-template,OODT-01:sec-interpolation,OODT-01:sec-interpolation,OODT-04:sec-network-call,OODT-01:sec-eval-exec,OODT-07:sec-file-write-outside-job,OODT-03:sec-permissive-mode,OODT-02:sec-credential-string,OODT-05:sec-config-flag" "$(sc "$T" "$T" batch_connect "','.join('%s:%s' % (c['rule'], c['check']) for c in d['candidates'])")"
-check "tags by kind" "binary-in-template,unsanitized-user-input,unquoted-variable,unexpected-network-call,eval-exec,dotfile-write,permissive-file-mode,hardcoded-credential,bind-all-interfaces" "$(sc "$T" "$T" batch_connect "','.join(str(c['tag']) for c in d['candidates'])")"
+O45="$TMP/o45"; mkdir -p "$O45"
+printf '[{"file": "template/script.sh.erb", "line": 4, "endLine": 4, "column": 1, "endColumn": 1, "level": "warning", "code": 2164, "message": "Use %s in case cd fails."}]' "'cd ... || exit'" > "$O45/shellcheck.json"
+check "every kind once, by file then line" "binary_in_template:template/bin/tool:1,interpolation:template/script.sh.erb:3,unquoted_expansion:template/script.sh.erb:4,network_call:template/script.sh.erb:5,eval_exec:template/script.sh.erb:6,file_write_outside_job:template/script.sh.erb:7,permission_change:template/script.sh.erb:8,credential_string:template/script.sh.erb:9,config_flag:template/script.sh.erb:10,tool_finding:template/script.sh.erb:4" "$(sco "$T" "$T" batch_connect "$O45" "$CL")"
+check "counts all 1" "$(echo "$KINDS" | tr ',' '\n' | sed 's/$/=1/' | paste -sd, -)" "$(sco "$T" "$T" batch_connect "$O45" "$NZ")"
+check "rules and checks by kind" "OODT-04:sec-binary-in-template,OODT-01:sec-interpolation,OODT-01:sec-interpolation,OODT-04:sec-network-call,OODT-01:sec-eval-exec,OODT-07:sec-file-write-outside-job,OODT-03:sec-permissive-mode,OODT-02:sec-credential-string,OODT-05:sec-config-flag,None:sec-tool-finding" "$(sco "$T" "$T" batch_connect "$O45" "','.join('%s:%s' % (c['rule'], c['check']) for c in d['candidates'])")"
+check "tags by kind" "binary-in-template,unsanitized-user-input,unquoted-variable,unexpected-network-call,eval-exec,dotfile-write,permissive-file-mode,hardcoded-credential,bind-all-interfaces,None" "$(sco "$T" "$T" batch_connect "$O45" "','.join(str(c['tag']) for c in d['candidates'])")"
+check "tool_finding candidate shape: code, lines, level" "SC2164|[4]|warning" "$(sco "$T" "$T" batch_connect "$O45" "'%s|%s|%s' % ($BY'tool_finding'][0]['code'], $BY'tool_finding'][0]['lines'], $BY'tool_finding'][0]['level'])")"
 check "unquoted expansion names the variable and its attribute" "True|True" "$(sc "$T" "$T" batch_connect "'%s|%s' % ('\$RUNDIR' in d['candidates'][2]['note'], 'wd' in d['candidates'][2]['note'])")"
 check "mode and world-writable are noted" "chmod 777, world-writable" "$(sc "$T" "$T" batch_connect "d['candidates'][6]['note']")"
 check "binary text; quiet.sh scanned" "binary file (12 bytes)|True" "$(sc "$T" "$T" batch_connect "d['candidates'][0]['text'] + '|' + str('template/quiet.sh' in d['files'])")"
@@ -1117,5 +1122,51 @@ RB
 printf "app.listen(3000, '::')\nserver.listen(3000, 'localhost')\n" > "$T/server.js"
 check "Ruby backticks and %x() are eval_exec; #{} host is no URL; listen '::' binds" "eval_exec:app.rb:1,eval_exec:app.rb:2,config_flag:server.js:1" "$(sc "$T" "$T" passenger "$CL")"
 check "companion app gets entry_point.json" "ran|{'root': 'ran'}|config.ru" "$(printf 'app_type: companion\n' > "$T/appverse.yml"; rec entry_point "$T" "$TMP/o48" "'%s|%s' % (c['status'], c['per_app'])")|$(j "$TMP/o48/root/entry_point.json" "d['file']")"
+
+echo "Test 49: tool_finding candidates, end to end through run-pre-review.sh"
+T="$TMP/t49"; mkdir -p "$T/template"
+printf 'x: 1\n' > "$T/form.yml"
+cat > "$T/template/script.sh.erb" <<'SH'
+#!/bin/bash
+DIR=/tmp/work
+cd $DIR
+echo $X
+echo $X
+SH
+O="$TMP/o49"
+check "exit 0" 0 "$(run "$T" "$O")"
+if has_sc; then
+  check "SC2164 (cd, line 3) and SC2086 (both echo lines) are tool_finding candidates" \
+    "SC2164:[3]|SC2086:[4, 5]" \
+    "$(j "$O/root/security.json" "'|'.join('%s:%s' % (c['code'], c['lines']) for c in d['candidates'] if c['kind']=='tool_finding')")"
+  check "tool_finding candidates carry check, rule, tag null; the manifest check maps rule/tag per match" \
+    "sec-tool-finding:None:None|sec-tool-finding:None:None" \
+    "$(j "$O/root/security.json" "'|'.join('%s:%s:%s' % (c['check'], c['rule'], c['tag']) for c in d['candidates'] if c['kind']=='tool_finding')")"
+  check "no tool_finding_collapsed key below the ceiling" "False" "$(j "$O/root/security.json" "'tool_finding_collapsed' in d['counts']")"
+else skip "shellcheck not installed"; skip "shellcheck not installed"; skip "shellcheck not installed"; fi
+
+echo "Test 50: tool_finding excludes shellcheck style level (assert on the level filter with a synthetic shellcheck JSON, since -S info already keeps every other level)"
+T="$TMP/t50"; mkdir -p "$T/template"
+printf 'x: 1\n' > "$T/form.yml"
+printf '#!/bin/bash\necho hi\n' > "$T/template/a.sh"
+O="$TMP/o50"; mkdir -p "$O"
+printf '[{"file": "template/a.sh", "line": 1, "level": "style", "code": 2250, "message": "style-only hint"},\n {"file": "template/a.sh", "line": 2, "level": "info", "code": 2086, "message": "kept"}]' > "$O/shellcheck.json"
+check "style level excluded, info level kept" "SC2086" "$(sco "$T" "$T" batch_connect "$O" "','.join(c['code'] for c in d['candidates'] if c['kind']=='tool_finding')")"
+
+echo "Test 51: tool_finding ceiling collapses to one per (tool, code) across files"
+T="$TMP/t51"; mkdir -p "$T/template"
+printf 'x: 1\n' > "$T/form.yml"
+printf '#!/bin/bash\necho hi\n' > "$T/template/a.sh"
+printf '#!/bin/bash\necho hi\n' > "$T/template/b.sh"
+O="$TMP/o51"; mkdir -p "$O"
+python3 - "$O/shellcheck.json" <<'PY'
+import json, sys
+items = [{"file": "template/a.sh" if i % 2 == 0 else "template/b.sh", "line": i + 1,
+          "level": "warning", "code": 2000 + i, "message": "msg %d" % i} for i in range(16)]
+json.dump(items, open(sys.argv[1], "w"))
+PY
+check "16 distinct codes collapse to 16 (tool, code) candidates" "16" "$(sco "$T" "$T" batch_connect "$O" "len([c for c in d['candidates'] if c['kind']=='tool_finding'])")"
+check "counts.tool_finding_collapsed is set" "True" "$(sco "$T" "$T" batch_connect "$O" "d['counts'].get('tool_finding_collapsed')")"
+check "a collapsed candidate has no single file; lines carry file:line strings" "None|True" "$(sco "$T" "$T" batch_connect "$O" "'%s|%s' % ($BY'tool_finding'][0]['file'], all(':' in x for x in $BY'tool_finding'][0]['lines']))")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

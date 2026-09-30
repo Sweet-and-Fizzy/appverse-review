@@ -57,7 +57,16 @@ Candidate sets, per check id (fact files are <out>/<app_id>/<name>.json,
 syntax.json is <out>/syntax.json; a missing fact file means no candidates):
   str-06-syntax          syntax.json entries with ok false under the app path
   entry-point-parses     entry_point.json when parses is false
-  sec-*                  security.json candidates of the kinds in SECURITY_KINDS
+  sec-*                  security.json candidates of the kinds in SECURITY_KINDS.
+                         sec-tool-finding is one candidate per (tool, code,
+                         file) (lines carry every line that tool raised the
+                         code at); a row answers it only when its Evidence
+                         cites at least one of those lines AND its Summary
+                         names the code as a whole token (the code-naming
+                         rule) -- citing the line alone, from any check, is
+                         not enough. A collapsed candidate (more than 15
+                         tool-finding candidates in the app) has no single
+                         file; its lines are "file:line" strings instead.
   hardcoded-site-paths   template.json absolute_paths
   magic-numbers          template.json numeric_literals + hex_colors
                          (hex_colors: #rrggbb literals in any template file)
@@ -106,6 +115,7 @@ SECURITY_KINDS = {
     "sec-file-write-outside-job": ("file_write_outside_job",),
     "sec-config-flag": ("config_flag",),
     "sec-binary-in-template": ("binary_in_template",),
+    "sec-tool-finding": ("tool_finding",),
 }
 TEMPLATE_KEYS = {
     "hardcoded-site-paths": ("absolute_paths",),
@@ -117,6 +127,11 @@ CONSTRAINED_WIDGETS = {"select", "radio_button", "radio", "check_box", "checkbox
 MARKER = re.compile(r"`check:\s*([A-Za-z0-9_.-]+)`")
 RESULTS = ("NOT CHECKED", "FAIL", "WARN", "PASS")
 RESULT_RE = re.compile(r"[^A-Z]*(" + "|".join(RESULTS).replace(" ", r"\s+") + r")(?![A-Z])")
+# sec-tool-finding: a candidate's label carries its code after the last ':',
+# so a row's Evidence-citing answer can be checked separately for naming the
+# code as a whole token in its Summary (the code-naming rule).
+TOOL_FINDING_LABEL = "{site}:{code}"
+TOOL_FINDING_CODE_RE = lambda code: re.compile(r"(?<![\w-])" + re.escape(code) + r"(?![\w-])")
 
 
 class InputError(Exception):
@@ -217,6 +232,24 @@ def candidates(check, app, out):
         if isinstance(ep, dict) and ep.get("parses") is False and ep.get("file"):
             p = ep["file"]
             found.append((p, [(x, None) for x in paths_for(prefix, p)], None))
+    elif cid == "sec-tool-finding":
+        sec = fact(out, app_id, "security.json")
+        for c in (sec.get("candidates") or []) if isinstance(sec, dict) else []:
+            if c.get("kind") != "tool_finding":
+                continue
+            code = c.get("code")
+            if c.get("file"):
+                cites = [(p, n) for p, _ in site(prefix, c["file"], None) for n in (c.get("lines") or [])]
+                site_label = label(paths_for(prefix, c["file"])[0], None)
+            else:
+                cites, sites_seen = [], []
+                for entry in c.get("lines") or []:
+                    path, _, tail = str(entry).rpartition(":")
+                    if path and tail.isdigit():
+                        cites.extend(site(prefix, path, int(tail)))
+                        sites_seen.append(path)
+                site_label = ",".join(sites_seen) or "?"
+            found.append((TOOL_FINDING_LABEL.format(site=site_label, code=code), cites, None))
     elif cid in SECURITY_KINDS:
         sec = fact(out, app_id, "security.json")
         for c in (sec.get("candidates") or []) if isinstance(sec, dict) else []:
@@ -308,9 +341,9 @@ def header_name(cell):
 
 
 def rows_by_check(body):
-    """{check_id: [{"result", "severity", "evidence"}, ...]} from tables with a
-    Check column. Evidence runs from the Evidence column to the end of the
-    row when the row has more cells than the header."""
+    """{check_id: [{"result", "severity", "evidence", "summary"}, ...]} from
+    tables with a Check column. Evidence runs from the Evidence column to the
+    end of the row when the row has more cells than the header."""
     rows = {}
     lines = body.splitlines()
     i = 0
@@ -326,6 +359,7 @@ def rows_by_check(body):
             ri = head.index("result") if "result" in head else None
             ei = head.index("evidence") if "evidence" in head else None
             si = head.index("severity") if "severity" in head else None
+            sui = head.index("summary") if "summary" in head else None
             while i < len(lines) and lines[i].lstrip().startswith("|"):
                 cells = split_row(lines[i])
                 get = lambda k: cells[k] if k is not None and k < len(cells) else ""
@@ -336,7 +370,8 @@ def rows_by_check(body):
                 evidence = get(ei)
                 if ei is not None and len(cells) > len(head):
                     evidence = " | ".join(cells[ei:])
-                row = {"result": result, "severity": get(si), "evidence": evidence}
+                row = {"result": result, "severity": get(si), "evidence": evidence,
+                       "summary": get(sui)}
                 for cid in MARKER.findall(get(ci)):
                     rows.setdefault(cid, []).append(row)
                 i += 1
@@ -414,9 +449,16 @@ def main(argv):
                 problems.append("MISSING {} {}".format(app["app_id"], cid) +
                                 "".join("\n  candidate {}".format(c[0]) for c in cands))
                 continue
-            answering = [r["evidence"] for r in found if r["result"] != "NOT CHECKED"]
+            answering = [r for r in found if r["result"] != "NOT CHECKED"]
             for lab, cites, _ in cands:
-                if not any(cited(ev, p, n) for ev in answering for p, n in cites):
+                if cid == "sec-tool-finding":
+                    code = lab.rsplit(":", 1)[-1]
+                    code_re = TOOL_FINDING_CODE_RE(code)
+                    answered = any(cited(r["evidence"], p, n) and code_re.search(r["summary"])
+                                   for r in answering for p, n in cites)
+                else:
+                    answered = any(cited(r["evidence"], p, n) for r in answering for p, n in cites)
+                if not answered:
                     problems.append("UNCITED {} {} {}".format(app["app_id"], cid, lab))
     for p in problems:
         print(p)
