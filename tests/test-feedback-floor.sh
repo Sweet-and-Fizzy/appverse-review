@@ -564,4 +564,14 @@ check "reason" "MISSING QUA-08 template/script.sh.erb:undocumented-hex-color (de
 printf '## Draft feedback\n<!-- feedback-covers: template/script.sh.erb:undocumented-hex-color -->\nPolish in template/script.sh.erb: the hex color needs a comment.\n' > "$TMP/t47b.md"
 check "the defect after a ':' lead-in, same sentence: exit 0" 0 "$(run "$TMP/t47.json" "$TMP/t47b.md")"
 
+echo "Test 48: a CamelCase word or acronym incidental to the evidence source ('GitHub' in 'GitHub API') is not a literal; unrelated prose that happens to say it stays MISSING"
+cat > "$TMP/t48.json" <<'EOF'
+[{"app_id":"root","rule":"MNT-01","defect_key":"commits:stale-repo","result":"FAIL","severity":"high","evidence":"GitHub API: pushed_at=2023-01-01"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: commits:stale-repo -->\nPlease commit a LICENSE file on GitHub.\n' > "$TMP/t48a.md"
+check "GitHub alone from the evidence source does not describe the defect: exit 1" 1 "$(run "$TMP/t48.json" "$TMP/t48a.md")"
+check "reason" "MISSING MNT-01 commits:stale-repo (defect not described in feedback)" "$(head -1 "$TMP/out")"
+printf '## Draft feedback\n<!-- feedback-covers: commits:stale-repo -->\nThe repo looks stale: no commit has landed in a long time.\n' > "$TMP/t48b.md"
+check "a mechanism word still describes it: exit 0" 0 "$(run "$TMP/t48.json" "$TMP/t48b.md")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

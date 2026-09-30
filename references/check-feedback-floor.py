@@ -604,11 +604,14 @@ def evidence_literals(evidence, candidates):
     """Concrete values quoted in the evidence (outside its '; reviewed OK:'
     part and its file:line citations): tokens of three or more characters
     that read as a value rather than an English word, because they hold a
-    digit, '_', '/' or '.', or two or more capitals (`bc_osc_matlab`,
-    `2018a`, `MATLAB`). A '/'-joined token also gives its parts. Tokens
-    that are purely digits (line numbers have their own rule) or name the
-    finding's own file are left out, so the file name never describes its
-    own defect."""
+    digit, '_', or '.' (`bc_osc_matlab`, `2018a`). A '/'-joined token also
+    gives its parts. Tokens that are purely digits (line numbers have
+    their own rule) or name the finding's own file are left out, so the
+    file name never describes its own defect. A CamelCase word or
+    all-caps acronym alone (`GitHub`, `MATLAB`) does not qualify: those
+    show up incidentally in evidence sources like "GitHub API" and would
+    otherwise let generic prose ("...on GitHub...") pass for a
+    description."""
     text = CITATION_RE.sub(" ", split_reviewed_ok(str(evidence or ""))[0])
     names = {c.lower() for c in candidates} | {os.path.basename(c).lower() for c in candidates}
     out = []
@@ -616,7 +619,7 @@ def evidence_literals(evidence, candidates):
         tok = tok.strip("./-")
         for t in [tok] + (tok.split("/") if "/" in tok else []):
             if (len(t) >= 3 and not t.isdigit() and t.lower() not in names
-                    and (re.search(r"[0-9_/.]", t) or len(re.findall(r"[A-Z]", t)) >= 2)):
+                    and re.search(r"[0-9_/.]", t)):
                 out.append(t)
     return out
 
