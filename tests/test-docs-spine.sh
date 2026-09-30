@@ -108,7 +108,7 @@ unmarked=$(echo "$cq_rows" | grep -vE '`check: [A-Za-z0-9_.-]+`' || true)
 [ -z "$unmarked" ] && ok "every Code Quality table row carries a check: marker" \
   || { bad "every Code Quality table row carries a check: marker"; echo "$unmarked"; }
 
-echo "Test 9b: every manifest entry has a tag, and each non-null tag is in finding-codes.md under its rule"
+echo "Test 9b: every manifest entry has a tag field (a tag or null), and each non-null tag is in finding-codes.md under its rule"
 TAGS_OUT=$(mktemp)
 python3 - "$MANIFEST" references/finding-codes.md > "$TAGS_OUT" 2>&1 <<'PY'
 import json, re, sys
@@ -204,9 +204,9 @@ CONTENT_FORM=$(grep -o '`content: README.md:N`' "$QUA_SKILL" | head -1 | tr -d '
   && ok "review-quality's content: citation form is the one check-evidence parses" || bad "review-quality's content: citation form is the one check-evidence parses"
 has "$RUBRIC" "\`$CONTENT_FORM\`" "rubric writes the same content: citation form"
 has skills/review-structure/SKILL.md "readme-not-substantive" "review-structure records STR-01 readme-not-substantive, the record check-rating falls back to"
-STUB_N=$(checker references/pre-review.py 'STUB_CONTENT_LINES')
-has "$RUBRIC" "fewer than $STUB_N content lines" "rubric states pre-review's stub threshold"
-has skills/review-structure/SKILL.md "fewer than $STUB_N content lines" "review-structure states pre-review's stub threshold"
+STUB_N=$(checker references/pre-review.py 'STUB_CONTENT_CHARS')
+has "$RUBRIC" "fewer than $STUB_N characters of content" "rubric states pre-review's stub threshold"
+has skills/review-structure/SKILL.md "fewer than $STUB_N characters of content" "review-structure states pre-review's stub threshold"
 
 echo "Test 12: every code_quality check's manifest weight matches its rubric row"
 WEIGHTS_OUT=$(mktemp)
@@ -228,6 +228,29 @@ while read -r id weight; do
   esac
 done < "$WEIGHTS_OUT"
 rm -f "$WEIGHTS_OUT"
+
+echo "Test 13: checker-emitted strings and scanner constants the docs write"
+CLAIM=$(checker references/check-rating.py 'SECURITY_CLAIM_SENTENCE')
+has "$SEC_SKILL" "\"$CLAIM\"" "review-security writes check-rating's security sentence"
+has "$APP_SKILL" "\"$CLAIM\"" "review-app writes check-rating's security sentence"
+has "$RUBRIC" "\"${CLAIM%.}\"" "rubric writes check-rating's security sentence"
+VERDICT=$(checker references/check-evidence.py 'VALUE_VERDICT')
+has "$APP_SKILL" "\`$VERDICT\` line" "review-app names check-evidence's cited-value verdict"
+has references/review-checklist.md "\`$VERDICT\`" "reviewer checklist names check-evidence's cited-value verdict"
+TOOLS=references/security-tools.md
+for code in $(checker references/pre-review.py '" ".join(ARTIFACT_CODES)'); do
+  grep -qE "^\| $code \|.*\| (in|on) [^|]*\|\$" "$TOOLS" && ok "security-tools code table marks $code as an artefact" \
+    || bad "security-tools code table marks $code as an artefact"
+done
+for var in $(checker references/pre-review.py '" ".join(OOD_CONTRACT_VARS)'); do
+  grep -E "^\| SC2154 \|" "$TOOLS" | grep -qF "\`$var\`" && ok "SC2154 row names contract variable $var" \
+    || bad "SC2154 row names contract variable $var"
+done
+no_codes=$(grep -E '^\| (SC|B)[0-9]+ \|.*\| no \|$' "$TOOLS" | sed 's/^| \([A-Z0-9]*\) .*/\1/')
+arte=" $(checker references/pre-review.py '" ".join(ARTIFACT_CODES)') "
+stray=""
+for code in $no_codes; do case "$arte" in *" $code "*) stray="$stray $code";; esac; done
+[ -z "$stray" ] && ok "no code the table calls not-an-artefact is in ARTIFACT_CODES" || bad "no code the table calls not-an-artefact is in ARTIFACT_CODES (got:$stray)"
 
 echo
 echo "Done: $pass passed, $fail failed."

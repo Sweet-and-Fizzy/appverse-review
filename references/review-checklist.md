@@ -153,8 +153,10 @@ taking them on trust. Spot-check that:
    pass, distinct from the per-candidate rows above it: read it as free-form
    findings, not as answers to the enumeration. `check-evidence.py` (with
    `--report`) automates part of this: it confirms every cited `file:line`
-   exists and is in range, and that a specific value quoted in backticks in a
-   finding's or row's summary actually appears on the line(s) cited for it.
+   exists and is in range. It also looks for a literal value quoted in
+   backticks in a finding's or row's summary on the line(s) cited for it, but
+   only reports a miss as a `NOTE` (the rule is not yet precise enough to
+   fail a run), so read those lines yourself.
 3. Portability and Documentation ratings and any correctness-&-polish findings match what you see —
    documentation level, portability, and any copy-paste artifacts or typos.
 4. Upkeep signals are current — last commit, releases, CI, CHANGELOG.

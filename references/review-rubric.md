@@ -262,7 +262,7 @@ These catch capabilities used unsafely, across all app types.
 | Framework security features disabled (CSP, host checking) | Removes built-in protections | Insecure Configuration |
 | Debug output to world-readable locations | Leaks paths, usernames, system info | Insecure Configuration |
 | Missing `--cleanenv` with sensitive host environment | Host variables leak into the container | Container Security |
-| A static-analysis tool finding (shellcheck, semgrep, bandit) not already covered by another candidate (`check: sec-tool-finding`) | Varies by code — a tool finding is answered on its own merits, using the code's OODT mapping in `security-tools.md`'s Tool Lookup Table | Varies |
+| A static-analysis tool finding (shellcheck, semgrep, bandit) (`check: sec-tool-finding`) | Varies by code — a tool finding is answered on its own merits, with the rule and tag `security-tools.md`'s "Tool finding codes: rule and tag" table gives the code; a finding at a line another candidate covers still needs its row; name the covering row | Varies |
 
 ### OODT — Open OnDemand App Threats
 
@@ -380,9 +380,10 @@ environment-variables heading with no image or variable under it is
 "heading only", weaker evidence the reviewer checks. The reviewer may judge
 that a listed section does not satisfy its requirement. A requirement
 `readme.json` shows no heading for is met by a README line that delivers
-it, cited as `content: README.md:N`; the line must be text, not a heading,
-code, placeholder, contact or badge line, and without one the requirement
-is `none`. With no
+it, cited as `content: README.md:N` (the path is `readme.json`'s `file`,
+the app's own README in a monorepo); the line must be text, not a heading,
+code, placeholder, contact or badge line, one line meets one requirement,
+and without one the requirement is `none`. With no
 Overview-type heading, a descriptive paragraph under the README's title
 satisfies "what it launches" (`readme.json` records it as the intro). The
 level is the highest one whose requirements, and every lower level's, all
@@ -390,7 +391,7 @@ have evidence. A README that is not a stub but has no evidence even for
 Minimal is rated Below minimal, with a QUA-01 `docs-minimal` FAIL, as
 for Minimal (both miss the Adequate target). Whether
 a README is a stub is decided once, by the pre-review facts
-(`readme.json` `stub`: fewer than 3 content lines, or every section body
+(`readme.json` `stub`: fewer than 100 characters of content, or every section body
 template placeholder text with no real text above the first heading), never by the rating: a stub is the Structure
 gate failure (QUA-01 `docs-stub`), not a rating, and the report says
 "Minimal — not supported (stub README; see QUA-01)".

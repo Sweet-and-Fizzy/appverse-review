@@ -175,9 +175,15 @@ Findings are classified under OODT (Open OnDemand App Threats); codes are define
 <!-- One row per candidate in <pre-review>/<app_id>/security.json, grouped
      by check in manifest order (sec-interpolation, sec-eval-exec,
      sec-credential-string, sec-permissive-mode, sec-network-call,
-     sec-file-write-outside-job, sec-config-flag, sec-binary-in-template),
-     each citing its candidate's path:N. A check with no candidates has no
-     row. Tag is the intent tag on a FAIL/WARN row and "—" on a PASS row.
+     sec-file-write-outside-job, sec-config-flag, sec-binary-in-template,
+     sec-tool-finding), each citing its candidate's path:N. A check with no
+     candidates has no row. Tag is the intent tag on a FAIL/WARN row and "—"
+     on a PASS row. A sec-tool-finding row's Summary starts with its code;
+     it records under the rule security-tools.md's code table gives (OODT,
+     or QUA-xx/STR-xx for a hygiene code, kept in this table), its Rule
+     cell is "—" on a PASS row, and candidates marked artifact true share
+     one PASS row that says they are artefacts of linting OOD's job-script
+     files one at a time.
      When security.json is absent, write "Candidate enumeration not run:
      <reason>." in place of the rows. When it lists no candidates and the
      open-ended pass found nothing, write the single line "security.json
@@ -196,7 +202,7 @@ Findings are classified under OODT (Open OnDemand App Threats); codes are define
 |---|---|---|---|---|---|
 | OODT-XX | FAIL/WARN | critical/high/medium/low | unintentional / potentially malicious | <description>; not listed by security.json | path:N |
 
-<!-- When no row in either table is FAIL or WARN, write exactly "No tool-detectable issues in the checked tiers." here; the Check tiers lines above stay as they are. Never write "safe". There is no security rating. -->
+<!-- When no row in either table is FAIL or WARN, whatever its Rule cell, write exactly "No tool-detectable issues in the checked tiers." here; the Check tiers lines above stay as they are. Never write "safe". There is no security rating. -->
 
 <capability profile, a summary of the rows above: table for Batch Connect, narrative for Passenger>
 
@@ -354,19 +360,27 @@ checksum of what you wrote, not a list to satisfy:
     <!-- feedback-covers: submit.yml.erb:unsanitized-input, template/script.sh.erb:no-error-handling -->
 
 `check-feedback-floor.py` (wrap-up, and CI) fails the review when a fix-item's
-key is absent from that line, its file is not named in the prose, or the
-paragraph that names the file gives neither a line number from the finding's
-evidence nor a word from its defect key. Write the defect in plain words for
-the contributor; the check is looking for the file and either the line or
-what is wrong, not jargon. (This complements the Derived-only rule: feedback
-⊆ findings, and fix-items ⊆ feedback.)
+key is absent from that line, its file is not named in the prose, or its
+defect is not described where the file is named. The description must sit
+in the sentence window that runs from the sentence naming the file up to
+the first later sentence naming a different file, as a line number from the
+finding's evidence, a word of its defect key other than the file's own
+name, or a value quoted from its evidence. A repo-wide item with no file is
+named by its subject word (release, commit, issue, CI) and still needs such
+a description in that window, unless its tag has nothing beyond the subject
+(`no-releases`, `no-ci`, `no-changelog`). Write the defect in plain words
+for the contributor; the check is looking for the file and either the line
+or what is wrong, not jargon. (This complements the Derived-only rule:
+feedback ⊆ findings, and fix-items ⊆ feedback.)
 
 **Required vs. suggested.** A fix-item is required when it is a gate
-criterion or a `code_quality` check whose manifest `weight` is `target`
-(`references/checks.yml`) and it was recorded FAIL; everything else —
-`weight: suggestion` checks, and any FAIL/WARN that isn't a gate
-criterion or a `target` check — is suggested. Word the feedback
-accordingly rather than flattening every fix-item into the same register.
+criterion, any OODT FAIL, or a target miss in any dimension: Documentation
+rated below Adequate, Portability rated Not portable, or a `code_quality`
+check whose manifest `weight` is `target` (`references/checks.yml`)
+recorded FAIL. It is suggested when it is a `weight: suggestion` check, a
+maintenance signal MNT-02 to MNT-06, or polish (any other FAIL/WARN). Word
+the feedback accordingly rather than flattening every fix-item into the
+same register.
 
 **Never advise removing a real caveat.** Never advise removing a comment or
 help text that states a real constraint (a partition that requires a GPU, a
@@ -469,17 +483,36 @@ externally by the API provider.
         "${CLAUDE_PLUGIN_ROOT}/references/checks.json" <pre-review-dir> \
         --target "$TMP/repo"
 
-  (`check-all.py` runs, in order: `check-feedback-floor.py` (every
-  FAIL/WARN fix-item is named in the Draft Feedback); `check-keys.py`
-  (every defect_key is a valid, stable anchor); `check-rating.py`
-  (Documentation's rating and signal follow the report's own evidence);
-  `check-rows.py` (every manifest check applicable to an app has a row and
-  every pre-review candidate is cited); and `check-evidence.py` (every
-  finding's `file:line` citation names a real file and line). Its output
-  groups each checker's problem lines under a `[floor]`/`[keys]`/
+  (`check-all.py` runs, in order:
+  `check-feedback-floor.py`: every FAIL/WARN fix-item of Low or above has
+  its key in the `feedback-covers` line, its file (or, for a repo-wide
+  item, its subject word) named in the Draft Feedback, and its defect
+  described in the sentence window there (a line number, a word of its
+  defect key other than the file's own name, or a value quoted from its
+  evidence).
+  `check-keys.py`: every defect_key is a valid, stable `{anchor}:{tag}`
+  with a real or pseudo anchor and a vocabulary tag, and a FAIL/WARN
+  record's evidence cites its own anchor file when it cites any file.
+  `check-rating.py`: Documentation's rating is no higher than its evidence
+  lines support, its signal follows the rating, no `content:` line is
+  cited for two rungs, the stub line and Below minimal follow
+  `readme.json`'s `stub`; no suggestion-class check (matched by rule alone
+  when the rule has one check) or MNT-02 to MNT-06 signal is FAIL; and
+  "No tool-detectable issues in the checked tiers." never sits under a
+  FAIL or WARN Security row of any rule code.
+  `check-rows.py`: every manifest check applicable to an app has a row, and
+  every pre-review candidate is cited.
+  `check-evidence.py`: every `file:line` citation names a real file and
+  line, every `content:` citation names a README content line, and a
+  literal value the summary asserts is on the cited line is there (within
+  two lines of a check-rows candidate line); a value that is not is a
+  `NOTE` line, which does not fail the run.
+  Its output groups each checker's problem lines under a `[floor]`/`[keys]`/
   `[rating]`/`[rows]`/`[evidence]` prefix, followed by that checker's
-  summary line, and it exits 1 if any checker failed, 2 if any could not
-  run. `<pre-review-dir>` is `$TMP/pre-review` in reviewer mode, the
+  summary line. It exits 1 if any checker failed, including a report
+  missing a section a checker needs (`MISSING section: ...`), and 2 if any
+  could not run, including a checker that crashed (`crashed: ...`).
+  `<pre-review-dir>` is `$TMP/pre-review` in reviewer mode, the
   run-supplied pre-review directory in CI, or `$PRE` in submitter mode.
   `--target` is `$TMP/repo` in reviewer mode (the clone from setup), the
   already-checked-out repo in CI (`$GITHUB_WORKSPACE/target-repo`), or `.`

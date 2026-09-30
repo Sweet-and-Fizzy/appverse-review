@@ -262,7 +262,7 @@ the stderr text as evidence.
 | QUA-07 | Missing input validation |
 | QUA-08 | Magic number or undocumented literal |
 | QUA-09 | Large duplicated code block |
-| QUA-10 | ERB template does not handle a missing or empty value |
+| QUA-10 | ERB template does not handle a missing or nil value |
 
 ### Mechanism tags — quality
 

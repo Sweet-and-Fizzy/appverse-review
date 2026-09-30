@@ -131,25 +131,32 @@ candidate sites, not verdicts. Security has no rating: the rows are the output.
      ("job composer: running sbatch is its purpose"). Never penalize an app
      for its designed purpose; running shell commands with CORS open to all
      origins is a finding.
-   - `tool_finding`: every candidate gets its own row (the merge rule above
-     still applies to how several share a record, but never skips one).
-     Write PASS with the reason — an ERB artefact of the stripping (a
-     residual SC2154 for an OOD contract variable), style-only, a false
-     positive, or already covered by a candidate row elsewhere (name which
-     one) — or FAIL/WARN using the rule and tag `security-tools.md`'s Tool
-     Lookup Table maps the code to, per match, the same way a `config_flag`
-     candidate's rule and tag are chosen per match. The record is usually
-     `OODT-xx` (the mapped rule); a code whose defect is really a quality
-     issue rather than a security one (most of shellcheck's non-security
-     hygiene codes) records as `QUA-xx` instead and belongs with the Code
-     Quality findings — say which in the row. The row's Summary always
-     starts with the code (`SC2164: ...`, `B602: ...`, the semgrep check_id
-     as a whole token), since that is what a reader and `check-rows.py` use
-     to confirm the row answers that code and not merely the same line.
-     Several lines of the same candidate may be grouped in one citation
-     (`path:N,M`); a collapsed candidate (`security.json`'s
-     `counts.tool_finding_collapsed`) cites its `lines` as the `file:line`
-     strings it carries.
+   - `tool_finding`: every candidate is answered by a row naming its code
+     (the merge rule above still applies to how several share a record,
+     but never skips one). Candidates marked `artifact: true` are
+     artefacts of linting OOD's job-script files one at a time (SC2154 for
+     a variable `before.sh` or OOD's contract provides, SC2148 on a sourced
+     fragment, SC1090/SC1091 for a `source` shellcheck was not given):
+     answer them together in one PASS row whose
+     Summary names every such code and says "artefacts of linting OOD's
+     job-script files one at a time" (for example `SC2148, SC2154:
+     artefacts of linting OOD's job-script files one at a time`) and whose
+     Evidence cites each candidate's lines. Every other candidate gets its
+     own row: PASS with the reason (style-only, a false positive, or
+     already covered by a candidate row elsewhere, naming which one) or
+     FAIL/WARN using the rule and tag that `security-tools.md`'s "Tool
+     finding codes: rule and tag" table gives the code. A security code
+     records under its OODT rule; a hygiene code records under the QUA-xx
+     (or STR-xx) rule that table names, and that rule goes in the row's
+     Rule cell. The Rule cell of a PASS tool row is `—`. Tool rows always
+     stay in the Security tables, never moved to Code Quality, so the
+     sentence rule below sees them. The row's Summary always starts with
+     the code (`SC2164: ...`, `B602: ...`, the semgrep check_id as a whole
+     token), since that is what a reader and `check-rows.py` use to confirm
+     the row answers that code and not merely the same line. Several lines
+     of the same candidate may be grouped in one citation (`path:N,M`); a
+     collapsed candidate (`security.json`'s `counts.tool_finding_collapsed`)
+     cites its `lines` as the `file:line` strings it carries.
 
    A check with no candidates has no row: Security rows are required only
    where `security.json` lists a candidate (`row_required: when_candidates`).
@@ -273,9 +280,10 @@ Follow these rules for any runtime verification:
   lists no candidates and there are no observations, write the single line
   "security.json lists no candidates; no observations." in place of both
   tables.
-- When no row in either table is FAIL or WARN, write exactly "No
-  tool-detectable issues in the checked tiers." under the tables. Never
-  write it when any row is FAIL or WARN, and never write "safe".
+- When no row in either table is FAIL or WARN, whatever its Rule cell (a
+  QUA-xx tool row counts), write exactly this under the tables:
+  "No tool-detectable issues in the checked tiers."
+  Never write it when any row is FAIL or WARN, and never write "safe".
 - **Capability profile**, after the tables: a compact File / Capabilities
   / Anomalies table for Batch Connect apps; a short narrative for Passenger
   apps.

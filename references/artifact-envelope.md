@@ -20,12 +20,13 @@ Scripts then process these:
 |---|---|---|
 | `compute-ids.py` | findings JSON | findings JSON with stable `id` fields |
 | `assemble-artifact.py` | meta JSON + findings JSON + file paths | **artifact JSON** (this contract) |
-| `check-feedback-floor.py` | findings JSON + report MD | exit status: every Low+ fix-item named in the Draft Feedback |
-| `check-keys.py` | findings JSON (+ target checkout) | exit status: every `defect_key` is `{anchor}:{tag}` with a real or allowed anchor and a vocabulary tag |
-| `check-rating.py` | report MD + findings JSON + pre-review dir | exit status: Documentation only; the rating follows its evidence lines and the Documentation signal follows the rating; `Below minimal` needs a QUA-01 `docs-minimal` WARN or FAIL record; the stub-README line needs a QUA-01 `docs-stub` FAIL record and `readme.json` `stub` true (with no stub fact, a STR-01 `readme-not-substantive` FAIL record) |
+| `check-feedback-floor.py` | findings JSON + report MD | exit status: every Low+ fix-item named in the Draft Feedback (key in `feedback-covers`, file or repo-wide subject named, defect described in the sentence window) |
+| `check-keys.py` | findings JSON (+ target checkout) | exit status: every `defect_key` is `{anchor}:{tag}` with a real or allowed anchor and a vocabulary tag, and a FAIL/WARN record whose evidence cites files cites its anchor file |
+| `check-rating.py` | report MD + findings JSON + pre-review dir | exit status: the rating follows its evidence lines (a ceiling) and the Documentation signal follows the rating; no `content:` line serves two rungs; `Below minimal` needs a QUA-01 `docs-minimal` WARN or FAIL record and a README that is not a stub; the stub-README line needs a QUA-01 `docs-stub` FAIL record and `readme.json` `stub` true (with no stub fact, a STR-01 `readme-not-substantive` FAIL record); no suggestion-class check or MNT-02..06 signal is FAIL; the no-tool-detectable-issues sentence never sits under a FAIL/WARN Security row; exit 2 when `checks.json` cannot be read |
 | `compare-runs.py` | findings JSON + report MD + pre-review facts, two or more runs | pairwise Jaccard of fix-item keys, and a per-candidate table: each run's verdict (F/W/P/- with severity) from the report row of the candidate's check, recorded (FAIL or WARN) in n of N, answered in n of N; Jaccard only when no run has fact files |
 | `check-rows.py` | report MD + findings JSON + checks JSON + pre-review dir | exit status: every applicable manifest check has a row, and every pre-review candidate is cited (`MISSING`/`UNCITED` lines) |
-| `check-evidence.py` | findings JSON (+ target checkout) | exit status: every finding's `file:line` evidence citation names a real file and an in-range line (`BAD` lines), and every `content: README.md:N` citation names a README content line |
+| `check-evidence.py` | findings JSON (+ target checkout, report MD, pre-review dir) | exit status: every finding's `file:line` evidence citation names a real file and an in-range line (`BAD` lines), and every `content: README.md:N` citation names a README content line; a literal value the summary asserts but the cited line lacks is a `NOTE` line that does not change the exit status |
+| `check-all.py` | report MD + findings JSON + checks JSON + pre-review dir + target checkout | runs the five checkers above in one pass, each block prefixed with its name; exit 1 when any failed or the report lacks a section a checker needs, 2 when any could not run or crashed |
 
 The LLM produces the judgment; the scripts produce the structure.
 

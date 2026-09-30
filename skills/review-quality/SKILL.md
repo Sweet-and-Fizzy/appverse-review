@@ -149,9 +149,12 @@ These rows carry no `check:` marker.
   - A rung `readme.json` shows no heading for, whose content the README
     delivers anyway (prerequisites in the intro paragraph, or under a
     section named for something else): cite the one line that delivers it as
-    `content: README.md:N`. The line must be text, not a heading, a code
-    fence, a placeholder, a contact or a badge line; `check-evidence.py`
-    rejects any other line. You judge whether the line delivers the rung.
+    `content: README.md:N`, where the path is `readme.json`'s `file` (in a
+    monorepo, the app's own README, such as `apps/x/README.md`). The line
+    must be text, not a heading, a code fence, a placeholder, a contact or a
+    badge line; `check-evidence.py` rejects any other line. You judge
+    whether the line delivers the rung, and one line meets one requirement:
+    `check-rating.py` rejects a `content:` line cited for two.
   - A rung that is `null` and that no content line delivers: `none`.
   - A rung whose `placeholder` is true: `none (placeholder)`, whatever the
     heading says.

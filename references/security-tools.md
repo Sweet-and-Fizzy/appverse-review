@@ -103,9 +103,12 @@ terminate something else), then `<%= %>` → `ERBVALUE` (so assignments like
 `TIMEOUT=<%= x %>` stay valid), then bare `<% %>` → empty. Newline
 preservation keeps `file:line` evidence citable against the original `.erb`.
 
-After stripping, expect residual SC2154 warnings for Batch Connect contract
-variables (`$host`, `$port`, `$password`) that the app uses but does not
-define — these are set by OOD at runtime and are not defects. A quick
+Linting OOD's job-script files one at a time leaves artefacts that are not
+defects: SC2154 for a variable the sibling `before.sh` sets or OOD's
+contract provides (`$host`, `$port`, `$password`), SC2148 on a file OOD
+sources rather than executes, and SC1090/SC1091 for a `source` shellcheck
+was not given. pre-review.py marks them `artifact: true` (see "Tool finding codes: rule
+and tag" below). A quick
 `bash -n "$TMPFILE"` before running shellcheck is a useful sanity check on
 the strip itself.
 
@@ -298,7 +301,7 @@ counts at the start of a string (`["curl", url]`, `"curl ..."`).
 | `credential_string` | A literal of four or more characters (no spaces, not a path, URL, variable or ERB tag) assigned (`=`, `:`, `=>`) to a name containing password, passphrase, pass, secret, token, api key, access key, private key or credential; an unquoted value of eight or more characters needs a letter and a digit. Names ending `_dir`, `_path`, `_file`, `_url`, `_name`, `_env`, `_field`, `_label`, `_id` and similar are skipped. Also `--password=<literal>`-style flags, `-----BEGIN ... PRIVATE KEY`, and AWS / GitHub / Slack token shapes | `sec-credential-string` | OODT-02 | `hardcoded-credential` |
 | `config_flag` | `0.0.0.0`, `[::]`, `::` as a host or a `listen(` / `bind(` argument, `INADDR_ANY` (OODT-05 `bind-all-interfaces`); `Access-Control-Allow-Origin: *`, `allow_origin='*'`, `origins="*"`, `CORS(app)`, `cors()` (OODT-05 `cors-wildcard`); `--no-auth`, `--auth none`, an empty `--...token=` / `--...password=` or `.token = ''` (OODT-05 `disabled-auth`); `disable_check_xsrf=True`, `WTF_CSRF_ENABLED = False`, `@csrf_exempt`, `skip_before_action :verify_authenticity_token` (OODT-05 `disabled-xsrf`); `--disable-ssl`, `--no-check-certificate`, `--insecure`, `curl -k`, `verify=False`, `rejectUnauthorized: false` (OODT-08 `disabled-ssl`); `set -x`, `bash -x` (the note says trace output goes to the job's own output.log, world-readable only if the job directory is), `app.run(debug=True)`, `DEBUG = True` (OODT-08 `debug-tracing-enabled`); `disable_host_check`, `allow_remote_access=True`, `ALLOWED_HOSTS = ['*']` (OODT-08 `dns-rebinding-relaxed`); `PIP_INDEX_URL=`, `--index-url`, `--trusted-host` (OODT-08 `supply-chain-untrusted-index`) | `sec-config-flag` | per match, as listed | per match, as listed |
 | `binary_in_template` | A file under `template/` with a NUL byte in its first 8 KB, at line 1, `text` "binary file (N bytes)". An image or font by its magic bytes (PNG, JPEG, GIF, ICO, WOFF/WOFF2, TTF/OTF) is not a candidate and is listed in `skipped_files`; SVG is text and is scanned | `sec-binary-in-template` | OODT-04 | `binary-in-template` |
-| `tool_finding` | Every shellcheck, semgrep or bandit finding at a file in the app's security scope (see "What the script runs per file type" above), one candidate per (tool, code, file): shellcheck `file`, `line`, `code` (rendered `SC%d`), `level`, `message`; semgrep `results[].path`, `start.line`, `check_id`, `extra.severity`, `extra.message`; bandit `results[].filename`, `line_number`, `test_id`, `issue_severity`, `issue_text`. Excluded: shellcheck `style` level, semgrep `INFO` severity (bandit has no floor — every severity is a candidate). A candidate's `lines` lists every line that tool raised that code at in that file (instead of a single `line`); `rule` and `tag` are null on the candidate itself — a FAIL/WARN record uses the rule and tag this table's Tool Lookup Table maps the code to, per match | `sec-tool-finding` | null | null |
+| `tool_finding` | Every shellcheck, semgrep or bandit finding at a file in the app's security scope (see "What the script runs per file type" above), one candidate per (tool, code, file): shellcheck `file`, `line`, `code` (rendered `SC%d`), `level`, `message`; semgrep `results[].path`, `start.line`, `check_id`, `extra.severity`, `extra.message`; bandit `results[].filename`, `line_number`, `test_id`, `issue_severity`, `issue_text`. Excluded: shellcheck `style` level, semgrep `INFO` severity (bandit has no floor — every severity is a candidate). A candidate's `lines` lists every line that tool raised that code at in that file (instead of a single `line`); `rule` and `tag` are null on the candidate itself — a FAIL/WARN record uses the rule and tag "Tool finding codes: rule and tag" gives the code; `artifact` is true when every finding in the candidate is an artefact of linting OOD's job-script files (that table's Artefact column) | `sec-tool-finding` | null | null |
 
 One candidate is written per (file, line, kind, tag), so a line can carry
 several kinds (`curl "$u" | bash` is an `eval_exec` and a `network_call`).
@@ -306,11 +309,16 @@ Candidates are ordered by file, line, then kind in the table's order;
 `tool_finding` candidates are appended after the pattern-matched ones, one
 group per (tool, code, file).
 
-**tool_finding ceiling.** When an app has more than 15 `tool_finding`
-candidates, they collapse to one per (tool, code) across every file: `lines`
-then holds `file:line` strings (instead of bare line numbers within a single
-`file`, which is `null` on a collapsed candidate), and `security.json`'s
-`counts.tool_finding_collapsed` is `true`. This keeps a noisy tree from
+**tool_finding ceiling.** The ceiling counts the app's (tool, code, file)
+candidates, artefacts included, after the severity floor and before any
+collapsing. When there are more than 15, all of them collapse, never some,
+to one per (tool, code) across every file: `lines` then holds `file:line`
+strings (instead of bare line numbers within a single `file`, which is
+`null` on a collapsed candidate), a collapsed candidate is an artefact only
+when every finding in it is, and `security.json`'s
+`counts.tool_finding_collapsed` is `true`. Separately, a candidate's `lines`
+keeps at most its first 20 entries, with `lines_total` giving the full
+count when it was cut. This keeps a noisy tree from
 producing hundreds of near-duplicate rows; the security skill says once in
 the report when the ceiling applied.
 
@@ -319,6 +327,38 @@ misconfigurations, secrets by pattern) are not anchored to a single line the
 way the other tools' are, so they are never `tool_finding` candidates. trivy
 stays visible only in `tool-table.md`'s Tool / Status / Result row; a trivy
 finding worth recording is an additional observation, not a candidate row.
+
+### Tool finding codes: rule and tag
+
+A `tool_finding` row that records a FAIL or WARN uses the rule and tag this
+table gives its code. Tags are finding-codes.md vocabulary tags, or
+`other:<slug>` where no vocabulary tag fits. A code not listed here takes
+the rule its defect belongs to and a vocabulary tag of that rule, or
+`other:<slug>`. A security code records under an OODT rule; a hygiene code
+records under the QUA-xx (or STR-xx) rule this table names, and its row
+stays in the Security tables with that rule in its Rule cell, never moved
+to Code Quality. The "Artefact" column says when a code is an artefact of
+linting OOD's job-script files (a `.sh.erb` file, or `template/before.sh*`,
+`template/script.sh*`, `template/after.sh*`) one at a time: pre-review.py
+marks such a candidate `artifact: true`, and the security skill answers
+those together in one PASS row.
+
+| Code | What it flags | Rule | Tag | Artefact |
+|---|---|---|---|---|
+| SC2086 | Unquoted variable expansion (word splitting, globbing) | OODT-01 | `unquoted-variable` | no |
+| SC2164 | `cd` without `\|\| exit`, so a failed `cd` runs the rest in the wrong directory | QUA-03 | `no-error-check` | no |
+| SC2155 | `local`/`export` and assignment in one statement, masking the command's exit status | QUA-03 | `no-error-check` | no |
+| SC2054 | Comma inside an array element (often Apptainer `--bind a,b` syntax, which is correct) | QUA-06 | `other:array-element-comma` | no |
+| SC2140 | Word of the form `"A"B"C"` (mixed quoting) | QUA-06 | `other:mixed-quoting` | no |
+| SC2034 | Variable assigned but never used | QUA-04 | `other:unused-variable` | no |
+| SC2329 | Function never invoked (a `trap` handler is invoked: PASS) | QUA-04 | `other:uninvoked-function` | no |
+| SC2154 | Variable referenced but not assigned | STR-04 | `undefined-variable:{var_name}` | in a job-script file, when a sibling `template/before.sh*` assigns it or it is an OOD contract name (`port`, `host`, `display`, `password`, `app_port`, `csrftoken`) |
+| SC2148 | No shebang | QUA-06 | `other:missing-shebang` | in a job-script file |
+| SC1090 | `source` of a non-constant path shellcheck cannot follow | QUA-06 | `other:unfollowed-source` | in a job-script file |
+| SC1091 | `source` of a file shellcheck was not given | QUA-06 | `other:unfollowed-source` | in a job-script file |
+| B602 | `subprocess` call with `shell=True` | OODT-01 | `command-injection` | no |
+| B104 | Binding to all interfaces (`0.0.0.0`) | OODT-05 | `bind-all-interfaces` | no |
+| B110 | `try`/`except`/`pass` swallowing every error | QUA-03 | `no-error-check` | no |
 
 ## Interpreting tool output
 
@@ -330,8 +370,8 @@ radius criteria — the same way manual findings are rated. Tool severity scores
 useful context but OODT classification is what goes in the report.
 
 Expect false positives, especially:
-- shellcheck on ERB-stripped scripts (SC2154 for Batch Connect contract
-  variables like `$host`, `$port`, `$password` that are set by OOD at runtime)
+- shellcheck on OOD job-script files (the artefact codes in the table
+  above: SC2154, SC2148, SC1090, SC1091)
 - rubocop on ERB templates (incomplete Ruby parsing)
 - semgrep on small codebases (broad patterns, narrow context)
 - trivy/npm audit on vendored dependencies (use `--skip-dirs` / `--exclude`)
