@@ -9,11 +9,20 @@ Per "## App:" section:
   2. The Signals table's Documentation level must be the one the rating maps to
      (Strong/Exemplary -> Low, Adequate -> Medium, Minimal -> High).
 Only Documentation is checked: there is no Security signal (R4); only the
-Documentation rating and signal are checked. The findings JSON argument is
-kept so the command line does not change, but it is not read.
+Documentation rating and signal are checked.
+
+A stub README. The rating line `Minimal — not supported (stub README; see
+QUA-01)` (the form the quality skill mandates when even Minimal has no
+evidence) is accepted in place of rule 1 when the findings JSON has a
+QUA-01 FAIL record for that app (its app_id is the section heading's
+parenthesised id) whose defect_key tag is `docs-stub`. Without that record
+the line is read as a Minimal claim and fails rule 1 as any unsupported
+rating does. Rule 2 still applies (Minimal maps to High).
+
 Exit 0 when consistent, 1 with one MISMATCH line per problem, 2 when the
-report cannot be read or a needed section is missing.
+report or findings cannot be read or a needed section is missing.
 """
+import json
 import re
 import sys
 
@@ -26,6 +35,8 @@ RUNGS = [
 RATING_ORDER = [r for r, _ in RUNGS]
 DOC_SIGNAL = {"Minimal": "High", "Adequate": "Medium", "Strong": "Low", "Exemplary": "Low"}
 NONE_WORDS = {"none", "n/a", "na", "absent", "missing", "not", "no"}
+STUB_RATING = re.compile(r"Rating:\s*\**\s*Minimal\s*(?:\u2014|\u2013|--?)\s*not supported\s*"
+                         r"\(stub README; see QUA-01\)")
 
 
 def is_none(value):
@@ -82,6 +93,26 @@ def highest_supported_rung(evidence):
     return best
 
 
+def app_id_of(heading):
+    m = re.search(r"\(([^()]*)\)\s*$", heading)
+    return m.group(1).strip().strip("/") if m else None
+
+
+def has_stub_record(findings, app_id, single):
+    """Whether findings hold a QUA-01 FAIL docs-stub record for app_id (or,
+    in a single-app report, a record with no app_id)."""
+    for r in findings:
+        if r.get("rule") != "QUA-01" or r.get("result") != "FAIL":
+            continue
+        tag = str(r.get("defect_key") or "").split(":", 1)[-1]
+        if tag != "docs-stub" and not tag.startswith("docs-stub:"):
+            continue
+        rid = str(r.get("app_id") or "").strip().strip("/")
+        if rid == (app_id or "") or (single and not rid):
+            return True
+    return False
+
+
 def signal(body, dim):
     m = re.search(r"^\|\s*(?:\*\*)?" + dim + r"(?:\*\*)?\s*\|\s*(?:\*\*)?(Low|Medium|High)(?:\*\*)?\s*\|",
                   body, flags=re.M)
@@ -94,12 +125,20 @@ def main(argv):
         return 2
     try:
         report = open(argv[1]).read()
+        with open(argv[2], encoding="utf-8") as f:
+            data = json.load(f)
     except (OSError, ValueError) as e:
         print("error: {}".format(e), file=sys.stderr)
         return 2
+    findings = data.get("findings", data) if isinstance(data, dict) else data
+    if not isinstance(findings, list):
+        print("error: findings '{}' is not a list".format(argv[2]), file=sys.stderr)
+        return 2
+    findings = [r for r in findings if isinstance(r, dict)]
     problems = 0
     seen = 0
-    for heading, body in app_sections(report):
+    sections = list(app_sections(report))
+    for heading, body in sections:
         seen += 1
         doc = subsection(body, "Documentation")
         if doc is None:
@@ -122,7 +161,9 @@ def main(argv):
             print("error: {} has no Signals row for Documentation".format(heading), file=sys.stderr)
             return 2
 
-        if supported is None or RATING_ORDER.index(rating) > RATING_ORDER.index(supported):
+        stub_ok = (STUB_RATING.search(doc) is not None and
+                   has_stub_record(findings, app_id_of(heading), len(sections) == 1))
+        if not stub_ok and (supported is None or RATING_ORDER.index(rating) > RATING_ORDER.index(supported)):
             # name the first requirement that blocks the claimed rung
             blocker = None
             for rung, reqs in RUNGS:
