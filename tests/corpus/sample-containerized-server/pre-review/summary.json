@@ -1,6 +1,6 @@
 {
   "schema": "pre-review/1",
-  "target": "/Users/drew/Sites/connectci/worktrees/appverse-review-facts/tests/fixtures/containerized-server",
+  "target": "<repo>/tests/fixtures/containerized-server",
   "generated_at": "2026-09-30T05:00:59Z",
   "checks": [
     {
@@ -55,7 +55,7 @@
       "name": "trivy",
       "status": "skipped",
       "version": "",
-      "command": "trivy fs --format json --scanners vuln,misconfig,secret --skip-dirs vendor --skip-dirs node_modules --config /private/tmp/claude-501/-Users-drew-Sites-connectci-appverse-review/bf22b63a-7c35-4488-89f2-b3f69429d5d2/scratchpad/task6-sample/pre-review/trivy-empty.yaml --ignorefile /private/tmp/claude-501/-Users-drew-Sites-connectci-appverse-review/bf22b63a-7c35-4488-89f2-b3f69429d5d2/scratchpad/task6-sample/pre-review/trivy-empty.ignore /Users/drew/Sites/connectci/worktrees/appverse-review-facts/tests/fixtures/containerized-server",
+      "command": "trivy fs --format json --scanners vuln,misconfig,secret --skip-dirs vendor --skip-dirs node_modules --config <out-dir>/trivy-empty.yaml --ignorefile <out-dir>/trivy-empty.ignore <repo>/tests/fixtures/containerized-server",
       "exit_code": null,
       "output_file": null,
       "files_examined": 0,

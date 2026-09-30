@@ -1,3 +1,5 @@
+# recall-floor: 0/8 (off-candidate hits/items against tests/recall-set; the run's findings are fixed, so
+# this pins the recall matching, not the model)
 [floor] MISSING OODT-08 template/script.sh.erb:debug-tracing-enabled (defect not described in feedback)
 [floor] MISSING MNT-02 releases:no-releases (subject not named in feedback)
 [floor] feedback floor: 13/15 fix-items covered

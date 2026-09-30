@@ -1,3 +1,10 @@
+# recall-floor: 0/8 (off-candidate hits/items against tests/recall-set; the run's findings are fixed, so
+# this pins the recall matching, not the model)
+# known-wrong: the [evidence] BAD lines for `min`, `max` and `pattern` quote keys the row says are absent
+# ("no max"), so they can never be on the cited line; the cited-value rule misfires on them.
+# known-wrong: `$TMPDIR` is the recommended replacement, not a quote of script.sh.erb:21; `bc_email_on_started` is an
+# OOD built-in the PASS row names, not text on submit.yml.erb:1; `extra_slurm` is on :15-16, but check-rows requires
+# the sec-interpolation row to cite the interpolation site :17, so the two checkers conflict on that row.
 [floor] feedback floor: 13/13 fix-items covered
 [keys] finding keys: 36/36 valid
 [rating] MISMATCH root security: "No tool-detectable issues in the checked tiers." with 6 FAIL/WARN rows above it

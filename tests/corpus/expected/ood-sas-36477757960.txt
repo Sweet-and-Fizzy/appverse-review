@@ -1,3 +1,10 @@
+# recall-floor: 2/8 (off-candidate hits/items against tests/recall-set; the run's findings are fixed, so
+# this pins the recall matching, not the model)
+# not-applicable: this run has no pre-review/apps.json (it predates the fact files), so check-rows cannot run;
+# the [rows] error line and exit 2 are expected, not a checker fault.
+# known-wrong: the [evidence] BAD lines for `min`, `max` and `pattern` quote keys the row says are absent
+# ("no max"), so they can never be on the cited line; the cited-value rule misfires on them.
+# known-wrong: `--wrap=cmd` is the example payload of the attack the row describes, not a quote of submit.yml.erb:15.
 [floor] MISSING QUA-08 template/script.sh.erb:undocumented-hex-color (defect not described in feedback)
 [floor] feedback floor: 19/20 fix-items covered
 [keys] INVALID QUA-07 form.yml:other:missing-pattern-constraint (other:missing-pattern-constraint extends the vocabulary tag 'missing-pattern'; use 'missing-pattern' or a distinct slug)

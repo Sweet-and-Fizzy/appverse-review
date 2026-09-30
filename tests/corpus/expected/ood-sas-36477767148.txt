@@ -1,3 +1,9 @@
+# recall-floor: 5/8 (off-candidate hits/items against tests/recall-set; the run's findings are fixed, so
+# this pins the recall matching, not the model)
+# not-applicable: this run has no pre-review/apps.json (it predates the fact files), so check-rows cannot run;
+# the [rows] error line and exit 2 are expected, not a checker fault.
+# known-wrong: the [evidence] BAD lines for `min`, `max` and `pattern` quote keys the row says are absent
+# ("no max"), so they can never be on the cited line; the cited-value rule misfires on them.
 [floor] feedback floor: 18/18 fix-items covered
 [keys] finding keys: 22/22 valid
 [rating] ratings: consistent

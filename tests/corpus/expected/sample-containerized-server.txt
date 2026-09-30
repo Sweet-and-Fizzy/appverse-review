@@ -1,3 +1,5 @@
+# known-wrong: the hand-made sample report has no Draft feedback section; a missing report section is a malformed
+# report (exit 1), not a checker that could not run, so the [floor] error line and exit 2 are wrong.
 [floor] error: no '## Draft feedback' or '## Fix before submitting' section
 [keys] finding keys: 17/17 valid
 [rating] ratings: consistent

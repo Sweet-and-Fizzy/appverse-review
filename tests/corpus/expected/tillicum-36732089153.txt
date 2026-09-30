@@ -1,3 +1,7 @@
+# recall-floor: 2/6 (off-candidate hits/items against tests/recall-set; the run's findings are fixed, so
+# this pins the recall matching, not the model)
+# known-wrong: `--time=0:00` is the value the rows derive (an empty bc_num_hours rendered into --time), not text
+# on form.yml:19 or submit.yml.erb:12, so both [evidence] BAD lines are false.
 [floor] feedback floor: 16/16 fix-items covered
 [keys] finding keys: 39/39 valid
 [rating] MISMATCH root security: "No tool-detectable issues in the checked tiers." with 4 FAIL/WARN rows above it

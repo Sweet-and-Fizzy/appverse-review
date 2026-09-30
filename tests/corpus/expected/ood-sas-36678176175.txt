@@ -1,3 +1,7 @@
+# recall-floor: 1/8 (off-candidate hits/items against tests/recall-set; the run's findings are fixed, so
+# this pins the recall matching, not the model)
+# known-wrong: the [evidence] BAD lines for `min`, `max` and `pattern` quote keys the row says are absent
+# ("no max"), so they can never be on the cited line; the cited-value rule misfires on them.
 [floor] feedback floor: 12/12 fix-items covered
 [keys] finding keys: 34/34 valid
 [rating] MISMATCH . security: "No tool-detectable issues in the checked tiers." with 2 FAIL/WARN rows above it
