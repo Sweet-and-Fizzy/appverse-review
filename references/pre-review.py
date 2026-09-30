@@ -1148,14 +1148,18 @@ def resolve_apps(target):
         if not isinstance(entry, dict) or not isinstance(entry.get("path"), str) or not entry["path"].strip():
             continue
         path = os.path.normpath(entry["path"].strip()).replace(os.sep, "/")
-        app_id = "root" if path == "." and "root" not in taken else _app_id(path, taken)
-        taken.add(app_id)
         full = os.path.join(target, path)
         skip = None
         if os.path.isabs(path) or not _inside(target, full):
             skip = OUTSIDE_APP
         elif not os.path.isdir(full):
             skip = MISSING_APP
+        if skip == OUTSIDE_APP:
+            # never an id with ".." or a leading "/": nothing joins it to a directory, but it is still an id
+            app_id = _app_id(re.sub(r"[^A-Za-z0-9._-]", "-", path).strip(".-") or "app", taken)
+        else:
+            app_id = "root" if path == "." and "root" not in taken else _app_id(path, taken)
+        taken.add(app_id)
         if skip:
             apps.append({"app_id": app_id, "path": path, "app_type": "unknown", "readme": None,
                          "_dir": None, "_skip": skip})

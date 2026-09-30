@@ -148,7 +148,7 @@ for ev in 'template/script.sh.erb: line 12' 'template/script.sh.erb line 12' 'te
 done
 
 echo "Test 5b2: backticks, emphasis and ./ around the path are stripped"
-for ev in '`./template/script.sh.erb:12`' '`template/script.sh.erb`:12' '**template/script.sh.erb**:12' 'x; reviewed OK: ./template/script.sh.erb:9,12'; do
+for ev in '`./template/script.sh.erb:12`' '`template/script.sh.erb`:12' '**template/script.sh.erb**:12' 'x; reviewed OK: ./template/script.sh.erb:9,12' 'x; reviewed OK:./template/script.sh.erb:9,12'; do
   sed "s|template/script.sh.erb:10-14|$ev|" "$TMP/report.md" > "$TMP/r5c.md"
   check "cites: $ev" 0 "$(run "$TMP/r5c.md" "$TMP/findings.json" "$TMP/checks.json" "$O")"
 done

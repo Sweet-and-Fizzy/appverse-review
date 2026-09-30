@@ -172,14 +172,15 @@ has "$APP_SKILL" "$APP_ID_SENTENCE" "review-app states apps.json app_id = findin
 has "$QUA_SKILL" "$APP_ID_SENTENCE" "review-quality states apps.json app_id = finding app_id"
 has references/security-tools.md "$APP_ID_SENTENCE" "security-tools.md ties app_id to apps.json"
 has references/target-setup.md "Same value as \`apps.json\`'s \`app_id\`" "target-setup.md ties app_id to apps.json"
-has .github/workflows/appverse-review.yaml "references/check-rows.py" "workflow prompt names check-rows.py"
-has .github/workflows/appverse-review.yaml "references/check-evidence.py" "workflow prompt names check-evidence.py"
+has .github/workflows/appverse-review.yaml "python3 \${{ github.workspace }}/appverse-review/references/check-rows.py \${{ github.workspace }}/review-\${{ steps.params.outputs.repo_slug }}.md" "workflow prompt gives check-rows.py a resolvable plugin path and report path"
+has .github/workflows/appverse-review.yaml "python3 \${{ github.workspace }}/appverse-review/references/check-evidence.py \${{ github.workspace }}/review-\${{ steps.params.outputs.repo_slug }}.findings.json --target" "workflow prompt gives check-evidence.py a resolvable plugin path and findings path"
 has .github/workflows/appverse-review.yaml "references/checks.json" "workflow prompt names checks.json"
 has .github/workflows/appverse-review.yaml "INVALID/MISSING/MISMATCH/UNCITED/BAD" "verify step lists UNCITED and BAD"
 lacks "$SEC_SKILL" "tag may be null" "security skill has no stale tag-may-be-null text"
 lacks "$SEC_SKILL" "config_flag\` candidate with no tag" "security skill has no config_flag no-tag fallback"
 has "$SEC_SKILL" "presence_checked: true\` is not a guard" "security skill states presence_checked is not a guard"
 has references/finding-codes.md "entry-point-parse-error" "finding-codes.md lists entry-point-parse-error under STR-07"
+has skills/review-structure/SKILL.md ":entry-point-parse-error\` (STR-07" "structure skill files entry-point-parse-error under STR-07"
 lacks "$QUA_SKILL" "expected to fail" "review-quality has no stale check-rating expected-to-fail wording"
 
 echo

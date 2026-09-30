@@ -145,6 +145,9 @@ check "reviewed-OK path reported" 1 "$(grep -cF "(template/nope.sh: file not fou
 check "counted as one bad finding" "evidence: 0/1 valid" "$(tail -1 "$TMP/out")"
 printf '[%s]' "$(rec OODT-01 template/script.sh.erb:unsanitized-user-input 'template/script.sh.erb:2 x; reviewed OK: form.yml:1,3')" > "$TMP/p2.json"
 check "all groups valid: exit 0" 0 "$(run "$TMP/p2.json" --target "$TMP/t")"
+printf '[%s]' "$(rec OODT-01 template/script.sh.erb:unsanitized-user-input 'template/script.sh.erb:2 x; reviewed OK:template/nope.sh:9')" > "$TMP/p3.json"
+check "no space after the reviewed-OK colon: the path is still validated" 1 "$(run "$TMP/p3.json" --target "$TMP/t")"
+check "reviewed-OK path without a space reported" 1 "$(grep -cF "(template/nope.sh: file not found (case-exact))" "$TMP/out")"
 
 echo "Test 18: a backtick-wrapped path and a ./ path are the same file"
 printf '[%s,%s,%s]' \

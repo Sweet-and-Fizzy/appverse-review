@@ -217,10 +217,10 @@ jobs:
             references/run-pre-review.sh yourself.
 
             Before finishing, verify your own report and findings against
-            references/checks.json by running (as the review-app skill's §6
-            gives them):
-              python3 references/check-rows.py review-<slug>.md review-<slug>.findings.json references/checks.json ${{ github.workspace }}/pre-review
-              python3 references/check-evidence.py review-<slug>.findings.json --target ${{ github.workspace }}/target-repo
+            the checks manifest (the review-app skill's §6 checks; the plugin
+            is checked out at ${{ github.workspace }}/appverse-review/) by running:
+              python3 ${{ github.workspace }}/appverse-review/references/check-rows.py ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.md ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.findings.json ${{ github.workspace }}/appverse-review/references/checks.json ${{ github.workspace }}/pre-review
+              python3 ${{ github.workspace }}/appverse-review/references/check-evidence.py ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.findings.json --target ${{ github.workspace }}/target-repo
             and fix whatever they report before finishing.
 
             These values are already resolved; use them as given rather

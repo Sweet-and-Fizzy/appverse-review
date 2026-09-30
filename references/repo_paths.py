@@ -81,7 +81,10 @@ def parse_citations(text):
     each item. Non-string input gives []."""
     if not isinstance(text, str):
         return []
-    return [(m.group(1), _lines(m.group(2))) for m in CITATION_RE.finditer(text)]
+    out = []
+    for part in REVIEWED_OK_RE.split(text):  # a path right after the marker's colon is still a citation
+        out.extend((m.group(1), _lines(m.group(2))) for m in CITATION_RE.finditer(part))
+    return out
 
 
 def split_reviewed_ok(text):
