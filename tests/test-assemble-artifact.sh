@@ -185,6 +185,22 @@ ARTIFACT_R4=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$T
 check "case4: metadata fail (worst wins)" "fail" "$(echo "$ARTIFACT_R4" | python3 -c "import json,sys; print(json.load(sys.stdin)['apps'][0]['criteria']['metadata'])")"
 check "case4: structure warn (worst wins)" "warn" "$(echo "$ARTIFACT_R4" | python3 -c "import json,sys; print(json.load(sys.stdin)['apps'][0]['criteria']['structure'])")"
 
+# Case 4b: STR-06 FAIL -> structure = fail; STR-06 NOT CHECKED -> structure = not_checked
+cat > "$TMP/findings-result4b.json" << 'EOF'
+[
+  {"app_id":"root","rule":"STR-06","defect_key":"template/script.sh.erb:bash-syntax-error","result":"FAIL","severity":"high","summary":"bash -n failed","evidence":"template/script.sh.erb:3"}
+]
+EOF
+ARTIFACT_R4B=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result4b.json" --md "r.md" --plugin-version "0.3.0")
+check "case4b: STR-06 FAIL makes structure fail" "fail" "$(echo "$ARTIFACT_R4B" | python3 -c "import json,sys; print(json.load(sys.stdin)['apps'][0]['criteria']['structure'])")"
+cat > "$TMP/findings-result4c.json" << 'EOF'
+[
+  {"app_id":"root","rule":"STR-06","defect_key":"template/script.sh.erb:bash-syntax-error","result":"NOT CHECKED","severity":"info","summary":"syntax check did not run","evidence":"template/script.sh.erb:1"}
+]
+EOF
+ARTIFACT_R4C=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result4c.json" --md "r.md" --plugin-version "0.3.0")
+check "case4c: STR-06 NOT CHECKED makes structure not_checked" "not_checked" "$(echo "$ARTIFACT_R4C" | python3 -c "import json,sys; print(json.load(sys.stdin)['apps'][0]['criteria']['structure'])")"
+
 # Case 5: unrecognized result -> fail + stderr warning
 cat > "$TMP/findings-result5.json" << 'EOF'
 [

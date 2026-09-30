@@ -24,7 +24,9 @@ The security review consists of three tiers, distinguished by what they require:
 - **Tier 1 — Static.** Source-level analysis: structure, capability profile,
   pattern checks. Runs anywhere, including CI on a submitted PR.
 - **Tier 2 — Tooling.** Static analysis tools (shellcheck, bandit, semgrep,
-  trivy, etc.). Needs installed binaries, no running app. Well suited to CI.
+  trivy). Run before the review by references/run-pre-review.sh; the skill
+  reads its output and never runs a tool itself. Needs installed binaries, no
+  running app; the pre-review summary says which ran.
 - **Tier 3 — Runtime.** Boot the app and exercise it. Realistically local or on
   a reviewer's machine.
 
@@ -59,22 +61,18 @@ should look thinner, not identical to a full one.
    in-scope files. Where a tool finding from step 5 confirms or adds to a manual
    finding, cite the tool as corroborating evidence (e.g., "bandit B602:
    subprocess with shell=True"). Where a tool surfaces something the manual scan
-   missed, add it. (If tools have not run yet, revisit this step after step 5.)
-5. **Tier 2 — Static analysis tool scan.** Read the tool lookup table at
-   `${CLAUDE_PLUGIN_ROOT}/references/security-tools.md` and run available tools
-   against the in-scope files. This step is **optional and best-effort**: the
-   review proceeds normally if no tools are installed.
-   1. Detect which file types exist in the in-scope files (`.sh`/`.sh.erb`,
-      `.py`, `.rb`/`.erb`, `package.json`, `requirements.txt`, container defs).
-   2. For each relevant tool (per the lookup table's file-pattern-to-tool
-      mapping), run the detect command (`command -v <tool>`).
-   3. Run each available tool using the commands in the lookup table. For
-      `.sh.erb` files, apply the ERB preprocessing step before running
-      shellcheck.
-   4. Collect tool output. Do not block on tool failures — if a tool errors,
-      note the error and continue.
-   5. Record the status of every relevant tool for the tool-scan summary.
-   6. If any tool finding is new (not already captured in step 4), add it now.
+   missed, add it.
+5. **Tier 2 — Read the pre-review results.** The pre-review script has
+   already rendered the Check tiers line and the tool-scan table into
+   `<pre-review>/tool-table.md`. Paste that file's contents verbatim as the
+   Check tiers line and the table; never retype, reorder, recount, or reword
+   any of it. Then read `<pre-review>/summary.json` and each tool's JSON and
+   treat the findings exactly as before: corroboration for a step-4 finding,
+   or a new finding classified under OODT. Never run a tool, never ask to
+   run one, never write "pending approval". If `tool-table.md` is absent,
+   write the Check tiers line as `Tier 1 only` and the table with all four
+   rows (shellcheck, semgrep, bandit, trivy) as
+   `Not run (pre-review facts not found)` with Result `—`.
 6. **Tier 3 — Runtime checks** (when the app is runnable). Where the app has a
    WSGI/Rack entry point (`passenger_wsgi.py`, `config.ru`), a test harness, or
    is otherwise runnable, exercise security-relevant paths rather than only
@@ -122,21 +120,13 @@ Follow these rules for any runtime verification:
 
 ## Output
 
-- **Check tiers ran** — state which tiers were executed (e.g., "Tiers 1–2;
-  tier 3 not checked — no isolated execution environment").
-- **Tool scan summary** (required) — a table with one row per relevant tool.
-  A reader must be able to distinguish "clean scan" from "scanner not installed":
-
-  | Tool | Status | Result |
-  |---|---|---|
-  | shellcheck | ran | 2 findings (SC2086, SC2046) |
-  | semgrep | **not installed** | `pip install semgrep` |
-  | trivy | no applicable files | — |
-  | bandit | ran | clean |
-
-  If no tools were available, use the table with all rows showing "not installed"
-  plus install hints. Never omit the table — its absence is indistinguishable
-  from a clean scan.
+- **Check tiers ran and tool scan summary** (required) — the contents of
+  `<pre-review>/tool-table.md`, pasted verbatim: the Check tiers line, the
+  tier 3 line, and the four-row Tool / Status / Result table. Never retype
+  it. If the file is absent, write `**Check tiers:** Tier 1 only` and the
+  table with every row `Not run (pre-review facts not found)` and Result
+  `—`. Never omit the table — its absence is indistinguishable from a clean
+  scan.
 - The capability profile: a compact File / Capabilities / Anomalies table for
   Batch Connect apps; a short narrative for Passenger apps.
 

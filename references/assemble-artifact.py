@@ -75,6 +75,7 @@ PER_APP_CRITERIA_RULES = {
     "STR-02": "metadata",
     "STR-03": "yaml_valid",
     "STR-04": "references",
+    "STR-06": "structure",
     "STR-07": "structure",
 }
 

@@ -11,7 +11,9 @@ Criteria: `${CLAUDE_PLUGIN_ROOT}/references/review-rubric.md` — sections
 yours; README depth is review-quality's job.
 
 **Setup:** Use the orchestrator's prepared target if provided; otherwise follow
-`${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` first.
+`${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` first. The orchestrator (or
+target-setup.md) names the pre-review directory; if it is absent, every STR-06
+record is NOT CHECKED with the note "pre-review facts not found".
 
 ## Repo-level checks
 
@@ -40,9 +42,34 @@ yours; README depth is review-quality's job.
   errors verbatim. A `form.yml.erb` cannot be YAML-parsed directly (unrendered
   ERB is not valid YAML) — check that it exists and has balanced ERB tags
   instead.
-- ERB templates look renderable (balanced `<%= %>` tags); shell scripts pass
-  `bash -n` (for `.sh.erb`, strip ERB tags first — see the recipe in
-  `${CLAUDE_PLUGIN_ROOT}/references/security-tools.md`).
+- ERB templates look renderable (balanced `<%= %>` tags). STR-06 comes from
+  the pre-review facts, never from running `bash -n` yourself: read
+  `<pre-review>/syntax.json` and record one STR-06 record per shell file,
+  with `defect_key` `<path>:bash-syntax-error`, by these rules in order:
+  - `summary.json`'s `syntax` check did not run (status other than `ran`):
+    every entry is NOT CHECKED (severity info, evidence `<path>:1` plus the
+    check's `note`), except refused symlinks as below.
+  - `ok` is true: PASS.
+  - `stderr` begins with "symlink outside target" or "dangling symlink": a
+    refused symlink. Give it no findings record at all, since check-keys
+    resolves the anchor and a symlink leading outside the target or nowhere
+    has no valid key; name it only in the STR-06 row summary.
+  - `stderr` begins with "not a regular file" (a FIFO or device): NOT
+    CHECKED (severity info, evidence `<path>:1` plus the reason).
+  - `stderr` begins with "bash <ver> rejected this file" (the bash on PATH
+    is older than 4, and the file may use bash 4 syntax such as `;;&`): NOT
+    CHECKED (severity info, evidence `<path>:1` plus that stderr text), not
+    FAIL.
+  - `stderr` is a bash message (it starts with the file path followed by
+    `: line N:`): FAIL (severity high, evidence `<path>:<N>` using that line
+    number, or `<path>:1` when no `line N` is present, plus the first stderr
+    line).
+  - Anything else (a binary file, a permission error, a timeout, a file too
+    large to check): NOT CHECKED (severity info, evidence `<path>:1` plus the
+    stderr text).
+  The gate table's STR-06 row summarises them: "N files pass; M fail:
+  `<paths>`; K not checked: `<path>` (`<reason>`)", with refused symlinks
+  listed among the not-checked paths.
 - No broken references: variables and attributes used in `submit.yml.erb` and
   `template/` files exist in `form.yml` or `form.yml.erb`.
 - Batch Connect apps have the standard layout: `form.yml` or `form.yml.erb`,

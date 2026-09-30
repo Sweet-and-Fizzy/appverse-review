@@ -191,4 +191,9 @@ printf '[%s]' "$(rec QUA-02 Template/script.sh.erb:hardcoded-path)" > "$TMP/k3.j
 check "mid-path case mismatch exit 1" 1 "$(run "$TMP/k3.json" --target "$TMP/t")"
 check "mid-path case mismatch reason" 1 "$(grep -cxF "INVALID QUA-02 Template/script.sh.erb:hardcoded-path (anchor is not a repo path or allowed pseudo-anchor)" "$TMP/out")"
 
+echo "Test 24: STR-06 bash-syntax-error, PASS result, from the pre-review syntax.json"
+printf '[{"app_id":"root","rule":"STR-06","defect_key":"template/script.sh.erb:bash-syntax-error","aspect":"x","severity":"info","result":"PASS","summary":"s","evidence":"e"}]' > "$TMP/l1.json"
+check "exit 0" 0 "$(run "$TMP/l1.json" --target "$TMP/t")"
+check "summary" "finding keys: 1/1 valid" "$(tail -1 "$TMP/out")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

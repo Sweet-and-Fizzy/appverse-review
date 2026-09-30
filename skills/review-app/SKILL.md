@@ -37,6 +37,7 @@ review-security, review-quality, review-maintenance. Each subagent's prompt:
 > owner/repo: <owner/repo or unknown>; reviewed commit: <SHA> (<date>);
 > repo shape: <shape>; apps: <list of path + resolved fields>;
 > shared_paths: <list>; schema source: <live|cached>;
+> pre-review dir: <path to the pre-review output, or "absent">;
 > languages/frameworks detected: <e.g., Ruby/Sinatra, Python/Flask, shell>;
 > dependency manifests: <Gemfile.lock, package-lock.json, requirements.txt, or none>;
 > test suite: <command and result, or "none detected">.
@@ -125,6 +126,7 @@ string; if unavailable, write `unknown`.
 |---|---|---|---|---|
 | STR-02 | PASS/FAIL/WARN/NOT CHECKED | ... | Required metadata fields | ... |
 | STR-03 | PASS/FAIL/WARN/NOT CHECKED | ... | YAML validity | ... |
+| STR-06 | PASS/FAIL/NOT CHECKED | ... | Template scripts syntactically correct | <N files pass \| M of N fail: paths> (from pre-review syntax.json) |
 | STR-07 | PASS/FAIL/WARN/NOT CHECKED | ... | Standard OOD structure | ... |
 | STR-04 | PASS/FAIL/WARN/NOT CHECKED | ... | No broken references | ... |
 
@@ -132,12 +134,7 @@ string; if unavailable, write `unknown`.
 
 Findings are classified under OODT (Open OnDemand App Threats); codes are defined in the rubric's Security section.
 
-**Check tiers:** <Tiers 1–2 | Tiers 1–3 | Tier 1 only>
-<if not all tiers: "Tier N not checked — <reason>">
-
-| Tool | Status | Result |
-|---|---|---|
-<!-- one row per relevant tool from the security aspect's tool-scan summary -->
+<!-- Paste <pre-review>/tool-table.md here verbatim: the Check tiers line, the tier 3 line, and the Tool / Status / Result table. Never retype it. If the file is absent, write "**Check tiers:** Tier 1 only" and the table with all four rows (shellcheck, semgrep, bandit, trivy) as "Not run (pre-review facts not found)" with Result "—". -->
 
 <capability profile: table for Batch Connect, narrative for Passenger>
 
@@ -194,6 +191,8 @@ Findings are classified under OODT (Open OnDemand App Threats); codes are define
 **Not examined:** <list of files/surfaces not reached, with reason — e.g.,
 "dashboard-plugin/ (needs a Rails host)", "runtime behavior (CI, no app
 environment)">
+**Tools:** <which pre-review checks ran, from summary.json; "pre-review facts
+not found" if absent>
 
 ## Catalog checks
 <!-- Query the public JSON:API — see the Reviewer Process's "Reading the catalog

@@ -1,9 +1,46 @@
 # Static Analysis Tools
 
-Optional tools that supplement the manual security review. The review-security
-skill probes for these, runs whichever are installed, and folds their output into
-the OODT-classified findings. **If none are installed the review still completes
-normally** — tool findings supplement, never replace, the manual analysis.
+Optional tools that supplement the manual security review.
+`references/run-pre-review.sh` runs these before the review and writes their
+JSON beside a summary; the review-security skill reads that output and folds
+it into the OODT-classified findings. This file is the specification the
+script implements; the commands below are the ones it runs. **If none are
+installed the review still completes normally** — tool findings supplement,
+never replace, the manual analysis.
+
+## Executable form
+
+- **Script:** `references/run-pre-review.sh <target-dir> <out-dir>`, backed by
+  `references/pre-review.py`.
+- **Output files:** `<out-dir>/summary.json` (one record per check, in order
+  syntax, shellcheck, semgrep, bandit, trivy, catalog); `<out-dir>/syntax.json`;
+  `<out-dir>/shellcheck.json`, `semgrep.json`, `bandit.json`, `trivy.json` (the
+  tool's own JSON, present only when that tool ran).
+- **Finding counts:** each record carries `finding_count` (null when the
+  tool did not run) and `top_codes` (up to five most frequent codes); the
+  skill's Result column is rendered from these, never recounted.
+- **Syntax check:** `bash -n` with the first `bash` on PATH; the `syntax`
+  record's `version` names it. With an older bash (macOS `/bin/bash` is 3.2)
+  a pass stands; a failure's `stderr` starts `bash <ver> rejected this file
+  (may be valid on bash >= 4): ` and the note says failures may be false.
+- **Tool table:** `<out-dir>/tool-table.md` is the Check tiers line and the
+  Tool / Status / Result table, rendered from `summary.json`. The security
+  skill pastes it verbatim.
+- **Status vocabulary:** each check's `status` is `ran`, `not_installed`,
+  `failed_to_run`, or `skipped`. The skill renders these as `Run`,
+  `Not run (not installed)`, `Not run (failed)`, and `Not run (<note>)`.
+- **CI:** the workflow installs shellcheck, bandit, and a pinned semgrep.
+  trivy is local-only until CI installs it from a pinned source (see the
+  planning discussion); in CI its row is `not_installed`.
+- **Scanner configuration in the target:** shellcheck runs with `--norc` and
+  trivy with an empty config and ignore file written to the out-dir, so a
+  target's `.shellcheckrc`, `trivy.yaml`, or `.trivyignore` cannot silence
+  findings (or, for `trivy.yaml`, redirect output). semgrep and bandit have
+  no such switch; when the target ships `.semgrepignore` or `.bandit`, the
+  summary note says it may suppress findings.
+- Adding a tool means adding it to both this table and `pre-review.py` — the
+  script is the executable form of this spec, not an independent
+  implementation.
 
 ## Tool Lookup Table
 
@@ -20,8 +57,12 @@ normally** — tool findings supplement, never replace, the manual analysis.
 **Run:**
 
 ```bash
-shellcheck -f json -S warning <file.sh>
+shellcheck --norc -f json -S info <file.sh>
 ```
+
+`-S info` keeps SC2086 (unquoted variable), which shellcheck rates at info
+level and `-S warning` would drop. `--norc` ignores any `.shellcheckrc` in
+the target or the reviewer's home directory.
 
 **ERB preprocessing:** shellcheck cannot parse ERB tags. For `.sh.erb` files,
 strip ERB before scanning. The strip must be **multi-line aware** — a
@@ -48,7 +89,7 @@ text = re.sub(r'<%.*?%>',  lambda m: keep_newlines(m), text, flags=re.S)
 open(dst, 'w').write(text)
 PY
 
-shellcheck -f json -S warning "$TMPFILE"
+shellcheck --norc -f json -S info "$TMPFILE"
 rm "$TMPFILE"
 ```
 
@@ -84,11 +125,11 @@ the strip itself.
 **Run:**
 
 ```bash
-bandit -r <directory> -f json -ll
+bandit -r <directory> -f json
 ```
 
-`-ll` limits output to medium severity and above. Drop it for a comprehensive
-scan.
+No severity filter (`-ll`): the reviewer rates severity under the rubric, so
+bandit reports everything and low-severity results are weighed, not hidden.
 
 **Key test IDs:**
 - B102: `exec()` used
@@ -148,6 +189,8 @@ Only applicable when a `package.json` is present. If `package-lock.json` is
 missing, run `npm install --package-lock-only` first (does not install
 dependencies, just generates the lock file).
 
+Not run by run-pre-review.sh; manual only.
+
 ---
 
 ### trivy — Comprehensive vulnerability scanner
@@ -194,19 +237,19 @@ Lower priority for Appverse — most OOD ERB files are config templates rather t
 full Ruby apps, so rubocop findings tend to be noisy. Useful when the app includes
 substantial Ruby code (e.g., custom initializers or Ruby-based Passenger apps).
 
-## Detecting relevant tools for an app
+Not run by run-pre-review.sh; manual only.
 
-Match file types found in the in-scope files to tools:
+## What the script runs per file type
 
-| File pattern | Tools to probe |
+`pre-review.py` picks tools by file type; a tool with no applicable files is
+`skipped`.
+
+| Files in the target | Tool |
 |-------------|---------------|
-| `*.sh`, `*.bash`, `*.sh.erb` | shellcheck |
-| `*.py` | bandit, semgrep |
-| `*.rb`, `*.erb` | rubocop, semgrep |
-| `package.json` | npm audit, trivy |
-| `requirements.txt`, `Gemfile.lock` | trivy |
-| `*.def`, `Dockerfile` | trivy |
-| Any of the above | semgrep (universal) |
+| `*.sh`, `*.bash`, `*.sh.erb` | shellcheck (and the `bash -n` syntax check) |
+| `*.py` | bandit |
+| `package.json`, `requirements.txt`, `Gemfile.lock`, `Dockerfile`, `*.def` | trivy |
+| any file | semgrep |
 
 ## Interpreting tool output
 
