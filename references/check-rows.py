@@ -12,23 +12,33 @@ for template.json):
 
   Rows. A row is a Markdown table row, inside the app's "## App: <name>
   (<app_id>)" section, whose Check column (the column headed "Check") holds
-  `check: <id>`. A marker in any other column does not count. A check may
-  have several rows (Security is row-per-candidate). A row is required when
-  the check's row_required is "always", or when it is "when_candidates" and
-  its facts list at least one candidate. A required check with no row is
+  `check: <id>` and whose Result column leads with FAIL, WARN, PASS or NOT
+  CHECKED once markdown and emoji are stripped ("**WARN** (low)" is WARN).
+  A marker in any other column, or a row with any other Result (or in a
+  table with no Result column), does not count. A check may have several
+  rows (Security is row-per-candidate). A row is required when the check's
+  row_required is "always", or when it is "when_candidates" and its facts
+  list at least one candidate. A required check with no row is
       MISSING <app_id> <id>
 
-  Candidates. When the facts list candidates, the check is answered when any
-  of its rows has Result FAIL or WARN; otherwise (PASS, NOT CHECKED, or
-  anything else) every candidate must be cited in the Evidence column of one
-  of the check's rows. Each candidate left uncited is
+  Candidates. A row answers exactly the candidates its Evidence cites,
+  whatever its Result (FAIL, WARN, PASS or NOT CHECKED): a FAIL citing one
+  of three sites answers that one only. When the facts list candidates, every
+  candidate must be cited by some row of the check. Each candidate left
+  uncited is
       UNCITED <app_id> <id> <file:line>
   (for a syntax.json or entry_point.json candidate, which has no line, the
-  label is the bare path). A citation is the candidate's repo-relative path
-  (or, for form.json candidates, the app-relative path form.json records)
-  followed by :N or :N-M covering the line, not preceded by another path
-  character and not followed by a digit, so script.sh:1 does not match
-  script.sh:12 and other/script.sh:1 does not match script.sh:1. A
+  label is the bare path). A check with no candidates is satisfied by any
+  row, a plain PASS included.
+
+  Citations. The candidate's repo-relative path (or, for form.json
+  candidates, the app-relative path form.json records), optionally with a
+  leading ./, then a colon and a line list: N, N-M or N–M (en dash), or a
+  comma list of those (22,25 or 22, 25). The list must cover the line. The
+  path may not be preceded by another path character, and a number may not
+  run on into more digits, so script.sh:1 does not match script.sh:12 and
+  other/script.sh:1 does not match script.sh:1. Prose is not a citation:
+  "script.sh: line 12" and "script.sh line 12" do not cite line 12. A
   path-only candidate is cited by the path alone or with any line.
 
 Candidate sets, per check id (fact files are <out>/<app_id>/<name>.json,
@@ -38,19 +48,24 @@ syntax.json is <out>/syntax.json; a missing fact file means no candidates):
   sec-*                  security.json candidates of the kinds in SECURITY_KINDS
   hardcoded-site-paths   template.json absolute_paths
   magic-numbers          template.json numeric_literals + hex_colors
+                         (hex_colors: #rrggbb literals in any template file)
   dead-code              template.json commented_code
   icon-matches-target-os template.json icons
-  numeric-field-bounds   form.json attributes in the form that reach the
-                         scheduler and are unbounded: number_field without
-                         both min and max; a free-text field (any other widget
-                         outside CONSTRAINED_WIDGETS, including an undefined
-                         one) without a pattern and without both min and max.
-                         A non-null bound (ERBVALUE included) is a bound.
-  erb-missing-value      form.json attributes in the form that are interpolated
-                         in submit.yml.erb, minus any with "guarded": true.
-                         form.json does not record guards today, so every
-                         interpolated attribute is a candidate. Cited by the
-                         form line or any of its submit lines.
+  numeric-field-bounds   form.json attributes that are in the form (in_form)
+                         and defined under attributes: (defined; an undefined
+                         one is an OOD built-in such as bc_num_hours, bounded
+                         by OOD), reach the scheduler, and are unbounded: a
+                         number_field without both min and max; a free-text
+                         field (any other widget outside CONSTRAINED_WIDGETS,
+                         a null widget included) without a pattern and
+                         without both min and max. A non-null bound
+                         (ERBVALUE included) is a bound.
+  erb-missing-value      form.json attributes in the form and defined (as
+                         above) that are interpolated in submit.yml.erb,
+                         minus any with "guarded": true. form.json does not
+                         record guards today, so every interpolated attribute
+                         is a candidate. Cited by the form line or any of its
+                         submit lines.
 Other checks have no candidates: they only need a row.
 
 findings.json is read only to confirm it exists and is JSON, so the command
@@ -85,7 +100,10 @@ TEMPLATE_KEYS = {
 }
 CONSTRAINED_WIDGETS = {"select", "radio_button", "radio", "check_box", "checkbox", "hidden_field"}
 MARKER = re.compile(r"`check:\s*([A-Za-z0-9_.-]+)`")
-ANSWERING = {"FAIL", "WARN"}
+RESULTS = ("NOT CHECKED", "FAIL", "WARN", "PASS")
+RESULT_RE = re.compile(r"[^A-Z]*(" + "|".join(RESULTS).replace(" ", r"\s+") + r")(?![A-Z])")
+LINE_SPEC = r"\d+(?:\s*[-\u2013]\s*\d+)?(?!\d)"
+LINE_LIST = LINE_SPEC + r"(?:\s*,\s*" + LINE_SPEC + r")*"
 
 
 class InputError(Exception):
@@ -141,7 +159,7 @@ def form_candidates(check_id, form, prefix):
     sfile = form.get("submit_file") or "submit.yml.erb"
     out = []
     for a in form.get("attributes") or []:
-        if not a.get("in_form", True):
+        if not a.get("in_form", True) or a.get("defined") is False:
             continue
         cites = site(prefix, ffile, a.get("line"))
         if check_id == "numeric-field-bounds":
@@ -208,17 +226,27 @@ def candidates(check, app, out):
     return unique
 
 
+def covers(spec_list, line):
+    for spec in spec_list.split(","):
+        bounds = [int(x) for x in re.findall(r"\d+", spec)]
+        if bounds and bounds[0] <= line <= bounds[-1]:
+            return True
+    return False
+
+
 def cited(evidence, path, line):
-    pat = r"(?<![\w./-])" + re.escape(path)
+    pat = r"(?<![\w./-])(?:\./)?" + re.escape(path)
     if line is None:
         return re.search(pat + r"(?![\w./-])", evidence) is not None or \
             re.search(pat + r":\d", evidence) is not None
-    for m in re.finditer(pat + r":(\d+)(?:-(\d+))?(?!\d)", evidence):
-        lo = int(m.group(1))
-        hi = int(m.group(2)) if m.group(2) else lo
-        if lo <= int(line) <= hi:
-            return True
-    return False
+    return any(covers(m.group(1), int(line))
+               for m in re.finditer(pat + r":(" + LINE_LIST + r")", evidence))
+
+
+def normalize_result(cell):
+    """FAIL, WARN, PASS or NOT CHECKED from the cell's leading token, else None."""
+    m = RESULT_RE.match(re.sub(r"[*_`]", "", cell).upper())
+    return re.sub(r"\s+", " ", m.group(1)) if m else None
 
 
 # ---- report parsing -------------------------------------------------------
@@ -260,7 +288,10 @@ def rows_by_check(body):
             while i < len(lines) and lines[i].lstrip().startswith("|"):
                 cells = split_row(lines[i])
                 get = lambda k: cells[k] if k is not None and k < len(cells) else ""
-                result = re.sub(r"[*_`]", "", get(ri)).strip().upper()
+                result = normalize_result(get(ri))
+                if result is None:
+                    i += 1
+                    continue
                 for cid in MARKER.findall(get(ci)):
                     rows.setdefault(cid, []).append((result, get(ei)))
                 i += 1
@@ -336,8 +367,6 @@ def main(argv):
             found = rows.get(cid)
             if not found:
                 problems.append("MISSING {} {}".format(app["app_id"], cid))
-                continue
-            if any(r in ANSWERING for r, _ in found):
                 continue
             for lab, cites in cands:
                 if not any(cited(ev, p, n) for _, ev in found for p, n in cites):

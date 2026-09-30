@@ -102,6 +102,37 @@ for id in $cq_ids; do
   echo "$cq_section" | grep -qF -- "\`check: $id\`" && ok "Code Quality names check: $id" || bad "Code Quality names check: $id"
 done
 
+cq_rows=$(echo "$cq_section" | awk '/^\| *Check *\| *Target *\|/{f=1; next} f && /^\|/{print; next} f{exit}' | grep -vE '^\|[-: |]+\|$')
+[ -n "$cq_rows" ] && ok "Code Quality table found" || bad "Code Quality table found"
+unmarked=$(echo "$cq_rows" | grep -vE '`check: [A-Za-z0-9_.-]+`' || true)
+[ -z "$unmarked" ] && ok "every Code Quality table row carries a check: marker" \
+  || { bad "every Code Quality table row carries a check: marker"; echo "$unmarked"; }
+
+echo "Test 9b: every manifest entry has a tag, and each non-null tag is in finding-codes.md under its rule"
+TAGS_OUT=$(mktemp)
+python3 - "$MANIFEST" references/finding-codes.md > "$TAGS_OUT" 2>&1 <<'PY'
+import json, re, sys
+checks = json.load(open(sys.argv[1]))["checks"]
+vocab, rule = {}, None
+for line in open(sys.argv[2], encoding="utf-8"):
+    m = re.match(r"\*\*([A-Z]+-\d+):\*\*\s*$", line.strip())
+    if m:
+        rule = m.group(1)
+        continue
+    if line.startswith("#") or line.strip() == "---":
+        rule = None
+    if rule:
+        vocab.setdefault(rule, set()).update(re.findall(r"`([^`]+)`", line))
+for c in checks:
+    if "tag" not in c:
+        print("no tag field: " + c["id"])
+    elif c["tag"] is not None and c["tag"] not in vocab.get(c["rule"], ()):
+        print("tag {} not under {} in finding-codes.md: {}".format(c["tag"], c["rule"], c["id"]))
+PY
+tag_problems=$(cat "$TAGS_OUT"); rm -f "$TAGS_OUT"
+[ -z "$tag_problems" ] && ok "manifest tags are present and in the vocabulary" \
+  || { bad "manifest tags are present and in the vocabulary"; echo "$tag_problems"; }
+
 echo "Test 10: checks.json is generated from checks.yml"
 python3 references/checks-sync.py --verify > /dev/null 2>&1; rc=$?
 case $rc in

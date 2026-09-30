@@ -40,7 +40,8 @@ cat > "$O/root/form.json" <<'EOF'
  {"name": "bc_num_slots", "widget": "number_field", "min": 1, "max": null, "pattern": null, "required": true, "line": 6, "defined": true, "in_form": true, "interpolated_in_submit": true, "submit_lines": [4], "reaches_scheduler": true},
  {"name": "cores", "widget": "number_field", "min": 1, "max": "ERBVALUE", "pattern": null, "required": true, "line": 9, "defined": true, "in_form": true, "interpolated_in_submit": false, "submit_lines": [], "reaches_scheduler": true},
  {"name": "version", "widget": "select", "min": null, "max": null, "pattern": null, "required": false, "line": 12, "defined": true, "in_form": true, "interpolated_in_submit": false, "submit_lines": [], "reaches_scheduler": true},
- {"name": "extra", "widget": "text_field", "min": null, "max": null, "pattern": "[a-z]+", "required": false, "line": 15, "defined": true, "in_form": true, "interpolated_in_submit": false, "submit_lines": [], "reaches_scheduler": true}
+ {"name": "extra", "widget": "text_field", "min": null, "max": null, "pattern": "[a-z]+", "required": false, "line": 15, "defined": true, "in_form": true, "interpolated_in_submit": false, "submit_lines": [], "reaches_scheduler": true},
+ {"name": "bc_num_hours", "widget": null, "min": null, "max": null, "pattern": null, "required": false, "line": 3, "defined": false, "in_form": true, "interpolated_in_submit": true, "submit_lines": [8], "reaches_scheduler": true}
 ]}
 EOF
 cat > "$O/root/security.json" <<'EOF'
@@ -105,9 +106,26 @@ check "exit 1" 1 "$(run "$TMP/r3.md" "$TMP/findings.json" "$TMP/checks.json" "$O
 check "message" 1 "$(count "UNCITED root sec-interpolation template/script.sh.erb:12")"
 check "cited one not reported" 0 "$(grep -cF 'submit.yml.erb:4' "$TMP/out")"
 
-echo "Test 4: a FAIL/WARN row answers the check without citing every candidate"
-sed 's/| OODT-01 | `check: sec-interpolation` | PASS | — | — | integer widget/| OODT-01 | `check: sec-interpolation` | WARN | low | unintentional | integer widget/' "$TMP/r3.md" > "$TMP/r4.md"
-check "exit 0" 0 "$(run "$TMP/r4.md" "$TMP/findings.json" "$TMP/checks.json" "$O")"
+echo "Test 4: a row answers only the candidates it cites, whatever its Result"
+O4="$TMP/out-bc4"; cp -R "$O" "$O4"
+cat > "$O4/root/security.json" <<'EOF'
+{"counts": {"interpolation": 3},
+ "candidates": [
+  {"kind": "interpolation", "file": "submit.yml.erb", "line": 4, "text": "<%= bc_num_slots %>", "rule": "OODT-01", "note": "", "guarded": false, "quoted": false},
+  {"kind": "interpolation", "file": "template/script.sh.erb", "line": 12, "text": "<%= extra %>", "rule": "OODT-01", "note": "", "guarded": false, "quoted": true},
+  {"kind": "unquoted_expansion", "file": "template/script.sh.erb", "line": 30, "text": "$extra", "rule": "OODT-01", "note": "", "guarded": false, "quoted": false}
+ ]}
+EOF
+grep -vF 'template/script.sh.erb:10-14' "$TMP/report.md" \
+  | sed 's/| OODT-01 | `check: sec-interpolation` | PASS | — | — | integer widget, bounded by OOD | submit.yml.erb:4 |/| OODT-01 | `check: sec-interpolation` | FAIL | high | unintentional | unquoted | submit.yml.erb:4 |/' > "$TMP/r4.md"
+check "FAIL citing one of three: exit 1" 1 "$(run "$TMP/r4.md" "$TMP/findings.json" "$TMP/checks.json" "$O4")"
+check "second site UNCITED" 1 "$(count "UNCITED root sec-interpolation template/script.sh.erb:12")"
+check "third site UNCITED" 1 "$(count "UNCITED root sec-interpolation template/script.sh.erb:30")"
+check "the fixture has the FAIL row" 1 "$(grep -cF '| FAIL | high | unintentional |' "$TMP/r4.md")"
+check "cited site answered" 0 "$(grep -cF 'submit.yml.erb:4' "$TMP/out")"
+printf '%s\n' '| OODT-01 | `check: sec-interpolation` | NOT CHECKED | — | — | ERB too dynamic | template/script.sh.erb:12, 30 |' > "$TMP/r4row"
+sed "/check: sec-interpolation.*FAIL/r $TMP/r4row" "$TMP/r4.md" > "$TMP/r4b.md"
+check "a NOT CHECKED row citing the rest answers them: exit 0" 0 "$(run "$TMP/r4b.md" "$TMP/findings.json" "$TMP/checks.json" "$O4")"
 
 echo "Test 5: citations match exactly: a longer line number or a longer path does not count"
 sed 's/template\/script.sh.erb:10-14/template\/script.sh.erb:120; other\/template\/script.sh.erb:12/' "$TMP/report.md" > "$TMP/r5.md"
@@ -116,11 +134,31 @@ check "message" 1 "$(count "UNCITED root sec-interpolation template/script.sh.er
 sed 's/template\/script.sh.erb:10-14/`template\/script.sh.erb:12`/' "$TMP/report.md" > "$TMP/r5b.md"
 check "backticked exact cite exit 0" 0 "$(run "$TMP/r5b.md" "$TMP/findings.json" "$TMP/checks.json" "$O")"
 
+echo "Test 5b: citation grammar: en-dash ranges, comma lists and a leading ./ cite; prose does not"
+for ev in 'template/script.sh.erb:11–13' 'template/script.sh.erb:10,12' 'template/script.sh.erb:3, 12' './template/script.sh.erb:12' 'template/script.sh.erb:1-2,11 – 12'; do
+  sed "s|template/script.sh.erb:10-14|$ev|" "$TMP/report.md" > "$TMP/r5c.md"
+  check "cites: $ev" 0 "$(run "$TMP/r5c.md" "$TMP/findings.json" "$TMP/checks.json" "$O")"
+done
+for ev in 'template/script.sh.erb: line 12' 'template/script.sh.erb line 12' 'template/script.sh.erb:10,11' 'template/script.sh.erb:13–14'; do
+  sed "s|template/script.sh.erb:10-14|$ev|" "$TMP/report.md" > "$TMP/r5c.md"
+  check "does not cite: $ev" 1 "$(run "$TMP/r5c.md" "$TMP/findings.json" "$TMP/checks.json" "$O")"
+done
+
+echo "Test 5c: Result is read from its leading token after markdown and emoji"
+sed 's/| QUA-08 | PASS | — | documented timeout |/| QUA-08 | **WARN** (low) | low | undocumented |/' "$TMP/report.md" > "$TMP/r5d.md"
+check "**WARN** (low) is a result: exit 0" 0 "$(run "$TMP/r5d.md" "$TMP/findings.json" "$TMP/checks.json" "$O")"
+sed 's/| QUA-08 | PASS | — | documented timeout |/| QUA-08 | ✅ Pass | — | documented |/' "$TMP/report.md" > "$TMP/r5e.md"
+check "emoji then Pass is a result: exit 0" 0 "$(run "$TMP/r5e.md" "$TMP/findings.json" "$TMP/checks.json" "$O")"
+sed 's/| QUA-08 | PASS | — | documented timeout |/| QUA-08 | TBD | — | later |/' "$TMP/report.md" > "$TMP/r5f.md"
+check "a row with no result is not a row: exit 1" 1 "$(run "$TMP/r5f.md" "$TMP/findings.json" "$TMP/checks.json" "$O")"
+check "message" 1 "$(count "MISSING root magic-numbers")"
+
 echo "Test 6: numeric-field-bounds PASS without the candidate is UNCITED; bounded, ERBVALUE and select fields are not candidates"
 sed 's/| QUA-07 | FAIL | medium | no max | form.yml:6 |/| QUA-07 | PASS | — | all bounded | form.yml:9, form.yml:12 |/' "$TMP/report.md" > "$TMP/r6.md"
 check "exit 1" 1 "$(run "$TMP/r6.md" "$TMP/findings.json" "$TMP/checks.json" "$O")"
 check "message" 1 "$(count "UNCITED root numeric-field-bounds form.yml:6")"
 check "only one problem" 1 "$(grep -cE '^(MISSING|UNCITED) ' "$TMP/out")"
+check "a defined: false built-in is not a candidate" 0 "$(grep -cF 'form.yml:3' "$TMP/out")"
 
 echo "Test 7: a when_candidates check with no candidates needs no row; with candidates it does"
 check "sec-eval-exec absent, exit 0 (Test 1)" 0 "$(run "$TMP/report.md" "$TMP/findings.json" "$TMP/checks.json" "$O")"
@@ -133,7 +171,7 @@ sed 's/| Magic numbers (`check: magic-numbers`) | QUA-08 | PASS | — | document
 check "exit 1" 1 "$(run "$TMP/r8.md" "$TMP/findings.json" "$TMP/checks.json" "$O")"
 check "message" 1 "$(count "MISSING root magic-numbers")"
 
-echo "Test 9: a failing syntax.json entry is cited by path; NOT CHECKED does not answer it"
+echo "Test 9: a failing syntax.json entry is cited by path; a NOT CHECKED row citing nothing does not answer it"
 sed 's/| STR-06 | FAIL | high | after.sh does not parse | template\/after.sh (bash -n: line 3) |/| STR-06 | NOT CHECKED | — | bash missing | — |/' "$TMP/report.md" > "$TMP/r9.md"
 check "exit 1" 1 "$(run "$TMP/r9.md" "$TMP/findings.json" "$TMP/checks.json" "$O")"
 check "message" 1 "$(count "UNCITED root str-06-syntax template/after.sh")"
@@ -144,6 +182,7 @@ echo "Test 10: erb-missing-value candidates are the attributes interpolated in s
 sed 's/| QUA-10 | PASS | — | has a default | submit.yml.erb:4 |/| QUA-10 | PASS | — | fine | — |/' "$TMP/report.md" > "$TMP/r10.md"
 check "exit 1" 1 "$(run "$TMP/r10.md" "$TMP/findings.json" "$TMP/checks.json" "$O")"
 check "message" 1 "$(count "UNCITED root erb-missing-value submit.yml.erb:4")"
+check "a defined: false built-in is not a candidate" 0 "$(grep -cE 'submit.yml.erb:8|form.yml:3' "$TMP/out")"
 sed 's/| QUA-10 | PASS | — | has a default | submit.yml.erb:4 |/| QUA-10 | PASS | — | has a default | form.yml:6 |/' "$TMP/report.md" > "$TMP/r10b.md"
 check "the form line also cites it, exit 0" 0 "$(run "$TMP/r10b.md" "$TMP/findings.json" "$TMP/checks.json" "$O")"
 

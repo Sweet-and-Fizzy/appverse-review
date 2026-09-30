@@ -373,9 +373,9 @@ target for the first two.
 | Error handling in scripts (`set -e` or explicit checks) (`check: error-handling`) | Target for inclusion |
 | Input validation on form fields (min/max/required) (`check: numeric-field-bounds`) | Target for inclusion |
 | No undocumented magic numbers or hardcoded literals (resource limits, tunables, ports, hex colors, module versions) without comments (`check: magic-numbers`) | Suggestion |
-| No large blocks of duplicated code (`QUA-09`) (`check: duplicated-blocks`) | Suggestion |
+| No large blocks of duplicated code (`QUA-09`, `check: duplicated-blocks`) | Suggestion |
 | No commented-out dead code (`check: dead-code`) | Suggestion |
-| ERB templates handle missing/empty values gracefully (`QUA-10`) (`check: erb-missing-value`) | Suggestion |
+| ERB templates handle missing/empty values gracefully (`QUA-10`, `check: erb-missing-value`) | Suggestion |
 
 **Correctness and polish** defects are also Code Quality findings: copy-paste
 artifacts from the template an app was cloned from (a MATLAB reference in a

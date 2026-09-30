@@ -17,6 +17,10 @@
 #   app_types    batch_connect, passenger, companion, widget
 #   fact_source  the pre-review fact file(s) listing candidates, or none
 #   rule         the rule code findings for this check use
+#   tag          the mechanism tag (finding-codes.md vocabulary for the rule)
+#                findings for this check use in their defect_key, or null
+#                where the rule has no single natural tag (ratings, and STR
+#                rows whose tags carry a qualifier)
 #   row_required always: a row for every applicable app; when_candidates:
 #                a row only when the facts list a candidate (Security is
 #                row-per-candidate)
@@ -32,6 +36,7 @@ checks:
     app_types: [batch_connect, passenger, companion, widget]
     fact_source: none
     rule: STR-02
+    tag: null
     row_required: always
     dimension: structure
   - id: str-03-yaml-valid
@@ -39,6 +44,7 @@ checks:
     app_types: [batch_connect, passenger, companion, widget]
     fact_source: none
     rule: STR-03
+    tag: yaml-parse-error
     row_required: always
     dimension: structure
   - id: str-06-syntax
@@ -46,6 +52,7 @@ checks:
     app_types: [batch_connect]
     fact_source: syntax.json
     rule: STR-06
+    tag: bash-syntax-error
     row_required: always
     dimension: structure
   - id: str-07-layout
@@ -53,6 +60,7 @@ checks:
     app_types: [batch_connect]
     fact_source: none
     rule: STR-07
+    tag: layout-mismatch
     row_required: always
     dimension: structure
   - id: entry-point-parses
@@ -60,6 +68,7 @@ checks:
     app_types: [passenger, companion]
     fact_source: entry_point.json
     rule: STR-07
+    tag: null
     row_required: always
     dimension: structure
   - id: str-04-references
@@ -67,6 +76,7 @@ checks:
     app_types: [batch_connect, passenger, companion, widget]
     fact_source: none
     rule: STR-04
+    tag: null
     row_required: always
     dimension: structure
 
@@ -77,6 +87,7 @@ checks:
     app_types: [batch_connect, passenger, companion, widget]
     fact_source: security.json
     rule: OODT-01
+    tag: unsanitized-user-input
     row_required: when_candidates
     dimension: security
   - id: sec-eval-exec
@@ -84,6 +95,7 @@ checks:
     app_types: [batch_connect, passenger, companion, widget]
     fact_source: security.json
     rule: OODT-01
+    tag: eval-exec
     row_required: when_candidates
     dimension: security
   - id: sec-credential-string
@@ -91,6 +103,7 @@ checks:
     app_types: [batch_connect, passenger, companion, widget]
     fact_source: security.json
     rule: OODT-02
+    tag: hardcoded-credential
     row_required: when_candidates
     dimension: security
   - id: sec-permissive-mode
@@ -98,6 +111,7 @@ checks:
     app_types: [batch_connect, passenger, companion, widget]
     fact_source: security.json
     rule: OODT-03
+    tag: permissive-file-mode
     row_required: when_candidates
     dimension: security
   # A network call is OODT-04 (exfiltration); record OODT-05 instead when the
@@ -107,6 +121,7 @@ checks:
     app_types: [batch_connect, passenger, companion, widget]
     fact_source: security.json
     rule: OODT-04
+    tag: unexpected-network-call
     row_required: when_candidates
     dimension: security
   - id: sec-file-write-outside-job
@@ -114,14 +129,19 @@ checks:
     app_types: [batch_connect, passenger, companion, widget]
     fact_source: security.json
     rule: OODT-07
+    tag: dotfile-write
     row_required: when_candidates
     dimension: security
-  # --no-auth, --disable-ssl, 0.0.0.0, CORS wildcard
+  # --no-auth, --disable-ssl, 0.0.0.0, CORS wildcard. The tag is disabled-ssl
+  # because it is the OODT-08 vocabulary term; disabled-auth, bind-all-interfaces
+  # and cors-wildcard are OODT-05 terms, so a finding recording one of those
+  # uses OODT-05 as its rule.
   - id: sec-config-flag
     section: Pattern checks (all app types)
     app_types: [batch_connect, passenger, companion, widget]
     fact_source: security.json
     rule: OODT-08
+    tag: disabled-ssl
     row_required: when_candidates
     dimension: security
   - id: sec-binary-in-template
@@ -129,6 +149,7 @@ checks:
     app_types: [batch_connect, passenger, companion, widget]
     fact_source: security.json
     rule: OODT-04
+    tag: binary-in-template
     row_required: when_candidates
     dimension: security
 
@@ -138,6 +159,7 @@ checks:
     app_types: [batch_connect]
     fact_source: template.json
     rule: QUA-02
+    tag: hardcoded-path
     row_required: always
     dimension: portability
   - id: portability-rating
@@ -145,6 +167,7 @@ checks:
     app_types: [batch_connect, passenger, companion, widget]
     fact_source: none
     rule: QUA-02
+    tag: null
     row_required: always
     dimension: portability
 
@@ -154,6 +177,7 @@ checks:
     app_types: [batch_connect, passenger, companion, widget]
     fact_source: readme.json
     rule: QUA-01
+    tag: null
     row_required: always
     dimension: documentation
 
@@ -163,6 +187,7 @@ checks:
     app_types: [batch_connect, passenger, companion, widget]
     fact_source: none
     rule: QUA-03
+    tag: no-set-e
     row_required: always
     dimension: code_quality
   - id: numeric-field-bounds
@@ -170,6 +195,7 @@ checks:
     app_types: [batch_connect]
     fact_source: form.json
     rule: QUA-07
+    tag: missing-min-max
     row_required: always
     dimension: code_quality
   - id: magic-numbers
@@ -177,6 +203,7 @@ checks:
     app_types: [batch_connect]
     fact_source: template.json
     rule: QUA-08
+    tag: magic-number
     row_required: always
     dimension: code_quality
   - id: duplicated-blocks
@@ -184,6 +211,7 @@ checks:
     app_types: [batch_connect, passenger, companion, widget]
     fact_source: none
     rule: QUA-09
+    tag: duplicated-block
     row_required: always
     dimension: code_quality
   - id: dead-code
@@ -191,6 +219,7 @@ checks:
     app_types: [batch_connect]
     fact_source: template.json
     rule: QUA-04
+    tag: commented-out-code
     row_required: always
     dimension: code_quality
   - id: erb-missing-value
@@ -198,6 +227,7 @@ checks:
     app_types: [batch_connect]
     fact_source: form.json
     rule: QUA-10
+    tag: erb-missing-value-unhandled
     row_required: always
     dimension: code_quality
   - id: icon-matches-target-os
@@ -205,5 +235,6 @@ checks:
     app_types: [batch_connect]
     fact_source: [template.json, readme.json]
     rule: QUA-06
+    tag: icon-os-mismatch
     row_required: always
     dimension: code_quality
