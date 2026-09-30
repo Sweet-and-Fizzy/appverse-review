@@ -29,12 +29,15 @@ fix-item and must be represented in the feedback section of the report:
      line number parsed out of the finding's evidence (every integer, and
      every "a-b" range's endpoints, plus any ":N", "line N", or "lines N-M"
      form) appears in that window, OR at least one distinctive word of the
-     mechanism tag appears there. A sentence window is the sentence that
-     names the file plus the sentence immediately after it — a sentence
-     ends at '.', ';', or ':' followed by whitespace, or a newline — so a
-     paragraph that names the file in one sentence and gives the line or
-     mechanism word in the next still passes, while a line number three
-     sentences away, or in a sentence about a different file, does not.
+     mechanism tag appears there. A sentence window runs from the sentence
+     that names the file up to, but not including, the first later sentence
+     that names a *different* file — a sentence ends at '.', ';', or ':'
+     followed by whitespace, or a newline. A real report typically names a
+     file once in a lead-in sentence and then describes several of its
+     defects over the sentences that follow, and that still passes; the
+     window only has to stop once the prose moves on to a different file,
+     so a line number or mechanism word attached to that other file's
+     mention does not count for this one.
      The mechanism tag is the part of defect_key after the
      anchor (the first ":"). If it starts with "other:", the distinctive
      words come from the remainder, hyphen-split. Otherwise, if it carries a
@@ -63,8 +66,13 @@ fix-item and must be represented in the feedback section of the report:
      subject is treated like a file name: some paragraph must name it as a
      whole word (or the finding is MISSING with reason "subject not named
      in feedback"), and rule 3's sentence-window check then applies using
-     those same subject words in place of a line number or mechanism word.
-     A covers-line key alone never satisfies a pseudo-anchored fix-item.
+     those same subject words in place of a line number or mechanism word
+     — since the subject word(s) are what rule 3 looks for here, naming the
+     subject at all (rule 2) and describing the defect (rule 3) collapse
+     into the same check: rule 3 is satisfied by the subject itself being
+     present in the window, with no separate line number or mechanism word
+     required. A covers-line key alone never satisfies a pseudo-anchored
+     fix-item.
 
      Known limit: when a qualified and an unqualified finding share the same
      base tag and anchor (e.g. "README.md:readme-inconsistency" and
@@ -109,8 +117,15 @@ SENTENCE_END = re.compile(r"(?<=[.;:])\s+|\n")
 # file extension (e.g. "form.yml", "template/script.sh.erb"). Used to detect
 # whether a sentence is about a *different* file than the one whose window
 # is being built, so that file's line numbers or mechanism words don't leak
-# in from a neighboring sentence about something else.
-FILENAME_TOKEN = re.compile(r"(?<![A-Za-z0-9_./\-])([A-Za-z0-9_./\-]+\.[A-Za-z0-9_.]+)(?![A-Za-z0-9_./\-])")
+# in from a neighboring sentence about something else. The stem must be at
+# least two characters and the extension must be letter-led, so ordinary
+# prose abbreviations and version numbers ("e.g.", "i.e.", "3.1.", "v2.0.")
+# are not mistaken for filenames.
+FILENAME_TOKEN = re.compile(
+    r"(?<![A-Za-z0-9_./\-])"
+    r"((?:[A-Za-z0-9_\-]+/)*[A-Za-z0-9_\-]{2,}(?:\.[A-Za-z][A-Za-z0-9]{0,5})+)"
+    r"(?![A-Za-z0-9_/\-])"
+)
 # Pseudo-anchor -> subject words: what a fix-item with no recognizable file
 # path in its evidence is "about", drawn from the defect_key's anchor (the
 # part before the first ':'). General-purpose table, not specific to any one
@@ -227,34 +242,42 @@ def sentences(paragraph):
 
 def names_other_file(sentence, candidates):
     """True if `sentence` contains a filename-shaped token that is none of
-    `candidates` — i.e. the sentence is about some other file. `candidates`
-    are compared as whole tokens, the same way a file is recognized as
-    named at all."""
+    `candidates` — i.e. the sentence is about some other file. A token is
+    also accepted as matching a candidate if their basenames agree, so
+    that a later sentence using the short form "script.sh.erb" for a
+    non-root app's full evidence path "apps/x/template/script.sh.erb" is
+    not mistaken for a different file."""
     for tok in FILENAME_TOKEN.findall(sentence):
-        if not any(token_in_prose(c, tok) or tok == c for c in candidates):
-            return True
+        if any(
+            token_in_prose(c, tok) or tok == c or os.path.basename(tok) == os.path.basename(c)
+            for c in candidates
+        ):
+            continue
+        return True
     return False
 
 
 def sentence_windows(paragraph, candidates, ci=False):
     """Each sentence in `paragraph` that names one of `candidates` as a whole
-    token, joined with the sentence immediately after it — unless that next
-    sentence names a *different* file, in which case it is left out of the
-    window, so a line number or mechanism word that only sits in a sentence
-    about another file is not borrowed into this one. Rule 3 is checked
-    against these windows rather than the whole paragraph, so a description
-    three sentences away, or attached to a different file, does not count —
-    the description has to sit with the file. `ci` is as in
-    `paragraph_naming`."""
+    token, plus every sentence after it up to, but not including, the first
+    later sentence that names a *different* file. A real report typically
+    names a file once in a lead-in sentence and then describes several of
+    its defects over the sentences that follow, so the window has to run
+    that far to be useful — it just has to stop before the prose moves on
+    to another file. Rule 3 is checked against these windows rather than
+    the whole paragraph, so a description of a *different* file's defect
+    does not count for this one — the description has to sit with the
+    file, from its lead-in up to wherever the paragraph turns to something
+    else. `ci` is as in `paragraph_naming`."""
     ss = sentences(paragraph)
     windows = []
     for i, s in enumerate(ss):
         if not any(named_in(c, s, ci) for c in candidates):
             continue
-        nxt = ss[i + 1:i + 2]
-        if nxt and names_other_file(nxt[0], candidates):
-            nxt = []
-        windows.append(" ".join([s] + nxt))
+        end = i + 1
+        while end < len(ss) and not names_other_file(ss[end], candidates):
+            end += 1
+        windows.append(" ".join(ss[i:end]))
     return windows
 
 
@@ -336,12 +359,19 @@ def words_named(words, prose):
     """True if at least one of `words` appears in `prose` as a whole word,
     comparing case-insensitively with hyphens/underscores stripped from
     both sides (so "hardcoded" matches "hard-coded" and "CI" matches
-    "ci"), and tolerating a plain trailing "s" on either side (so a
-    singular word like "release" matches prose that says "releases", and
-    vice versa) — ordinary English pluralization, not a stem match."""
+    "ci"), and tolerating a plain trailing "s" symmetrically — the word is
+    stripped of a trailing "s" first (so "releases" -> "release"), then
+    matched against the prose allowing an optional trailing "s" there too.
+    This makes plural tolerance two-way: a singular word like "release"
+    matches prose written as "releases", AND a word like "releases" (as in
+    the "releases" pseudo-anchor's own name, before the table maps it to
+    its singular subject) matches prose written as "release". Ordinary
+    English pluralization, not a stem match."""
     norm_prose = normalize(prose)
     for w in words:
         n = normalize(w)
+        if n.endswith("s") and len(n) > 1:
+            n = n[:-1]
         if n and re.search(r"(?<![a-z0-9])" + re.escape(n) + r"s?(?![a-z0-9])", norm_prose):
             return True
     return False

@@ -28,7 +28,7 @@ cat > "$TMP/ok.md" <<'EOF'
 Accept with suggestions.
 ## Draft feedback — edit before sending
 Please validate the free-text fields in submit.yml.erb; the input is unsanitized. It has no error handling, so add set -e to template/script.sh.erb.
-CHANGELOG.md describes a different, wrong app; please rewrite it. There are no tagged releases; consider tagging one.
+CHANGELOG.md describes a different, wrong app; please rewrite it. Consider tagging a release.
 form.yml hardcodes a module version at line 63; please make it configurable.
 <!-- feedback-covers: submit.yml.erb:unsanitized-input, template/script.sh.erb:no-error-handling, root:changelog-wrong-app, root:no-releases, form.yml:hardcoded-module-version -->
 EOF
@@ -285,7 +285,7 @@ Accept with suggestions.
 
 ## Draft feedback — edit before sending
 Please validate the free-text fields in submit.yml.erb; the input is unsanitized. It has no error handling, so add set -e to template/script.sh.erb.
-CHANGELOG.md describes a different, wrong app; please rewrite it. There are no tagged releases; consider tagging one.
+CHANGELOG.md describes a different, wrong app; please rewrite it. Consider tagging a release.
 form.yml hardcodes a module version at line 63; please make it configurable.
 EOF
 check "exit 0" 0 "$(run "$TMP/findings.json" "$TMP/above-heading.md")"
@@ -302,7 +302,7 @@ Line filler two.
 
 ## Draft feedback — edit before sending
 Please validate the free-text fields in submit.yml.erb; the input is unsanitized. It has no error handling, so add set -e to template/script.sh.erb.
-CHANGELOG.md describes a different, wrong app; please rewrite it. There are no tagged releases; consider tagging one.
+CHANGELOG.md describes a different, wrong app; please rewrite it. Consider tagging a release.
 form.yml hardcodes a module version at line 63; please make it configurable.
 EOF
 check "exit 1" 1 "$(run "$TMP/findings.json" "$TMP/far-above.md")"
@@ -317,7 +317,7 @@ Accept with suggestions.
 
 ## Draft feedback — edit before sending
 Please validate the free-text fields in submit.yml.erb; the input is unsanitized. It has no error handling, so add set -e to template/script.sh.erb.
-CHANGELOG.md describes a different, wrong app; please rewrite it. There are no tagged releases; consider tagging one.
+CHANGELOG.md describes a different, wrong app; please rewrite it. Consider tagging a release.
 form.yml hardcodes a module version at line 63; please make it configurable.
 <!-- feedback-covers: submit.yml.erb:unsanitized-input, template/script.sh.erb:no-error-handling, root:changelog-wrong-app, root:no-releases, form.yml:hardcoded-module-version -->
 EOF
@@ -377,5 +377,58 @@ check "exit 1" 1 "$(run "$TMP/t27.json" "$TMP/t27a.md")"
 check "reason" 1 "$(grep -cF 'MISSING MNT-02 releases:no-releases (subject not named in feedback)' "$TMP/out")"
 printf '## Draft feedback\n<!-- feedback-covers: releases:no-releases -->\nThere are no tagged releases yet; tag one when the next change lands.\n' > "$TMP/t27b.md"
 check "subject named: exit 0" 0 "$(run "$TMP/t27.json" "$TMP/t27b.md")"
+
+echo "Test 28: a file named once in a lead-in, with several of its defects described over the following sentences, still passes (the window runs until a different file is named, not just one sentence)"
+cat > "$TMP/t28.json" <<'EOF'
+[{"app_id":"root","rule":"OODT-08","defect_key":"template/script.sh.erb:debug-tracing-enabled","result":"WARN","severity":"low","evidence":"template/script.sh.erb:19,44,54"},
+ {"app_id":"root","rule":"QUA-02","defect_key":"form.yml:hardcoded-module-version","result":"FAIL","severity":"low","evidence":"form.yml:63"}]
+EOF
+cat > "$TMP/t28.md" <<'EOF'
+## Draft feedback
+<!-- feedback-covers: template/script.sh.erb:debug-tracing-enabled, form.yml:hardcoded-module-version -->
+template/script.sh.erb enables debug tracing. This shows up at lines 19, 44 and 54, and should be removed. It also lacks a shebang line, e.g. the standard interpreter directive. See the OOD packaging guidance for v2.0. form.yml separately hardcodes a module version at line 63.
+EOF
+check "exit 0" 0 "$(run "$TMP/t28.json" "$TMP/t28.md")"
+check "reports 2/2" "feedback floor: 2/2 fix-items covered" "$(tail -1 "$TMP/out")"
+
+echo "Test 29: Must-not — a pseudo-anchor item whose prose says the singular form, with no line number, passes (plural tolerance is symmetric)"
+cat > "$TMP/t29.json" <<'EOF'
+[{"app_id":"root","rule":"MNT-02","defect_key":"releases:no-releases","result":"WARN","severity":"low","evidence":"releases"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: releases:no-releases -->\nThere is no tagged release yet.\n' > "$TMP/t29.md"
+check "singular release passes: exit 0" 0 "$(run "$TMP/t29.json" "$TMP/t29.md")"
+check "reports 1/1" "feedback floor: 1/1 fix-items covered" "$(tail -1 "$TMP/out")"
+
+echo "Test 30: a pseudo-anchor whose defect_key anchor is 'root' falls back to its mechanism-tag words as the subject"
+cat > "$TMP/t30.json" <<'EOF'
+[{"app_id":"root","rule":"MNT-02","defect_key":"root:no-releases","result":"WARN","severity":"low","evidence":"GitHub releases API: 0"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: root:no-releases -->\nThe README looks fine.\n' > "$TMP/t30a.md"
+check "no subject named: exit 1" 1 "$(run "$TMP/t30.json" "$TMP/t30a.md")"
+check "reason" 1 "$(grep -cF 'MISSING MNT-02 root:no-releases (subject not named in feedback)' "$TMP/out")"
+printf '## Draft feedback\n<!-- feedback-covers: root:no-releases -->\nConsider tagging a release.\n' > "$TMP/t30b.md"
+check "mechanism word as subject: exit 0" 0 "$(run "$TMP/t30.json" "$TMP/t30b.md")"
+
+echo "Test 31: the '.github/workflows' pseudo-anchor's subject words are 'ci' and 'workflow'"
+cat > "$TMP/t31.json" <<'EOF'
+[{"app_id":"root","rule":"MNT-04","defect_key":".github/workflows:no-ci","result":"FAIL","severity":"low","evidence":".github/workflows: absent"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: .github/workflows:no-ci -->\nThere is no test suite mentioned.\n' > "$TMP/t31a.md"
+check "no subject named: exit 1" 1 "$(run "$TMP/t31.json" "$TMP/t31a.md")"
+check "reason" 1 "$(grep -cF 'MISSING MNT-04 .github/workflows:no-ci (subject not named in feedback)' "$TMP/out")"
+printf '## Draft feedback\n<!-- feedback-covers: .github/workflows:no-ci -->\nPlease add a CI configuration.\n' > "$TMP/t31b.md"
+check "ci word passes: exit 0" 0 "$(run "$TMP/t31.json" "$TMP/t31b.md")"
+
+echo "Test 32: a monorepo app's short-form filename in a later sentence (matching the evidence path's basename) is not mistaken for a different file, so the window still runs through it"
+cat > "$TMP/t32.json" <<'EOF'
+[{"app_id":"apps/x","rule":"OODT-08","defect_key":"apps/x/template/script.sh.erb:debug-tracing-enabled","result":"WARN","severity":"low","evidence":"apps/x/template/script.sh.erb:19,44,54"}]
+EOF
+cat > "$TMP/t32.md" <<'EOF'
+## Draft feedback
+<!-- feedback-covers: apps/x/template/script.sh.erb:debug-tracing-enabled -->
+apps/x/template/script.sh.erb enables debug tracing at lines 19, 44 and 54. script.sh.erb should have this removed before release.
+EOF
+check "exit 0" 0 "$(run "$TMP/t32.json" "$TMP/t32.md")"
+check "reports 1/1" "feedback floor: 1/1 fix-items covered" "$(tail -1 "$TMP/out")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
