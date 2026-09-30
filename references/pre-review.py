@@ -710,6 +710,14 @@ APP_TYPES = {"batch-connect-basic": "batch_connect", "batch-connect-vnc": "batch
 PASSENGER_ENTRY = ("config.ru", "passenger_wsgi.py", "app.js")
 RESERVED_IDS = {"stripped", "root"}
 OUTSIDE_APP = "app path outside target, not read"
+
+
+def _skip_note(app):
+    """"<app_id>: <reason>", with the declared path in parentheses when it
+    differs from the id (an outside-target app's id is sanitised)."""
+    if app.get("path") not in (None, app["app_id"]):
+        return "%s (%s): %s" % (app["app_id"], app["path"], app["_skip"])
+    return "%s: %s" % (app["app_id"], app["_skip"])
 MISSING_APP = "app directory not found"
 
 
@@ -1567,7 +1575,7 @@ def check_readme(target, apps, out):
     for app in apps:
         if app["_skip"]:
             per_app[app["app_id"]] = "skipped"
-            notes.append("%s: %s" % (app["app_id"], app["_skip"]))
+            notes.append(_skip_note(app))
             continue
         if not app["readme"]:
             per_app[app["app_id"]] = "skipped"
@@ -1596,7 +1604,7 @@ def check_form(target, apps, out):
     for app in apps:
         if app["_skip"]:
             per_app[app["app_id"]] = "skipped"
-            notes.append("%s: %s" % (app["app_id"], app["_skip"]))
+            notes.append(_skip_note(app))
             continue
         try:
             data = scan_form(target, app["_dir"])
@@ -1986,7 +1994,7 @@ def _app_fact(name, scan, applies, missing, target, apps, out):
         app_id = app["app_id"]
         if app["_skip"]:
             per_app[app_id] = "skipped"
-            notes.append("%s: %s" % (app_id, app["_skip"]))
+            notes.append(_skip_note(app))
             continue
         if app["app_type"] not in applies:
             per_app[app_id] = "not_applicable"
