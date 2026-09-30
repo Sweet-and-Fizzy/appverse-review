@@ -431,4 +431,52 @@ EOF
 check "exit 0" 0 "$(run "$TMP/t32.json" "$TMP/t32.md")"
 check "reports 1/1" "feedback floor: 1/1 fix-items covered" "$(tail -1 "$TMP/out")"
 
+echo "Test 33: subject_words is total over every entry of repo_paths.PSEUDO_ANCHORS — each yields a non-empty subject for an ordinary (non-'root') tag"
+anchors_empty="$(python3 -c "
+import importlib.util
+spec = importlib.util.spec_from_file_location('cff', '$CHECK')
+cff = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(cff)
+empty = [a for a in sorted(cff.PSEUDO_ANCHORS) if a != 'root' and not cff.subject_words(a + ':some-tag')]
+print(','.join(empty))
+")"
+check "no pseudo-anchor (other than root) yields an empty subject" "" "$anchors_empty"
+
+echo "Test 34: a pseudo-anchor fix-item outside the four originally-tabled anchors (commits, issues) is MISSING, not a silent pass, when only the covers key names it"
+cat > "$TMP/t34.json" <<'EOF'
+[{"app_id":"root","rule":"MNT-01","defect_key":"commits:stale-repo","result":"FAIL","severity":"high","evidence":"last commit 400 days ago"},
+ {"app_id":"root","rule":"MNT-05","defect_key":"issues:unresponsive-issues","result":"WARN","severity":"low","evidence":"3 open issues, no response"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: commits:stale-repo, issues:unresponsive-issues -->\nThe README is fine.\n' > "$TMP/t34a.md"
+check "exit 1" 1 "$(run "$TMP/t34.json" "$TMP/t34a.md")"
+check "reports 0/2" "feedback floor: 0/2 fix-items covered" "$(tail -1 "$TMP/out")"
+check "commits reason" 1 "$(grep -cF 'MISSING MNT-01 commits:stale-repo (subject not named in feedback)' "$TMP/out")"
+check "issues reason" 1 "$(grep -cF 'MISSING MNT-05 issues:unresponsive-issues (subject not named in feedback)' "$TMP/out")"
+printf '## Draft feedback\n<!-- feedback-covers: commits:stale-repo, issues:unresponsive-issues -->\nThe last commit was over a year ago. There are open issues with no maintainer response.\n' > "$TMP/t34b.md"
+check "subjects named: exit 0" 0 "$(run "$TMP/t34.json" "$TMP/t34b.md")"
+
+echo "Test 35: a 'root' pseudo-anchor whose mechanism tag has no distinctive word is MISSING with 'no subject for pseudo-anchor root', not a silent pass"
+cat > "$TMP/t35.json" <<'EOF'
+[{"app_id":"root","rule":"MNT-04","defect_key":"root:no-ci","result":"FAIL","severity":"low","evidence":"n/a"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: root:no-ci -->\nEverything else looks fine.\n' > "$TMP/t35.md"
+check "exit 1" 1 "$(run "$TMP/t35.json" "$TMP/t35.md")"
+check "reason" 1 "$(grep -cF 'MISSING MNT-04 root:no-ci (no subject for pseudo-anchor root)' "$TMP/out")"
+
+echo "Test 36: a mechanism word that is only a file-extension fragment (erb) does not trivially satisfy rule 3 via the file name itself"
+cat > "$TMP/t36.json" <<'EOF'
+[{"app_id":"root","rule":"QUA-10","defect_key":"submit.yml.erb:erb-missing-value-unhandled","result":"WARN","severity":"low","evidence":"submit.yml.erb:6,7"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: submit.yml.erb:erb-missing-value-unhandled -->\nPlease tidy submit.yml.erb.\n' > "$TMP/t36.md"
+check "exit 1" 1 "$(run "$TMP/t36.json" "$TMP/t36.md")"
+check "reason" 1 "$(grep -cF 'MISSING QUA-10 submit.yml.erb:erb-missing-value-unhandled (defect not described in feedback)' "$TMP/out")"
+
+echo "Test 37: a mechanism word that is only a bare verb (set, from no-set-e) does not trivially satisfy rule 3 via an unrelated command"
+cat > "$TMP/t37.json" <<'EOF'
+[{"app_id":"root","rule":"QUA-03","defect_key":"template/script.sh.erb:no-set-e","result":"FAIL","severity":"low","evidence":"template/script.sh.erb:1"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: template/script.sh.erb:no-set-e -->\nIn template/script.sh.erb, remove set -x on line 19.\n' > "$TMP/t37.md"
+check "exit 1" 1 "$(run "$TMP/t37.json" "$TMP/t37.md")"
+check "reason" 1 "$(grep -cF 'MISSING QUA-03 template/script.sh.erb:no-set-e (defect not described in feedback)' "$TMP/out")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

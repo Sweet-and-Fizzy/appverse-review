@@ -56,13 +56,25 @@ fix-item and must be represented in the feedback section of the report:
 
   4. when a finding's evidence has no recognizable file path (a
      pseudo-anchor, e.g. a repo-wide check like "0 tagged releases" with
-     evidence "GitHub releases API: 0"), the finding still has a subject:
-     words drawn from the defect_key's anchor (the part before the first
-     ":"), by a small table (e.g. "releases" -> "release", "CHANGELOG.md"
-     -> "changelog", "LICENSE" -> "license", ".github/workflows" -> "ci"/
-     "workflow"); a "root" anchor falls back to the mechanism tag's own
-     distinctive words. If the anchor yields no subject words, there is
-     nothing to verify and rule 1 alone governs, as before. Otherwise the
+     evidence "GitHub releases API: 0"), the finding still has a subject —
+     and this is total over every anchor in repo_paths.PSEUDO_ANCHORS
+     ("LICENSE", "README.md", "CHANGELOG.md", ".github/workflows",
+     "releases", "issues", "contributors", "commits", "root"), not just a
+     few of them: by default the subject is the anchor lowercased, with any
+     file extension and a single trailing "s" stripped ("commits" ->
+     "commit", "issues" -> "issue", "contributors" -> "contributor",
+     "CHANGELOG.md" -> "changelog", "LICENSE" -> "license"); two anchors
+     override the default because it doesn't fit them — "root" has no
+     subject word of its own, so it falls back to the mechanism tag's own
+     distinctive words, and ".github/workflows" uses "ci"/"workflow"
+     instead of its own default. If the anchor isn't one of
+     PSEUDO_ANCHORS at all, there is nothing to verify and rule 1 alone
+     governs, as before. But if it IS one of PSEUDO_ANCHORS and still
+     yields no subject word (a "root" finding with no distinctive
+     mechanism-tag word), that is a real gap, not a pass: the finding is
+     MISSING with reason "no subject for pseudo-anchor {anchor}" — a
+     pseudo-anchored fix-item never passes on its covers-line key alone,
+     regardless of why its table lookup came up empty. Otherwise the
      subject is treated like a file name: some paragraph must name it as a
      whole word (or the finding is MISSING with reason "subject not named
      in feedback"), and rule 3's sentence-window check then applies using
@@ -71,8 +83,7 @@ fix-item and must be represented in the feedback section of the report:
      subject at all (rule 2) and describing the defect (rule 3) collapse
      into the same check: rule 3 is satisfied by the subject itself being
      present in the window, with no separate line number or mechanism word
-     required. A covers-line key alone never satisfies a pseudo-anchored
-     fix-item.
+     required.
 
      Known limit: when a qualified and an unqualified finding share the same
      base tag and anchor (e.g. "README.md:readme-inconsistency" and
@@ -82,6 +93,15 @@ fix-item and must be represented in the feedback section of the report:
      (e.g. naming "testing table" without saying what's inconsistent about
      it), rule 3 can still pass on the topic word alone — the floor verifies
      the defect is *named*, not that the description is complete.
+
+     Known limit: a sentence window (rule 3) stops at the first later
+     sentence naming a *different* file, and "different file" is detected
+     by a generic filename-shaped-token pattern (FILENAME_TOKEN), not a
+     real filesystem check. A hostname or a log/library filename mentioned
+     in passing (e.g. "output.log", "llama.cpp", "osc.github.io") matches
+     that pattern too and will cut a window short even though it is not
+     actually a different tracked file. This is accepted for now — it
+     narrows some legitimate windows but does not create a false pass.
 
     python3 references/check-feedback-floor.py review-<slug>.findings.json review-<slug>.md
 
@@ -94,7 +114,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from repo_paths import split_reviewed_ok  # noqa: E402
+from repo_paths import PSEUDO_ANCHORS, split_reviewed_ok  # noqa: E402
 
 FIX_SEVERITIES = {"critical", "high", "medium", "low"}
 FIX_RESULTS = {"FAIL", "WARN"}
@@ -111,6 +131,13 @@ PATH_PREFIX = re.compile(
 STOPWORDS = {
     "no", "not", "missing", "other", "wrong", "bad", "un", "non",
     "app", "key", "value", "file",
+    # File-extension fragments (erb, yml, yaml, sh, md) and bare verbs (set)
+    # that show up inside a mechanism tag but, on their own, describe the
+    # file's name or a generic action rather than the specific defect — a
+    # mention of the file itself (e.g. "submit.yml.erb") or an unrelated
+    # command (e.g. "set -x") would otherwise make rule 3's mechanism-word
+    # check trivially true.
+    "erb", "yml", "yaml", "sh", "md", "set",
 }
 SENTENCE_END = re.compile(r"(?<=[.;:])\s+|\n")
 # A filename-shaped token anywhere in a sentence: a path/word segment with a
@@ -128,12 +155,13 @@ FILENAME_TOKEN = re.compile(
 )
 # Pseudo-anchor -> subject words: what a fix-item with no recognizable file
 # path in its evidence is "about", drawn from the defect_key's anchor (the
-# part before the first ':'). General-purpose table, not specific to any one
-# audit finding — extend it as new pseudo-anchors show up.
+# part before the first ':'). Only overrides that the default rule in
+# subject_words() can't produce itself — "root" has no subject word of its
+# own (it falls back to the mechanism tag), and ".github/workflows" is
+# better described by "ci"/"workflow" than by its own default. Every other
+# entry of repo_paths.PSEUDO_ANCHORS gets a subject from the default rule,
+# so this table does not need one entry per pseudo-anchor.
 PSEUDO_SUBJECTS = {
-    "releases": ["release"],
-    "CHANGELOG.md": ["changelog"],
-    "LICENSE": ["license"],
     ".github/workflows": ["ci", "workflow"],
 }
 
@@ -338,17 +366,41 @@ def mechanism_words(defect_key):
     return [w for w in words if w.lower() not in STOPWORDS and len(w) > 2]
 
 
+def default_subject(anchor):
+    """The default subject word for a pseudo-anchor with no PSEUDO_SUBJECTS
+    override: the anchor lowercased, with any file extension and a single
+    trailing "s" stripped (e.g. "commits" -> "commit", "CHANGELOG.md" ->
+    "changelog", "LICENSE" -> "license"). This is what makes subject_words
+    total over every entry of repo_paths.PSEUDO_ANCHORS without a table
+    entry for each one."""
+    base = anchor.split("/")[-1]
+    if "." in base:
+        base = base.rsplit(".", 1)[0]
+    base = base.lower()
+    if base.endswith("s") and len(base) > 1:
+        base = base[:-1]
+    return base
+
+
 def subject_words(defect_key):
     """The subject of a pseudo-anchored fix-item (one whose evidence has no
-    recognizable file path): words drawn from the defect_key's anchor (the
-    part before the first ':'), via PSEUDO_SUBJECTS. A 'root' anchor has no
-    subject of its own, so it falls back to the finding's mechanism-tag
-    words instead. An anchor with no table entry (and not 'root') yields no
+    recognizable file path): words for the defect_key's anchor (the part
+    before the first ':'). This is total over every entry of
+    repo_paths.PSEUDO_ANCHORS: PSEUDO_SUBJECTS overrides the two anchors
+    that need one ("root" has no subject word of its own, so it falls back
+    to the finding's mechanism-tag words instead; ".github/workflows" is
+    better described by "ci"/"workflow" than by its own default), and every
+    other pseudo-anchor gets `default_subject(anchor)`. An anchor that is
+    not in PSEUDO_ANCHORS at all (not a recognized pseudo-anchor) yields no
     subject words — nothing for rule 4 to verify beyond rule 1."""
     anchor = str(defect_key or "").split(":", 1)[0]
+    if anchor not in PSEUDO_ANCHORS:
+        return []
     if anchor == "root":
         return mechanism_words(defect_key)
-    return PSEUDO_SUBJECTS.get(anchor, [])
+    if anchor in PSEUDO_SUBJECTS:
+        return PSEUDO_SUBJECTS[anchor]
+    return [default_subject(anchor)]
 
 
 def normalize(word):
@@ -458,10 +510,20 @@ def main(argv):
             # Pseudo-anchor: evidence has no recognizable file path. The
             # finding still has a subject — the anchor's own words — and a
             # covers-line key alone must not be enough to pass it.
+            anchor = key.split(":", 1)[0]
             subject = subject_words(key)
             if not subject:
-                # No subject to verify (an anchor with no table entry, and
-                # not "root") — nothing beyond rule 1 to check, as before.
+                if anchor in PSEUDO_ANCHORS:
+                    # A recognized pseudo-anchor (e.g. "root" with no
+                    # distinctive mechanism-tag word) still must not pass on
+                    # its covers key alone: subject_words() being total over
+                    # PSEUDO_ANCHORS means this is a real gap, not a case
+                    # with nothing to verify.
+                    missing.append((f, "no subject for pseudo-anchor {}".format(anchor)))
+                # An anchor outside PSEUDO_ANCHORS (evidence just happens to
+                # have no recognizable path, but isn't one of the known
+                # repo-wide checks) has no subject to verify — nothing
+                # beyond rule 1 to check, as before.
                 continue
             candidates = tuple(subject)
             named_paragraphs = paragraph_naming(candidates, prose, ci=True)
