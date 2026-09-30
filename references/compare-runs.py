@@ -160,8 +160,10 @@ def load_candidates(pre_review, apps, checks):
             for lab, cites, rule in check_rows.candidates(check, app, pre_review):
                 key = (app["app_id"], check["id"], lab)
                 if key not in found:
+                    path, _, tail = lab.rpartition(":")
+                    file_, line = (path, int(tail)) if path and tail.isdigit() else (lab, None)
                     found[key] = {"app_id": app["app_id"], "check": check["id"],
-                                  "candidate": lab, "file": cites[0][0], "line": cites[0][1],
+                                  "candidate": lab, "file": file_, "line": line,
                                   "rule": rule or check.get("rule"), "cites": cites}
     return found
 
