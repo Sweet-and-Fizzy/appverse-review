@@ -25,6 +25,10 @@
 #                a row only when the facts list a candidate (Security is
 #                row-per-candidate)
 #   dimension    structure, security, portability, documentation, code_quality
+#   tags         suggestion checks only: every finding-codes.md vocabulary
+#                tag (without its qualifier) the check owns under its rule,
+#                so check-rating.py treats a FAIL on any of them as a
+#                suggestion recorded as FAIL, whichever tag was chosen
 #   weight       code_quality checks only: target (a decision-rubric target
 #                for inclusion) or suggestion (never a failure) — from the
 #                rubric's Code Quality table
@@ -221,6 +225,7 @@ checks:
     fact_source: template.json
     rule: QUA-08
     tag: magic-number
+    tags: [magic-number, undocumented-resource-limit, undocumented-hex-color]
     row_required: always
     dimension: code_quality
     weight: suggestion
@@ -230,6 +235,7 @@ checks:
     fact_source: none
     rule: QUA-09
     tag: duplicated-block
+    tags: [duplicated-block]
     row_required: always
     dimension: code_quality
     weight: suggestion
@@ -239,6 +245,7 @@ checks:
     fact_source: template.json
     rule: QUA-04
     tag: commented-out-code
+    tags: [unused-attribute, dead-branch, commented-out-code, unreachable-lookup-entry]
     row_required: always
     dimension: code_quality
     weight: suggestion
@@ -248,6 +255,7 @@ checks:
     fact_source: form.json
     rule: QUA-10
     tag: erb-missing-value-unhandled
+    tags: [erb-missing-value-unhandled]
     row_required: always
     dimension: code_quality
     weight: suggestion
@@ -257,6 +265,7 @@ checks:
     fact_source: [template.json, readme.json]
     rule: QUA-06
     tag: icon-os-mismatch
+    tags: [icon-os-mismatch]
     row_required: always
     dimension: code_quality
     weight: suggestion

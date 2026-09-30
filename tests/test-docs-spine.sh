@@ -108,7 +108,7 @@ unmarked=$(echo "$cq_rows" | grep -vE '`check: [A-Za-z0-9_.-]+`' || true)
 [ -z "$unmarked" ] && ok "every Code Quality table row carries a check: marker" \
   || { bad "every Code Quality table row carries a check: marker"; echo "$unmarked"; }
 
-echo "Test 9b: every manifest entry has a tag field (a tag or null), and each non-null tag is in finding-codes.md under its rule"
+echo "Test 9b: every manifest entry has a tag field (a tag or null), each non-null tag and every tags entry is in finding-codes.md under its rule, and every suggestion check has tags"
 TAGS_OUT=$(mktemp)
 python3 - "$MANIFEST" references/finding-codes.md > "$TAGS_OUT" 2>&1 <<'PY'
 import json, re, sys
@@ -128,6 +128,13 @@ for c in checks:
         print("no tag field: " + c["id"])
     elif c["tag"] is not None and c["tag"] not in vocab.get(c["rule"], ()):
         print("tag {} not under {} in finding-codes.md: {}".format(c["tag"], c["rule"], c["id"]))
+    # a tag with a qualifier is written `base:{name}` in finding-codes.md
+    bases = {t.split(":", 1)[0] for t in vocab.get(c.get("rule"), ())}
+    for t in c.get("tags") or []:
+        if t not in bases:
+            print("tags entry {} not under {} in finding-codes.md: {}".format(t, c["rule"], c["id"]))
+    if c.get("weight") == "suggestion" and not c.get("tags"):
+        print("suggestion check has no tags list: " + c["id"])
 PY
 tag_problems=$(cat "$TAGS_OUT"); rm -f "$TAGS_OUT"
 [ -z "$tag_problems" ] && ok "manifest tags are present and in the vocabulary" \

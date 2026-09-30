@@ -472,19 +472,21 @@ No tool-detectable issues in the checked tiers.'
 report_sec Strong Low "$FULL" "$SEC_QUA_PASS" > "$TMP/r32e.md"
 check "PASS tool rows (any rule cell) with the sentence: exit 0" 0 "$(run "$TMP/r32e.md" "$TMP/f1.json")"
 
-echo "Test 33: a rule with exactly one check matches by rule alone; a rule with several keeps rule and tag"
+echo "Test 33: a suggestion check matches any tag in its tags list; a tag of the same rule it does not own does not match"
 report Strong Low "$FULL" > "$TMP/r33.md"
 cat > "$TMP/f33.json" <<'EOF'
 [
   {"app_id":"root","rule":"QUA-08","defect_key":"form.yml:undocumented-resource-limit","aspect":"quality","severity":"low","result":"FAIL","summary":"x","evidence":"form.yml:3"},
-  {"app_id":"root","rule":"QUA-10","defect_key":"submit.yml.erb:other:nil-reservation","aspect":"quality","severity":"low","result":"FAIL","summary":"x","evidence":"submit.yml.erb:6"},
+  {"app_id":"root","rule":"QUA-04","defect_key":"template/script.sh.erb:dead-branch","aspect":"quality","severity":"low","result":"FAIL","summary":"x","evidence":"template/script.sh.erb:6"},
+  {"app_id":"root","rule":"QUA-06","defect_key":"form.yml:duplicate-yaml-key:x","aspect":"quality","severity":"low","result":"FAIL","summary":"x","evidence":"form.yml:6"},
   {"app_id":"root","rule":"QUA-02","defect_key":"form.yml:hardcoded-cluster","aspect":"quality","severity":"low","result":"FAIL","summary":"x","evidence":"form.yml:3"},
   {"app_id":"root","rule":"QUA-01","defect_key":"README.md:docs-minimal","aspect":"quality","severity":"low","result":"FAIL","summary":"x","evidence":"README.md:1"}
 ]
 EOF
 check "exit 1" 1 "$(run "$TMP/r33.md" "$TMP/f33.json")"
-check "QUA-08 by rule alone" 1 "$(grep -cxF 'MISMATCH root QUA-08 form.yml:undocumented-resource-limit: suggestion (check magic-numbers) recorded as FAIL' "$TMP/out")"
-check "QUA-10 other: slug by rule alone" 1 "$(grep -cxF 'MISMATCH root QUA-10 submit.yml.erb:other:nil-reservation: suggestion (check erb-missing-value) recorded as FAIL' "$TMP/out")"
+check "QUA-08 undocumented-resource-limit is in magic-numbers' tags" 1 "$(grep -cxF 'MISMATCH root QUA-08 form.yml:undocumented-resource-limit: suggestion (check magic-numbers) recorded as FAIL' "$TMP/out")"
+check "QUA-04 dead-branch is in dead-code's tags" 1 "$(grep -cxF 'MISMATCH root QUA-04 template/script.sh.erb:dead-branch: suggestion (check dead-code) recorded as FAIL' "$TMP/out")"
+check "QUA-06 duplicate-yaml-key (a correctness defect) is not a suggestion" 0 "$(grep -c 'duplicate-yaml-key' "$TMP/out")"
 check "only those two" "ratings: 2 mismatches" "$(tail -1 "$TMP/out")"
 mkdir -p "$TMP/refs2"
 cp "$CHECK" "$SCRIPT_DIR/references/report_parse.py" "$TMP/refs2/"
@@ -495,7 +497,7 @@ cat > "$TMP/refs2/checks.json" <<'EOF'
 ]}
 EOF
 python3 "$TMP/refs2/check-rating.py" "$TMP/r33.md" "$TMP/f33.json" > "$TMP/out" 2>&1
-check "two QUA-08 checks: the target tag is not a suggestion" "ratings: consistent" "$(tail -1 "$TMP/out")"
+check "checks with no tags list fall back to their single tag: the target tag is not a suggestion" "ratings: consistent" "$(tail -1 "$TMP/out")"
 printf '[{"app_id":"root","rule":"QUA-08","defect_key":"form.yml:magic-number","result":"FAIL","evidence":"form.yml:4"}]' > "$TMP/f33b.json"
 python3 "$TMP/refs2/check-rating.py" "$TMP/r33.md" "$TMP/f33b.json" > "$TMP/out" 2>&1
 check "two QUA-08 checks: the suggestion tag still matches" 1 "$(grep -cxF 'MISMATCH root QUA-08 form.yml:magic-number: suggestion (check magic-numbers) recorded as FAIL' "$TMP/out")"

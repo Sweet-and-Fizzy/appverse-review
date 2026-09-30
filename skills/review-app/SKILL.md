@@ -496,8 +496,8 @@ externally by the API provider.
   `check-rating.py`: Documentation's rating is no higher than its evidence
   lines support, its signal follows the rating, no `content:` line is
   cited for two rungs, the stub line and Below minimal follow
-  `readme.json`'s `stub`; no suggestion-class check (matched by rule alone
-  when the rule has one check) or MNT-02 to MNT-06 signal is FAIL; and
+  `readme.json`'s `stub`; no suggestion-class check (any tag in its
+  checks.json `tags`) or MNT-02 to MNT-06 signal is FAIL; and
   "No tool-detectable issues in the checked tiers." never sits under a
   FAIL or WARN Security row of any rule code.
   `check-rows.py`: every manifest check applicable to an app has a row, and

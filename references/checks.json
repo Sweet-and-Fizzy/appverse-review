@@ -297,6 +297,11 @@
       "fact_source": "template.json",
       "rule": "QUA-08",
       "tag": "magic-number",
+      "tags": [
+        "magic-number",
+        "undocumented-resource-limit",
+        "undocumented-hex-color"
+      ],
       "row_required": "always",
       "dimension": "code_quality",
       "weight": "suggestion"
@@ -313,6 +318,9 @@
       "fact_source": "none",
       "rule": "QUA-09",
       "tag": "duplicated-block",
+      "tags": [
+        "duplicated-block"
+      ],
       "row_required": "always",
       "dimension": "code_quality",
       "weight": "suggestion"
@@ -326,6 +334,12 @@
       "fact_source": "template.json",
       "rule": "QUA-04",
       "tag": "commented-out-code",
+      "tags": [
+        "unused-attribute",
+        "dead-branch",
+        "commented-out-code",
+        "unreachable-lookup-entry"
+      ],
       "row_required": "always",
       "dimension": "code_quality",
       "weight": "suggestion"
@@ -339,6 +353,9 @@
       "fact_source": "form.json",
       "rule": "QUA-10",
       "tag": "erb-missing-value-unhandled",
+      "tags": [
+        "erb-missing-value-unhandled"
+      ],
       "row_required": "always",
       "dimension": "code_quality",
       "weight": "suggestion"
@@ -355,6 +372,9 @@
       ],
       "rule": "QUA-06",
       "tag": "icon-os-mismatch",
+      "tags": [
+        "icon-os-mismatch"
+      ],
       "row_required": "always",
       "dimension": "code_quality",
       "weight": "suggestion"

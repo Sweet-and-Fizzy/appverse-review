@@ -47,12 +47,15 @@ Rule 2 still applies (Minimal maps to High).
      (MNT-02 to MNT-06), recorded as FAIL is a mismatch — the rubric holds
      both are never a failure. A check counts as suggestion-class when
      checks.json (loaded from beside this script) marks it `"weight":
-     "suggestion"`. A record matches a check by its rule alone when
-     checks.json has exactly one check with that rule (whatever tag the
-     record carries, so choosing another tag of the same rule does not
-     escape the rule), and by rule and tag when the rule has several checks
-     (its tag is the part of defect_key after the first ':', truncated
-     before any further ':' qualifier). A maintenance record matches when
+     "suggestion"`. A record matches a check when its rule equals the
+     check's rule and its tag (the part of defect_key after the first ':',
+     truncated before any further ':' qualifier) is one of the check's
+     `tags`, the list of every vocabulary tag a suggestion check owns (so
+     choosing another tag the same check owns does not escape the rule),
+     or equals its single `tag` when it has no `tags`. A tag of the same
+     rule that the check does not own (QUA-06 `duplicate-yaml-key`, a
+     correctness defect, beside the icon check's `icon-os-mismatch`) does
+     not match. A maintenance record matches when
      its rule is one of MNT-02 through MNT-06 (MNT-01, activity, is a real
      failure and is untouched). When checks.json cannot be read, is not
      JSON or has no checks list, the script exits 2 with `error: cannot
@@ -299,17 +302,15 @@ def load_checks(path=CHECKS_JSON):
 
 
 def matching_check(record, checks):
-    """The checks.json entry a record belongs to: by rule alone when exactly
-    one check carries that rule (whatever the record's tag, so a
-    suggestion cannot be escaped by picking another tag of its rule), else
-    by rule and tag. None when nothing matches."""
+    """The checks.json entry a record belongs to: the first whose rule equals
+    the record's and whose `tags` (every vocabulary tag the check owns;
+    the single `tag` when `tags` is absent) holds the record's tag, read
+    before any qualifier. None when nothing matches."""
     rule = record.get("rule")
-    same_rule = [c for c in checks if c.get("rule") == rule]
-    if len(same_rule) == 1:
-        return same_rule[0]
     tag = defect_tag(record.get("defect_key"))
-    for c in same_rule:
-        if c.get("tag") == tag:
+    for c in checks:
+        owned = c.get("tags") if isinstance(c.get("tags"), list) else [c.get("tag")]
+        if c.get("rule") == rule and tag in owned:
             return c
     return None
 
