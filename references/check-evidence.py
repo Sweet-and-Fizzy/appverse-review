@@ -78,7 +78,9 @@ value-checked).
 
 A citation written `content: <path>:N` (the quality skill's form for a
 Documentation rung met by a cited line rather than a matching heading)
-must also cite content: each cited line must be what pre-review.py's
+must also cite content when the path is a README or Markdown file (its
+basename starts with README, any case, or ends in .md; any other path gets
+only the existence checks): each cited line must be what pre-review.py's
 readme_line_kinds calls a content line (the one definition readme.json's
 content_line_count counts), else `<path>:N is a heading, not content`, `is
 inside a code fence`, `is a placeholder line`, `is blank`, and so on. This
@@ -146,6 +148,13 @@ def content_citations(text):
         if c:
             out.append((c.group(1), parse_citations(c.group(0))[0][1], c.group(0).rstrip("`*")))
     return out
+
+
+def is_markdown(path):
+    """Whether a content: citation's path is one readme_line_kinds reads:
+    a README (basename starts with README, any case) or a .md file."""
+    base = os.path.basename(path)
+    return base.lower().startswith("readme") or base.lower().endswith(".md")
 
 
 def content_reason(path, full, lines, kinds_cache=_KINDS):
@@ -335,7 +344,7 @@ def validate(finding, target, line_cache, skipped, text_cache=None):
         del skipped[before + 1:]  # count a finding once in the not-checked tally
     if text_cache is not None:
         for path, lines, _ in content:
-            if path in good_paths:
+            if path in good_paths and is_markdown(path):
                 reason = content_reason(path, good_paths[path], lines)
                 if reason:
                     reasons.append(reason)
