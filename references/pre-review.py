@@ -41,8 +41,8 @@ the per-app dirs named in the previous apps.json are removed first):
                  --config and --ignorefile.
   tool-table.md  the Check tiers line and the Tool / Status / Result table,
                  rendered from summary.json for the security skill to paste
-                 (shellcheck with artefacts: "N findings, M of them
-                 ERB-stripping artefacts (codes)").
+                 (shellcheck with artefacts: "N findings (codes), M of them
+                 linted in isolation from the job-script family").
   apps.json      [{app_id, path, app_type, readme}]: the app shape, resolved
                  as target-setup.md section 3 does. A root appverse.yml with
                  an apps: list is a monorepo, one app per apps[].path (app_id
@@ -433,25 +433,46 @@ def most_frequent(codes, n=5):
 
 
 def _findings(name, data):
-    """(finding_count, codes) from a tool's parsed JSON."""
+    """(finding_count, codes, note) from a tool's parsed JSON. A wrong-shape
+    JSON document (a tool version change, a mock, or a corrupted run) gets
+    a note instead of a crash: a shellcheck item with no `code` is skipped
+    rather than counted as the literal string 'SCNone'; a `results` object
+    that is not a list (semgrep/bandit) or a `data` that is not a dict
+    (semgrep/bandit's own .get call) is treated as empty."""
     if name == "shellcheck":
-        return len(data), ["SC%s" % i.get("code") for i in data]
+        if not isinstance(data, list):
+            return 0, [], "shellcheck JSON was not a list"
+        codes = [i.get("code") for i in data if isinstance(i, dict) and i.get("code") is not None]
+        return len(data), ["SC%s" % c for c in codes], ""
     if name in ("semgrep", "bandit"):
         key = "check_id" if name == "semgrep" else "test_id"
-        results = data.get("results") or []
-        return len(results), [str(r.get(key)) for r in results]
+        if not isinstance(data, dict):
+            return 0, [], "%s JSON was not an object" % name
+        results = data.get("results")
+        if results is None:
+            results = []
+        elif not isinstance(results, list):
+            return 0, [], "%s results was not a list" % name
+        results = [r for r in results if isinstance(r, dict)]
+        return len(results), [str(r.get(key)) for r in results], ""
     codes = []  # trivy
+    if not isinstance(data, dict):
+        return 0, [], "trivy JSON was not an object"
     for res in data.get("Results") or []:
+        if not isinstance(res, dict):
+            continue
         for kind, key in (("Vulnerabilities", "VulnerabilityID"),
                           ("Misconfigurations", "ID"), ("Secrets", "ID")):
             codes.extend(str(i.get(key) or i.get("ID") or i.get("RuleID") or "")
-                         for i in res.get(kind) or [])
-    return len(codes), codes
+                         for i in res.get(kind) or [] if isinstance(i, dict))
+    return len(codes), codes, ""
 
 
 def _with_findings(rec, data):
-    count, codes = _findings(rec["name"], data)
+    count, codes, note = _findings(rec["name"], data)
     rec["finding_count"], rec["top_codes"] = count, most_frequent(codes)
+    if note:
+        rec["note"] = "; ".join(x for x in (rec["note"], note) if x)
     return rec
 
 
@@ -589,7 +610,7 @@ def _shellcheck(target, out, syntax_entries):
     files = [f for f in files if f not in large]
     scans = {e["path"]: e["_scan"] for e in syntax_entries}
     version = tool_version("shellcheck")
-    results, worst, unread = [], 0, []
+    results, worst, unread, malformed = [], 0, [], 0
     for rel in files:
         try:
             if rel.endswith(".sh.erb"):
@@ -612,9 +633,15 @@ def _shellcheck(target, out, syntax_entries):
             return record("shellcheck", "failed_to_run", version=version, command=command,
                           exit_code=rc, files_examined=len(files),
                           note=("%s: output was not JSON: %s" % (rel, _failure(err, stdout)))[:STDERR_CHARS])
+        if not isinstance(items, list):
+            malformed += 1
+            continue
         for item in items:
+            if not isinstance(item, dict):
+                malformed += 1
+                continue
             item["file"] = rel
-        results.extend(items)
+            results.append(item)
     _write_json(out, "shellcheck.json", results)
     n_stripped = sum(1 for f in files if f.endswith(".sh.erb") and f not in unread)
     notes = []
@@ -624,6 +651,8 @@ def _shellcheck(target, out, syntax_entries):
         notes.append("not scanned (unreadable): " + ", ".join(unread))
     if large:
         notes.append("not scanned (larger than 1 MB): " + ", ".join(large))
+    if malformed:
+        notes.append("%d shellcheck finding(s) skipped (malformed JSON shape)" % malformed)
     rec = record("shellcheck", "ran", version=version, command=command, exit_code=worst,
                  output_file="shellcheck.json", files_examined=len(files) - len(unread),
                  note="; ".join(notes))
@@ -3155,9 +3184,10 @@ def _tool_result(rec):
     if n == 0:
         return "0 findings"
     artefacts = rec.get("artifact_count") or 0
-    return "%d finding%s%s (%s)" % (n, "" if n == 1 else "s",
-                                   ", %d of them ERB-stripping artefacts" % artefacts if artefacts else "",
-                                   ", ".join(rec.get("top_codes") or []))
+    return "%d finding%s (%s)%s" % (n, "" if n == 1 else "s",
+                                   ", ".join(rec.get("top_codes") or []),
+                                   ", %d of them linted in isolation from the job-script family" % artefacts
+                                   if artefacts else "")
 
 
 def tool_table(checks):

@@ -427,7 +427,7 @@ if has_sc; then
   O="$TMP/o31"
   check "exit 0" 0 "$(PATH="$FB" "$FB/bash" "$RUN" "$FIX/containerized-server" "$O" > "$TMP/stdout" 2> "$TMP/stderr"; echo $?)"
   # The shellcheck Result is recomputed from shellcheck.json so the test holds across shellcheck versions.
-  SC_RESULT="$(python3 -c 'import json,sys,collections; d=json.load(open(sys.argv[1])); c=collections.Counter("SC%s" % e["code"] for e in d); print("%d findings, 3 of them ERB-stripping artefacts (%s)" % (len(d), ", ".join(k for k, _ in sorted(c.items(), key=lambda kv: (-kv[1], kv[0]))[:5])))' "$O/shellcheck.json")"
+  SC_RESULT="$(python3 -c 'import json,sys,collections; d=json.load(open(sys.argv[1])); c=collections.Counter("SC%s" % e["code"] for e in d); print("%d findings (%s), 3 of them linted in isolation from the job-script family" % (len(d), ", ".join(k for k, _ in sorted(c.items(), key=lambda kv: (-kv[1], kv[0]))[:5])))' "$O/shellcheck.json")"
   # after.sh's app_port and port (OOD contract names) and before.sh.erb's SC1091
   check "artifact_count: SC2154 app_port and port in after.sh, SC1091 in before.sh.erb" "3" "$(chk "$O" shellcheck artifact_count)"
   check "exact contents" "$(printf '%s\n' '**Check tiers:** Tiers 1–2' '' 'Tier 3 not checked — no isolated execution environment.' '' '| Tool | Status | Result |' '|---|---|---|' "| shellcheck | Run (ERB-stripped) | $SC_RESULT |" '| semgrep | Not run (not installed) | — |' '| bandit | Not run (no applicable files) | — |' '| trivy | Not run (no applicable files) | — |')" "$(cat "$O/tool-table.md")"
@@ -1385,7 +1385,7 @@ JSON
 check "candidate artifact: true only when every finding of (tool, code, file) is an artefact" \
   "template/after.sh:SC2154:[1, 3]:False|template/before.sh.erb:SC2148:[1]:True|template/before.sh.erb:SC2086:[2]:False|template/script.sh.erb:SC2154:[2]:True" \
   "$(sco "$T" "$T" batch_connect "$O" "'|'.join('%s:%s:%s:%s' % (c['file'], c['code'], c['lines'], c['artifact']) for c in $BY'tool_finding'])")"
-check "tool table: N findings, M of them ERB-stripping artefacts" "6 findings, 2 of them ERB-stripping artefacts (SC2154, SC2086, SC2148)" \
+check "tool table: N findings (codes), M of them linted in isolation" "6 findings (SC2154, SC2086, SC2148), 2 of them linted in isolation from the job-script family" \
   "$(px "r=pr._tool_result(dict(name='shellcheck', status='ran', finding_count=6, artifact_count=2, top_codes=['SC2154', 'SC2086', 'SC2148']))")"
 check "tool table: no artefacts, the result reads as before" "6 findings (SC2154, SC2086)|1 finding (SC2164)" \
   "$(px "r=pr._tool_result(dict(name='shellcheck', status='ran', finding_count=6, artifact_count=0, top_codes=['SC2154', 'SC2086'])) + '|' + pr._tool_result(dict(name='shellcheck', status='ran', finding_count=1, top_codes=['SC2164']))")"
@@ -1448,5 +1448,38 @@ except pr.PlaceholdersMissing as e:
 mkdir -p "$TMP/t57"; cp "$PR" "$TMP/t57/pre-review.py"
 check "pre-review exits 2 without readme-placeholders.txt beside it" "2" "$(python3 "$TMP/t57/pre-review.py" "$FIX/broken-app" "$TMP/o57" > "$TMP/stdout" 2> "$TMP/stderr"; echo $?)"
 check "the error names the file" "True" "$(grep -q '^error: cannot read placeholder list .*readme-placeholders.txt (No such file or directory)$' "$TMP/stderr" && echo True || echo False)"
+
+echo "Test 58: wrong-shape tool JSON gets a note instead of a crash: data.get on a list, an item that is not a dict, a results that is a dict, a shellcheck item with no code"
+check "shellcheck JSON not a list: 0 findings, a note, no crash" "0|[]|shellcheck JSON was not a list" \
+  "$(px "r=pr._findings('shellcheck', {}); r='%s|%s|%s' % r")"
+check "shellcheck item with no code is skipped, never SCNone" "1|[]|" \
+  "$(px "r=pr._findings('shellcheck', [dict(file='t.sh', line=2, level='warning')]); r='%s|%s|%s' % r")"
+check "shellcheck items include null/non-dict entries: only the dict one with a code counts" "3|['SC2086']|" \
+  "$(px "r=pr._findings('shellcheck', [None, 5, dict(file='t.sh', line=2, code=2086, level='warning', message=None)]); r='%s|%s|%s' % r")"
+check "semgrep data not a dict (data.get on a list): 0 findings, a note" "0|[]|semgrep JSON was not an object" \
+  "$(px "r=pr._findings('semgrep', []); r='%s|%s|%s' % r")"
+check "semgrep results is a dict, not a list: 0 findings, a note" "0|[]|semgrep results was not a list" \
+  "$(px "r=pr._findings('semgrep', {'results': {'a': 1}}); r='%s|%s|%s' % r")"
+check "bandit results is null: 0 findings, no note (a tool's own empty-results shape)" "0|[]|" \
+  "$(px "r=pr._findings('bandit', {'results': None}); r='%s|%s|%s' % r")"
+check "bandit data not a dict: 0 findings, a note" "0|[]|bandit JSON was not an object" \
+  "$(px "r=pr._findings('bandit', []); r='%s|%s|%s' % r")"
+check "trivy data not a dict: 0 findings, a note" "0|[]|trivy JSON was not an object" \
+  "$(px "r=pr._findings('trivy', 'x'); r='%s|%s|%s' % r")"
+check "_with_findings appends the note to the record's existing note" "existing; shellcheck JSON was not a list" \
+  "$(px "rec=pr.record('shellcheck', 'ran', note='existing'); rec=pr._with_findings(rec, {}); r=rec['note']")"
+if has_sc; then
+  FB="$TMP/fb58"; fakebin "$FB"
+  cat > "$FB/shellcheck" <<'SH'
+#!/bin/sh
+echo '[null, {"line": 2, "level": "warning", "code": 2086, "message": "q"}]'
+SH
+  chmod +x "$FB/shellcheck"
+  T="$TMP/t58"; mkdir -p "$T/template"; printf '#!/bin/bash\necho hi\n' > "$T/template/a.sh"
+  O="$TMP/o58"
+  check "exit 0 even with a null item in shellcheck's own JSON" 0 "$(PATH="$FB" "$FB/bash" "$RUN" "$T" "$O" > "$TMP/stdout" 2> "$TMP/stderr"; echo $?)"
+  check "the non-dict item is skipped, the dict one (no file key) still counts" "1" "$(chk "$O" shellcheck finding_count)"
+  check "a note records the skip" 1 "$(chk "$O" shellcheck note | grep -c malformed)"
+else skip "shellcheck not installed"; skip "shellcheck not installed"; skip "shellcheck not installed"; fi
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
