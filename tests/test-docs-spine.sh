@@ -190,6 +190,21 @@ has "$SEC_SKILL" "no row in either table is FAIL or WARN" "review-security state
 has "$SEC_SKILL" "write it when any row is FAIL or WARN" "review-security states the never-write-it-with-a-row rule"
 has "$RUBRIC" "no row in either table is FAIL or WARN" "rubric states the sentence follows the rows"
 
+echo "Test 11d: the Documentation strings check-rating and check-evidence match are the ones the docs write"
+# checker <file> <python expression over the module's globals>: read a constant from a checker, not restate it
+checker() { python3 -c 'import importlib.util,sys; s=importlib.util.spec_from_file_location("m",sys.argv[1]); m=importlib.util.module_from_spec(s); s.loader.exec_module(m); print(eval(sys.argv[2], vars(m)))' "$1" "$2" 2>&1; }
+STUB_LINE=$(checker references/check-rating.py 'STUB_LINE if STUB_RATING.search("Rating: **" + STUB_LINE) else "STUB_RATING does not match STUB_LINE"')
+has "$QUA_SKILL" "$STUB_LINE" "review-quality writes check-rating's stub line"
+has "$RUBRIC" "$STUB_LINE" "rubric writes check-rating's stub line"
+BELOW=$(checker references/check-rating.py 'BELOW_MINIMAL if RATING_RE.search("Rating: **" + BELOW_MINIMAL) else "RATING_RE does not match BELOW_MINIMAL"')
+has "$QUA_SKILL" "\`$BELOW\`" "review-quality writes check-rating's Below minimal rating word"
+has "$RUBRIC" "| **$BELOW** |" "rubric's Documentation level table has check-rating's Below minimal row"
+CONTENT_FORM=$(grep -o '`content: README.md:N`' "$QUA_SKILL" | head -1 | tr -d '`')
+[ "$(checker references/check-evidence.py "content_citations('$CONTENT_FORM'.replace('N', '7'))")" = "[('README.md', [7], 'README.md:7')]" ] \
+  && ok "review-quality's content: citation form is the one check-evidence parses" || bad "review-quality's content: citation form is the one check-evidence parses"
+has "$RUBRIC" "\`$CONTENT_FORM\`" "rubric writes the same content: citation form"
+has skills/review-structure/SKILL.md "readme-not-substantive" "review-structure records STR-01 readme-not-substantive, the record check-rating falls back to"
+
 echo "Test 12: every code_quality check's manifest weight matches its rubric row"
 WEIGHTS_OUT=$(mktemp)
 python3 - "$MANIFEST" > "$WEIGHTS_OUT" 2>&1 <<'PY'

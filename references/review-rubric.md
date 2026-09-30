@@ -362,13 +362,14 @@ should follow the [Appverse README Template](https://github.com/tamu-edu/appvers
 
 | Level | Description |
 |-------|-------------|
+| **Below minimal** | Not even what it launches + prerequisites (and not a stub) |
 | **Minimal** | What it launches + prerequisites only |
 | **Adequate** | Above + installation + configuration + known limitations |
 | **Strong** | Above + troubleshooting + screenshots + environment variable docs |
 | **Exemplary** | Above + user-facing info panel + architecture explanation |
 
 **Documentation signal:** Strong or Exemplary = Low; Adequate = Medium;
-Minimal = High.
+Minimal or Below minimal = High.
 
 **Evidence:** the rating rests on one evidence line per requirement in the
 table above (what it launches through architecture), each citing the
@@ -377,15 +378,21 @@ requirement, or `none`. A heading whose section is only the README
 template's placeholder text counts as `none`. A screenshots or
 environment-variables heading with no image or variable under it is
 "heading only", weaker evidence the reviewer checks. The reviewer may judge
-that a listed section does not satisfy its requirement; a requirement
-`readme.json` shows nothing for (no heading, and for screenshots and
-environment variables no image or variable either) is `none`. With no
+that a listed section does not satisfy its requirement. A requirement
+`readme.json` shows no heading for is met by a README line that delivers
+it, cited as `content: README.md:N`; the line must be text, not a heading,
+code, placeholder, contact or badge line, and without one the requirement
+is `none`. With no
 Overview-type heading, a descriptive paragraph under the README's title
 satisfies "what it launches" (`readme.json` records it as the intro). The
 level is the highest one whose requirements, and every lower level's, all
-have evidence. A README without evidence even for Minimal is a stub: that
-is the Structure gate failure (QUA-01 `docs-stub`), not a rating, and the
-report says "Minimal — not supported (stub README; see QUA-01)".
+have evidence. A README that is not a stub but has no evidence even for
+Minimal is rated Below minimal, with a QUA-01 `docs-minimal` WARN. Whether
+a README is a stub is decided once, by the pre-review facts
+(`readme.json` `stub`: fewer than 3 content lines, or every section body
+template placeholder text), never by the rating: a stub is the Structure
+gate failure (QUA-01 `docs-stub`), not a rating, and the report says
+"Minimal — not supported (stub README; see QUA-01)".
 
 **Target for inclusion:** Adequate or above. Below the target is "accept with
 suggestions" when the gate criteria pass. A README that fails the Structure

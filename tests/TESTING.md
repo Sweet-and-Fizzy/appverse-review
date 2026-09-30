@@ -141,7 +141,7 @@ profiles Passenger apps and catches command injection.
 | 6 | Mutable default argument | `cloud_auth/utils.py:8` | Quality | WARN — QUA-06 `other:mutable-default-arg` |
 | 7 | Hardcoded Slurm binary path | `app.py:9` | Quality | QUA-02 `hardcoded-path` — Not portable |
 | 8 | Hardcoded SMTP relay | `app.py:10` | Quality | QUA-02 `hardcoded-cluster` — Not portable |
-| 9 | Minimal README (no install/config sections) | `README.md` | Quality | QUA-01 `docs-minimal` |
+| 9 | README below Minimal (no prerequisites, install or config sections; 3 content lines, so not a stub) | `README.md` | Quality | WARN — QUA-01 `docs-minimal` — Below minimal |
 | 10 | No `form.yml` or `appverse.yml`, no `role` in manifest | (absent / `manifest.yml`) | Structure | Repo shape: inferred (manifest.yml present). WARN — STR-02 `missing-field:role`; app detected as Passenger via `passenger_wsgi.py` entry point |
 
 **Key behavior to verify:**
@@ -237,7 +237,7 @@ categories.
 |--------|-----------|----------|-----------|-----------|-----------|-----------|
 | **Structure** | FAIL (LICENSE, YAML) | FAIL (metadata) | PASS | FAIL (no form) | WARN (ext attrs) | PASS |
 | **Security (top severity)** | High (secret, 0.0.0.0) | PASS | PASS | Critical (injection) | High (CORS, 0.0.0.0) | Critical (curl\|bash, eval) |
-| **Quality** | Minimal docs, Not portable | PASS / mixed | Adequate docs, Not portable, copy-paste artifacts | Minimal docs, Not portable | Minimal docs, Not portable | Strong docs, meh quality |
+| **Quality** | Minimal docs, Not portable | PASS / mixed | Adequate docs, Not portable, copy-paste artifacts | Below-minimal docs, Not portable | Minimal docs, Not portable | Strong docs, meh quality |
 | **Maintenance** | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED |
 
 | OODT Category | Covered by |

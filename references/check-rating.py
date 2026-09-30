@@ -103,6 +103,7 @@ STUB_NOT_STUB = "stub rating but readme.json says the README is not a stub"
 STUB_NO_RECORD = "stub rating but no STR-01 readme-not-substantive FAIL record and no readme.json stub fact"
 BELOW_NO_RECORD = "Below minimal rating but no QUA-01 docs-minimal WARN or FAIL record"
 NONE_WORDS = {"none", "n/a", "na", "absent", "missing", "not", "no"}
+STUB_LINE = "Minimal \u2014 not supported (stub README; see QUA-01)"  # the form the docs write
 STUB_RATING = re.compile(r"Rating:\s*\**\s*Minimal\s*(?:\u2014|\u2013|--?)\s*not supported\s*"
                          r"\(stub README; see QUA-01\)")
 

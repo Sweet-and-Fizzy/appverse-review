@@ -42,7 +42,7 @@ For each app, and for each manifest entry above in manifest order:
    | `icon-matches-target-os` | `template.json` `icons`, against the OS the README (`readme.json`) says the app was tested on |
    | `numeric-field-bounds` | `form.json` attributes with `in_form` true, `defined` not false, `reaches_scheduler` true, and no bound: a `number_field` without both `min` and `max`, or a free-text widget (anything but select, radio button, check box, hidden field) without a `pattern` and without both bounds |
    | `erb-missing-value` | `form.json` attributes with `in_form` true, `defined` not false and `interpolated_in_submit` true (at `submit_lines`) |
-   | `documentation-rating` | `readme.json` `rungs` (see Documentation below) |
+   | `documentation-rating` | `readme.json` `rungs` and `stub` (see Documentation below) |
 
    An attribute with `defined: false` is an OOD built-in or a site mixin
    (`bc_num_hours`); OOD bounds it, so it is not a candidate. `template.json`
@@ -134,9 +134,9 @@ These rows carry no `check:` marker.
   no record of its own. Documented site-specific
   values count toward Partially portable; undocumented ones count against
   it.
-- **Documentation** (`check: documentation-rating`): rate Minimal /
-  Adequate / Strong / Exemplary against the rubric's Documentation table and
-  its four README questions. Before rating, write one evidence line per rung
+- **Documentation** (`check: documentation-rating`): rate Below minimal /
+  Minimal / Adequate / Strong / Exemplary against the rubric's
+  Documentation table and its four README questions. Before rating, write one evidence line per rung
   requirement (what it launches, prerequisites, installation,
   configuration, known limitations, troubleshooting, screenshots,
   environment variables, info panel, architecture) from `readme.json`:
@@ -146,7 +146,13 @@ These rows carry no `check:` marker.
     it: a descriptive paragraph under the H1 satisfies it (`readme.json`
     records it with `match: "intro"`), cited as
     `"<first words>" (intro), README.md:N`.
-  - A rung that is `null`: `none`.
+  - A rung `readme.json` shows no heading for, whose content the README
+    delivers anyway (prerequisites in the intro paragraph, or under a
+    section named for something else): cite the one line that delivers it as
+    `content: README.md:N`. The line must be text, not a heading, a code
+    fence, a placeholder, a contact or a badge line; `check-evidence.py`
+    rejects any other line. You judge whether the line delivers the rung.
+  - A rung that is `null` and that no content line delivers: `none`.
   - A rung whose `placeholder` is true: `none (placeholder)`, whatever the
     heading says.
   - Screenshots and environment variables also have content lists.
@@ -156,18 +162,20 @@ These rows carry no `check:` marker.
     `"Screenshots", README.md:40, heading only`, read the section, and write
     `none (heading only)` if it does not deliver what the rung asks.
   You may argue a section does not really satisfy its rung, and write
-  `none` with the reason; you may never claim a rung `readme.json` shows no
-  heading or content entry for. Rungs are cumulative: the rating is the
+  `none` with the reason; you may never claim a rung without a citation
+  (a `readme.json` heading, intro or content entry, or a `content:` line).
+  Rungs are cumulative: the rating is the
   highest rung whose requirements, and every lower rung's, all have
   evidence; never claim a rung with a `none` line. The
   `documentation-rating` row is PASS at Adequate or above and FAIL below,
   with a QUA-01 record (`docs-minimal`, anchored at the README path, its
-  evidence citing `README.md:N`). When even Minimal is unsupported (no
-  what-it-launches or no prerequisites evidence), the README is a stub:
-  that is the Structure gate failure, recorded as QUA-01 `docs-stub`, and
-  the rating line reads `Minimal — not supported (stub README; see
-  QUA-01)`. `check-rating.py` accepts that report as long as a QUA-01
-  `docs-stub` FAIL record is present. Flag
+  evidence citing `README.md:N`). When no rung supports Minimal, the rating
+  line reads `Below minimal` (a Documentation signal of High) and the
+  `docs-minimal` record is WARN. Whether the README is a stub is not yours
+  to decide: it is `readme.json`'s `stub`. Only when `stub` is true, the
+  rating line reads `Minimal — not supported (stub README; see QUA-01)`
+  and the record is QUA-01 `docs-stub` FAIL; `check-rating.py` rejects
+  that line when `stub` is false, whatever your rung evidence says. Flag
   as QUA-01 a README that references another institution's paths, cluster
   names, or module names without saying they must change.
 - **Code quality** (the `code_quality` entries): error handling
