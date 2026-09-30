@@ -80,6 +80,18 @@ Rule 2 still applies (Minimal maps to High).
      missing sentence when the count is 0 is not flagged: this rule fails a
      claim the rows contradict, it never requires prose that isn't there.
      This rule is general — it is not keyed to any particular app or run.
+  5. When a pre-review directory is given and its root/readme.json has a
+     `stub` key, the report's "## Repo-level gate criteria" table's STR-01
+     row that names the README (the third cell contains "README",
+     case-insensitively — a LICENSE STR-01 row is not this row and is
+     ignored) must be FAIL iff `stub` is true. A mismatch is `MISMATCH
+     <app> STR-01 README gate: <result> but readme.json says stub:
+     <true|false>`, <app> always "root" (the table is repo-level, never
+     per app). Without a pre-review directory, or with one whose
+     root/readme.json has no `stub` key, this rule does nothing — it does
+     not fall back to a findings-JSON record the way the stub-README rating
+     exception (above) does. This rule is general — it is not keyed to any
+     particular app or run.
 
 Every MISMATCH line that names an app uses its pre-review directory name
 (fact_app_id: "root" for a single app with no id or "."), so the same app
@@ -374,6 +386,69 @@ def count_flagged_security_rows(security):
     return count
 
 
+def gate_section(report):
+    """The body of the report's '## Repo-level gate criteria' section (up
+    to the next '## '), or None when there is no such section."""
+    m = re.search(r"^## Repo-level gate criteria\s*$(.*?)(?=^## |\Z)", report, flags=re.M | re.S)
+    return m.group(1) if m else None
+
+
+def readme_gate_results(gate):
+    """Results (normalize_result) of every STR-01 row in a gate-table body
+    whose third cell names the README (contains "README", case-insensitive;
+    a LICENSE row is not this row and is skipped). Table headers are read
+    the same way count_flagged_security_rows reads them, so a Rule/Result
+    column reorder is still found."""
+    results = []
+    lines = gate.splitlines()
+    rule_index = result_index = None
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped.startswith("|"):
+            rule_index = result_index = None
+            continue
+        next_line = lines[i + 1].strip() if i + 1 < len(lines) else ""
+        if next_line.startswith("|") and is_separator(next_line):
+            header = [header_name(c) for c in split_row(line)]
+            rule_index = header.index("rule") if "rule" in header else 0
+            result_index = header.index("result") if "result" in header else 1
+            continue
+        if result_index is None or is_separator(stripped):
+            continue
+        cells = split_row(line)
+        if not re.sub(r"[*`_\s]", "", cells[0] if cells else ""):
+            continue
+        rule_cell = re.sub(r"[*`_]", "", cells[rule_index]).strip() if rule_index < len(cells) else ""
+        if rule_cell != "STR-01":
+            continue
+        third = cells[2] if len(cells) > 2 else ""
+        if "readme" not in third.lower():
+            continue
+        if result_index < len(cells):
+            results.append(normalize_result(cells[result_index]))
+    return results
+
+
+def readme_gate_mismatches(report, pre_review_dir):
+    """MISMATCH lines for rule 5: each STR-01 README row in the repo-level
+    gate table whose Result disagrees with root/readme.json's `stub` fact.
+    [] when there is no pre-review directory, no gate section, or the fact
+    is absent (no readme.json, or no `stub` key)."""
+    stub = readme_stub_fact(pre_review_dir, None)
+    if stub is None:
+        return []
+    gate = gate_section(report)
+    if gate is None:
+        return []
+    lines = []
+    for result in readme_gate_results(gate):
+        is_fail = result == "FAIL"
+        if is_fail != stub:
+            lines.append("MISMATCH root STR-01 README gate: {} but readme.json says stub: {}".format(
+                result, "true" if stub else "false"))
+    return lines
+
+
 def normalize_prose(text):
     """text with emphasis markers dropped, U+2011 (non-breaking hyphen)
     mapped to a plain '-', whitespace runs collapsed, casefolded and a
@@ -509,6 +584,15 @@ def main(argv):
         return 2
 
     for line in never_fail_mismatches(findings, checks):
+        problems += 1
+        print(line)
+
+    try:
+        gate_lines = readme_gate_mismatches(report, pre_review_dir)
+    except ValueError as e:
+        print("error: {}".format(e), file=sys.stderr)
+        return 2
+    for line in gate_lines:
         problems += 1
         print(line)
 

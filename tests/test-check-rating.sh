@@ -544,4 +544,42 @@ echo "Test 36: Below minimal on a README the facts call a stub is a MISMATCH"
 check "stub: true facts: exit 1" 1 "$(run "$TMP/r22h.md" "$TMP/f22h.json" "$TMP/pre-stub")"
 check "stub: true facts: reason" "MISMATCH root documentation: Below minimal rating but readme.json says the README is a stub (the stub line applies)" "$(head -1 "$TMP/out")"
 
+echo "Test 37: the repo-level gate table's STR-01 README row must be FAIL iff readme.json says stub"
+gate_readme_row() { # $1 = report file, $2 = Result cell, writes to stdout
+  awk -v result="$2" '
+    { print }
+    /^\| Rule \| Result \| Evidence \|$/ { header = 1; next }
+    header == 1 { print "| STR-01 | " result " | README.md — present and substantive (184 content lines, 11,971 characters, no placeholder text) |"; header = 0 }
+  ' "$1"
+}
+report Strong Low "$FULL" > "$TMP/r37base.md"
+gate_readme_row "$TMP/r37base.md" FAIL > "$TMP/r37fail.md"
+gate_readme_row "$TMP/r37base.md" PASS > "$TMP/r37pass.md"
+check "README gate row present (FAIL variant)" 1 "$(grep -cF '| STR-01 | FAIL | README.md' "$TMP/r37fail.md")"
+
+check "(a) FAIL with stub:false: exit 1" 1 "$(run "$TMP/r37fail.md" "$TMP/f1.json" "$TMP/pre-real")"
+check "(a) FAIL with stub:false: the exact line" "MISMATCH root STR-01 README gate: FAIL but readme.json says stub: false" "$(head -1 "$TMP/out")"
+
+check "(b) PASS with stub:false: exit 0" 0 "$(run "$TMP/r37pass.md" "$TMP/f1.json" "$TMP/pre-real")"
+
+check "(c) FAIL with stub:true: exit 0" 0 "$(run "$TMP/r37fail.md" "$TMP/f1.json" "$TMP/pre-stub")"
+
+check "(d) PASS with stub:true: exit 1" 1 "$(run "$TMP/r37pass.md" "$TMP/f1.json" "$TMP/pre-stub")"
+check "(d) PASS with stub:true: the exact line" "MISMATCH root STR-01 README gate: PASS but readme.json says stub: true" "$(head -1 "$TMP/out")"
+
+check "(e) no pre-review dir: exit 0 regardless (FAIL row)" 0 "$(run "$TMP/r37fail.md" "$TMP/f1.json")"
+check "(e) no pre-review dir: exit 0 regardless (PASS row)" 0 "$(run "$TMP/r37pass.md" "$TMP/f1.json")"
+
+# Must-not: a legitimate report (README PASS, no stub) is never flagged by rule 5.
+check "legitimate report untouched: exit 0" 0 "$(run "$TMP/r37pass.md" "$TMP/f1.json" "$TMP/pre-real")"
+
+# A LICENSE STR-01 row is not the README row and must not trigger rule 5.
+awk '{ print } /^\| STR-01 \| PASS \| README\.md/ { print "| STR-01 | FAIL | LICENSE — no LICENSE file found in the repository root |" }' \
+  "$TMP/r37pass.md" > "$TMP/r37license.md"
+check "LICENSE STR-01 row present" 1 "$(grep -cF '| STR-01 | FAIL | LICENSE' "$TMP/r37license.md")"
+check "LICENSE row ignored, README row consistent: exit 0" 0 "$(run "$TMP/r37license.md" "$TMP/f1.json" "$TMP/pre-real")"
+
+# readme.json with no stub key (pre-old, from Test 22b) does nothing.
+check "readme.json with no stub key: exit 0 regardless" 0 "$(run "$TMP/r37fail.md" "$TMP/f1.json" "$TMP/pre-old")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
