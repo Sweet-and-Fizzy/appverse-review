@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Test check-rating.py: Documentation rating follows its evidence lines; Documentation signal follows the rating.
-# Only Documentation is checked (no security rating, design R4); the findings JSON argument is passed but unread.
+# Only Documentation is checked (no security rating, design R4); the findings JSON is read only for a stub README rating (QUA-01 docs-stub).
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 CHECK="$SCRIPT_DIR/references/check-rating.py"
@@ -190,5 +190,27 @@ check "one mismatch only" "ratings: 1 mismatch" "$(tail -1 "$TMP/out")"
 echo "Test 21: a stray Security row in the Signals table is ignored (no security rating, R4)"
 sed -e 's/^| Portability | Medium | e |$/| Security | High | e |\n| Portability | Medium | e |/' "$TMP/r1.md" > "$TMP/r21.md"
 check "stray row present, still exit 0" "1 0" "$(grep -c '^| Security | High | e |$' "$TMP/r21.md") $(run "$TMP/r21.md" "$TMP/f1.json")"
+
+echo "Test 22: a stub README rating is accepted only with a QUA-01 docs-stub FAIL record for the app"
+STUB='  - what it launches: none (stub README)
+  - prerequisites: none'
+report "Minimal — not supported (stub README; see QUA-01)" High "$STUB" > "$TMP/r22.md"
+printf '[{"app_id":"root","rule":"QUA-01","defect_key":"README.md:docs-stub","aspect":"quality","severity":"high","result":"FAIL","summary":"stub","evidence":"README.md:1"}]' > "$TMP/f22.json"
+check "with the docs-stub record: exit 0" 0 "$(run "$TMP/r22.md" "$TMP/f22.json")"
+check "summary" "ratings: consistent" "$(tail -1 "$TMP/out")"
+check "without it: exit 1" 1 "$(run "$TMP/r22.md" "$TMP/f1.json")"
+check "mismatch as today" 1 "$(grep -cF "MISMATCH Documentation rating (Minimal claimed but 'what it launches' evidence is none; highest supported rung is none)" "$TMP/out")"
+sed 's/"app_id":"root"/"app_id":"apps\/other"/' "$TMP/f22.json" > "$TMP/f22b.json"
+check "a docs-stub record for another app does not count: exit 1" 1 "$(run "$TMP/r22.md" "$TMP/f22b.json")"
+sed 's/docs-stub/docs-minimal/' "$TMP/f22.json" > "$TMP/f22c.json"
+check "a docs-minimal record does not count: exit 1" 1 "$(run "$TMP/r22.md" "$TMP/f22c.json")"
+sed 's/"result":"FAIL"/"result":"WARN"/' "$TMP/f22.json" > "$TMP/f22d.json"
+check "a WARN docs-stub record does not count: exit 1" 1 "$(run "$TMP/r22.md" "$TMP/f22d.json")"
+report "Minimal — not supported (stub README; see QUA-01)" Medium "$STUB" > "$TMP/r22e.md"
+check "the signal is still checked (Minimal maps to High): exit 1" 1 "$(run "$TMP/r22e.md" "$TMP/f22.json")"
+check "signal reason" 1 "$(grep -cF "MISMATCH Documentation signal (report says Medium; rating Minimal maps to High)" "$TMP/out")"
+report Minimal High "$STUB" > "$TMP/r22f.md"
+check "plain Minimal with the record still fails rule 1: exit 1" 1 "$(run "$TMP/r22f.md" "$TMP/f22.json")"
+check "unreadable findings: exit 2" 2 "$(run "$TMP/r22.md" "$TMP/nope.json")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

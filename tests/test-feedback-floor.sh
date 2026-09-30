@@ -276,4 +276,74 @@ check "exit 1" 1 "$(run "$TMP/testing-table.json" "$TMP/testing-table-uncovered.
 check "names the finding with the new reason" 1 \
   "$(grep -c 'MISSING QUA-06 README.md:readme-inconsistency:testing-table (defect not described in feedback)' "$TMP/out")"
 
+echo "Test 21: a covers comment placed just above the '## Draft feedback' heading (within five lines) is honored"
+cat > "$TMP/above-heading.md" <<'EOF'
+# Appverse Review: x
+## Overall recommendation
+Accept with suggestions.
+<!-- feedback-covers: submit.yml.erb:unsanitized-input, template/script.sh.erb:no-error-handling, root:changelog-wrong-app, root:no-releases, form.yml:hardcoded-module-version -->
+
+## Draft feedback — edit before sending
+Please validate the free-text fields in submit.yml.erb; the input is unsanitized. It has no error handling, so add set -e to template/script.sh.erb.
+CHANGELOG.md describes a different, wrong app; please rewrite it. Consider tagging a release.
+form.yml hardcodes a module version at line 63; please make it configurable.
+EOF
+check "exit 0" 0 "$(run "$TMP/findings.json" "$TMP/above-heading.md")"
+check "reports 5/5" "feedback floor: 5/5 fix-items covered" "$(tail -1 "$TMP/out")"
+
+echo "Test 22: a covers comment far above the heading (more than five lines) is still ignored"
+cat > "$TMP/far-above.md" <<'EOF'
+# Appverse Review: x
+<!-- feedback-covers: submit.yml.erb:unsanitized-input, template/script.sh.erb:no-error-handling, root:changelog-wrong-app, root:no-releases, form.yml:hardcoded-module-version -->
+## Overall recommendation
+Accept with suggestions.
+Line filler one.
+Line filler two.
+
+## Draft feedback — edit before sending
+Please validate the free-text fields in submit.yml.erb; the input is unsanitized. It has no error handling, so add set -e to template/script.sh.erb.
+CHANGELOG.md describes a different, wrong app; please rewrite it. Consider tagging a release.
+form.yml hardcodes a module version at line 63; please make it configurable.
+EOF
+check "exit 1" 1 "$(run "$TMP/findings.json" "$TMP/far-above.md")"
+check "reports 0/5" "feedback floor: 0/5 fix-items covered" "$(tail -1 "$TMP/out")"
+
+echo "Test 23: a covers comment above the heading AND another inside the section: the in-section one wins"
+cat > "$TMP/combined.md" <<'EOF'
+# Appverse Review: x
+## Overall recommendation
+Accept with suggestions.
+<!-- feedback-covers: root:no-releases -->
+
+## Draft feedback — edit before sending
+Please validate the free-text fields in submit.yml.erb; the input is unsanitized. It has no error handling, so add set -e to template/script.sh.erb.
+CHANGELOG.md describes a different, wrong app; please rewrite it. Consider tagging a release.
+form.yml hardcodes a module version at line 63; please make it configurable.
+<!-- feedback-covers: submit.yml.erb:unsanitized-input, template/script.sh.erb:no-error-handling, root:changelog-wrong-app, root:no-releases, form.yml:hardcoded-module-version -->
+EOF
+check "exit 0 (in-section list, not just the pre-heading one, is used)" 0 "$(run "$TMP/findings.json" "$TMP/combined.md")"
+check "reports 5/5" "feedback floor: 5/5 fix-items covered" "$(tail -1 "$TMP/out")"
+sed 's/, root:no-releases -->/ -->/; s/, root:no-releases,/,/' "$TMP/combined.md" > "$TMP/combined-partial.md"
+check "exit 1 when the in-section list drops a key the pre-heading one had" 1 "$(run "$TMP/findings.json" "$TMP/combined-partial.md")"
+check "names the finding dropped from the in-section list" 1 "$(grep -c 'MISSING MNT-02 root:no-releases' "$TMP/out")"
+
+echo "Test 24: a line after '; reviewed OK:' is a PASS line: naming it does not describe the FAIL"
+cat > "$TMP/rok.json" <<'EOF'
+[
+ {"app_id":"root","rule":"QUA-08","defect_key":"template/script.sh.erb:magic-number","aspect":"quality","severity":"low","result":"WARN","summary":"x","evidence":"template/script.sh.erb:22; reviewed OK: template/script.sh.erb:9,23"}
+]
+EOF
+cat > "$TMP/rok.md" <<'EOF'
+# Appverse Review: x
+## Overall recommendation
+Accept with suggestions.
+## Draft feedback — edit before sending
+Please look at template/script.sh.erb line 9.
+<!-- feedback-covers: template/script.sh.erb:magic-number -->
+EOF
+check "PASS line named: exit 1" 1 "$(run "$TMP/rok.json" "$TMP/rok.md")"
+check "reason" 1 "$(grep -c 'MISSING QUA-08 template/script.sh.erb:magic-number (defect not described in feedback)' "$TMP/out")"
+sed 's/line 9\./line 22./' "$TMP/rok.md" > "$TMP/rok2.md"
+check "FAIL line named: exit 0" 0 "$(run "$TMP/rok.json" "$TMP/rok2.md")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

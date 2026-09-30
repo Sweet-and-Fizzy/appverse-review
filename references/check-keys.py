@@ -19,10 +19,9 @@ import os
 import re
 import sys
 
-PSEUDO_ANCHORS = {
-    "LICENSE", "README.md", "CHANGELOG.md", ".github/workflows",
-    "releases", "issues", "contributors", "commits", "root",
-}
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from repo_paths import PSEUDO_ANCHORS, exists_case_exact  # noqa: E402
+
 # Absent-file tags (STR-01, STR-07, MNT-03): the file does not exist by
 # definition, so the anchor is the fixed expected path, prefixed with the
 # app_id in a monorepo. Keep in step with finding-codes.md.
@@ -98,25 +97,6 @@ def not_repo_relative(path):
         or path in ("..", ".")
         or any(seg == ".." for seg in path.split("/"))
     )
-
-
-def exists_case_exact(root, anchor):
-    """Whether anchor (repo-relative) exists under root with every segment's
-    case matching exactly. os.path.exists is case-insensitive on some
-    filesystems (APFS default, most of Windows), which would let
-    'readme.md:readme-typo' validate locally and fail in CI or vice versa.
-    Walk the anchor's segments and require each to appear byte-for-byte in
-    os.listdir() of its parent."""
-    current = root
-    for seg in anchor.split("/"):
-        try:
-            entries = os.listdir(current)
-        except OSError:
-            return False
-        if seg not in entries:
-            return False
-        current = os.path.join(current, seg)
-    return True
 
 
 def validate(finding, vocab, target):

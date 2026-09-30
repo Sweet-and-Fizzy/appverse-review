@@ -114,6 +114,11 @@ for the workflow definition. It supports:
   the schema 1.2 envelope described in
   [`references/artifact-envelope.md`](references/artifact-envelope.md), with
   stable finding IDs and per-app indicator levels
+- Post-review checks that fail the run when the report or findings don't hold
+  up: the feedback floor, finding keys, ratings against evidence, one row per
+  applicable manifest check, and every finding's evidence citation against the
+  target repo (see [`references/artifact-envelope.md`](references/artifact-envelope.md)
+  for the full script list)
 
 ## Project layout
 

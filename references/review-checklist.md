@@ -127,6 +127,11 @@ The report is organized the way the rubric is:
   High with an evidence phrase), then the app's **Structure** gate
   results, then **Security**, **Portability**, **Documentation**, and **Code
   Quality** findings, each with a rule code, severity, and `file:line`.
+  Security shows one row per candidate the pre-review facts enumerated,
+  including PASS rows — a candidate cleared as safe is still a row, not a
+  silent pass — followed by an "Additional observations (review)" table for
+  whatever the reviewer's own open-ended reading found beyond the
+  enumeration.
 - **Review scope**: which security tiers ran and what was not checked.
 - **Catalog checks** the tool could not perform, left for you.
 - The tool's **recommendation** and rationale, and a **draft feedback** note.
@@ -142,7 +147,10 @@ taking them on trust. Spot-check that:
 1. Required files and metadata are as the report states — `appverse.yml` or
    `manifest.yml`, `README.md`, `LICENSE`, standard OOD structure.
 2. Security findings are real and correctly classified — open a few and check the
-   cited `file:line` actually shows the flagged pattern.
+   cited `file:line` actually shows the flagged pattern. Remember the
+   "Additional observations (review)" table is the reviewer's own open-ended
+   pass, distinct from the per-candidate rows above it: read it as free-form
+   findings, not as answers to the enumeration.
 3. Portability and Documentation ratings and any correctness-&-polish findings match what you see —
    documentation level, portability, and any copy-paste artifacts or typos.
 4. Upkeep signals are current — last commit, releases, CI, CHANGELOG.
