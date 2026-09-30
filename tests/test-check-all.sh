@@ -81,6 +81,33 @@ python3 "$CHECK" "$TMP/report.md" "$TMP/findings.json" "$TMP/checks.json" "$TMP/
 rc2=$?
 check "exit 2" 2 "$rc2"
 check "rows block: error prefixed" 1 "$(grep -c '^\[rows\] error: ' "$TMP/out2")"
+check "evidence still runs without the missing pre-review dir" 1 "$(grep -c '^\[evidence\] evidence: 1/1 valid; report rows: 0/0 valid$' "$TMP/out2")"
+
+echo "Test 4: a report missing a section a checker needs is exit 1 (malformed report), not 2"
+cp "$TMP/report.md" "$TMP/good.md"
+awk '/^### Documentation/{skip=1} /^### Signals/{skip=0} !skip' "$TMP/good.md" > "$TMP/report.md"
+check "exit 1" 1 "$(run)"
+check "rating block says so" 1 "$(count "[rating] MISSING section: ## App: X (root) has no '### Documentation' section")"
+grep -v -e '^## Draft feedback' "$TMP/good.md" > "$TMP/report.md"
+check "no feedback section: exit 1" 1 "$(run)"
+check "floor block says so" 1 "$(count "[floor] MISSING section: no '## Draft feedback' or '## Fix before submitting' section")"
+cp "$TMP/good.md" "$TMP/report.md"
+
+echo "Test 5: a checker that crashes (a traceback) is exit 2, could not run, never a finding"
+mkdir -p "$TMP/refs"
+cp "$CHECK" "$TMP/refs/check-all.py"
+for s in check-feedback-floor check-keys check-rating check-rows check-evidence; do
+  printf 'print("%s: ok")\n' "$s" > "$TMP/refs/$s.py"
+done
+printf 'print("keys: partial")\nraise TypeError("unhashable type: list")\n' > "$TMP/refs/check-keys.py"
+python3 "$TMP/refs/check-all.py" "$TMP/report.md" "$TMP/findings.json" "$TMP/checks.json" "$TMP/pre-review" --target "$TMP/target" > "$TMP/out" 2>&1
+check "exit 2" 2 "$?"
+check "crash line" 1 "$(count '[keys] crashed: TypeError: unhashable type: list')"
+check "the other checkers still ran" 4 "$(grep -Ec '^\[(floor|rating|rows|evidence)\] check-' "$TMP/out")"
+printf 'import sys\nprint("rows: odd")\nsys.exit(3)\n' > "$TMP/refs/check-rows.py"
+python3 "$TMP/refs/check-all.py" "$TMP/report.md" "$TMP/findings.json" "$TMP/checks.json" "$TMP/pre-review" --target "$TMP/target" > "$TMP/out" 2>&1
+check "an exit code outside 0-2 is exit 2" 2 "$?"
+check "its crash line" 1 "$(count '[rows] crashed: rows: odd')"
 
 echo
 echo "Results: $pass passed, $fail failed"
