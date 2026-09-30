@@ -1,0 +1,16 @@
+[floor] feedback floor: 15/15 fix-items covered
+[keys] finding keys: 46/46 valid
+[rating] ratings: consistent
+[rows] check-rows: 1 app, 19 required rows, 0 problems
+[evidence] NOTE report:sec-interpolation sec-interpolation submit.yml.erb:18 (`extra_slurm_args` is not on submit.yml.erb:18)
+[evidence] NOTE report:sec-interpolation sec-interpolation submit.yml.erb:18 (`enable_advanced_args` is not on submit.yml.erb:18)
+[evidence] NOTE report:sec-interpolation sec-interpolation reviewed OK: template/script.sh.erb:34 (`add_mount()` is not on template/script.sh.erb:34)
+[evidence] NOTE report:sec-network-call sec-network-call reviewed OK: template/after.sh:15 (`127.0.0.1:port` is not on template/after.sh:15)
+[evidence] NOTE report:sec-network-call sec-network-call reviewed OK: template/proxy.py:44 (`127.0.0.1:$UPSTREAM_PORT` is not on template/proxy.py:44)
+[evidence] NOTE report:sec-network-call sec-network-call reviewed OK: template/proxy.py:95 (`XMLHttpRequest.prototype.open=function(m,u){…}` is not on template/proxy.py:95)
+[evidence] NOTE report:sec-network-call sec-network-call reviewed OK: template/proxy.py:345 (`127.0.0.1:$UPSTREAM_PORT` is not on template/proxy.py:345)
+[evidence] NOTE report:sec-tool-finding sec-tool-finding reviewed OK: template/proxy.py:352,365 (`BrokenPipeError` is not on template/proxy.py:352)
+[evidence] NOTE report:sec-tool-finding sec-tool-finding reviewed OK: template/proxy.py:352,365 (`ConnectionResetError` is not on template/proxy.py:352)
+[evidence] NOTE report:magic-numbers magic-numbers template/proxy.py:124,126,129,130,131 (`LOADING_PAGE` is not on template/proxy.py:124)
+[evidence] evidence: 46/46 valid; report rows: 63/63 valid; content citations: 2/2 valid
+exit: 0
