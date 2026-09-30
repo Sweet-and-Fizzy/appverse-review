@@ -35,15 +35,21 @@ app_prefix/paths_for does (only when the path doesn't already carry that
 prefix, so a repo-relative path already matching is left alone) -- a
 monorepo candidate then matches a finding that cites the repo-relative
 path. A candidate is recorded by a run when that run has a
-FAIL/WARN or PASS finding whose evidence's leading `path:line` (or
-`path:line-line`, or a comma list of those) citation covers the candidate's
-exact file and line. This is deliberately the only test: an earlier version
-also credited a finding whose defect_key anchor matched the candidate's file
-and whose rule matched the candidate's kind, but that fallback over-counts
--- a single FAIL anchored `submit.yml.erb:some-tag` with rule OODT-01 would
-then mark every OODT-01 candidate in that file as recorded, whether or not
-the finding actually addressed that candidate's line. A finding whose
-evidence carries no parseable line (a bare path, or free-text prose) can
+FAIL/WARN or PASS finding whose evidence contains, anywhere in the string
+(not only at the start), a `path:line` (or `path:line-line`, or a comma
+list of those) citation covering the candidate's exact file and line. A
+finding's evidence can carry more than one citation group -- a FAIL/WARN
+record and a PASS record can otherwise collide on the same stable key
+(file and tag), so a skill may add a second citation after a semicolon to
+distinguish them, e.g. `template/script.sh.erb:22; reviewed OK:
+template/script.sh.erb:9,23` -- and every such group is checked, not only
+the first. This is deliberately the only test: an earlier version also
+credited a finding whose defect_key anchor matched the candidate's file and
+whose rule matched the candidate's kind, but that fallback over-counts -- a
+single FAIL anchored `submit.yml.erb:some-tag` with rule OODT-01 would then
+mark every OODT-01 candidate in that file as recorded, whether or not the
+finding actually addressed that candidate's line. A finding whose evidence
+carries no parseable line anywhere (a bare path, or free-text prose) can
 never record a candidate, by design: without a line, there is no way to
 tell which candidate in a multi-candidate file it addresses. For each
 candidate the table prints how many of the runs with a findings file
@@ -85,8 +91,16 @@ TEMPLATE_CHECK_ID = {
 }
 FORM_CHECK_ID = "numeric-field-bounds"  # erb-missing-value shares QUA-* territory but
                                         # numeric-field-bounds is the form.json rule of record here
-LEADING_CITATION = re.compile(r"^([^\s:]+):(\d+(?:\s*[-–]\s*\d+)?(?:\s*,\s*\d+(?:\s*[-–]\s*\d+)?)*)")
-LINE_SPEC = re.compile(r"(\d+)(?:\s*[-–]\s*(\d+))?")
+# A citation is a path token (no whitespace or ':', so it stops at the colon
+# and does not cross into the next citation's prose) followed by ':' and a
+# line-list: N, N-M or N–M (en dash), or a comma list of those. Found
+# anywhere in the evidence string with finditer, so a second citation group
+# after prose (e.g. a semicolon-separated "reviewed OK: ...") is picked up
+# too, not just a leading one.
+LINE_SPEC = r"\d+(?:\s*[-–]\s*\d+)?(?!\d)"
+LINE_LIST = LINE_SPEC + r"(?:\s*,\s*" + LINE_SPEC + r")*"
+CITATION = re.compile(r"([^\s:]+):(" + LINE_LIST + r")")
+RANGE_SPEC = re.compile(r"(\d+)(?:\s*[-–]\s*(\d+))?")
 
 
 class InputError(Exception):
@@ -224,22 +238,26 @@ def fix_key(rec):
 
 
 def citations(evidence):
-    """[(path, low, high), ...] from a leading `path:N`, `path:N-M`, or a
-    comma list of those; [] when evidence has no parseable line citation."""
+    """[(path, low, high), ...] from every `path:N`, `path:N-M`, or comma
+    list of those found anywhere in evidence -- not only a leading one, since
+    a FAIL/WARN record's evidence may carry a second citation group after a
+    semicolon (e.g. a note distinguishing it from a PASS on the same file and
+    tag: "template/script.sh.erb:22; reviewed OK: template/script.sh.erb:9,23").
+    Prose between citations (and prose with no citation at all) contributes
+    nothing. Each comma-separated piece of a citation's line-list becomes its
+    own (path, low, high) entry."""
     if not isinstance(evidence, str):
         return []
-    m = LEADING_CITATION.match(evidence)
-    if not m:
-        return []
-    path, spec = m.group(1), m.group(2)
     out = []
-    for piece in spec.split(","):
-        lm = LINE_SPEC.search(piece)
-        if not lm:
-            continue
-        lo = int(lm.group(1))
-        hi = int(lm.group(2)) if lm.group(2) else lo
-        out.append((path, lo, hi))
+    for m in CITATION.finditer(evidence):
+        path, spec = m.group(1), m.group(2)
+        for piece in spec.split(","):
+            lm = RANGE_SPEC.search(piece)
+            if not lm:
+                continue
+            lo = int(lm.group(1))
+            hi = int(lm.group(2)) if lm.group(2) else lo
+            out.append((path, lo, hi))
     return out
 
 

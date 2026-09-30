@@ -298,4 +298,70 @@ for c in d['candidates']:
         print(c['recorded_by'])
 ")"
 
+echo "Test 17: citations() finds every path:line group anywhere in evidence, not only"
+echo "the leading one (a FAIL/WARN evidence carrying a second citation after a semicolon,"
+echo "to avoid colliding on the same stable key as a PASS on the same file and tag)"
+check "three citations parsed from the semicolon-joined evidence" "[('template/script.sh.erb', 22, 22), ('template/script.sh.erb', 9, 9), ('template/script.sh.erb', 23, 23)]" "$(python3 -c "
+import sys
+sys.path.insert(0, '$SCRIPT_DIR/references')
+import importlib.util
+spec = importlib.util.spec_from_file_location('compare_runs', '$CHECK')
+cr = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(cr)
+ev = 'template/script.sh.erb:22; reviewed OK: template/script.sh.erb:9,23'
+print(cr.citations(ev))
+")"
+check "prose-only evidence yields no citations" "[]" "$(python3 -c "
+import sys
+sys.path.insert(0, '$SCRIPT_DIR/references')
+import importlib.util
+spec = importlib.util.spec_from_file_location('compare_runs', '$CHECK')
+cr = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(cr)
+print(cr.citations('reviewed manually, looks fine'))
+")"
+
+echo "Test 18: end-to-end -- a candidate at line 9 and one at line 23 in the same file are"
+echo "both recorded by the one FAIL/WARN finding whose evidence carries both, after the semicolon"
+mkdir -p "$TMP/sc1/pre-review/root" "$TMP/sc2/pre-review/root"
+cat > "$TMP/sc1/pre-review/apps.json" <<'EOF'
+[{"app_id": "root", "path": ".", "app_type": "batch_connect", "readme": "README.md"}]
+EOF
+cp "$TMP/sc1/pre-review/apps.json" "$TMP/sc2/pre-review/apps.json"
+cat > "$TMP/sc1/pre-review/root/template.json" <<'EOF'
+{"dir": "template", "files": [], "icons": [], "absolute_paths": [], "numeric_literals": [
+  {"file": "template/script.sh.erb", "line": 9, "value": "9000"},
+  {"file": "template/script.sh.erb", "line": 22, "value": "22000"},
+  {"file": "template/script.sh.erb", "line": 23, "value": "23000"}
+], "commented_code": [], "skipped_files": []}
+EOF
+cp "$TMP/sc1/pre-review/root/template.json" "$TMP/sc2/pre-review/root/template.json"
+echo '{"candidates": []}' > "$TMP/sc1/pre-review/root/security.json"
+echo '{"candidates": []}' > "$TMP/sc2/pre-review/root/security.json"
+echo '{"attributes": []}' > "$TMP/sc1/pre-review/root/form.json"
+echo '{"attributes": []}' > "$TMP/sc2/pre-review/root/form.json"
+printf '%s' "$(printf '[%s]' \
+  "$(finding QUA-08 'template/script.sh.erb:magic-number' WARN medium 'template/script.sh.erb:22; reviewed OK: template/script.sh.erb:9,23')")" > "$TMP/sc1/review-app.findings.json"
+printf '%s' "[]" > "$TMP/sc2/review-app.findings.json"
+out18=$(python3 "$CHECK" "$TMP/sc1" "$TMP/sc2" --json > "$TMP/out" 2>&1; echo $?)
+check "exit 0" 0 "$out18"
+check "line 22 recorded 1/2" "1" "$(python3 -c "
+import json
+d = json.load(open('$TMP/out'))
+for c in d['candidates']:
+    if c['line'] == 22: print(c['recorded_by'])
+")"
+check "line 9 recorded 1/2 (from the second citation group)" "1" "$(python3 -c "
+import json
+d = json.load(open('$TMP/out'))
+for c in d['candidates']:
+    if c['line'] == 9: print(c['recorded_by'])
+")"
+check "line 23 recorded 1/2 (from the comma list in the second group)" "1" "$(python3 -c "
+import json
+d = json.load(open('$TMP/out'))
+for c in d['candidates']:
+    if c['line'] == 23: print(c['recorded_by'])
+")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
