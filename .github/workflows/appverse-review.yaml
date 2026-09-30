@@ -364,7 +364,7 @@ jobs:
               if [ "$rc" -eq 2 ]; then
                 echo "::error::One or more checkers could not run (see [checker] error lines above)"
               else
-                echo "::error::Report or findings failed a checker (see [checker] MISSING/INVALID/MISMATCH/UNCITED/BAD lines above)"
+                echo "::error::Report or findings failed a checker (see [checker] INVALID/MISSING/MISMATCH/UNCITED/BAD lines above)"
               fi
               exit 1
             fi
@@ -459,7 +459,7 @@ jobs:
           # uploaded the artifact so the reviewer can see what the check saw.
           check_failed=0
           if [ "$CHECKS_OUTCOME" = "failure" ]; then
-            echo "::error::Review produced its outputs but check-all.py failed; see that step's [floor]/[keys]/[rating]/[rows]/[evidence] MISSING/INVALID/MISMATCH/UNCITED/BAD lines"
+            echo "::error::Review produced its outputs but check-all.py failed; see that step's [floor]/[keys]/[rating]/[rows]/[evidence] INVALID/MISSING/MISMATCH/UNCITED/BAD lines"
             check_failed=1
           fi
           required="md"
