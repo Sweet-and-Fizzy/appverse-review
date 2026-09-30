@@ -219,8 +219,12 @@ shows the findings, not a level. An app with none is described as having no
 tool-detectable issues in the checked tiers, never as `safe`.
 
 A consumer that counts security findings counts `OODT-` records whose
-`result` is FAIL or WARN; a PASS record confirms a check and a NOT CHECKED
-record reports a skipped tier, and neither is a finding to review.
+`result` is FAIL or WARN. A PASS record confirms a check and may be dropped.
+A NOT CHECKED record reports a skipped tier and is not a finding to review,
+but it is the only trace that the tier was skipped now that the security
+summary is gone: a consumer shows it as a scope note beside the findings
+("tier 3 not checked", from the record's summary), so "no tool-detectable
+issues in the checked tiers" never reads as "all tiers checked".
 
 **Portal.** The portal's `indicator_security` field and the reviewer's
 security-level override are retired with 1.2; the seeder tolerates the
