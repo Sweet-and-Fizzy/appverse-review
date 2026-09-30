@@ -46,11 +46,31 @@ fix-item and must be represented in the feedback section of the report:
      "custom_num_cores.help" -> custom, num, cores, help) are used instead of
      the base tag's words. With no qualifier, the tag's own words are used
      (hyphen-split). Stopwords {no, not, missing, other, wrong, bad, un, non,
-     app, key, value, file} and bare 1-2 letter fragments are then dropped,
-     and both the remaining tag words and the prose are compared with
-     hyphens/underscores stripped, case-insensitive (so "hardcoded" matches
-     "hard-coded"). If no distinctive word survives the filter (e.g. tag
-     "no-ci" — "no" is a stopword, "ci" is too short), rule 3 falls back to
+     app, key, value, file, erb, yml, yaml, sh, md, set} and bare 1-2 letter
+     fragments are then dropped, and both the remaining tag words and the
+     prose are compared with hyphens/underscores stripped, case-insensitive
+     (so "hardcoded" matches "hard-coded"). A stopword is dropped because it
+     is too generic or too easily coincidental on its own to describe a
+     specific defect — "erb"/"yml"/"sh"/"md" are file-extension fragments
+     that would otherwise match the file's own name, and "set" would
+     otherwise match any unrelated "set -x"-style mention.
+
+     If no single distinctive word survives that filter, rule 3 has a phrase
+     fallback before giving up on the mechanism tag: the tag's own word
+     sequence (unfiltered — short words and words that are only stopwords in
+     isolation, like "set", are kept here), with any leading run of
+     NEGATION_PREFIXES words dropped (no, missing, without, unhandled,
+     undocumented — a small, general set, not specific to any one tag),
+     counts as describing the defect when it appears *consecutively* in the
+     sentence window, case-insensitive, with the words separated by any run
+     of "-", "_", or space. So tag "no-set-e" is satisfied by prose that
+     says "does not have set -e" or "no set -e", but not by an unrelated
+     "remove set -x" — the phrase, not the bare word "set", has to be
+     there. A longer tag also matches prose that only spells out a leading
+     portion of it (down to two words): "commented-out-code" is satisfied by
+     "a commented-out block". If neither a single distinctive word nor the
+     phrase (nor, for a two-or-fewer-word tag with nothing left after
+     negation-stripping, anything at all) can be found, rule 3 falls back to
      the line-number check alone; if the evidence also has no line number,
      rule 3 is considered satisfied (rules 1 and 2 still apply).
 
@@ -139,6 +159,13 @@ STOPWORDS = {
     # check trivially true.
     "erb", "yml", "yaml", "sh", "md", "set",
 }
+# Leading words in a mechanism tag that negate or genericize what follows
+# rather than naming it — "no-set-e" is about "set -e", not "no" or "set" in
+# isolation. Stripped only from the front of the tag's word sequence (see
+# `phrase_words`), not treated as stopwords generally: "set" still needs to
+# be droppable on its own (STOPWORDS) when what's left after it isn't a
+# genuine negated phrase.
+NEGATION_PREFIXES = {"no", "missing", "without", "unhandled", "undocumented"}
 SENTENCE_END = re.compile(r"(?<=[.;:])\s+|\n")
 # A filename-shaped token anywhere in a sentence: a path/word segment with a
 # file extension (e.g. "form.yml", "template/script.sh.erb"). Used to detect
@@ -337,17 +364,17 @@ def line_named(candidates, evidence, prose):
     return any(re.search(pat, prose) for pat in patterns)
 
 
-def mechanism_words(defect_key):
-    """Distinctive words of the mechanism tag: the part of defect_key after
-    the anchor (the first ':'). If that starts with 'other:', the words come
-    from the remainder, hyphen-split. Otherwise, if it carries a
-    ':{qualifier}', the qualifier is the distinctive part by definition — its
-    words (split on hyphens, dots, AND underscores, e.g.
+def tag_words(defect_key):
+    """The mechanism tag's own word sequence, in order, unfiltered: the part
+    of defect_key after the anchor (the first ':'). If that starts with
+    'other:', the words come from the remainder, hyphen-split. Otherwise, if
+    it carries a ':{qualifier}', the qualifier IS the word sequence by
+    definition — its words (split on hyphens, dots, AND underscores, e.g.
     'custom_num_cores.help' -> custom, num, cores, help) are used instead of
     the base tag's. With no qualifier, the tag's own words are used
-    (hyphen-split). Stopwords and bare 1-2 letter fragments are then dropped.
-    Returns words with hyphens/underscores already stripped, for comparison
-    against similarly-normalized prose."""
+    (hyphen-split). No stopword or length filtering — see `mechanism_words`
+    for the filtered, distinctive-word version and `phrase_words` for the
+    negation-stripped version used by the sentence-window phrase fallback."""
     key = str(defect_key or "")
     if ":" not in key:
         tag = key
@@ -360,10 +387,58 @@ def mechanism_words(defect_key):
         words = re.split(r"[-._]", qualifier)
     else:
         words = re.split(r"[-]", tag)
-    words = [w for w in words if w]
+    return [w for w in words if w]
+
+
+def mechanism_words(defect_key):
+    """Distinctive words of the mechanism tag (see `tag_words`). Stopwords
+    and bare 1-2 letter fragments are dropped. Returns words with
+    hyphens/underscores already stripped, for comparison against
+    similarly-normalized prose."""
+    words = tag_words(defect_key)
     # Drop stopwords and bare 1-2 letter fragments (e.g. "ci" from "no-ci")
     # — too short to be a distinctive, recognizable word in prose.
     return [w for w in words if w.lower() not in STOPWORDS and len(w) > 2]
+
+
+def phrase_words(defect_key):
+    """The mechanism tag's own word sequence (see `tag_words`), with any
+    leading run of NEGATION_PREFIXES words dropped — "no-set-e" ->
+    ["set", "e"], "undocumented-hex-color" -> ["hex", "color"]. Unlike
+    `mechanism_words`, nothing else is filtered: short fragments like "e"
+    and words that are STOPWORDS on their own (e.g. "set") are kept,
+    because it's the consecutive phrase, not any single word of it, that
+    has to be distinctive. Returns [] if every word is a negation prefix
+    (nothing left to form a phrase) or the tag has fewer than two words
+    after stripping (a single word is already covered by
+    `mechanism_words`, not by the phrase fallback)."""
+    words = tag_words(defect_key)
+    i = 0
+    while i < len(words) and words[i].lower() in NEGATION_PREFIXES:
+        i += 1
+    words = words[i:]
+    return words if len(words) >= 2 else []
+
+
+def phrase_named(defect_key, prose):
+    """True if the mechanism tag's negation-stripped word sequence (or a
+    prefix of it, down to 2 words) appears *consecutively* in `prose`,
+    case-insensitive, with the words separated by any run of '-', '_', or
+    space. This is rule 3's phrase fallback: after the single
+    distinctive-word check (`word_named`) fails, a tag like "no-set-e" is
+    still satisfied by prose that says "does not have set -e" or "no set
+    -e", but not by an unrelated mention of "set" alone (e.g. "set -x") —
+    the phrase, not the bare word, is what has to be there. Trying
+    shrinking prefixes (full sequence first, then one word shorter, down to
+    2) lets a longer tag still match prose that only spells out its first
+    two words (e.g. "commented-out-code" matched by "a commented-out
+    block")."""
+    words = phrase_words(defect_key)
+    for end in range(len(words), 1, -1):
+        pattern = r"\b" + r"[-_ ]*".join(re.escape(w) for w in words[:end]) + r"\b"
+        if re.search(pattern, prose, re.IGNORECASE):
+            return True
+    return False
 
 
 def default_subject(anchor):
@@ -443,19 +518,28 @@ def defect_named(candidates, evidence, defect_key, named_paragraphs, words=None,
 
     `words` are the distinctive words to look for in the window; by default
     the finding's mechanism-tag words (rule 3). A pseudo-anchor's caller
-    passes its subject words instead, with `ci=True` (see `named_in`)."""
+    passes its subject words instead, with `ci=True` (see `named_in`). The
+    mechanism tag's phrase fallback (`phrase_named`) only applies on the
+    default (mechanism-word) path, not when a caller supplies its own
+    `words` — a pseudo-anchor's subject is checked as plain words, not as
+    a negation-strippable phrase."""
+    use_mechanism_words = words is None
     if words is None:
         words = mechanism_words(defect_key)
     singles, ranges = evidence_numbers(evidence)
-    if not words and not singles and not ranges:
-        # No distinctive word and no line number to check against — rule 3
-        # has nothing to verify; satisfied (rules 1 and 2 still apply).
+    phrase = phrase_words(defect_key) if use_mechanism_words else []
+    if not words and not phrase and not singles and not ranges:
+        # No distinctive word, no phrase, and no line number to check
+        # against — rule 3 has nothing to verify; satisfied (rules 1 and 2
+        # still apply).
         return True
     for p in named_paragraphs:
         for window in sentence_windows(p, candidates, ci):
             if line_named(candidates, evidence, window):
                 return True
             if words and words_named(words, window):
+                return True
+            if phrase and phrase_named(defect_key, window):
                 return True
     return False
 

@@ -479,4 +479,17 @@ printf '## Draft feedback\n<!-- feedback-covers: template/script.sh.erb:no-set-e
 check "exit 1" 1 "$(run "$TMP/t37.json" "$TMP/t37.md")"
 check "reason" 1 "$(grep -cF 'MISSING QUA-03 template/script.sh.erb:no-set-e (defect not described in feedback)' "$TMP/out")"
 
+echo "Test 38: rule 3's phrase fallback — a negation-stripped mechanism-tag phrase ('set -e', from tag 'no-set-e') found consecutively in the window describes the defect, even though 'set' alone is a stopword"
+printf '## Draft feedback\n<!-- feedback-covers: template/script.sh.erb:no-set-e -->\ntemplate/script.sh.erb does not have set -e.\n' > "$TMP/t38.md"
+check "phrase in window: exit 0" 0 "$(run "$TMP/t37.json" "$TMP/t38.md")"
+check "reports 1/1" "feedback floor: 1/1 fix-items covered" "$(tail -1 "$TMP/out")"
+
+echo "Test 39: the phrase fallback also matches a leading prefix of a longer tag's word sequence ('commented-out', from tag 'commented-out-code', matched by prose that never says 'code')"
+cat > "$TMP/t39.json" <<'EOF'
+[{"app_id":"root","rule":"QUA-09","defect_key":"template/script.sh.erb:commented-out-code","result":"WARN","severity":"low","evidence":"template/script.sh.erb:34-95"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: template/script.sh.erb:commented-out-code -->\ntemplate/script.sh.erb has a commented-out block that should be removed.\n' > "$TMP/t39.md"
+check "prefix phrase in window: exit 0" 0 "$(run "$TMP/t39.json" "$TMP/t39.md")"
+check "reports 1/1" "feedback floor: 1/1 fix-items covered" "$(tail -1 "$TMP/out")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
