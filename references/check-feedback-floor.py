@@ -63,6 +63,9 @@ import os
 import re
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from repo_paths import split_reviewed_ok  # noqa: E402
+
 FIX_SEVERITIES = {"critical", "high", "medium", "low"}
 FIX_RESULTS = {"FAIL", "WARN"}
 SECTION_HEADINGS = (
@@ -168,8 +171,10 @@ def evidence_numbers(evidence):
     """Every integer and every 'a-b' range in the evidence string, as
     (singles, ranges) — singles is the set of individual integers found
     outside of a range plus each range's endpoints; ranges is the list of
-    (a, b) string pairs, for matching a literal 'lines a-b' form."""
-    text = str(evidence or "")
+    (a, b) string pairs, for matching a literal 'lines a-b' form. The
+    cell is cut at '; reviewed OK:' first: the lines after it are PASS
+    lines, so naming one does not describe the FAIL/WARN."""
+    text = split_reviewed_ok(str(evidence or ""))[0]
     ranges = [(a, b) for a, b in re.findall(r"(\d+)-(\d+)", text)]
     singles = set(re.findall(r"\d+", text))
     return singles, ranges

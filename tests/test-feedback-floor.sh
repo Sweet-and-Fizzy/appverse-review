@@ -327,4 +327,23 @@ sed 's/, root:no-releases -->/ -->/; s/, root:no-releases,/,/' "$TMP/combined.md
 check "exit 1 when the in-section list drops a key the pre-heading one had" 1 "$(run "$TMP/findings.json" "$TMP/combined-partial.md")"
 check "names the finding dropped from the in-section list" 1 "$(grep -c 'MISSING MNT-02 root:no-releases' "$TMP/out")"
 
+echo "Test 24: a line after '; reviewed OK:' is a PASS line: naming it does not describe the FAIL"
+cat > "$TMP/rok.json" <<'EOF'
+[
+ {"app_id":"root","rule":"QUA-08","defect_key":"template/script.sh.erb:magic-number","aspect":"quality","severity":"low","result":"WARN","summary":"x","evidence":"template/script.sh.erb:22; reviewed OK: template/script.sh.erb:9,23"}
+]
+EOF
+cat > "$TMP/rok.md" <<'EOF'
+# Appverse Review: x
+## Overall recommendation
+Accept with suggestions.
+## Draft feedback — edit before sending
+Please look at template/script.sh.erb line 9.
+<!-- feedback-covers: template/script.sh.erb:magic-number -->
+EOF
+check "PASS line named: exit 1" 1 "$(run "$TMP/rok.json" "$TMP/rok.md")"
+check "reason" 1 "$(grep -c 'MISSING QUA-08 template/script.sh.erb:magic-number (defect not described in feedback)' "$TMP/out")"
+sed 's/line 9\./line 22./' "$TMP/rok.md" > "$TMP/rok2.md"
+check "FAIL line named: exit 0" 0 "$(run "$TMP/rok.json" "$TMP/rok2.md")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
