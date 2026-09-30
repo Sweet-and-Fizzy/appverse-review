@@ -43,6 +43,12 @@ Each finding uses an MNT-XX rule code and a `defect_key` from the maintenance
 mechanism-tag vocabulary in
 `${CLAUDE_PLUGIN_ROOT}/references/finding-codes.md`.
 
+Anchors for repo-level findings are the fixed pseudo-anchors in
+finding-codes.md: `releases` (MNT-02), `CHANGELOG.md` (MNT-03, whether
+or not the file exists), `.github/workflows` (MNT-04), `contributors`
+(MNT-05), `issues` (MNT-06), `commits` (MNT-01). Never invent
+an anchor such as `RELEASES` or `github/commits`.
+
 Weight each signal the way the rubric's Upkeep section frames it:
 activity within 12 months is its target for inclusion, while releases, issue
 responsiveness, contributors, CHANGELOG, and CI are good-practice indicators, not

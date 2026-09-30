@@ -102,6 +102,7 @@ jobs:
         env:
           TARGET_REPO: ${{ inputs.target_repo }}
           REVIEW_ASPECTS: ${{ inputs.review_aspects }}
+          MODEL: ${{ inputs.model }}
         run: |
           if [ "$REVIEW_ASPECTS" = "all" ]; then
             echo "skill=review-app" >> "$GITHUB_OUTPUT"
@@ -117,6 +118,7 @@ jobs:
             echo "target_commit_date=$(git -C target-repo log -1 --format=%cs)"
             echo "plugin_sha=$(git -C appverse-review rev-parse --short HEAD)"
             echo "plugin_version=$(python3 -c "import json; print(json.load(open('appverse-review/.claude-plugin/plugin.json'))['version'])")"
+            echo "model_id=claude-${MODEL}-4-6"
           } >> "$GITHUB_OUTPUT"
 
       - name: Run AppVerse review
@@ -133,7 +135,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           plugin_marketplaces: "./appverse-review/"
           plugins: "appverse-review"
-          claude_args: "--max-turns 100 --model claude-${{ inputs.model }}-4-6"
+          claude_args: "--max-turns 100 --model ${{ steps.params.outputs.model_id }}"
           show_full_output: ${{ inputs.debug }}
           settings: |
             {
@@ -209,6 +211,7 @@ jobs:
             - appverse-review plugin: version ${{ steps.params.outputs.plugin_version }}, commit ${{ steps.params.outputs.plugin_sha }}
               (so the report's "Reviewed with" line reads
               appverse-review @ ${{ steps.params.outputs.plugin_version }} (`${{ steps.params.outputs.plugin_sha }}`, https://github.com/Sweet-and-Fizzy/appverse-review))
+            - Model: ${{ steps.params.outputs.model_id }}
 
             This is a non-interactive run: the session ends the moment your
             turn ends, and any sub-agent still running is abandoned with its
@@ -270,8 +273,46 @@ jobs:
           EOF
           echo "Dry-run report written to $REPORT_FILE"
 
+      - name: Stamp run provenance
+        if: "!cancelled() && inputs.review_aspects != 'dry-run'"
+        env:
+          WS: ${{ github.workspace }}
+          SLUG: ${{ steps.params.outputs.repo_slug }}
+          MODEL_ID: ${{ steps.params.outputs.model_id }}
+          PLUGIN_VERSION: ${{ steps.params.outputs.plugin_version }}
+          PLUGIN_SHA: ${{ steps.params.outputs.plugin_sha }}
+        run: |
+          # The model cannot know what it is running as (a gateway run reported
+          # itself as Claude). The workflow knows, so it writes these values.
+          META="$WS/review-${SLUG}.meta.json"; MD="$WS/review-${SLUG}.md"
+          if [ -s "$META" ]; then
+            python3 - "$META" "$MODEL_ID" <<'EOF'
+          import json, sys
+          p, model = sys.argv[1], sys.argv[2]
+          m = json.load(open(p)); m["model"] = model
+          json.dump(m, open(p, "w"), indent=2); print("meta.json model =", model)
+          EOF
+          fi
+          if [ -s "$MD" ]; then
+            python3 - "$MD" "$MODEL_ID" "$PLUGIN_VERSION" "$PLUGIN_SHA" <<'EOF'
+          import re, sys
+          p, model, ver, sha = sys.argv[1:5]
+          s = open(p).read()
+          # Consume the whole value ("Claude Sonnet 4.6", or nothing) and its
+          # surrounding spaces, never the newline, up to the " · " separator or
+          # end of line; put back exactly one space before a separator.
+          s, n1 = re.subn(r"(\*\*Model:\*\*)[^\S\n]*[^·\n]*?[^\S\n]*(?=(\s*·)|$)",
+                          lambda m: m.group(1) + " " + model + (" " if m.group(2) and "\n" not in m.group(2) else ""),
+                          s, count=1, flags=re.M)
+          s, n2 = re.subn(r"appverse-review @ [^\s(]+ \(`[^`]*`", lambda m: "appverse-review @ " + ver + " (`" + sha + "`", s, count=1)
+          open(p, "w").write(s); print("header stamped: model", n1, "version", n2)
+          if not (n1 and n2):
+              print("::warning::header stamp: model {} version {}".format(n1, n2))
+          EOF
+          fi
+
       - name: Compute stable finding IDs
-        if: inputs.review_aspects != 'dry-run'
+        if: "!cancelled() && inputs.review_aspects != 'dry-run'"
         run: |
           JSON_FILE="${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.findings.json"
           if [ -f "$JSON_FILE" ]; then
@@ -293,6 +334,7 @@ jobs:
           fi
 
       - name: Check the feedback floor
+        id: floor
         if: inputs.review_aspects == 'all'
         run: |
           WS="${{ github.workspace }}"
@@ -307,6 +349,44 @@ jobs:
             echo "::warning::findings JSON or report missing — feedback floor not checked"
           fi
 
+      - name: Check finding keys
+        id: keys
+        if: "!cancelled() && inputs.review_aspects == 'all'"
+        run: |
+          WS="${{ github.workspace }}"; SLUG="${{ steps.params.outputs.repo_slug }}"
+          if [ -s "$WS/review-${SLUG}.findings.json" ]; then
+            rc=0; python3 "$WS/appverse-review/references/check-keys.py" "$WS/review-${SLUG}.findings.json" --target "$WS/target-repo" || rc=$?
+            if [ "$rc" -ne 0 ]; then
+              if [ "$rc" -eq 2 ]; then
+                echo "::error::Finding-key check could not run (see error above)"
+              else
+                echo "::error::Malformed defect keys (see INVALID lines above); their stable IDs would not be stable"
+              fi
+              exit 1
+            fi
+          else
+            echo "::warning::findings JSON missing — keys not checked"
+          fi
+
+      - name: Check ratings against evidence
+        id: ratings
+        if: "!cancelled() && inputs.review_aspects == 'all'"
+        run: |
+          WS="${{ github.workspace }}"; SLUG="${{ steps.params.outputs.repo_slug }}"
+          if [ -s "$WS/review-${SLUG}.findings.json" ] && [ -s "$WS/review-${SLUG}.md" ]; then
+            rc=0; python3 "$WS/appverse-review/references/check-rating.py" "$WS/review-${SLUG}.md" "$WS/review-${SLUG}.findings.json" || rc=$?
+            if [ "$rc" -ne 0 ]; then
+              if [ "$rc" -eq 2 ]; then
+                echo "::error::Rating check could not run (see error above)"
+              else
+                echo "::error::The Documentation rating does not follow the report's own evidence (see MISMATCH lines above)"
+              fi
+              exit 1
+            fi
+          else
+            echo "::warning::report or findings missing — ratings not checked"
+          fi
+
       - name: Generate PDF and HTML from review
         if: always()
         run: |
@@ -318,7 +398,7 @@ jobs:
           fi
 
       - name: Assemble review artifact
-        if: inputs.review_aspects != 'dry-run'
+        if: "!cancelled() && inputs.review_aspects != 'dry-run'"
         run: |
           SLUG="${{ steps.params.outputs.repo_slug }}"
           WS="${{ github.workspace }}"
@@ -387,7 +467,19 @@ jobs:
         env:
           REVIEW_ASPECTS: ${{ inputs.review_aspects }}
           PREFIX: ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}
+          FLOOR_OUTCOME: ${{ steps.floor.outcome }}
+          KEYS_OUTCOME: ${{ steps.keys.outcome }}
+          RATINGS_OUTCOME: ${{ steps.ratings.outcome }}
         run: |
+          # A failed check stays red, but the steps above still assembled and
+          # uploaded the artifact so the reviewer can see what the check saw.
+          check_failed=0
+          for pair in "feedback floor:$FLOOR_OUTCOME" "finding keys:$KEYS_OUTCOME" "rating:$RATINGS_OUTCOME"; do
+            if [ "${pair##*:}" = "failure" ]; then
+              echo "::error::Review produced its outputs but the ${pair%%:*} check failed; see that step's INVALID/MISSING/MISMATCH lines"
+              check_failed=1
+            fi
+          done
           required="md"
           if [ "$REVIEW_ASPECTS" = "all" ]; then
             required="md findings.json meta.json artifact.json"
@@ -401,6 +493,9 @@ jobs:
           done
           if [ "$missing" -ne 0 ]; then
             echo "The review did not produce its outputs. See the 'Run AppVerse review' step log."
+            exit 1
+          fi
+          if [ "$check_failed" -ne 0 ]; then
             exit 1
           fi
           echo "All required review outputs present: ${required}"

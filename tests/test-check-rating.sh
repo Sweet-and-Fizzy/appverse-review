@@ -1,0 +1,191 @@
+#!/usr/bin/env bash
+# Test check-rating.py: Documentation rating follows its evidence lines; Documentation signal follows the rating.
+# Only Documentation is checked (no security rating, design R4); the findings JSON argument is passed but unread.
+set -uo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+CHECK="$SCRIPT_DIR/references/check-rating.py"
+TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+pass=0; fail=0
+check() { local name="$1" expected="$2" actual="$3"
+  if [ "$expected" = "$actual" ]; then echo "  PASS  $name"; pass=$((pass+1)); else echo "  FAIL  $name: expected '$expected', got '$actual'"; fail=$((fail+1)); fi; }
+run() { python3 "$CHECK" "$1" "$2" > "$TMP/out" 2>&1; echo $?; }
+
+report() { # $1 = doc rating, $2 = security signal, $3 = documentation signal, $4 = evidence block (bullet form)
+cat <<EOF
+# Appverse Review: x
+
+## Repo-level gate criteria
+
+| Rule | Result | Evidence |
+|---|---|---|
+
+## App: X (root)
+
+### Signals
+
+| Dimension | Level | Evidence |
+|---|---|---|
+| Security | $2 | e |
+| Portability | Medium | e |
+| Documentation | $3 | e |
+
+### Structure
+No findings.
+
+### Security
+
+#### Findings
+
+| Rule | Result | Severity | Tag | Summary | Evidence |
+|---|---|---|---|---|---|
+
+### Portability
+- Rating: **Partially portable** — x
+
+### Documentation
+- Rating: **$1** — x
+- Evidence per rung:
+$4
+
+### Code Quality
+No findings.
+
+## Review scope
+x
+EOF
+}
+FULL='  - what it launches: README.md:27
+  - prerequisites: README.md:65
+  - installation: README.md:84
+  - configuration: README.md:99
+  - known limitations: README.md:200
+  - troubleshooting: README.md:159
+  - screenshots: README.md:39
+  - environment variables: README.md:120
+  - info panel: none
+  - architecture: none'
+NOENV='  - what it launches: README.md:27
+  - prerequisites: README.md:65
+  - installation: README.md:84
+  - configuration: README.md:99
+  - known limitations: README.md:200
+  - troubleshooting: README.md:159
+  - screenshots: README.md:39
+  - environment variables: none user-facing to document — N/A
+  - info panel: none
+  - architecture: none'
+SEMI='  what it launches: README.md:27; prerequisites: README.md:65; installation: README.md:84;
+  configuration: README.md:99; known limitations: none;
+  troubleshooting: README.md:159; screenshots: README.md:39; environment variables: README.md:120;
+  info panel: none; architecture: none'
+
+echo "Test 1: consistent report passes"
+report Strong Low Low "$FULL" > "$TMP/r1.md"; echo '[]' > "$TMP/f1.json"
+check "exit 0" 0 "$(run "$TMP/r1.md" "$TMP/f1.json")"
+check "summary" "ratings: consistent" "$(tail -1 "$TMP/out")"
+
+echo "Test 2: Strong claimed with environment variables = none (the 2026-09-28 sonnet-1 case)"
+report Strong Low Low "$NOENV" > "$TMP/r2.md"
+check "exit 1" 1 "$(run "$TMP/r2.md" "$TMP/f1.json")"
+check "mismatch names the rung" 1 "$(grep -c "MISMATCH Documentation rating (Strong claimed but 'environment variables' evidence is none; highest supported rung is Adequate)" "$TMP/out")"
+
+echo "Test 3: rungs are cumulative (known limitations none caps at Minimal even with Strong-rung evidence)"
+report Strong Low Low "$SEMI" > "$TMP/r3.md"
+check "exit 1" 1 "$(run "$TMP/r3.md" "$TMP/f1.json")"
+check "caps at Minimal" 1 "$(grep -c "highest supported rung is Minimal" "$TMP/out")"
+
+echo "Test 4: semicolon (template) form parses when consistent"
+SEMIOK='  what it launches: README.md:27; prerequisites: README.md:65; installation: README.md:84;
+  configuration: README.md:99; known limitations: README.md:200;
+  troubleshooting: none; screenshots: none; environment variables: none;
+  info panel: none; architecture: none'
+report Adequate Low Medium "$SEMIOK" > "$TMP/r4.md"
+check "exit 0" 0 "$(run "$TMP/r4.md" "$TMP/f1.json")"
+
+echo "Test 8: Documentation signal disagrees with the rating (Adequate must be Medium)"
+report Adequate Low Low "$FULL" > "$TMP/r8.md"
+check "exit 1" 1 "$(run "$TMP/r8.md" "$TMP/f1.json")"
+check "reason" 1 "$(grep -c "MISMATCH Documentation signal (report says Low; rating Adequate maps to Medium)" "$TMP/out")"
+
+echo "Test 9: no Documentation section is exit 2"
+grep -v "^### Documentation" "$TMP/r1.md" | grep -v "Rating: \*\*Strong" > "$TMP/r9.md"
+check "exit 2" 2 "$(run "$TMP/r9.md" "$TMP/f1.json")"
+
+echo "Test 10: signal() must not read a findings-table row whose first cell is Documentation"
+# Signals table has no Documentation row; a findings table below it has a row starting
+# "| Documentation | Low | …" that must not be misread as the Signals-table Documentation level.
+sed -e '/^| Documentation | Low | e |$/d' \
+    -e 's/^|---|---|---|---|---|---|$/|---|---|---|---|---|---|\n| Documentation | Low | medium | DOC-01 | s | e |/' \
+    "$TMP/r1.md" > "$TMP/r10.md"
+check "findings-table decoy row present" 1 "$(grep -c '^| Documentation | Low | medium | DOC-01 | s | e |$' "$TMP/r10.md")"
+check "exit 2 (missing Signals row, not misread)" 2 "$(run "$TMP/r10.md" "$TMP/f1.json")"
+check "error names Documentation" 1 "$(grep -c "has no Signals row for Documentation" "$TMP/out")"
+
+echo "Test 11: missing '### Signals' section entirely is exit 2"
+grep -v "^### Signals$" "$TMP/r1.md" | sed '/^| Dimension | Level | Evidence |$/d; /^|---|---|---|$/d; /^| Security | Low | e |$/d; /^| Portability | Medium | e |$/d; /^| Documentation | Low | e |$/d' > "$TMP/r11.md"
+check "exit 2" 2 "$(run "$TMP/r11.md" "$TMP/f1.json")"
+check "error names Signals section" 1 "$(grep -c "has no '### Signals' section" "$TMP/out")"
+
+echo "Test 12: Signals table present but missing the Documentation row is exit 2"
+grep -v "^| Documentation | Low | e |$" "$TMP/r1.md" > "$TMP/r12.md"
+check "exit 2" 2 "$(run "$TMP/r12.md" "$TMP/f1.json")"
+check "error names Documentation" 1 "$(grep -c "has no Signals row for Documentation" "$TMP/out")"
+
+# FULL with one line replaced: $1 = requirement, $2 = new value
+full_with() { printf '%s\n' "$FULL" | sed "s|^  - $1: .*|  - $1: $2|"; }
+
+echo "Test 14: 'No …' evidence is none"
+report Strong Low Low "$(full_with troubleshooting 'No troubleshooting section')" > "$TMP/r14.md"
+check "exit 1" 1 "$(run "$TMP/r14.md" "$TMP/f1.json")"
+check "caps at Adequate" 1 "$(grep -cF "MISMATCH Documentation rating (Strong claimed but 'troubleshooting' evidence is none; highest supported rung is Adequate)" "$TMP/out")"
+
+echo "Test 15: punctuation-only evidence is none"
+report Strong Low Low "$(full_with 'environment variables' '—')" > "$TMP/r15.md"
+check "exit 1" 1 "$(run "$TMP/r15.md" "$TMP/f1.json")"
+check "caps at Adequate" 1 "$(grep -cF "MISMATCH Documentation rating (Strong claimed but 'environment variables' evidence is none; highest supported rung is Adequate)" "$TMP/out")"
+
+echo "Test 16: bold requirement keys parse"
+BOLD=$(printf '%s\n' "$FULL" | sed -E 's/^  - ([a-z ]+):/  - **\1:**/')
+report Strong Low Low "$BOLD" > "$TMP/r16.md"
+check "exit 0" 0 "$(run "$TMP/r16.md" "$TMP/f1.json")"
+check "summary" "ratings: consistent" "$(tail -1 "$TMP/out")"
+BOLDNOENV=$(printf '%s\n' "$BOLD" | sed 's/^  - \*\*environment variables:\*\* .*/  - **environment variables:** none/')
+report Strong Low Low "$BOLDNOENV" > "$TMP/r16b.md"
+check "bold none still caps" 1 "$(run "$TMP/r16b.md" "$TMP/f1.json")"
+check "bold none reason" 1 "$(grep -cF "MISMATCH Documentation rating (Strong claimed but 'environment variables' evidence is none; highest supported rung is Adequate)" "$TMP/out")"
+
+echo "Test 17: * and + bullets parse"
+STARS=$(printf '%s\n' "$FULL" | awk '{ sub(/^  - /, NR <= 5 ? "  * " : "  + "); print }')
+report Strong Low Low "$STARS" > "$TMP/r17.md"
+check "exit 0" 0 "$(run "$TMP/r17.md" "$TMP/f1.json")"
+check "five * bullets" 5 "$(grep -cE '^  \* [a-z]' "$TMP/r17.md")"
+check "five + bullets" 5 "$(grep -cE '^  \+ [a-z]' "$TMP/r17.md")"
+
+echo "Test 18: bold dimension and level cells in the Signals table"
+sed -e 's/^| Documentation | Low | e |$/| Documentation | **Low** | e |/' "$TMP/r1.md" > "$TMP/r18.md"
+check "exit 0" 0 "$(run "$TMP/r18.md" "$TMP/f1.json")"
+check "summary" "ratings: consistent" "$(tail -1 "$TMP/out")"
+sed -e 's/^| Documentation | Low | e |$/| **Documentation** | **Medium** | e |/' "$TMP/r1.md" > "$TMP/r18b.md"
+check "bold dimension and level still compared" 1 "$(run "$TMP/r18b.md" "$TMP/f1.json")"
+check "bold level reason" 1 "$(grep -cF "MISMATCH Documentation signal (report says Medium; rating Strong maps to Low)" "$TMP/out")"
+
+echo "Test 19: an absent requirement line is 'missing', not 'none'"
+report Strong Low Low "$(printf '%s\n' "$FULL" | grep -v 'screenshots:')" > "$TMP/r19.md"
+check "exit 1" 1 "$(run "$TMP/r19.md" "$TMP/f1.json")"
+check "reason" 1 "$(grep -cF "MISMATCH Documentation rating (Strong claimed but 'screenshots' evidence is missing; highest supported rung is Adequate)" "$TMP/out")"
+
+echo "Test 20: Documentation is checked per app section (two apps, one mismatched)"
+two_apps() { # $1/$2 = root rating/signal, $3/$4 = viewer rating/signal
+  report "$1" Low "$2" "$FULL" | sed '/^## Review scope$/,$d' | sed 's/^## App: X (root)$/## App: SAS (root)/'
+  report "$3" Low "$4" "$SEMIOK" | sed -n '/^## App: X (root)$/,$p' | sed 's/^## App: X (root)$/## App: Viewer (apps\/viewer)/'
+}
+two_apps Strong Low Adequate Medium > "$TMP/r20.md"
+check "two sections" 2 "$(grep -c '^## App:' "$TMP/r20.md")"
+check "consistent exit 0" 0 "$(run "$TMP/r20.md" "$TMP/f1.json")"
+check "consistent summary" "ratings: consistent" "$(tail -1 "$TMP/out")"
+two_apps Strong Low Adequate Low > "$TMP/r20b.md"
+check "viewer mismatched exit 1" 1 "$(run "$TMP/r20b.md" "$TMP/f1.json")"
+check "viewer signal reason" 1 "$(grep -cF "MISMATCH Documentation signal (report says Low; rating Adequate maps to Medium)" "$TMP/out")"
+check "one mismatch only" "ratings: 1 mismatch" "$(tail -1 "$TMP/out")"
+
+echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

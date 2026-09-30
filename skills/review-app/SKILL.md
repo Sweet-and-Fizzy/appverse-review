@@ -65,7 +65,7 @@ string; if unavailable, write `unknown`.
 
 **Repository:** <url or path>  **Mode:** reviewer|submitter  **Date:** <today>
 **Reviewed commit:** `<full SHA>` (<commit date>)  **Repo shape:** declared monorepo (N apps) | declared single app | inferred single app
-**Reviewed with:** appverse-review @ <plugin version> (`<appverse-review HEAD short SHA, captured at run time>`, https://github.com/Sweet-and-Fizzy/appverse-review) · **Model:** <the model id you are running as, the same value written to meta.json> · **Rubric:** https://openondemand.connectci.org/appverse-review-rubric
+**Reviewed with:** appverse-review @ <plugin version> (`<appverse-review HEAD short SHA, captured at run time>`, https://github.com/Sweet-and-Fizzy/appverse-review) · **Model:** <the model id the run gave you; CI overwrites this from its parameters> · **Rubric:** https://openondemand.connectci.org/appverse-review-rubric
 
 > _Disclaimer: This is an automated review with human curation. It is provided without warranty of any kind and does not certify the app as secure or fit for any purpose. A listing is not an endorsement._
 
@@ -306,7 +306,7 @@ Save to `review-<owner>-<repo>.meta.json`:
   "repo_shape": "inferred_single | declared_monorepo | declared_single",
   "not_archived": "pass | fail",
   "public": "pass | fail",
-  "model": "<the model you are running as, e.g. claude-sonnet-4-6>",
+  "model": "<the model id given to you by the run parameters; if none was given, the id you are running as>",
   "recommendation": {
     "decision": "<Accept | Accept with suggestions | Request changes | Reject>",
     "note": "<the Overall recommendation paragraph, verbatim>"
@@ -353,9 +353,10 @@ definitions: `${CLAUDE_PLUGIN_ROOT}/references/artifact-envelope.md`
 ("Indicator inputs"). If an aspect did not run, leave its block out.
 
 For monorepos, include one entry per app in the `apps` array. The `model`
-field is the Claude model ID you are running as — report it directly, do not
-guess. Token counts and cost are not available from the review session; they
-are tracked externally by the API provider.
+field is the model id the run gave you (CI overwrites it from the workflow's
+parameters after the review; a model cannot verify its own identity). Token
+counts and cost are not available from the review session; they are tracked
+externally by the API provider.
 
 ## 6. Wrap up
 
@@ -374,5 +375,19 @@ are tracked externally by the API provider.
 
       python3 "${CLAUDE_PLUGIN_ROOT}/references/check-feedback-floor.py" \
         review-<owner>-<repo>.findings.json review-<owner>-<repo>.md
+
+- Then validate finding keys and ratings, and fix the findings or the report
+  until both pass:
+
+      python3 "${CLAUDE_PLUGIN_ROOT}/references/check-keys.py" \
+        review-<owner>-<repo>.findings.json --target "$TMP/repo"
+      python3 "${CLAUDE_PLUGIN_ROOT}/references/check-rating.py" \
+        review-<owner>-<repo>.md review-<owner>-<repo>.findings.json
+
+  (`check-rating.py` checks Documentation only: the rating against its
+  evidence lines and the Documentation signal against the rating.
+  Reviewer mode's `$TMP/repo` is the clone from setup. When the repo was
+  already checked out for you (CI: `$GITHUB_WORKSPACE/target-repo`), pass that
+  path instead. In submitter mode use `.`.)
 
 - Reviewer mode: remove the temp clone (`rm -rf "$TMP"`).
