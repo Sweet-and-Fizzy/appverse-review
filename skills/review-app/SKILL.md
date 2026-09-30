@@ -250,7 +250,7 @@ Findings are classified under OODT (Open OnDemand App Threats); codes are define
 | QUA-08 | `check: magic-numbers` | ... | ... | Magic numbers / undocumented literals | ... |
 | QUA-09 | `check: duplicated-blocks` | ... | ... | Duplicated code blocks | ... |
 | QUA-04 | `check: dead-code` | ... | ... | Commented-out dead code | ... |
-| QUA-10 | `check: erb-missing-value` | ... | ... | ERB handles missing/empty values | ... |
+| QUA-10 | `check: erb-missing-value` | ... | ... | ERB handles missing/nil values | ... |
 | QUA-06 | `check: icon-matches-target-os` | ... | ... | Desktop/panel icon matches target OS | ... |
 | QUA-05/QUA-06 | | FAIL/WARN | ... | <correctness & polish finding> | path:N |
 

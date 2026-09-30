@@ -176,7 +176,7 @@ These rows carry no `check:` marker.
   numbers / undocumented literals (`check: magic-numbers`, QUA-08), no large
   duplicated blocks (`check: duplicated-blocks`, QUA-09), no commented-out
   dead code (`check: dead-code`, QUA-04), ERB templates handle missing or
-  empty values gracefully (`check: erb-missing-value`, QUA-10: an unguarded
+  nil values gracefully (`check: erb-missing-value`, QUA-10: an unguarded
   interpolation is `erb-missing-value-unhandled`), desktop/panel icon exists
   on the README's target OS (`check: icon-matches-target-os`, QUA-06
   `icon-os-mismatch`). A blank form field arrives as `nil` (YAML null), not
