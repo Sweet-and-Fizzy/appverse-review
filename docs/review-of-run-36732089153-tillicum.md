@@ -93,3 +93,42 @@ Suggested fix: add `.html.erb` and `.js.erb` to the interpolation scan; add a `r
 ### Priority
 
 6a first, and specifically the argv-secret kind: it is the one item here that changes the verdict text a submitter reads, and it is a pattern every Batch Connect app with an API key will repeat. 6b's `request_handler` kind matters for the growing class of apps that ship their own proxy; the `.html.erb` interpolation scan is a small change. 6c is a wording fix.
+
+## 7. Tool findings are counted, never answered
+
+The tool table reports `shellcheck | 22 findings (SC2054, SC2317, SC2148, SC2154, SC2086)` and `bandit | 3 findings (B110, B104)`. Not one of those 25 findings became a row. The only tool finding that reached the report is bandit B104 (bind 0.0.0.0), and only because the scanner's own `config_flag` regex matched the same line independently.
+
+What the tools were pointing at:
+
+- **SC2054 at script.sh.erb:112, 115, 117, 122, 124, 128, 136, 138** ("use spaces, not commas, to separate array elements") is shellcheck flagging every `--mount type=bind,src=…,dst=…` element. Lines 136 and 138 are exactly the mount-spec sink from 6a. The tool found the sink the scanner missed, and the report had no obligation to look.
+- **SC2086 at after.sh:35** (unquoted expansion) is a `sec-interpolation` candidate class that the scanner's `unquoted_expansion` regex did not produce for that file.
+- **B110 at proxy.py:352 and 365** (try/except/pass) is error suppression inside the proxy's upstream forwarding, which is the kind of thing OODT-08 "debug output exposed / protections disabled" is about, or at least deserves a "reviewed OK: swallows connection-close races" line.
+- **SC2154 and SC2148** in the ERB-stripped files are almost certainly artifacts of stripping (variables assigned by removed ERB, missing shebang on a fragment). The table counts them as findings without saying so.
+
+Suggested fix: map tool codes into candidates. At minimum SC2086, SC2046, SC2054 and SC2154 become `sec-interpolation` candidates with `source: shellcheck`, and every bandit/semgrep result becomes a candidate under the OODT code its test maps to, so each gets a row or a `reviewed OK` citation. Codes known to be stripping artifacts (SC2148, SC2154 on `.sh.erb`) get listed as such in the table rather than in the count. A tool that runs and whose output is never answered is a number, not a check.
+
+## 8. The API key is administrator-set, which raises 6a from self-harm to cross-user
+
+`form.yml:67-75`: `api_key` is a `hidden_field`, `display: false`, value set by the administrator. README:185-187 confirms it is "an empty administrator-defined" value "supplied to llama-server as --api-key". So when a site sets it, every user's job carries the same key on the llama-server command line (6a), and any co-user on the node can read it from `ps`. That is not one user exposing their own secret; it is a shared site secret exposed to everyone on shared nodes, and the same key then works against any user's proxy (the 0.0.0.0 finding). OODT-02 in the rubric is "Cross-site"; this is at least cross-user.
+
+The model's row for `api_key` (script.sh.erb:29) reads "base64-encoded before embedding; encoding prevents shell special-character injection". That is true and beside the point: base64 is a transport encoding, not a protection, and the row treated an OODT-01 answer as closing the question for a secret. A `credential_exposure` kind (6a) would have asked the right one. The fix on the app side is `--api-key-file` or `LLAMA_API_KEY` in the container environment, both supported by llama-server.
+
+## 9. Expectations for the rerun on `fix/walkthrough-2026-09-30`
+
+This run's `findings.json` is the baseline (in the artifact: `review-UWrc-tillicum-llama-chat.findings.json`). When the branch runs against the same commit `f7c8d35`, `references/compare-runs.py` from #56 can diff per-candidate verdicts. What should change, and what must not:
+
+| Item | Baseline | Expected after fix |
+|---|---|---|
+| STR-01 README gate row | PASS | PASS (unchanged) |
+| QUA-01 `README.md:docs-stub` | FAIL high | gone |
+| Documentation rating | stub | Minimal or Adequate, with prerequisites cited from README.md:17-33 or :271 |
+| QUA-01 `docs-minimal` | absent | present at Minimal, absent at Adequate |
+| Draft feedback item "Add a Prerequisites section" | required, blocking | suggested, or absent |
+| Draft feedback item 1 (LICENSE) | required | required (unchanged) |
+| Upkeep contributors / issues rows | "unavailable" | "not assessed" |
+| OODT-08 `--offline` observation | present | present (must not regress) |
+| All 36 baseline candidates | answered | answered with the same verdicts |
+
+If 6a/6b/7 land in the same branch, additionally expect new rows at script.sh.erb:84 (credential in argv), :136/:138 (mount spec), after.sh:35 (SC2086), proxy.py:212-216 (Origin reflection), and a changed verdict on the `api_key` row. If they do not land, those stay absent and this table is the whole check.
+
+A three-run repeat on the fix branch, like the pr2-measure set, would also show whether the new rung-by-content rule is stable: the prerequisites evidence line should cite the same README line in all three.
