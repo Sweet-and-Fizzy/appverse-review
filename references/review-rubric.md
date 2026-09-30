@@ -383,7 +383,10 @@ that a listed section does not satisfy its requirement. A requirement
 it, cited as `content: README.md:N` (the path is `readme.json`'s `file`,
 the app's own README in a monorepo); the line must be text, not a heading,
 code, placeholder, contact or badge line, one line meets one requirement,
-and without one the requirement is `none`. With no
+and without one the requirement is `none`. This content search applies even
+when the requirement's own heading exists but doesn't deliver it — check
+other headings' content (configuration met by a line under Environment
+Variables, say) before settling on `none`. With no
 Overview-type heading, a descriptive paragraph under the README's title
 satisfies "what it launches" (`readme.json` records it as the intro). The
 level is the highest one whose requirements, and every lower level's, all

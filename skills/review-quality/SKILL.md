@@ -155,7 +155,11 @@ These rows carry no `check:` marker.
     badge line; `check-evidence.py` rejects any other line. You judge
     whether the line delivers the rung, and one line meets one requirement:
     `check-rating.py` rejects a `content:` line cited for two.
-  - A rung that is `null` and that no content line delivers: `none`.
+  - A rung that is `null` and that no content line delivers: `none`. Before
+    writing `none`, read the README for a line that delivers the rung under
+    any heading, not only the rung's own — a Configuration rung can be met
+    by a line under an Environment Variables heading — and cite it as
+    `content: README.md:N` per the rule above if you find one.
   - A rung whose `placeholder` is true: `none (placeholder)`, whatever the
     heading says.
   - Screenshots and environment variables also have content lists.

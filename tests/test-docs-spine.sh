@@ -210,6 +210,10 @@ CONTENT_FORM=$(grep -o '`content: README.md:N`' "$QUA_SKILL" | head -1 | tr -d '
 [ "$(checker references/check-evidence.py "content_citations('$CONTENT_FORM'.replace('N', '7'))")" = "[('README.md', [7], 'README.md:7')]" ] \
   && ok "review-quality's content: citation form is the one check-evidence parses" || bad "review-quality's content: citation form is the one check-evidence parses"
 has "$RUBRIC" "\`$CONTENT_FORM\`" "rubric writes the same content: citation form"
+
+echo "Test 11e: search other headings' content before rating a rung none"
+has "$QUA_SKILL" "read the README for a line that delivers the rung under" "review-quality states the search-before-none rule"
+has "$RUBRIC" "other headings' content (configuration met by a line under Environment" "rubric states the search-before-none rule"
 has skills/review-structure/SKILL.md "readme-not-substantive" "review-structure records STR-01 readme-not-substantive, the record check-rating falls back to"
 STUB_N=$(checker references/pre-review.py 'STUB_CONTENT_CHARS')
 has "$RUBRIC" "fewer than $STUB_N characters of content" "rubric states pre-review's stub threshold"

@@ -373,14 +373,16 @@ for the contributor; the check is looking for the file and either the line
 or what is wrong, not jargon. (This complements the Derived-only rule:
 feedback ⊆ findings, and fix-items ⊆ feedback.)
 
-**Required vs. suggested.** A fix-item is required when it is a gate
-criterion, any OODT FAIL, or a target miss in any dimension: Documentation
-rated below Adequate, Portability rated Not portable, or a `code_quality`
-check whose manifest `weight` is `target` (`references/checks.yml`)
-recorded FAIL. It is suggested when it is a `weight: suggestion` check, a
-maintenance signal MNT-02 to MNT-06, or polish (any other FAIL/WARN). Word
-the feedback accordingly rather than flattening every fix-item into the
-same register.
+**Required vs. recommended vs. suggested.** A fix-item is Required when it
+blocks listing or triggers Request changes: a gate criterion, or any OODT
+FAIL. It is Recommended when it is a target miss in any dimension —
+Documentation rated below Adequate, Portability rated Not portable, or a
+`code_quality` check whose manifest `weight` is `target`
+(`references/checks.yml`) recorded FAIL — needed to reach the target rating
+but not to block listing. It is Suggested when it is a `weight: suggestion`
+check, a maintenance signal MNT-02 to MNT-06, or polish (any other
+FAIL/WARN). Word the feedback accordingly rather than flattening every
+fix-item into the same register.
 
 **Never advise removing a real caveat.** Never advise removing a comment or
 help text that states a real constraint (a partition that requires a GPU, a
