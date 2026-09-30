@@ -1,0 +1,50 @@
+[
+  {
+    "key": "STR-01:LICENSE:missing-license",
+    "rule": "STR-01",
+    "candidate": true,
+    "note": "no LICENSE file at repo root; confirmed by ls at root (review-of-run-36732089153-tillicum.md, Verified against source)"
+  },
+  {
+    "key": "OODT-08:template/script.sh.erb:other:missing-offline-control",
+    "rule": "OODT-08",
+    "candidate": true,
+    "note": "comment at script.sh.erb:91-97 claims --offline network isolation but the flag is never passed; confirmed at script.sh.erb:91-99 (Verified against source); found in the additional-observations pass, not a security.json candidate (SS5)"
+  },
+  {
+    "key": "README.md:duplicated-paragraph",
+    "rule": "QUA-09",
+    "candidate": false,
+    "note": "the README paragraph at lines 125-128 is repeated at 130-133; confirmed (Verified against source). The report does record a QUA-09 duplicated-block finding, but anchored on template/script.sh.erb, not README.md, so it does not answer this specific defect -- listed candidate:false rather than crediting a mismatched anchor as a recall hit"
+  },
+  {
+    "key": "QUA-01:README.md:docs-stub",
+    "rule": "QUA-01",
+    "candidate": false,
+    "note": "README has no heading matching the prerequisites-rung word list even though the content exists in 'Current defaults' and 'Deployment'; the report recorded this as a FAIL high stub gate, which doc SS1 argues is a rule defect (RUNGS heading-matcher too strict), not a true stub -- listed candidate:false because the underlying substantive-README claim is correct even though the checker-visible key exists and is recorded"
+  },
+  {
+    "key": "template/proxy.py:cors-reflection",
+    "rule": "OODT-01",
+    "candidate": false,
+    "note": "Origin header reflected into Access-Control-Allow-Origin with Access-Control-Allow-Credentials: true at proxy.py:212-216; not a security.json candidate, no row, never recorded (SS6b) -- key is descriptive, not one the report used"
+  },
+  {
+    "key": "template/script.sh.erb:api-key-argv-exposure",
+    "rule": "OODT-01",
+    "candidate": false,
+    "note": "API_ARGS=(--api-key \"$API_KEY\") at script.sh.erb:84 puts the user's API key in argv of a long-running process, readable via ps/proc by co-users on a shared node; security.json only asks about the assignment (is it quoted), never the sink -- missed entirely (SS6a, the doc's top-priority item); key is descriptive, not one the report used"
+  },
+  {
+    "key": "template/script.sh.erb:mount-option-injection",
+    "rule": "OODT-01",
+    "candidate": false,
+    "note": "user-supplied mount*_source/mount*_dest free-text values land in a comma-delimited Apptainer --mount option string at script.sh.erb:136,138; the row at lines 34-42 answers a different question (Unix credential scope) and never addresses option-injection -- missed (SS6a); key is descriptive, not one the report used"
+  },
+  {
+    "key": "view.html.erb:interpolation-not-scanned",
+    "rule": "OODT-01",
+    "candidate": false,
+    "note": "view.html.erb and form.js are entirely absent from security.json; view.html.erb:6,25 interpolate csrftoken/host/port into a JS template literal and an href with no row -- missed (SS6b); key is descriptive, not one the report used"
+  }
+]

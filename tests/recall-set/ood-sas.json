@@ -1,0 +1,98 @@
+[
+  {
+    "key": "QUA-02:template/script.sh.erb:hardcoded-path",
+    "rule": "QUA-02",
+    "candidate": true,
+    "note": "/scratch working-directory path in script.sh.erb; recorded WARN medium in all three 09-30 runs (walkthrough-2026-09-30.md Comparison table)"
+  },
+  {
+    "key": "QUA-04:template/script.sh.erb:commented-out-code",
+    "rule": "QUA-04",
+    "candidate": true,
+    "note": "commented-out Singularity code at :33,39,78; recorded WARN low in all three 09-30 runs"
+  },
+  {
+    "key": "QUA-06:form.yml:duplicate-yaml-key:custom_num_cores.help",
+    "rule": "QUA-06",
+    "candidate": true,
+    "note": "duplicate help: key #1; recorded WARN low in all three 09-30 runs"
+  },
+  {
+    "key": "QUA-06:form.yml:duplicate-yaml-key:custom_num_gpus.help",
+    "rule": "QUA-06",
+    "candidate": true,
+    "note": "duplicate help: key #2; recorded WARN low in all three 09-30 runs"
+  },
+  {
+    "key": "QUA-06:template/config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml:icon-os-mismatch",
+    "rule": "QUA-06",
+    "candidate": true,
+    "note": "Fedora panel icon on a non-Fedora target; recorded WARN low in all three 09-30 runs (key form drifts across runs: icon-os-mismatch / incorrect-default / readme-inconsistency:icon-os, so a run using a different tag will legitimately MISS here)"
+  },
+  {
+    "key": "QUA-07:form.yml:missing-min-max",
+    "rule": "QUA-07",
+    "candidate": true,
+    "note": "custom_memory_per_node/custom_num_cores missing max bounds; recorded WARN low/medium in all three 09-30 runs"
+  },
+  {
+    "key": "QUA-07:form.yml:missing-pattern",
+    "rule": "QUA-07",
+    "candidate": true,
+    "note": "free-text fields missing a pattern constraint; recorded WARN low in all three 09-30 runs"
+  },
+  {
+    "key": "QUA-05:CHANGELOG.md:wrong-app-changelog",
+    "rule": "QUA-05",
+    "candidate": true,
+    "note": "CHANGELOG.md copy-pasted verbatim from OSC/bc_osc_matlab; recorded WARN low/low/medium across the three 09-30 runs"
+  },
+  {
+    "key": "OODT-01:submit.yml.erb:unsanitized-user-input",
+    "rule": "OODT-01",
+    "candidate": true,
+    "note": "extra_slurm free text passed to native: with no constraint, allows --wrap= to replace the job script; recorded as a fix-item in all three 09-30 runs"
+  },
+  {
+    "key": "QUA-03:template/script.sh.erb:no-set-e",
+    "rule": "QUA-03",
+    "candidate": true,
+    "note": "job script has no set -e; FAIL in run1, WARN in run2/run3 -- result drift on a target-for-inclusion check that the rubric (line 48) says should FAIL"
+  },
+  {
+    "key": "MNT-02:releases:no-releases",
+    "rule": "MNT-02",
+    "candidate": true,
+    "note": "no tagged releases; FAIL in run1 contradicts the rubric's own rule (line 462) that a good-practice signal is never a FAIL -- WARN info in run2/run3"
+  },
+  {
+    "key": "QUA-10:submit.yml.erb:erb-missing-value-unhandled",
+    "rule": "QUA-10",
+    "candidate": false,
+    "note": "submit.yml.erb:6,7 unguarded reservation_id/email; WARN in run1 and run3 but PASS (YAML null) in run2 -- inconsistent across runs, so not a stable recall hit"
+  },
+  {
+    "key": "README.md:odyssey-odyssey3-inconsistency",
+    "rule": "QUA-06",
+    "candidate": false,
+    "note": "odyssey vs odyssey3 cluster-name inconsistency at README.md:115; missed by the 2026-09-25 CI report and by run1/run2, found only in run3 (QUA-06 info, run3:138) -- no stable key existed at the time this list was written, so this is the key run3 actually used"
+  },
+  {
+    "key": "submit.yml.erb:memory-fallback-mismatch",
+    "rule": "QUA-08",
+    "candidate": false,
+    "note": "the memory fallback literal 2 at submit.yml.erb:9 disagrees with min: 4 at form.yml:33 (Bill's magic-numbers item); missed in all three 09-30 runs and has no defect_key of its own since no run ever recorded it -- key is descriptive, not one a report used"
+  },
+  {
+    "key": "template/script.sh.erb:orphaned-config-dir",
+    "rule": "QUA-04",
+    "candidate": false,
+    "note": "the orphaned template/config/ directory at script.sh.erb:40; still missed by both the 2026-09-25 CI report and all three 09-30 runs -- key is descriptive, not one a report used"
+  },
+  {
+    "key": "README.md:university-typo",
+    "rule": "QUA-06",
+    "candidate": false,
+    "note": "the README.md:234 'Univesity' typo; present in the 2026-09-25 CI report but lost (not found) in run1 of the three 09-30 runs"
+  }
+]

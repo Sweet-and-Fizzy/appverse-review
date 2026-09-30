@@ -1,0 +1,45 @@
+name: Tests
+
+# Runs every test-*.sh suite plus the corpus regression (run-corpus.sh) so a
+# change to a checker, a fixture, or the corpus itself is caught before
+# merge, not only by hand against the walkthrough docs.
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install Python dependencies
+        run: pip install pyyaml
+
+      - name: Install static analysis tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq shellcheck > /dev/null 2>&1
+          pip install --quiet semgrep==1.178.0 2>/dev/null || true
+
+      - name: Run test suites
+        run: |
+          status=0
+          for t in tests/test-*.sh; do
+            echo "::group::$t"
+            if ! bash "$t"; then
+              echo "::error::$t failed"
+              status=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $status
+
+      - name: Run corpus regression
+        run: bash tests/run-corpus.sh

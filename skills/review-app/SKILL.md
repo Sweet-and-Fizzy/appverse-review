@@ -438,40 +438,28 @@ externally by the API provider.
         && mv review-<owner>-<repo>.findings.json.tmp \
               review-<owner>-<repo>.findings.json
 
-- Then check the feedback floor and fix the feedback until it passes:
+- Then check the report and findings against every checker in one pass, and
+  fix the findings or the report until it passes:
 
-      python3 "${CLAUDE_PLUGIN_ROOT}/references/check-feedback-floor.py" \
-        review-<owner>-<repo>.findings.json review-<owner>-<repo>.md
-
-- Then validate finding keys and ratings, and fix the findings or the report
-  until both pass:
-
-      python3 "${CLAUDE_PLUGIN_ROOT}/references/check-keys.py" \
-        review-<owner>-<repo>.findings.json --target "$TMP/repo"
-      python3 "${CLAUDE_PLUGIN_ROOT}/references/check-rating.py" \
-        review-<owner>-<repo>.md review-<owner>-<repo>.findings.json
-
-  (`check-rating.py` checks Documentation only: the rating against its
-  evidence lines and the Documentation signal against the rating.
-  Reviewer mode's `$TMP/repo` is the clone from setup. When the repo was
-  already checked out for you (CI: `$GITHUB_WORKSPACE/target-repo`), pass that
-  path instead. In submitter mode use `.`.)
-
-- Then check rows and evidence, and fix the report or the findings until both
-  pass:
-
-      python3 "${CLAUDE_PLUGIN_ROOT}/references/check-rows.py" \
+      python3 "${CLAUDE_PLUGIN_ROOT}/references/check-all.py" \
         review-<owner>-<repo>.md review-<owner>-<repo>.findings.json \
-        "${CLAUDE_PLUGIN_ROOT}/references/checks.json" <pre-review-dir>
-      python3 "${CLAUDE_PLUGIN_ROOT}/references/check-evidence.py" \
-        review-<owner>-<repo>.findings.json --target "$TMP/repo"
+        "${CLAUDE_PLUGIN_ROOT}/references/checks.json" <pre-review-dir> \
+        --target "$TMP/repo"
 
-  (`check-rows.py` checks that every manifest check applicable to an app has
-  a row and that every pre-review candidate is cited; `check-evidence.py`
-  checks that every finding's `file:line` citation names a real file and
-  line. `<pre-review-dir>` is `$TMP/pre-review` in reviewer mode, the
+  (`check-all.py` runs, in order: `check-feedback-floor.py` (every
+  FAIL/WARN fix-item is named in the Draft Feedback); `check-keys.py`
+  (every defect_key is a valid, stable anchor); `check-rating.py`
+  (Documentation's rating and signal follow the report's own evidence);
+  `check-rows.py` (every manifest check applicable to an app has a row and
+  every pre-review candidate is cited); and `check-evidence.py` (every
+  finding's `file:line` citation names a real file and line). Its output
+  groups each checker's problem lines under a `[floor]`/`[keys]`/
+  `[rating]`/`[rows]`/`[evidence]` prefix, followed by that checker's
+  summary line, and it exits 1 if any checker failed, 2 if any could not
+  run. `<pre-review-dir>` is `$TMP/pre-review` in reviewer mode, the
   run-supplied pre-review directory in CI, or `$PRE` in submitter mode.
-  `check-evidence.py`'s `--target` follows the same rule as `check-keys.py`
-  above.)
+  `--target` is `$TMP/repo` in reviewer mode (the clone from setup), the
+  already-checked-out repo in CI (`$GITHUB_WORKSPACE/target-repo`), or `.`
+  in submitter mode.)
 
 - Reviewer mode: remove the temp clone (`rm -rf "$TMP"`).
