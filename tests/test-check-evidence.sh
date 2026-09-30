@@ -167,15 +167,17 @@ echo "Test 19: prose that looks like host:port or image:tag is not a citation"
 printf '[%s]' "$(rec OODT-05 template/script.sh.erb:bind-all-interfaces 'template/script.sh.erb:3 --host 0.0.0.0:5000 image python:3 http://localhost:8080 ruby:3.1')" > "$TMP/r.json"
 check "exit 0" 0 "$(run "$TMP/r.json" --target "$TMP/t")"
 
-echo "Test 20: a backtick-quoted value in the summary must be on the cited line"
+echo "Test 20: a backtick-quoted value not on the cited line is a NOTE (under 80% corpus precision), not a BAD"
 python3 -c "
 with open('$TMP/t/long-README.md', 'w') as f:
     for n in range(1, 131):
         f.write('cluster line {}\n'.format(n) if n != 115 else 'cluster name: odyssey\n')
 "
 printf '[%s]' "$(recs QUA-02 long-README.md:cluster-name 'long-README.md:115' '`odyssey3` documented at')" > "$TMP/s1.json"
-check "exit 1" 1 "$(run "$TMP/s1.json" --target "$TMP/t")"
-check "reason" 1 "$(grep -cF 'BAD QUA-02 long-README.md:cluster-name long-README.md:115 (`odyssey3` is not on long-README.md:115)' "$TMP/out")"
+check "exit 0 (a NOTE does not change the exit code)" 0 "$(run "$TMP/s1.json" --target "$TMP/t")"
+check "note line" 1 "$(grep -cxF 'NOTE QUA-02 long-README.md:cluster-name long-README.md:115 (`odyssey3` is not on long-README.md:115)' "$TMP/out")"
+check "no BAD line" 0 "$(grep -c '^BAD' "$TMP/out")"
+check "summary counts it valid" "evidence: 1/1 valid" "$(tail -1 "$TMP/out")"
 
 python3 -c "
 with open('$TMP/t/long-README.md', 'w') as f:
@@ -218,9 +220,9 @@ cat > "$TMP/report.md" <<'EOF'
 |---|---|---|---|---|---|
 | QUA-02 | `check: hardcoded-site-paths` | WARN | medium | `odyssey3` documented in the README configuration table | long-README.md:115 |
 EOF
-check "exit 1" 1 "$(run "$TMP/empty.json" --target "$TMP/t" --report "$TMP/report.md")"
-check "reason" 1 "$(grep -cF '(`odyssey3` is not on long-README.md:115)' "$TMP/out")"
-check "row summary line" "evidence: 0/0 valid; report rows: 0/1 valid" "$(tail -1 "$TMP/out")"
+check "exit 0" 0 "$(run "$TMP/empty.json" --target "$TMP/t" --report "$TMP/report.md")"
+check "note line" 1 "$(grep -cxF 'NOTE report:hardcoded-site-paths hardcoded-site-paths long-README.md:115 (`odyssey3` is not on long-README.md:115)' "$TMP/out")"
+check "row summary line" "evidence: 0/0 valid; report rows: 1/1 valid" "$(tail -1 "$TMP/out")"
 
 echo "Test 21b: the same report row with the correct value passes"
 python3 -c "
@@ -317,5 +319,83 @@ check "a heading in the evidence block: exit 1" 1 "$(run "$TMP/empty.json" --tar
 check "reason" "BAD report:content content content: README.md:5 (README.md:5 is a heading, not content)" "$(head -1 "$TMP/out")"
 sed 's/  - prerequisites: content: README.md:11/  - prerequisites: "Requirements", README.md:5/' "$TMP/g.md" > "$TMP/g3.md"
 check "a report with no content: citation keeps the old summary: exit 0" "0|evidence: 0/0 valid; report rows: 0/0 valid" "$(run "$TMP/empty.json" --target "$TMP/c" --report "$TMP/g3.md")|$(tail -1 "$TMP/out")"
+
+echo "Test 23: a cited value is checked only when it reads as a literal the summary asserts is present"
+mkdir -p "$TMP/v/pr/root"
+cat > "$TMP/v/form.yml" <<'EOF'
+form:
+  - custom_time
+attributes:
+  custom_time:
+    widget: text_field
+    value: "04:00:00"
+  extra_slurm:
+    widget: text_field
+  num_cores:
+    widget: number_field
+    min: 1
+    step: 1
+  host:
+    value: login.example.org
+  version:
+    value: 1.2.3
+EOF
+cat > "$TMP/v/submit.yml.erb" <<'EOF'
+---
+script:
+  native:
+  <%- unless extra_slurm.blank? -%>
+  <%- extra_slurm.split.each do |slurm_option| %>
+    - "<%= slurm_option.to_s %>"
+  <%- end %>
+  <%- end -%>
+EOF
+note() { grep -c '^NOTE' "$TMP/out"; }
+printf '[%s]' "$(recs QUA-07 form.yml:unbounded 'form.yml:10' 'num_cores has `min` and `step` but no `max`')" > "$TMP/v1.json"
+check "a bare identifier (max, min, step) is not checked: exit 0" 0 "$(run "$TMP/v1.json" --target "$TMP/v")"
+check "a bare identifier: no NOTE" 0 "$(note)"
+printf '[%s]' "$(recs QUA-07 form.yml:unbounded 'form.yml:10' 'num_cores is missing `maximum_cores`')" > "$TMP/v2.json"
+run "$TMP/v2.json" --target "$TMP/v" > /dev/null
+check "a literal after a negation word in its sentence is not checked" 0 "$(note)"
+printf '[%s]' "$(recs QUA-07 form.yml:unbounded 'form.yml:5' 'no bound on custom_time; recommend `--time=04:00:00` as the default')" > "$TMP/v3.json"
+run "$TMP/v3.json" --target "$TMP/v" > /dev/null
+check "a recommended value is not checked" 0 "$(note)"
+printf '[%s]' "$(recs OODT-01 submit.yml.erb:unsanitized 'submit.yml.erb:6' 'a token such as `--wrap=cmd` reaches sbatch')" > "$TMP/v4.json"
+run "$TMP/v4.json" --target "$TMP/v" > /dev/null
+check "an example after 'such as' is not checked" 0 "$(note)"
+printf '[%s]' "$(recs QUA-07 form.yml:unbounded 'form.yml:5' 'Fields lack bounds. `custom_memory` is unbounded')" > "$TMP/v5.json"
+run "$TMP/v5.json" --target "$TMP/v" > /dev/null
+check "a negation word in an earlier sentence does not skip the value" 'NOTE QUA-07 form.yml:unbounded form.yml:5 (`custom_memory` is not on form.yml:5)' "$(grep '^NOTE' "$TMP/out")"
+printf '[%s]' "$(recs QUA-02 form.yml:host 'form.yml:14' 'host is `login.example.com`.')" > "$TMP/v6.json"
+run "$TMP/v6.json" --target "$TMP/v" > /dev/null
+check "a dotted hostname is a literal" 'NOTE QUA-02 form.yml:host form.yml:14 (`login.example.com` is not on form.yml:14)' "$(grep '^NOTE' "$TMP/out")"
+printf '[%s]' "$(recs QUA-02 form.yml:host 'form.yml:16' 'pinned to `1.2.3.`, see `submit.yml.erb` and `other.yml`')" > "$TMP/v7.json"
+run "$TMP/v7.json" --target "$TMP/v" > /dev/null
+check "a version (trailing period stripped) on its line and file names are not NOTEs" 0 "$(note)"
+
+echo "Test 24: with --pre-review, a value within 2 lines of a check-rows candidate line is on it"
+printf '[{"app_id":"root","path":".","app_type":"batch_connect"}]' > "$TMP/v/pr/apps.json"
+printf '{"candidates":[{"kind":"interpolation","rule":"OODT-01","file":"submit.yml.erb","line":6}]}' > "$TMP/v/pr/root/security.json"
+cat > "$TMP/v/report.md" <<'EOF'
+## App: V (root)
+
+### Security
+
+| Rule | Check | Result | Severity | Summary | Evidence |
+|---|---|---|---|---|---|
+| OODT-01 | `check: sec-interpolation` | WARN | low | `extra_slurm` tokens reach sbatch unsanitised | submit.yml.erb:6 |
+EOF
+check "candidate line, value two lines up: exit 0" 0 "$(run "$TMP/empty.json" --target "$TMP/v" --report "$TMP/v/report.md" --pre-review "$TMP/v/pr")"
+check "candidate line: no NOTE" 0 "$(note)"
+run "$TMP/empty.json" --target "$TMP/v" --report "$TMP/v/report.md" > /dev/null
+check "without --pre-review the same row is a NOTE" 'NOTE report:sec-interpolation sec-interpolation submit.yml.erb:6 (`extra_slurm` is not on submit.yml.erb:6)' "$(grep '^NOTE' "$TMP/out")"
+sed 's/submit.yml.erb:6 |$/submit.yml.erb:8 |/' "$TMP/v/report.md" > "$TMP/v/report8.md"
+run "$TMP/empty.json" --target "$TMP/v" --report "$TMP/v/report8.md" --pre-review "$TMP/v/pr" > /dev/null
+check "a line that is not a candidate gets no tolerance" 'NOTE report:sec-interpolation sec-interpolation submit.yml.erb:8 (`extra_slurm` is not on submit.yml.erb:8)' "$(grep '^NOTE' "$TMP/out")"
+rm "$TMP/v/pr/apps.json"
+check "no apps.json: no tolerance, exit 0" 0 "$(run "$TMP/empty.json" --target "$TMP/v" --report "$TMP/v/report.md" --pre-review "$TMP/v/pr")"
+check "no apps.json: the NOTE line" 1 "$(note)"
+check "--pre-review that is not a directory is exit 2" 2 "$(run "$TMP/empty.json" --target "$TMP/v" --pre-review "$TMP/nope")"
+check "its error line" "error: --pre-review is not a directory: '$TMP/nope'" "$(cat "$TMP/out")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

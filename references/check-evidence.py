@@ -58,23 +58,31 @@ citation.
 A cited value must actually be on the line it is cited against. For every
 finding, and (when --report is given) for every report table row that
 carries a `check:` marker, each backtick-wrapped token in the summary (the
-finding's `summary` field; the row's Summary cell) that looks like a
-specific value rather than a code, a path or a number — a single token (no
-spaces), 3 or more characters, not purely numeric, not a short two-letter
-token, and not itself shaped like a path (containing `/` or `.`, which
-would make `form.yml` or `template/script.sh.erb` a false positive) or a
-lint code (uppercase letters followed directly by digits, shellcheck's
-`SC2086` shape) — must occur as a substring on at least one line of the
-evidence's (the row's Evidence cell's) cited range, in any citation group.
-Otherwise `BAD <rule> <defect_key> <evidence> (`<value>` is not on
-<path>:<N>)`, one line per offending value, citing the first cited line
-that was checked. This catches a citation whose line is right but whose
-quoted value is wrong (a stale line number after an edit, a copy-paste
-from the wrong row) as well as a right value cited against the wrong line.
-It is checked only where --target is given (nothing to read the line
-against otherwise) and only for a group that already passed the
-path/line-existence checks above (an already-BAD group is not also
-value-checked).
+finding's `summary` field; the row's Summary cell) that reads as a literal
+the summary asserts is present is looked for on the evidence's (the row's
+Evidence cell's) cited lines, in any citation group. A token reads as a
+literal (trailing `.,;:` inside the backticks stripped first) when it has
+no whitespace or `/`, is not purely digits or a lint code (`SC2086`), and
+is 6+ characters or holds a digit, `=` or a quote, or holds a `.` without
+naming a file (a file under --target, by path or basename, or a file
+extension: hostnames and versions count, `form.yml` and `script.sh.erb`
+do not). Bare short identifiers (`max`, `pattern`) are skipped. A token is
+also skipped when its own sentence, before it, holds a negation or
+recommendation word (NEGATION_WORDS: no, not, missing, absent, without,
+lacks, lacking, should, recommend, recommended, add, consider, e.g., such
+as, instead), since the summary then says the value is absent or
+suggested. With --pre-review <dir>, a cited line that is a check-rows
+candidate line (read through check-rows.py's candidates() over
+<dir>/apps.json and checks.json; no tolerance when apps.json is absent) is
+searched within +/-2 lines, because check-rows fixes the row at the
+candidate site while the value it names can sit a line or two away. A
+value not found gives `NOTE <rule> <defect_key> <evidence> (`<value>` is
+not on <path>:<N>)`, citing the first cited line checked. It is a NOTE,
+not a BAD, and does not change the exit code or the valid counts: over the
+committed corpus the rule's precision was 64% (9 real of 14), under the
+80% a BAD needs (VALUE_VERDICT). It is checked only where --target is given
+and only for a group that already passed the path/line-existence checks
+above.
 
 A citation written `content: <path>:N` (the quality skill's form for a
 Documentation rung met by a cited line rather than a matching heading)
@@ -177,6 +185,10 @@ def content_reason(path, full, lines, kinds_cache=_KINDS):
             return "{}:{} is {}, not content".format(path, n, KIND_PHRASE.get(kind, kind))
     return None
 LINT_CODE_RE = re.compile(r"^[A-Z]+[0-9]+$")
+# BAD, or NOTE while the cited-value rule's corpus precision is under 80%
+# (a NOTE line does not change the exit code or the valid counts). Measured
+# 2026-09-30 over the eleven corpus runs: 9 real of 14 lines, 64%.
+VALUE_VERDICT = "NOTE"
 
 def not_repo_relative(path, target):
     """Whether path is unsafe to resolve under target: absolute, a '..'
@@ -210,26 +222,88 @@ def line_count(path, cache):
     return n
 
 
-def cited_values(text):
-    """Backtick-wrapped tokens in text that look like a specific cited value
-    rather than a code, a path or a number: a single token (no whitespace),
-    3+ characters, not purely digits, not a two-letter token, not shaped
-    like a path (a '/' or '.' in it — so `form.yml` and
-    `template/script.sh.erb` are never candidates), and not shaped like a
-    lint code (uppercase letters immediately followed by digits, `SC2086`
-    or `E501`). No value is special-cased by name: only this shape test."""
+NEGATION_WORDS = {"no", "not", "missing", "absent", "without", "lacks", "lacking", "should",
+                  "recommend", "recommended", "add", "consider", "e.g.", "such as", "instead"}
+_NEGATION_RE = re.compile(
+    r"(?<![\w.])(?:" + "|".join(sorted((re.escape(w).replace(r"\ ", r"\s+") for w in NEGATION_WORDS),
+                                      key=len, reverse=True)) + r")(?![\w])", re.I)
+# A sentence ends at '.', ';', '!' or '?' followed by whitespace, or at a
+# newline; the dots of "e.g." and "i.e." do not end one.
+_SENTENCE_END_RE = re.compile(r"(?<!\be\.g)(?<!\bi\.e)[.;!?](?=\s)|\n", re.I)
+FILE_EXTENSIONS = {"yml", "yaml", "erb", "sh", "md", "py", "rb", "js", "json", "txt", "xml",
+                   "html", "css", "toml", "cfg", "ini", "conf", "lock", "png", "svg", "jpg", "log"}
+_TARGET_FILES = {}  # target -> (basenames, extensions) of every file under it
+
+
+def target_files(target):
+    """(basenames, extensions) of every file under target, .git excluded,
+    cached per run."""
+    if target not in _TARGET_FILES:
+        names, exts = set(), set()
+        for root, dirs, files in os.walk(target):
+            dirs[:] = [d for d in dirs if d != ".git"]
+            for name in files:
+                names.add(name)
+                if "." in name.lstrip("."):
+                    exts.add(name.rsplit(".", 1)[1].lower())
+        _TARGET_FILES[target] = (names, exts)
+    return _TARGET_FILES[target]
+
+
+def names_a_file(value, target):
+    """Whether a dotted value is a file name rather than a literal: it names
+    a file under target (by path or basename) or ends in a file extension
+    (one a file under target carries, or a common one)."""
+    names, exts = target_files(target) if target else (set(), set())
+    if value in names or os.path.basename(value) in names:
+        return True
+    if target and os.path.isfile(os.path.join(target, value)):
+        return True
+    ext = value.rsplit(".", 1)[1].lower()
+    return ext in FILE_EXTENSIONS or ext in exts
+
+
+def is_literal(value, target=None):
+    """Whether a backticked token reads as a literal value worth finding on
+    the cited line: no whitespace, no '/', not purely digits, not a lint
+    code, and then 6+ characters, or a digit, '=' or quote in it, or a '.'
+    that does not make it a file name (hostnames and versions count;
+    `form.yml` and `script.sh.erb` do not). A dotted token is never a
+    literal on length alone. Bare short identifiers (`max`, `min`,
+    `pattern`) are skipped: they name a key, often one the summary says is
+    absent. No value is special-cased by name: only this shape test."""
+    if not value or re.search(r"\s", value) or "/" in value or value.isdigit():
+        return False
+    if LINT_CODE_RE.match(value):
+        return False
+    if "." in value:
+        return not names_a_file(value, target)
+    return len(value) >= 6 or bool(re.search(r"[0-9=\"']", value))
+
+
+def negated_before(text, start):
+    """Whether the sentence holding text[start] has a NEGATION_WORDS word or
+    phrase before that position ("no `max`", "recommend `--time=04:00:00`",
+    "e.g. `--wrap=cmd`"): the value is then absent or suggested, not
+    claimed to be on the cited line. Backticked spans before it are
+    blanked so their contents are not read as words."""
+    prefix = BACKTICK_RE.sub(lambda m: " " * len(m.group(0)), text[:start])
+    ends = list(_SENTENCE_END_RE.finditer(prefix))
+    sentence = prefix[ends[-1].end():] if ends else prefix
+    return _NEGATION_RE.search(sentence) is not None
+
+
+def cited_values(text, target=None):
+    """Backtick-wrapped tokens in text that the summary asserts are present
+    on the cited line: a literal (is_literal; trailing '.', ',', ';', ':'
+    inside the backticks are stripped first) not preceded, in its own
+    sentence, by a negation or recommendation word (negated_before)."""
     out = []
     if not isinstance(text, str):
         return out
     for m in BACKTICK_RE.finditer(text):
-        v = m.group(1)
-        if not v or " " in v or "\t" in v or len(v) < 3:
-            continue
-        if v.isdigit():
-            continue
-        if "/" in v or "." in v:
-            continue
-        if LINT_CODE_RE.match(v):
+        v = m.group(1).strip().rstrip(".,;:")
+        if not is_literal(v, target) or negated_before(text, m.start()):
             continue
         out.append(v)
     return out
@@ -303,27 +377,41 @@ def check_group(path, lines, target, line_cache, skipped):
     return None, full
 
 
-def check_values(summary, groups, good_paths, text_cache):
-    """One '`<value>` is not on <path>:<N>' reason per backtick value in
-    summary not found on any line of any citation group that resolved to a
-    real, checkable file (good_paths: {group path: full path}). The cited
-    line reported is the first line of the first such group."""
+def check_values(summary, groups, good_paths, text_cache, target=None, candidate_lines=frozenset()):
+    """One '`<value>` is not on <path>:<N>' reason per cited value in summary
+    (cited_values) not found on any line of any citation group that
+    resolved to a real, checkable file (good_paths: {group path: full
+    path}). A cited line that is a check-rows candidate line
+    (candidate_lines: {(path, line)}) is searched within +/-2 lines, since
+    check-rows fixes the row's line at the candidate site while the value
+    the summary names can sit a line or two away (an attribute above the
+    interpolation that uses it). The cited line reported is the first line
+    of the first such group."""
     reasons = []
-    checkable = [(path, good_paths[path], lines) for path, lines in groups if path in good_paths]
+    checkable = []
+    for path, lines in groups:
+        if path not in good_paths:
+            continue
+        wide = set(lines)
+        for n in lines:
+            if (path, n) in candidate_lines:
+                wide.update(range(max(1, n - 2), n + 3))
+        checkable.append((path, good_paths[path], lines, sorted(wide)))
     if not checkable:
         return reasons
-    for value in cited_values(summary):
-        if any(value_on_lines(value, full, lines, text_cache) for _, full, lines in checkable):
+    for value in cited_values(summary, target):
+        if any(value_on_lines(value, full, wide, text_cache) for _, full, _, wide in checkable):
             continue
-        path, _, lines = checkable[0]
+        path, _, lines, _ = checkable[0]
         reasons.append("`{}` is not on {}:{}".format(value, path, lines[0]))
     return reasons
 
 
-def validate(finding, target, line_cache, skipped, text_cache=None):
-    """(rule, key, evidence, [reason, ...]) — one reason per BAD citation
-    group, plus (when text_cache is given and every group is fine) one per
-    backtick value in `summary` not found on any cited line."""
+def validate(finding, target, line_cache, skipped, text_cache=None, candidate_lines=frozenset()):
+    """(rule, key, evidence, [reason, ...], [value reason, ...]) — one reason
+    per BAD citation group, and (when text_cache is given and every group is
+    fine) one value reason per cited value in `summary` not found on any
+    cited line (check_values)."""
     rule = finding.get("rule") or "<missing>"
     key = finding.get("defect_key") or "<missing>"
     evidence = finding.get("evidence")
@@ -348,9 +436,10 @@ def validate(finding, target, line_cache, skipped, text_cache=None):
                 reason = content_reason(path, good_paths[path], lines)
                 if reason:
                     reasons.append(reason)
+    values = []
     if text_cache is not None and not reasons:
-        reasons.extend(check_values(finding.get("summary"), groups, good_paths, text_cache))
-    return rule, key, evidence, reasons
+        values = check_values(finding.get("summary"), groups, good_paths, text_cache, target, candidate_lines)
+    return rule, key, evidence, reasons, values
 
 
 def report_rows(text):
@@ -369,13 +458,42 @@ def report_rows(text):
     return out
 
 
-def validate_row(check_id, evidence, summary, target, line_cache, skipped, text_cache):
-    """Like validate(), for one report row: (check_id, evidence, [reason,
-    ...])."""
-    rule, key, ev, reasons = validate(
+def validate_row(check_id, evidence, summary, target, line_cache, skipped, text_cache,
+                 candidate_lines=frozenset()):
+    """Like validate(), for one report row."""
+    return validate(
         {"rule": "report:" + check_id, "defect_key": check_id, "evidence": evidence, "summary": summary},
-        target, line_cache, skipped, text_cache)
-    return rule, key, ev, reasons
+        target, line_cache, skipped, text_cache, candidate_lines)
+
+
+def candidate_lines(pre_review_dir):
+    """{(path, line)} of every check-rows candidate site with a line, over
+    every app in <pre_review_dir>/apps.json and every check in checks.json,
+    read through check-rows.py's own candidates() so the two cannot drift.
+    Empty when apps.json or checks.json is absent or unreadable (facts
+    written before apps.json existed): the tolerance then never applies."""
+    try:
+        with open(os.path.join(pre_review_dir, "apps.json"), encoding="utf-8") as f:
+            apps = json.load(f)
+        with open(os.path.join(SCRIPT_DIR, "checks.json"), encoding="utf-8") as f:
+            checks = json.load(f).get("checks")
+    except (OSError, ValueError, AttributeError):
+        return frozenset()
+    if not isinstance(apps, list) or not isinstance(checks, list):
+        return frozenset()
+    spec = importlib.util.spec_from_file_location("check_rows", os.path.join(SCRIPT_DIR, "check-rows.py"))
+    rows_mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rows_mod)
+    out = set()
+    for app in apps:
+        if not isinstance(app, dict) or not app.get("app_id"):
+            continue
+        for check in checks:
+            if not isinstance(check, dict) or not check.get("id"):
+                continue
+            for _, cites, _ in rows_mod.candidates(check, app, pre_review_dir):
+                out.update((p, n) for p, n in cites if isinstance(n, int))
+    return frozenset(out)
 
 
 def main(argv):
@@ -383,10 +501,15 @@ def main(argv):
     ap.add_argument("findings")
     ap.add_argument("--target", default=None, help="reviewed repo checkout; enables file/line existence checks")
     ap.add_argument("--report", default=None, help="review report .md; also checks its `check:`-marked table rows")
+    ap.add_argument("--pre-review", default=None, dest="pre_review",
+                    help="pre-review output dir; a cited value may sit within 2 lines of a candidate line")
     args = ap.parse_args(argv[1:])
     if args.target is not None and (not args.target or not os.path.isdir(args.target)):
         # An empty --target would silently mean the cwd and reject every real path.
         print("error: --target is not a directory: '{}'".format(args.target), file=sys.stderr)
+        return 2
+    if args.pre_review is not None and (not args.pre_review or not os.path.isdir(args.pre_review)):
+        print("error: --pre-review is not a directory: '{}'".format(args.pre_review), file=sys.stderr)
         return 2
     try:
         with open(args.findings) as f:
@@ -405,26 +528,30 @@ def main(argv):
         except OSError as e:
             print("error: {}".format(e), file=sys.stderr)
             return 2
-    bad = 0
+    cands = candidate_lines(args.pre_review) if args.pre_review else frozenset()
     line_cache = {}
     skipped = []
     text_cache = {} if args.target is not None else None
-    for finding in findings:
-        rule, key, evidence, reasons = validate(finding, args.target, line_cache, skipped, text_cache)
-        if reasons:
-            bad += 1
+
+    def report(rule, key, evidence, reasons, values):
+        """Print one line per reason; whether this finding or row counts as
+        not valid."""
         for reason in reasons:
             print("BAD {} {} {} ({})".format(rule, key, evidence, reason))
+        for reason in values:
+            print("{} {} {} {} ({})".format(VALUE_VERDICT, rule, key, evidence, reason))
+        return bool(reasons) or (bool(values) and VALUE_VERDICT == "BAD")
+
+    bad = 0
+    for finding in findings:
+        bad += report(*validate(finding, args.target, line_cache, skipped, text_cache, cands))
     summary = "evidence: {}/{} valid".format(len(findings) - bad, len(findings))
     if report_text is not None:
         rows = report_rows(report_text)
         row_bad = 0
         for check_id, evidence, row_summary in rows:
-            rule, key, ev, reasons = validate_row(check_id, evidence, row_summary, args.target, line_cache, skipped, text_cache)
-            if reasons:
-                row_bad += 1
-            for reason in reasons:
-                print("BAD {} {} {} ({})".format(rule, key, ev, reason))
+            row_bad += report(*validate_row(check_id, evidence, row_summary, args.target, line_cache,
+                                            skipped, text_cache, cands))
         summary += "; report rows: {}/{} valid".format(len(rows) - row_bad, len(rows))
         bad += row_bad
         if args.target is not None:
@@ -432,13 +559,10 @@ def main(argv):
             cites = content_citations(prose)
             content_bad = 0
             for _, _, cite in cites:
-                rule, key, ev, reasons = validate(
+                rule, key, ev, reasons, _ = validate(
                     {"rule": "report:content", "defect_key": "content", "evidence": "content: " + cite},
                     args.target, line_cache, skipped, text_cache)
-                if reasons:
-                    content_bad += 1
-                for reason in reasons:
-                    print("BAD {} {} {} ({})".format(rule, key, ev, reason))
+                content_bad += report(rule, key, ev, reasons, [])
             if cites:
                 summary += "; content citations: {}/{} valid".format(len(cites) - content_bad, len(cites))
             bad += content_bad
