@@ -81,9 +81,10 @@ the per-app dirs named in the previous apps.json are removed first):
                  item's). interpolated_in_submit: the name appears in an
                  ERB tag in submit.yml.erb, at submit_lines;
                  reaches_scheduler: its value reaches a <%= %> tag under
-                 script.* or batch_connect.template, directly or through a
+                 script.* or batch_connect.template, directly, through a
                  variable assigned from it in a <% %> tag (statements split
-                 on newlines and ;). A reference is the bare name,
+                 on newlines and ;), or through a block parameter over it
+                 (x.split.each do |opt|). A reference is the bare name,
                  context.<name> or @<name>. min, max, pattern and required
                  fall back to the attribute's html_options (whether OOD
                  renders html_options min/max as bounds is unverified).
@@ -137,11 +138,32 @@ the per-app dirs named in the previous apps.json are removed first):
                  excluded, is named in requirements.txt, with IMPORT_DIST
                  for names that differ; null when not judged: Ruby, Node,
                  another Python manifest), note}.
+  <app_id>/security.json  (every app type) the candidate sites the
+                 security skill must answer (security-tools.md, "Candidate
+                 enumeration"): {counts {kind: n} for every kind in
+                 SEC_KINDS order, scope (batch_connect: submit / form /
+                 connection files, template/**, Dockerfile / Containerfile
+                 / *.def anywhere in the app; all_source for any other type:
+                 every file but docs, licences, images, fonts, lock files and
+                 test code), plus the root appverse.yml's shared_paths),
+                 files (scanned), attributes (form attribute names, from
+                 form.json's reading, else the form file's line scan),
+                 candidates [{kind, check, rule, tag, file, line, text,
+                 note}] sorted by file, line and kind (interpolation adds
+                 attributes, guarded, quoted), skipped_files [{file,
+                 reason}]}. Comment lines are never candidates; text is the
+                 trimmed source line, at most 200 chars. A binary under
+                 template/ is a binary_in_template candidate at line 1;
+                 elsewhere it is skipped. One candidate per (file, line,
+                 kind, tag). The record's note gives each app's non-zero
+                 counts ("root: interpolation 7, config_flag 2", or "no
+                 candidates").
 
 summary.json also carries "facts": one record per fact scanner (readme,
-form, template, entry_point), with the record fields above plus per_app
-{app_id: status}. An app's status is ran, skipped (no README / no form file
-/ no template/ / no entry point / path not read), not_applicable (template
+form, template, entry_point, security), with the record fields above plus
+per_app {app_id: status}. An app's status is ran, skipped (no README / no
+form file / no template/ / no entry point / no in-scope file / path not
+read), not_applicable (template
 for a Passenger, companion or widget app; entry_point for any app but
 Passenger) or failed_to_run (form did not parse; the error is in the note
 and in form.json); a README, form, submit, template or entry-point file is
@@ -1288,52 +1310,82 @@ def _yaml_paths(lines):
     return paths
 
 
+ERB_TAG = re.compile(r"<%(?!%)(#|=|-)?(.*?)-?%>", re.S)
+ASSIGN_STMT = re.compile(r"^\s*@?([a-z_]\w*)\s*(?:\|\||\+|-|\*)?=(?!=|~)(.*)$")
+BLOCK_STMT = re.compile(r"^(.*?)(?:\bdo|\{)\s*\|([^|]*)\|")
+
+
+def _erb_tags(text):
+    """[(kind, start line, body, offset)] for every ERB tag but comments:
+    kind "out" for <%= %>, "code" for <% %> and <%- %>."""
+    tags = []
+    for m in ERB_TAG.finditer(text):
+        if m.group(1) == "#":
+            continue
+        tags.append(("out" if m.group(1) == "=" else "code", text.count("\n", 0, m.start()) + 1,
+                     m.group(2), m.start()))
+    return tags
+
+
+def _ref_word(name):
+    """A reference to name in Ruby: the bare name, context.<name> or @<name>."""
+    return re.compile(r"(?:(?<![\w@$.])|(?<=\bcontext\.)|(?<=(?<![\w@])@))%s(?![\w?!])" % re.escape(name))
+
+
+def _erb_taint(tags, names):
+    """{variable: attributes it carries}: each name carries itself; a
+    variable assigned in a <% %> tag (statements split on newlines and ;)
+    carries what its right-hand side references; a block parameter
+    (x.each do |v| / { |v| ) carries what the receiver references."""
+    taint = {n: {n} for n in names}
+    changed = True
+    while changed:
+        changed = False
+        for kind, _, body, _ in tags:
+            if kind != "code":
+                continue
+            for stmt in re.split(r"[\n;]", body):
+                m = ASSIGN_STMT.match(stmt)
+                b = None if m else BLOCK_STMT.match(stmt)
+                if m:
+                    targets, source = [m.group(1)], m.group(2)
+                elif b:
+                    targets = [t.strip(" *&()") for t in b.group(2).split(",")]
+                    source = b.group(1)
+                else:
+                    continue
+                carried = set()
+                for var, srcs in list(taint.items()):
+                    if _ref_word(var).search(source):
+                        carried |= srcs
+                for t in targets:
+                    old = taint.get(t, set())
+                    if t and not carried <= old:
+                        taint[t] = old | carried
+                        changed = True
+    return taint
+
+
 def _submit_refs(text, names):
     """{name: (lines, reaches_scheduler)} for a submit.yml.erb text: the lines
     where the name appears inside an ERB tag, and whether its value reaches
     script.* or batch_connect.template through a <%= %> tag (directly, or
-    through a variable assigned from it in a <% %> tag)."""
-    stripped_lines = strip_erb(text).splitlines()
-    paths = _yaml_paths(stripped_lines)
-    tags = []  # (kind, start line, body)
-    for m in re.finditer(r"<%(?!%)(#|=|-)?(.*?)-?%>", text, flags=re.S):
-        if m.group(1) == "#":
-            continue
-        start = text.count("\n", 0, m.start()) + 1
-        tags.append(("out" if m.group(1) == "=" else "code", start, m.group(2)))
-    # a bare name, context.<name> or @<name>
-    word = lambda n: re.compile(r"(?:(?<![\w@$.])|(?<=\bcontext\.)|(?<=(?<![\w@])@))%s(?![\w?!])"
-                                % re.escape(n))
-    taint = {n: {n} for n in names}  # variable -> attributes it carries
-    changed = True
-    while changed:
-        changed = False
-        for kind, start, body in tags:
-            if kind != "code":
-                continue
-            for stmt in re.split(r"[\n;]", body):
-                m = re.match(r"^\s*@?([a-z_]\w*)\s*(?:\|\||\+|-|\*)?=(?!=|~)(.*)$", stmt)
-                if not m:
-                    continue
-                carried = set()
-                for var, srcs in taint.items():
-                    if word(var).search(m.group(2)):
-                        carried |= srcs
-                old = taint.get(m.group(1), set())
-                if not carried <= old:
-                    taint[m.group(1)] = old | carried
-                    changed = True
+    through a variable assigned from it, or a block parameter over it, in a
+    <% %> tag)."""
+    paths = _yaml_paths(strip_erb(text).splitlines())
+    tags = _erb_tags(text)
+    taint = _erb_taint(tags, names)
     out = {}
     for n in names:
         lines, reaches = [], False
-        pat = word(n)
-        for kind, start, body in tags:
+        pat = _ref_word(n)
+        for kind, start, body, _ in tags:
             for k, seg in enumerate(body.split("\n")):
                 if pat.search(seg):
                     lines.append(start + k)
             if kind == "out" and not reaches:
                 vars_ = [v for v, srcs in taint.items() if n in srcs]
-                if any(word(v).search(body) for v in vars_):
+                if any(_ref_word(v).search(body) for v in vars_):
                     path = paths[start - 1] if start - 1 < len(paths) else []
                     reaches = path[:1] == ["script"] or path[:2] == ["batch_connect", "template"]
         out[n] = (sorted(set(lines)), reaches)
@@ -1857,7 +1909,7 @@ def _app_fact(name, scan, applies, missing, target, apps, out):
             per_app[app_id] = "skipped"
             notes.append("%s: %s" % (app_id, missing))
             continue
-        n += len(data["files"]) if name == "template" else 1
+        n += len(data["files"]) if name in ("template", "security") else 1
         _write_json(_app_dir_out(out, app), name + ".json", data)
         per_app[app_id] = "ran"
     return per_app, notes, n
@@ -1883,6 +1935,653 @@ def check_entry_point(target, apps, out):
                                   ("passenger",), "no Passenger entry point", target, apps, out)
     return _fact_record("entry_point", "Passenger entry point: compile() / ruby -c / node --check, "
                         "dependency manifest", per_app, notes, n, "<app_id>/entry_point.json")
+
+
+# security.json: the candidate sites the security skill must answer (R4).
+SEC_KINDS = ("interpolation", "unquoted_expansion", "eval_exec", "network_call",
+             "file_write_outside_job", "permission_change", "credential_string", "config_flag",
+             "binary_in_template")
+# kind -> (manifest check id, rule, default mechanism tag)
+SEC_KIND = {
+    "interpolation": ("sec-interpolation", "OODT-01", "unsanitized-user-input"),
+    "unquoted_expansion": ("sec-interpolation", "OODT-01", "unquoted-variable"),
+    "eval_exec": ("sec-eval-exec", "OODT-01", "eval-exec"),
+    "network_call": ("sec-network-call", "OODT-04", "unexpected-network-call"),
+    "file_write_outside_job": ("sec-file-write-outside-job", "OODT-07", "dotfile-write"),
+    "permission_change": ("sec-permissive-mode", "OODT-03", "permissive-file-mode"),
+    "credential_string": ("sec-credential-string", "OODT-02", "hardcoded-credential"),
+    "config_flag": ("sec-config-flag", "OODT-08", None),
+    "binary_in_template": ("sec-binary-in-template", "OODT-04", "binary-in-template"),
+}
+TEXT_CAP = 200
+NO_SCOPE = "no in-scope files"
+BC_FILES = ("submit.yml.erb", "submit.yml", "form.yml", "form.yml.erb", "connection.yml",
+            "connection.yml.erb")
+FORM_FILES = ("form.yml", "form.yml.erb", "manifest.yml", "appverse.yml")
+CONTAINER_DEF = re.compile(r"^(?:Dockerfile|Containerfile)(?:\..*)?$|\.(?:def|dockerfile)$", re.I)
+NOT_SOURCE = re.compile(
+    r"(?:^|/)(?:LICEN[SC]E|COPYING|CHANGELOG|CHANGES|NOTICE|AUTHORS)[^/]*$"
+    r"|\.(?:md|markdown|rst|txt|adoc|png|jpe?g|gif|ico|svg|webp|bmp|pdf|woff2?|ttf|eot|otf|lock)$"
+    r"|(?:^|/)package-lock\.json$", re.I)
+# Test code (never run by the deployed app) is left out of an all-source scope.
+TEST_PATH = re.compile(r"(?:^|/)(?:tests?|spec|__tests__)/|(?:^|/)test_[^/]*\.py$|_test\.(?:rb|py|go)$"
+                       r"|_spec\.rb$|\.(?:test|spec)\.[jt]sx?$")
+# Dependency manifests name their package index by URL; that is not a call.
+DEP_MANIFEST = re.compile(r"(?:^|/)(?:Gemfile|[^/]*\.gemspec|package\.json|pyproject\.toml|Pipfile"
+                          r"|setup\.cfg|setup\.py|environment\.ya?ml)$")
+SLASH_EXT = (".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".vue", ".java", ".go", ".c", ".h",
+             ".cpp", ".css", ".scss", ".php")
+MARKUP_EXT = (".html", ".htm", ".xml")
+# A command word's position: line start, after ; & | ( { ` ! $( or a keyword.
+SH_POS = r"(?:^|[;&|({`!]|\$\(|\b(?:then|do|else|elif|if|while|until|sudo|exec|time|nohup|xargs|command|env|RUN)\s)\s*"
+# In another language, a command is the start of a string (["curl", ...] or "curl ...").
+STR_POS = r"(?:\[\s*)?[\"'`]\s*"
+NET_CMD = r"(curl|wget|ssh|scp|sftp|nc|ncat|netcat|socat|telnet)"
+NET_SH = re.compile(SH_POS + NET_CMD + r"(?=\s|$|;|\))")
+NET_STR = re.compile(STR_POS + NET_CMD + r"(?=[\s\"'])")
+NET_CLIENT = re.compile(
+    r"\brequests\.(?:get|post|put|delete|patch|head|request|Session)\b|\burllib\.request\b"
+    r"|\burlopen\s*\(|\bhttp\.client\b|\bhttpx\.\w+|\bsocket\.(?:socket|create_connection)\s*\("
+    r"|\bsmtplib\.SMTP|\bparamiko\b|Net::HTTP|\bopen-uri\b|\bURI\.open\b|\b(?:TCP|UDP)Socket\b"
+    r"|\bFaraday\b|\bHTTParty\b|\bRestClient\b|\bfetch\s*\(\s*[\"'`]https?://|\baxios\b"
+    r"|\bXMLHttpRequest\b|\bhttps?\.(?:request|get)\s*\(")
+URL = re.compile(r"\b(?:https?|ftp|wss?)://([^\s'\"<>()`]+)")
+URL_LOCAL = re.compile(r"^(?:localhost|127\.|0\.0\.0\.0|\[::1?\]|unix:|[$<{%]|ERBVALUE"
+                       r"|(?:[\w-]+\.)*(?:example\.(?:com|org|net|edu)|w3\.org|xmlsoap\.org|purl\.org)"
+                       r"(?:[:/]|$))", re.I)
+URL_PROSE = re.compile(r"^\s*(?:echo|printf|help|label|description|summary)\b|xmlns|<!DOCTYPE|\"-//", re.I)
+URL_SCHEMA = re.compile(r"\.(?:dtd|xsd)$", re.I)
+ERB_ANY = re.compile(r"<%.*?%>")
+EVAL_SH = [
+    (re.compile(SH_POS + r"eval(?=\s)"), "eval-exec", "eval"),
+    (re.compile(SH_POS + r"exec\s+(?:-\w+\s+)*[\"']?(?:\$(?![@*]|\{[@*])|<%=)"), "eval-exec",
+     "exec of a variable command"),
+    (re.compile(SH_POS + r"(?:source|\.)\s+[\"']?(?:\$|<%=)"), "eval-exec", "source of a variable path"),
+]
+EVAL_ANY = [
+    (re.compile(r"\b(?:ba|z|k|da)?sh\s+(?:-\w+\s+)*-\w*c\s+[\"']?[^\"']*(?:\$|<%=)"), "eval-exec",
+     "shell -c with a variable"),
+    (re.compile(r"(?:source|\.|\b(?:ba|z)?sh)\s+<\(\s*(?:curl|wget)\b"), "curl-pipe-exec",
+     "download sourced into a shell"),
+    (re.compile(r"(?<![\w.$])(?:eval|exec)\s*\("), "eval-exec", "eval()/exec()"),
+    (re.compile(r"\bnew\s+Function\s*\("), "eval-exec", "new Function()"),
+    (re.compile(r"\bos\.(?:system|popen)\s*\("), "command-injection", "os.system()/os.popen()"),
+    (re.compile(r"\bchild_process\b.*\bexec(?:Sync)?\s*\(|\bexecSync\s*\(|(?<![\w.])cp\.exec\s*\("),
+     "command-injection", "child_process exec"),
+    (re.compile(r"(?<![\w.:])(?:system|exec|spawn|IO\.popen|Open3\.\w+|%x)\s*[(\[{]?\s*[\"'].*#\{"
+                r"|`[^`]*#\{"), "command-injection", "shell command string with #{} interpolation"),
+]
+PIPE_SH = re.compile(r"\|\s*(?:sudo\s+(?:-\S+\s+)*)?(?:\S*/)?(?:ba|z|k|da)?sh(?=\s|$|;|\))")
+SUBPROCESS = re.compile(r"\bsubprocess\.\w+\s*\(")
+SHELL_TRUE = re.compile(r"\bshell\s*=\s*True\b")
+OUT_TARGET = re.compile(r"[\"']?(?:\$HOME\b|\$\{HOME\}|~(?=/|[\s\"']|$)|/(?!dev/|proc/self/)[\w.~-])")
+REDIRECT = re.compile(r"(?<![<>&\d])(?:\d?>>?|&>>?)\s*(\S+)")
+WRITE_CMD = re.compile(SH_POS + r"(cp|mv|install|ln|tee|rsync)\s+([^;&|]*)")
+CRON_SH = re.compile(SH_POS + r"(crontab|systemctl\s+--user\s+(?:enable|start))(?=\s|$)")
+CRON_STR = re.compile(r"[\"']\s*crontab\b")
+PERSIST_PATH = re.compile(r"\.ssh/|authorized_keys|\.(?:bashrc|bash_profile|bash_login|profile|zshrc"
+                          r"|zprofile|cshrc|tcshrc)\b|/etc/cron|\.config/systemd/user|\.config/autostart")
+WRITE_VERB = re.compile(r"\bopen\s*\([^)]*[\"'][wa]b?\+?[\"']|\.write\w*\s*\(|\bwrite_text\b"
+                        r"|\bFile\.(?:write|open)\b|\bFileUtils\.|\bshutil\.(?:copy|move)"
+                        r"|\bwriteFile|\bappendFile|>>")
+PERM_SH = re.compile(SH_POS + r"(chmod|chown|chgrp|umask|setfacl)(?=\s|$)")
+PERM_ANY = re.compile(r"\bos\.(chmod|chown|umask|fchmod)\s*\(|\bFileUtils\.(chmod|chown)\w*"
+                      r"|\bFile\.(chmod|chown)\b|\bfs\.(chmod|chown)(?:Sync)?\s*\(")
+MODE = re.compile(r"(?<![\w.])0?[oO]?([0-7]{3,4})(?![\w.])")
+CRED_WORD = (r"[\w.-]*?(?:pass(?:word|wd|phrase)|(?<![a-z])pass|secret|token|api[_-]?key|apikey"
+             r"|access[_-]?key|private[_-]?key|credential)s?(?![a-z])[\w.-]*")
+CRED_QUOTED = re.compile(r"(?i)(?<![\w.-])(" + CRED_WORD + r")[\"']?\s*(?:=|:|=>)\s*([\"'])([^\"'\s]{4,})\2")
+CRED_BARE = re.compile(r"(?i)(?<![\w.-])(" + CRED_WORD + r")\s*[=:]\s*(?![\"'\s])"
+                       r"([A-Za-z0-9_+/=-]{8,})(?=\s|$|;|,)")
+CRED_FLAG = re.compile(r"(?i)--([\w.-]*?(?:password|passwd|token|secret|api-?key)[\w.-]*)[= ]"
+                       r"[\"']?([^\s\"'$<]{4,})")
+CRED_KEY_SKIP = re.compile(r"(?i)[_.-](?:dir|path|file|url|uri|name|env|var|header|type|field|label|prefix"
+                           r"|len|length|endpoint|id|count|size|limit|expir\w*|ttl|timeout)$")
+CRED_VALUE_SKIP = re.compile(r"(?i)^(?:/|~|\./|\$|<%|%\(|\{|ERBVALUE|ENV\b|os\.environ|https?:)"
+                             r"|^(?:true|false|none|null|nil|required|optional|string|text|hidden"
+                             r"|password|token|secret|password_field)$")
+CRED_SHAPE = re.compile(r"-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----|\bAKIA[0-9A-Z]{16}\b"
+                        r"|\bgh[pousr]_[A-Za-z0-9]{36}\b|\bxox[baprs]-[A-Za-z0-9-]{10,}")
+# (pattern, rule, tag, note, shell family only)
+CONFIG_FLAGS = [
+    (re.compile(r"(?<![\d.])0\.0\.0\.0(?![\d.])|\bINADDR_ANY\b|\[::\]"
+                r"|(?:--(?:host|ip|bind|listen|address)[= ]\s*|\bhost\s*[=:]\s*|\bbind\s*[=:(]\s*)"
+                r"[\"'\[]*::\]?(?![\w:.])"),
+     "OODT-05", "bind-all-interfaces", "binds all interfaces", False),
+    (re.compile(r"(?i)Access-Control-Allow-Origin[\"']?\s*[:,]?\s*[\"']?\*|\ballow_origin\s*=\s*[\"']\*"
+                r"|\b(?:origins?|allow_origins?|cors_origins?|cors_allowed_origins)\s*[:=]\s*\[?\s*[\"']\*[\"']"
+                r"|\bCORS_(?:ORIGIN_ALLOW_ALL|ALLOW_ALL_ORIGINS)\s*=\s*True|\bCORS\(\s*app\s*\)|\bcors\(\s*\)"),
+     "OODT-05", "cors-wildcard", "CORS open to all origins", False),
+    (re.compile(r"--no-auth\b|--disable-auth\b|--auth[= ]none\b|--allow-unauthenticated\b"
+                r"|--[\w.-]*?\b(?:token|password)\s*=\s*(?:''|\"\"|(?=\s|\\|$))"
+                r"|\.(?:token|password)\s*=\s*(?:''|\"\")"),
+     "OODT-05", "disabled-auth", "authentication disabled or empty", False),
+    (re.compile(r"\bdisable_check_xsrf\s*=\s*True|\bWTF_CSRF_ENABLED\s*=\s*False|\bxsrf_cookies\s*=\s*False"
+                r"|@csrf_exempt\b|\bskip_before_action\s+:verify_authenticity_token"
+                r"|\bprotect_from_forgery\s+with:\s*:null_session"),
+     "OODT-05", "disabled-xsrf", "CSRF/XSRF protection disabled", False),
+    (re.compile(r"--disable-ssl\b|--no-ssl\b|--no-check-certificate\b|--insecure\b"
+                r"|\bcurl\b[^|;&]*\s-k\b|\bverify\s*=\s*False\b|\bverify_ssl\s*=\s*False\b"
+                r"|\bssl_verify\w*\s*[:=]\s*(?:false|False|0)\b|\bVERIFY_NONE\b|\brejectUnauthorized\s*:\s*false"
+                r"|\bNODE_TLS_REJECT_UNAUTHORIZED\s*=\s*[\"']?0|\bPYTHONHTTPSVERIFY\s*=\s*[\"']?0"
+                r"|\bsslVerify\s+false"),
+     "OODT-08", "disabled-ssl", "TLS verification disabled", False),
+    (re.compile(SH_POS + r"set\s+(?:-[a-wyzA-Z]*x|-o\s+xtrace)|^#!.*\s-[a-z]*x\b|\bbash\s+-x\b"),
+     "OODT-08", "debug-tracing-enabled", "shell tracing on", True),
+    (re.compile(r"\bapp\.run\([^)]*\bdebug\s*=\s*True|^\s*DEBUG\s*=\s*True\b"
+                r"|\bFLASK_DEBUG\s*=\s*[\"']?(?:1|true|True)\b"),
+     "OODT-08", "debug-tracing-enabled", "debug mode on", False),
+    (re.compile(r"(?i)\bdisable_host_check\b|\bdisableHostCheck\s*:\s*true|--disable-host-check\b"
+                r"|\ballow_remote_access\s*=\s*True|\bALLOWED_HOSTS\s*=\s*\[\s*[\"']\*|\bconfig\.hosts\.clear\b"),
+     "OODT-08", "dns-rebinding-relaxed", "host checking relaxed", False),
+    (re.compile(r"\bPIP_(?:EXTRA_)?INDEX_URL\s*=|--(?:extra-)?index-url\b|--trusted-host\b"),
+     "OODT-08", "supply-chain-untrusted-index", "package index override", False),
+]
+INLINE_GUARD = re.compile(r"\b(?:if|unless)\b|\s\?\s[^:]*\s:\s|\|\||\.presence\b|\.blank\?|\.present\?"
+                          r"|\.empty\?|\.nil\?|\.fetch\s*\(")
+COERCION = re.compile(r"\.to_i\b|\.to_f\b|\bInteger\(|\bFloat\(|\bshellescape\b|Shellwords\.escape"
+                      r"|\.to_json\b|\.inspect\b")
+ERB_COMMENT = re.compile(r"<%#.*?%>", re.S)
+SH_ASSIGN = re.compile(r"^\s*(?:export\s+|local\s+|readonly\s+|declare\s+(?:-\w+\s+)*)?([A-Za-z_]\w*)=(.*)$")
+
+
+def _family(rel, text):
+    """shell | hash (# comments: Python, Ruby, YAML, config) | slash (// comments) | markup."""
+    base = rel[:-4] if rel.endswith(".erb") else rel
+    if _is_shell(rel, text) or CONTAINER_DEF.search(base.rsplit("/", 1)[-1]):
+        return "shell"
+    if base.endswith(SLASH_EXT):
+        return "slash"
+    if base.endswith(MARKUP_EXT):
+        return "markup"
+    return "hash"
+
+
+def _is_comment(line, family, n):
+    s = line.strip()
+    if family in ("shell", "hash"):
+        return s.startswith("#") and not (n == 1 and s.startswith("#!"))
+    if family == "slash":
+        return s.startswith(("//", "/*", "* ", "*/")) or s == "*"
+    return s.startswith("<!--")
+
+
+def _scan_quotes(line, upto=None, family=None):
+    """Walk line to upto (None: the end) with ERB tags opaque. Returns (quote
+    open at upto, index where a trailing comment starts or None)."""
+    q, i, n = "", 0, len(line) if upto is None else upto
+    while i < n:
+        if line.startswith("<%", i):
+            j = line.find("%>", i + 2)
+            if j < 0:
+                break
+            i = j + 2
+            continue
+        c = line[i]
+        if q:
+            if c == "\\" and q == '"':
+                i += 1
+            elif c == q:
+                q = ""
+        elif c == "\\":
+            i += 1
+        elif c in "'\"":
+            q = c
+        elif family in ("shell", "hash") and c == "#" and i > 0 and line[i - 1] in " \t":
+            return q, i
+        elif family == "slash" and line.startswith("//", i) and (i == 0 or line[i - 1] != ":"):
+            return q, i
+        i += 1
+    return q, None
+
+
+def _code_part(line, family):
+    """line without its trailing comment (a # after a space, or //, outside quotes)."""
+    if family == "markup":
+        return line
+    cut = _scan_quotes(line, family=family)[1]
+    return line if cut is None else line[:cut]
+
+
+def _cred_hits(code):
+    """[(note)] for credential literals on a line."""
+    hits = []
+    for m in CRED_QUOTED.finditer(code):
+        if not CRED_KEY_SKIP.search(m.group(1)) and not CRED_VALUE_SKIP.search(m.group(3)):
+            hits.append("literal assigned to %s" % m.group(1))
+    for m in CRED_BARE.finditer(code):
+        if not CRED_KEY_SKIP.search(m.group(1)) and not CRED_VALUE_SKIP.search(m.group(2)) \
+                and re.search(r"\d", m.group(2)) and re.search(r"[A-Za-z]", m.group(2)):
+            hits.append("literal assigned to %s" % m.group(1))
+    for m in CRED_FLAG.finditer(code):
+        if not CRED_VALUE_SKIP.search(m.group(2)):
+            hits.append("literal passed as --%s" % m.group(1))
+    m = CRED_SHAPE.search(code)
+    if m:
+        hits.append("credential-shaped string %s" % m.group(0)[:30])
+    return hits
+
+
+def _perm_note(cmd, rest):
+    worldw = False
+    if cmd == "umask":
+        m = re.match(r"\s*0*([0-7]{1,4})\b", rest)
+        worldw = bool(m) and not int(m.group(1)[-1]) & 2
+    else:
+        m = MODE.search(rest)
+        worldw = (bool(m) and bool(int(m.group(1)[-1]) & 2)) or \
+            bool(re.search(r"(?:^|[\s,])[ao]?\+[rwxXst]*w", rest))
+    return cmd + ("; world-writable" if worldw else "")
+
+
+def _write_target(target):
+    t = target.strip("\"'")
+    if ".ssh/" in t or "authorized_keys" in t:
+        return "ssh-key-write"
+    if "cron" in t or "systemd/user" in t:
+        return "cron-install"
+    if re.search(r"(?:^|/)\.\w", t):
+        return "dotfile-write"
+    return None
+
+
+def _line_hits(code, family, urls=True):
+    """[(kind, tag, rule, note)] for one non-comment line's code part (every
+    kind but interpolation, unquoted_expansion and binary_in_template)."""
+    hits = []
+    shell = family == "shell"
+    # eval_exec
+    if shell:
+        for pat, tag, note in EVAL_SH:
+            if pat.search(code):
+                hits.append(("eval_exec", tag, None, note))
+    for pat, tag, note in EVAL_ANY:
+        if pat.search(code):
+            hits.append(("eval_exec", tag, None, note))
+    if PIPE_SH.search(code):
+        dl = re.search(r"\b(?:curl|wget)\b", code)
+        hits.append(("eval_exec", "curl-pipe-exec" if dl else "eval-exec",
+                     None, "download piped into a shell" if dl else "piped into a shell"))
+    # network_call
+    m = (NET_SH if shell else NET_STR).search(code) or (None if shell else NET_SH.search(code))
+    if m:
+        hits.append(("network_call", None, None, m.group(1) + " command"))
+    m = NET_CLIENT.search(code)
+    if m:
+        hits.append(("network_call", None, None, m.group(0) + " client"))
+    if urls and not URL_PROSE.search(code):
+        for m in URL.finditer(code):
+            if URL_LOCAL.match(m.group(1)) or URL_SCHEMA.search(m.group(1)) or \
+                    re.search(r"href\s*[=:]\s*[\"']?$", code[:m.start()]):
+                continue
+            hits.append(("network_call", None, None, "URL " + m.group(0)[:80]))
+            break
+    # file_write_outside_job
+    if shell:
+        plain = ERB_ANY.sub("ERBVALUE", code)  # a %> closing a tag is not a redirect
+        for m in REDIRECT.finditer(plain):
+            if OUT_TARGET.match(m.group(1)):
+                hits.append(("file_write_outside_job", _write_target(m.group(1)), None,
+                             "redirect to " + m.group(1)))
+        for m in WRITE_CMD.finditer(plain):
+            args = [a for a in m.group(2).split() if not a.startswith("-")]
+            dests = args if m.group(1) == "tee" else args[-1:] if len(args) > 1 else []
+            for d in dests:
+                if OUT_TARGET.match(d):
+                    hits.append(("file_write_outside_job", _write_target(d), None,
+                                 "%s to %s" % (m.group(1), d)))
+        m = CRON_SH.search(code)
+        if m:
+            hits.append(("file_write_outside_job", "cron-install", None, m.group(1)))
+    elif CRON_STR.search(code):
+        hits.append(("file_write_outside_job", "cron-install", None, "crontab command"))
+    elif PERSIST_PATH.search(code) and WRITE_VERB.search(code):
+        p = PERSIST_PATH.search(code).group(0)
+        hits.append(("file_write_outside_job", _write_target(p), None, "write to " + p))
+    # permission_change
+    if shell:
+        for m in PERM_SH.finditer(code):
+            hits.append(("permission_change", None, None, _perm_note(m.group(1), code[m.end():])))
+    m = PERM_ANY.search(code)
+    if m:
+        cmd = next(g for g in m.groups() if g)
+        hits.append(("permission_change", None, None, _perm_note(cmd, code[m.end():])))
+    # credential_string
+    for note in _cred_hits(code):
+        hits.append(("credential_string", None, None, note))
+    # config_flag
+    for pat, rule, tag, note, shell_only in CONFIG_FLAGS:
+        if (shell or not shell_only) and pat.search(code):
+            hits.append(("config_flag", tag, rule, note))
+    return hits
+
+
+def _subprocess_shell(lines, family, i):
+    """The line number of shell=True when a subprocess call starting on line
+    i (0-based) passes it (the call read to its closing paren, 15 lines at
+    most), else None."""
+    code = _code_part(lines[i], family)
+    m = SUBPROCESS.search(code)
+    if not m:
+        return None
+    depth = 0
+    for k in range(i, min(i + 15, len(lines))):
+        seg = _code_part(lines[k], family)
+        if k == i:
+            seg = seg[m.end() - 1:]
+        if SHELL_TRUE.search(seg):
+            return k + 1
+        depth += seg.count("(") - seg.count(")")
+        if depth <= 0:
+            return None
+    return None
+
+
+def _shell_taint(texts, taint):
+    """{shell variable: attributes}: variables assigned (VAR=, export VAR=)
+    from a <%= %> tag carrying a form attribute, or from a tainted variable,
+    across the given template texts."""
+    carried = {}
+    changed = True
+    while changed:
+        changed = False
+        for text in texts:
+            for line in text.split("\n"):
+                m = SH_ASSIGN.match(line)
+                if not m:
+                    continue
+                srcs = set()
+                for t in ERB_TAG.finditer(m.group(2)):
+                    if t.group(1) == "=":
+                        for var, attrs in taint.items():
+                            if _ref_word(var).search(t.group(2)):
+                                srcs |= attrs
+                for var, attrs in carried.items():
+                    if re.search(r"\$\{?%s\b" % re.escape(var), m.group(2)):
+                        srcs |= attrs
+                if srcs and not srcs <= carried.get(m.group(1), set()):
+                    carried[m.group(1)] = carried.get(m.group(1), set()) | srcs
+                    changed = True
+    return carried
+
+
+def _interpolations(text, family, attrs, yaml_paths=None):
+    """[(line, attributes, guarded, quoted, note)]: one per line holding a
+    <%= %> tag that carries a form attribute, directly, through a variable
+    or a block parameter. guarded: every such tag sits under an ERB if /
+    unless / elsif whose condition references the attribute (or a variable
+    carrying it), or has its own presence check (if, unless, ternary, ||,
+    .presence, .blank?, .present?, .empty?, .nil?, fetch). quoted: every
+    such tag sits inside quotes on its line."""
+    tags = _erb_tags(text)
+    taint = _erb_taint(tags, list(attrs))
+    lines = text.split("\n")
+    stack, per_line = [], {}
+    for kind, start, body, pos in tags:
+        if kind == "code":
+            for stmt in re.split(r"[\n;]", body):
+                s = stmt.strip()
+                if re.match(r"^(?:if|unless|while|until|case)\b", s) and not re.search(r"\bend\s*$", s):
+                    stack.append(s)
+                elif re.match(r"^elsif\b", s) and stack:
+                    stack[-1] = (stack[-1] or "") + " " + s
+                elif re.match(r"^end\b", s) or s == "}":
+                    if stack:
+                        stack.pop()
+                elif re.search(r"\bdo\s*(?:\|[^|]*\|)?\s*$|\{\s*(?:\|[^|]*\|)?\s*$", s) or s == "begin":
+                    stack.append(None)
+            continue
+        carriers = [v for v in taint if _ref_word(v).search(body)]
+        found = set()
+        for v in carriers:
+            found |= taint[v]
+        if not found or _is_comment(lines[start - 1], family, start):
+            continue
+        guarded = True
+        for a in found:
+            names = [v for v, srcs in taint.items() if a in srcs]
+            if not (INLINE_GUARD.search(body) or any(
+                    c and any(_ref_word(v).search(c) for v in names) for c in stack)):
+                guarded = False
+        line = lines[start - 1]
+        col = pos - (text.rfind("\n", 0, pos) + 1)
+        quoted = bool(_scan_quotes(line, col)[0])
+        entry = per_line.setdefault(start, {"attrs": set(), "guarded": True, "quoted": True,
+                                           "via": set(), "coerced": set()})
+        entry["attrs"] |= found
+        entry["guarded"] = entry["guarded"] and guarded
+        entry["quoted"] = entry["quoted"] and quoted
+        entry["via"] |= {v for v in carriers if v not in attrs}
+        entry["coerced"] |= set(m.group(0) for m in COERCION.finditer(body))
+    out = []
+    for start in sorted(per_line):
+        e = per_line[start]
+        parts = ["%s (%s)" % (a, attrs[a]) if attrs.get(a) else a for a in sorted(e["attrs"])]
+        note = ", ".join(parts)
+        if e["via"]:
+            note += " via " + ", ".join(sorted(e["via"]))
+        if yaml_paths is not None and start - 1 < len(yaml_paths) and yaml_paths[start - 1]:
+            note += "; under " + ".".join(yaml_paths[start - 1])
+        if e["coerced"]:
+            note += "; coerced by " + ", ".join(sorted(e["coerced"]))
+        out.append((start, sorted(e["attrs"]), e["guarded"], e["quoted"], note))
+    return out
+
+
+def _form_attrs(target, app_dir):
+    """{attribute name: widget} from form.json's reading of the app's form;
+    when the form does not parse (or its submit file is refused), the names
+    from the line scan of the form file, widget None."""
+    try:
+        form = scan_form(target, app_dir)
+    except Refused:
+        form = None
+    if form and not form["error"]:
+        return {a["name"]: a["widget"] for a in form["attributes"]}
+    rel = next((f for f in ("form.yml", "form.yml.erb") if os.path.lexists(os.path.join(app_dir, f))), None)
+    if rel is None:
+        return {}
+    try:
+        text = _read_fact(target, os.path.join(app_dir, rel), rel)
+    except Refused:
+        return {}
+    attr_lines, form_lines = _attr_lines(strip_erb(text))
+    return {n: None for n in list(attr_lines) + [f for f in form_lines if f not in attr_lines]}
+
+
+def _shared_paths(target):
+    """[(repo-relative path, reason or None)] for the root appverse.yml's
+    shared_paths."""
+    meta = _load_file(target, os.path.join(target, "appverse.yml"), "appverse.yml") or {}
+    paths = meta.get("shared_paths")
+    out = []
+    for p in paths if isinstance(paths, list) else []:
+        if not isinstance(p, str) or not p.strip():
+            continue
+        rel = os.path.normpath(p.strip()).replace(os.sep, "/")
+        full = os.path.join(target, rel)
+        if os.path.isabs(rel) or not _inside(target, full):
+            out.append((rel, "shared path outside target, not read"))
+        elif not os.path.lexists(full):
+            out.append((rel, "shared path not found"))
+        else:
+            out.append((rel, None))
+    return out
+
+
+def _security_scope(app_dir, target, app_type, exclude):
+    """(scope, {repo-relative path: absolute path}, [(path, reason)]).
+    batch_connect: submit / form / connection files, template/**, container
+    definitions (Dockerfile, Containerfile, *.def) anywhere in the app;
+    any other type: every file in the app but docs, licences, images, fonts
+    and lock files. Both add the root appverse.yml's shared_paths."""
+    files, skipped = {}, []
+
+    def walk(root, relroot, keep):
+        found, rejected = _classify(root, exclude)
+        for r, why in rejected.items():
+            if why == OUTSIDE and _refusal(target, os.path.join(root, r)) in (None, TOO_LARGE):
+                found.append(r)
+            elif keep(r):
+                skipped.append((relroot + r, why))
+        for r in found:
+            if keep(r):
+                files[relroot + r] = os.path.join(root, r)
+
+    prefix = _app_rel(app_dir, target)
+    source = lambda r: not NOT_SOURCE.search(r) and not TEST_PATH.search(r)
+    if app_type == "batch_connect":
+        scope = "batch_connect"
+        for name in BC_FILES:
+            if os.path.lexists(os.path.join(app_dir, name)):
+                files[prefix + name] = os.path.join(app_dir, name)
+        tdir = os.path.join(app_dir, "template")
+        if os.path.isdir(tdir) and _inside(target, tdir):
+            walk(tdir, prefix + "template/", lambda r: True)
+        elif os.path.lexists(tdir):
+            skipped.append((prefix + "template", OUTSIDE if os.path.islink(tdir) else NOT_REGULAR))
+        walk(app_dir, prefix, lambda r: bool(CONTAINER_DEF.search(r.rsplit("/", 1)[-1])))
+    else:
+        scope = "all_source"
+        walk(app_dir, prefix, source)
+    for rel, why in _shared_paths(target):
+        full = os.path.join(target, rel)
+        if why:
+            skipped.append((rel, why))
+        elif os.path.isdir(full) and not os.path.islink(full):
+            walk(full, rel + "/", source)
+        elif _refusal(target, full) in (None, TOO_LARGE):
+            files[rel] = full
+        else:
+            skipped.append((rel, _refusal(target, full)))
+    return scope, files, skipped
+
+
+def _is_binary(path):
+    with open(path, "rb") as f:
+        return b"\0" in f.read(8192)
+
+
+def scan_security(app_dir, target, app_type, exclude=None):
+    """security.json for one app directory, or None when nothing is in scope.
+    Every in-scope file is read under the shell-file rule (refused files are
+    listed in skipped_files); a binary under template/ is a
+    binary_in_template candidate, elsewhere it is skipped."""
+    scope, files, skipped = _security_scope(app_dir, target, app_type, exclude)
+    prefix = _app_rel(app_dir, target)
+    attrs = _form_attrs(target, app_dir)
+    tpl = prefix + "template/"
+    cands, scanned, texts = [], [], {}
+
+    def add(kind, rel, line, text, tag=None, rule=None, note="", **extra):
+        check, krule, ktag = SEC_KIND[kind]
+        cand = {"kind": kind, "check": check, "rule": rule or krule,
+                "tag": tag if tag is not None else ktag, "file": rel, "line": line,
+                "text": text.strip()[:TEXT_CAP], "note": note}
+        cand.update(extra)
+        cands.append(cand)
+
+    for rel in sorted(files):
+        full = files[rel]
+        why = _refusal(target, full)
+        if rel.startswith(tpl) and why in (None, TOO_LARGE) and _is_binary(full):
+            add("binary_in_template", rel, 1, "binary file (%d bytes)" % os.path.getsize(full),
+                note="cannot be audited")
+            continue
+        if why:
+            skipped.append((rel, why))
+            continue
+        raw = _read(full)
+        if "\x00" in raw:
+            skipped.append((rel, "binary file, not scanned"))
+            continue
+        scanned.append(rel)
+        texts[rel] = raw
+    for rel in scanned:
+        raw = texts[rel]
+        name = rel.rsplit("/", 1)[-1]
+        family = _family(rel, strip_erb(raw) if rel.endswith(".erb") else raw)
+        raw_lines = raw.split("\n")
+        lines = ERB_COMMENT.sub(lambda m: "\n" * m.group(0).count("\n"), raw).split("\n")
+        form_file = rel == prefix + name and name in FORM_FILES
+        if attrs and rel.endswith(".erb") and (rel.startswith(tpl) or rel == prefix + "submit.yml.erb"):
+            paths = _yaml_paths(strip_erb(raw).splitlines()) if not rel.startswith(tpl) else None
+            for line, found, guarded, quoted, note in _interpolations(raw, family, attrs, paths):
+                add("interpolation", rel, line, raw_lines[line - 1], note=note, attributes=found,
+                    guarded=guarded, quoted=quoted)
+        seen = set()
+        for i, line in enumerate(lines):
+            if not line.strip() or _is_comment(line, family, i + 1):
+                continue
+            code = _code_part(line, family)
+            hits = _line_hits(code, family, urls=not (form_file or DEP_MANIFEST.search(rel)))
+            if family != "shell":
+                n = _subprocess_shell(lines, family, i)
+                if n:
+                    hits.append(("eval_exec", "command-injection", None,
+                                 "subprocess call with shell=True (line %d)" % n))
+            for kind, tag, rule, note in hits:
+                if (i, kind, tag) in seen:
+                    continue
+                seen.add((i, kind, tag))
+                add(kind, rel, i + 1, raw_lines[i], tag=tag, rule=rule, note=note)
+    # unquoted_expansion: $VAR of a shell variable carrying a form attribute
+    shell_tpl = [r for r in scanned if r.startswith(tpl) and
+                 _family(r, strip_erb(texts[r]) if r.endswith(".erb") else texts[r]) == "shell"]
+    if attrs and shell_tpl:
+        taint = {}
+        for r in shell_tpl:
+            if r.endswith(".erb"):
+                for var, srcs in _erb_taint(_erb_tags(texts[r]), list(attrs)).items():
+                    taint[var] = taint.get(var, set()) | srcs
+        carried = _shell_taint([texts[r] for r in shell_tpl if r.endswith(".erb")], taint)
+        for r in shell_tpl:
+            lines = texts[r].split("\n")
+            for i, line in enumerate(lines):
+                if _is_comment(line, "shell", i + 1) or re.match(r"^\s*(?:export\s+|local\s+)?\w+=\S*\s*$", line):
+                    continue
+                code = _code_part(line, "shell")
+                for var, srcs in sorted(carried.items()):
+                    for m in re.finditer(r"\$(?:\{%s\}|%s\b)" % (re.escape(var), re.escape(var)), code):
+                        before, after = code[:m.start()], code[m.end():]
+                        if _scan_quotes(code, m.start())[0] or ("[[" in before and "]]" in after):
+                            continue
+                        add("unquoted_expansion", r, i + 1, line,
+                            note="$%s unquoted; carries %s" % (var, ", ".join(sorted(srcs))))
+                        break
+                    else:
+                        continue
+                    break
+    order = {k: n for n, k in enumerate(SEC_KINDS)}
+    cands.sort(key=lambda c: (c["file"], c["line"], order[c["kind"]]))
+    if not scanned and not cands and not skipped:
+        return None
+    counts = {k: sum(1 for c in cands if c["kind"] == k) for k in SEC_KINDS}
+    return {"counts": counts, "scope": scope, "files": scanned, "attributes": list(attrs),
+            "candidates": cands,
+            "skipped_files": [{"file": f, "reason": r} for f, r in sorted(set(skipped))]}
+
+
+def check_security(target, apps, out):
+    results = {}
+
+    def scan(app):
+        results[app["app_id"]] = scan_security(app["_dir"], target, app["app_type"], out)
+        return results[app["app_id"]]
+
+    per_app, skip_notes, n = _app_fact("security", scan, ("batch_connect", "passenger", "companion",
+                                                          "widget", "unknown"),
+                                       NO_SCOPE, target, apps, out)
+    notes = []
+    for app in apps:
+        app_id = app["app_id"]
+        if per_app.get(app_id) == "ran":
+            nz = ["%s %d" % (k, v) for k, v in results[app_id]["counts"].items() if v]
+            notes.append("%s: %s" % (app_id, ", ".join(nz) or "no candidates"))
+        else:
+            notes += [x for x in skip_notes if x.startswith(app_id + ": ")]
+    return _fact_record("security", "candidate sites per kind (references/security-tools.md, "
+                        "Candidate enumeration)", per_app, notes, n, "<app_id>/security.json")
 
 
 def check_catalog(args):
@@ -1989,7 +2688,8 @@ def main(argv):
     facts = [guarded("readme", check_readme, target, apps, out),
              guarded("form", check_form, target, apps, out),
              guarded("template", check_template, target, apps, out),
-             guarded("entry_point", check_entry_point, target, apps, out)]
+             guarded("entry_point", check_entry_point, target, apps, out),
+             guarded("security", check_security, target, apps, out)]
 
     _write_json(out, "summary.json", {
         "schema": SCHEMA,
