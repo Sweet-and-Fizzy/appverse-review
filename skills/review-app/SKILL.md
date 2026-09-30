@@ -463,8 +463,9 @@ externally by the API provider.
   (`check-rows.py` checks that every manifest check applicable to an app has
   a row and that every pre-review candidate is cited; `check-evidence.py`
   checks that every finding's `file:line` citation names a real file and
-  line. `<pre-review-dir>` is `$TMP/pre-review` in reviewer mode, or the
-  run-supplied pre-review directory in CI. `check-evidence.py`'s `--target`
-  follows the same rule as `check-keys.py` above.)
+  line. `<pre-review-dir>` is `$TMP/pre-review` in reviewer mode, the
+  run-supplied pre-review directory in CI, or `$PRE` in submitter mode.
+  `check-evidence.py`'s `--target` follows the same rule as `check-keys.py`
+  above.)
 
 - Reviewer mode: remove the temp clone (`rm -rf "$TMP"`).
