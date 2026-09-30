@@ -1,0 +1,37 @@
+{
+  "schema": "review-meta/1",
+  "repo": "https://github.com/UWrc/tillicum-llama-chat",
+  "owner_repo": "UWrc/tillicum-llama-chat",
+  "reviewed_commit": "f7c8d35004b824812d7c552c6dc17d9b7fd98653",
+  "commit_date": "2026-09-09",
+  "review_date": "2026-09-30",
+  "mode": "reviewer",
+  "repo_shape": "inferred single app",
+  "plugin_version": "0.8.0",
+  "plugin_sha": "e8ee094",
+  "model": "claude-sonnet-4-6",
+  "rubric_url": "https://openondemand.connectci.org/appverse-review-rubric",
+  "apps": [
+    {
+      "app_id": "root",
+      "path": ".",
+      "app_type": "batch_connect",
+      "name": "Llama.cpp WebUI",
+      "decision": "Request changes"
+    }
+  ],
+  "overall_decision": "Request changes",
+  "gate_criteria": {
+    "accessible": "PASS",
+    "readme": "PASS",
+    "license": "FAIL",
+    "not_archived": "PASS"
+  },
+  "assessments": {
+    "root": {
+      "portability": "medium",
+      "documentation": "high",
+      "maintenance": "medium"
+    }
+  }
+}
