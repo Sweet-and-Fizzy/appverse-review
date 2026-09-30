@@ -134,4 +134,168 @@ check "exit 2 missing dir" 2 "$(run "$TMP/does-not-exist" "$TMP/b")"
 echo "Test 12: fewer than two run dirs is exit 2 (usage error)"
 check "exit 2 one dir" 2 "$(run "$TMP/a")"
 
+echo "Test 13: the anchor+rule fallback is gone -- a FAIL anchored at the file with a"
+echo "matching rule but NOT citing a candidate's line does not record that candidate"
+mkdir -p "$TMP/d1/pre-review/root" "$TMP/d2/pre-review/root"
+cat > "$TMP/d1/pre-review/apps.json" <<'EOF'
+[{"app_id": "root", "path": ".", "app_type": "batch_connect", "readme": "README.md"}]
+EOF
+cp "$TMP/d1/pre-review/apps.json" "$TMP/d2/pre-review/apps.json"
+# Two candidates in the same file at different lines.
+cat > "$TMP/d1/pre-review/root/security.json" <<'EOF'
+{"candidates": [
+  {"kind": "eval_exec", "file": "submit.yml.erb", "line": 5, "text": "eval $x", "rule": "OODT-01", "note": ""},
+  {"kind": "eval_exec", "file": "submit.yml.erb", "line": 40, "text": "eval $y", "rule": "OODT-01", "note": ""}
+]}
+EOF
+cp "$TMP/d1/pre-review/root/security.json" "$TMP/d2/pre-review/root/security.json"
+touch "$TMP/d1/pre-review/root/template.json" "$TMP/d2/pre-review/root/template.json"
+echo '{}' > "$TMP/d1/pre-review/root/template.json"; echo '{}' > "$TMP/d2/pre-review/root/template.json"
+echo '{"attributes": []}' > "$TMP/d1/pre-review/root/form.json"; echo '{"attributes": []}' > "$TMP/d2/pre-review/root/form.json"
+# A finding anchored submit.yml.erb, rule OODT-01, evidence citing ONLY line 5
+# (the first candidate). Under the old anchor+rule fallback this would have
+# also recorded the line-40 candidate; it must not.
+printf '%s' "$(printf '[%s]' \
+  "$(finding OODT-01 submit.yml.erb:eval-exec FAIL high submit.yml.erb:5)")" > "$TMP/d1/review-app.findings.json"
+printf '%s' "[]" > "$TMP/d2/review-app.findings.json"
+out13=$(python3 "$CHECK" "$TMP/d1" "$TMP/d2" --json > "$TMP/out" 2>&1; echo $?)
+check "exit 0" 0 "$out13"
+check "first candidate (line 5) recorded 1/2" "1" "$(python3 -c "
+import json
+d = json.load(open('$TMP/out'))
+for c in d['candidates']:
+    if c['line'] == 5:
+        print(c['recorded_by'])
+")"
+check "second candidate (line 40) recorded 0/2" "0" "$(python3 -c "
+import json
+d = json.load(open('$TMP/out'))
+for c in d['candidates']:
+    if c['line'] == 40:
+        print(c['recorded_by'])
+")"
+
+echo "Test 14: form.json candidates are app-relative; a monorepo finding citing the"
+echo "repo-relative path (app path prefix + form.yml) matches"
+mkdir -p "$TMP/mono1/pre-review/apps/app-a" "$TMP/mono1/pre-review/apps/app-b"
+cat > "$TMP/mono1/pre-review/apps.json" <<'EOF'
+[
+  {"app_id": "apps/app-a", "path": "apps/app-a", "app_type": "batch_connect", "readme": "README.md"},
+  {"app_id": "apps/app-b", "path": "apps/app-b", "app_type": "batch_connect", "readme": "README.md"}
+]
+EOF
+cat > "$TMP/mono1/pre-review/apps/app-a/form.json" <<'EOF'
+{"file": "form.yml", "submit_file": "submit.yml.erb", "error": null, "attributes": [
+  {"name": "num_cores", "widget": "number_field", "min": null, "max": null, "pattern": null,
+   "required": false, "line": 12, "defined": true, "in_form": true,
+   "interpolated_in_submit": false, "submit_lines": [], "reaches_scheduler": true}
+]}
+EOF
+echo '{"file": "form.yml", "submit_file": "submit.yml.erb", "error": null, "attributes": []}' > "$TMP/mono1/pre-review/apps/app-b/form.json"
+echo '{}' > "$TMP/mono1/pre-review/apps/app-a/template.json"
+echo '{}' > "$TMP/mono1/pre-review/apps/app-b/template.json"
+echo '{"candidates": []}' > "$TMP/mono1/pre-review/apps/app-a/security.json"
+echo '{"candidates": []}' > "$TMP/mono1/pre-review/apps/app-b/security.json"
+mkdir -p "$TMP/mono2/pre-review/apps/app-a" "$TMP/mono2/pre-review/apps/app-b"
+cp "$TMP/mono1/pre-review/apps.json" "$TMP/mono2/pre-review/apps.json"
+cp "$TMP/mono1/pre-review/apps/app-a/form.json" "$TMP/mono2/pre-review/apps/app-a/form.json"
+cp "$TMP/mono1/pre-review/apps/app-b/form.json" "$TMP/mono2/pre-review/apps/app-b/form.json"
+cp "$TMP/mono1/pre-review/apps/app-a/template.json" "$TMP/mono2/pre-review/apps/app-a/template.json"
+cp "$TMP/mono1/pre-review/apps/app-b/template.json" "$TMP/mono2/pre-review/apps/app-b/template.json"
+cp "$TMP/mono1/pre-review/apps/app-a/security.json" "$TMP/mono2/pre-review/apps/app-a/security.json"
+cp "$TMP/mono1/pre-review/apps/app-b/security.json" "$TMP/mono2/pre-review/apps/app-b/security.json"
+# The finding cites the repo-relative path "apps/app-a/form.yml:12", as
+# check-rows.py's citation grammar expects.
+printf '%s' "$(printf '[%s]' \
+  "$(finding QUA-07 apps/app-a/form.yml:missing-min-max FAIL medium apps/app-a/form.yml:12)")" > "$TMP/mono1/review-app.findings.json"
+printf '%s' "[]" > "$TMP/mono2/review-app.findings.json"
+out14=$(python3 "$CHECK" "$TMP/mono1" "$TMP/mono2" --json > "$TMP/out" 2>&1; echo $?)
+check "exit 0" 0 "$out14"
+check "candidate file is prefixed with the app path" "apps/app-a/form.yml" "$(python3 -c "
+import json
+d = json.load(open('$TMP/out'))
+for c in d['candidates']:
+    if c['line'] == 12:
+        print(c['file'])
+")"
+check "prefixed candidate recorded 1/2" "1" "$(python3 -c "
+import json
+d = json.load(open('$TMP/out'))
+for c in d['candidates']:
+    if c['line'] == 12:
+        print(c['recorded_by'])
+")"
+
+echo "Test 15: a config_flag candidate uses its own rule field (OODT-05), not a fixed table entry"
+mkdir -p "$TMP/e1/pre-review/root" "$TMP/e2/pre-review/root"
+cat > "$TMP/e1/pre-review/apps.json" <<'EOF'
+[{"app_id": "root", "path": ".", "app_type": "batch_connect", "readme": "README.md"}]
+EOF
+cp "$TMP/e1/pre-review/apps.json" "$TMP/e2/pre-review/apps.json"
+cat > "$TMP/e1/pre-review/root/security.json" <<'EOF'
+{"candidates": [
+  {"kind": "config_flag", "file": "template/script.sh.erb", "line": 8, "text": "0.0.0.0", "rule": "OODT-05", "note": ""}
+]}
+EOF
+cp "$TMP/e1/pre-review/root/security.json" "$TMP/e2/pre-review/root/security.json"
+echo '{}' > "$TMP/e1/pre-review/root/template.json"; echo '{}' > "$TMP/e2/pre-review/root/template.json"
+echo '{"attributes": []}' > "$TMP/e1/pre-review/root/form.json"; echo '{"attributes": []}' > "$TMP/e2/pre-review/root/form.json"
+printf '%s' "$(printf '[%s]' \
+  "$(finding OODT-05 template/script.sh.erb:bind-all-interfaces FAIL high template/script.sh.erb:8)")" > "$TMP/e1/review-app.findings.json"
+printf '%s' "[]" > "$TMP/e2/review-app.findings.json"
+out15=$(python3 "$CHECK" "$TMP/e1" "$TMP/e2" --json > "$TMP/out" 2>&1; echo $?)
+check "exit 0" 0 "$out15"
+check "candidate carries its own rule OODT-05" "OODT-05" "$(python3 -c "
+import json
+d = json.load(open('$TMP/out'))
+for c in d['candidates']:
+    if c['line'] == 8:
+        print(c['rule'])
+")"
+check "recorded 1/2 by the OODT-05 finding citing its line" "1" "$(python3 -c "
+import json
+d = json.load(open('$TMP/out'))
+for c in d['candidates']:
+    if c['line'] == 8:
+        print(c['recorded_by'])
+")"
+
+echo "Test 16: security.json/template.json paths are already repo-relative in a monorepo"
+echo "(baked in at scan time) and must NOT be prefixed again with the app path"
+mkdir -p "$TMP/mono3/pre-review/apps/app-a"
+cat > "$TMP/mono3/pre-review/apps.json" <<'EOF'
+[{"app_id": "apps/app-a", "path": "apps/app-a", "app_type": "batch_connect", "readme": "README.md"}]
+EOF
+cat > "$TMP/mono3/pre-review/apps/app-a/security.json" <<'EOF'
+{"candidates": [
+  {"kind": "eval_exec", "file": "apps/app-a/template/script.sh.erb", "line": 9, "text": "eval $x", "rule": "OODT-01", "note": ""}
+]}
+EOF
+echo '{}' > "$TMP/mono3/pre-review/apps/app-a/template.json"
+echo '{"attributes": []}' > "$TMP/mono3/pre-review/apps/app-a/form.json"
+mkdir -p "$TMP/mono4/pre-review/apps/app-a"
+cp "$TMP/mono3/pre-review/apps.json" "$TMP/mono4/pre-review/apps.json"
+cp "$TMP/mono3/pre-review/apps/app-a/security.json" "$TMP/mono4/pre-review/apps/app-a/security.json"
+cp "$TMP/mono3/pre-review/apps/app-a/template.json" "$TMP/mono4/pre-review/apps/app-a/template.json"
+cp "$TMP/mono3/pre-review/apps/app-a/form.json" "$TMP/mono4/pre-review/apps/app-a/form.json"
+printf '%s' "$(printf '[%s]' \
+  "$(finding OODT-01 apps/app-a/template/script.sh.erb:eval-exec FAIL high apps/app-a/template/script.sh.erb:9)")" > "$TMP/mono3/review-app.findings.json"
+printf '%s' "[]" > "$TMP/mono4/review-app.findings.json"
+out16=$(python3 "$CHECK" "$TMP/mono3" "$TMP/mono4" --json > "$TMP/out" 2>&1; echo $?)
+check "exit 0" 0 "$out16"
+check "candidate file is NOT double-prefixed" "apps/app-a/template/script.sh.erb" "$(python3 -c "
+import json
+d = json.load(open('$TMP/out'))
+for c in d['candidates']:
+    if c['line'] == 9:
+        print(c['file'])
+")"
+check "recorded 1/2 (the finding cites the already-repo-relative path)" "1" "$(python3 -c "
+import json
+d = json.load(open('$TMP/out'))
+for c in d['candidates']:
+    if c['line'] == 9:
+        print(c['recorded_by'])
+")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

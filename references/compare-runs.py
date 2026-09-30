@@ -7,7 +7,12 @@ Each <run-dir> is searched recursively for one `review-*.findings.json` (a
 JSON list of finding records, or `{"findings": [...]}`) and one `pre-review/`
 directory (holding `apps.json` and, per app, `<app_id>/{form,template,
 security}.json`). A run missing the findings file is skipped with a
-warning; at least two runs with a findings file are required.
+warning; at least two runs with a findings file are required. The
+denominator for "recorded_by X/N" is N = every run that has a readable
+findings file, whether or not that run has fact files: a run's own
+candidate list may be empty (no fact files) while it still has an opinion
+(findings) on candidates another run's facts named, so it must count in the
+denominator to be judged fairly.
 
 Two things are reported:
 
@@ -17,23 +22,38 @@ pair of runs, the Jaccard index of their fix-item key sets is printed
 (1.0 when both are empty).
 
 Per-candidate recall. The candidate list is the union, across all runs'
-fact files, of `security.json` candidates (`kind`, `file`, `line`, `rule`),
-`template.json` list items (`absolute_paths`, `numeric_literals`,
-`hex_colors`, `commented_code`, `icons`; `file`, `line`), and `form.json`
-`attributes[]` (`name`, `line`; app-relative to the fact file's app_id). A
-candidate is recorded by a run when that run has a FAIL/WARN finding whose
-evidence's leading `path:line` (or `path:line-line` range) citation covers
-the candidate's file and line, or whose defect_key anchor is the
-candidate's file and whose rule is one the candidate's kind maps to
-(SECURITY_KINDS below), or a PASS finding meeting either of those same
-tests. For each candidate the table prints how many of N runs recorded it
-and which did. When no run under the given directories has any fact file,
-per-candidate recall is not computable (there is no candidate list), so
-only the Jaccard section is printed, with a note that per-candidate is
-unavailable.
+fact files, of `security.json` candidates (`kind`, `file`, `line`, `rule`
+-- each candidate's own `rule`, since one kind such as `config_flag` can
+carry different rules per match, e.g. OODT-05 vs OODT-08), `template.json`
+list items (`absolute_paths`, `numeric_literals`, `hex_colors`,
+`commented_code`, `icons`; `file`, `line`, rule from checks.json by check
+id), and `form.json` `attributes[]` (`line`, rule from checks.json).
+security.json and template.json paths are already repo-relative (baked in
+by pre-review.py at scan time); form.json's `file` is app-relative, so it is
+prefixed with the app's `path` from apps.json the way check-rows.py's
+app_prefix/paths_for does (only when the path doesn't already carry that
+prefix, so a repo-relative path already matching is left alone) -- a
+monorepo candidate then matches a finding that cites the repo-relative
+path. A candidate is recorded by a run when that run has a
+FAIL/WARN or PASS finding whose evidence's leading `path:line` (or
+`path:line-line`, or a comma list of those) citation covers the candidate's
+exact file and line. This is deliberately the only test: an earlier version
+also credited a finding whose defect_key anchor matched the candidate's file
+and whose rule matched the candidate's kind, but that fallback over-counts
+-- a single FAIL anchored `submit.yml.erb:some-tag` with rule OODT-01 would
+then mark every OODT-01 candidate in that file as recorded, whether or not
+the finding actually addressed that candidate's line. A finding whose
+evidence carries no parseable line (a bare path, or free-text prose) can
+never record a candidate, by design: without a line, there is no way to
+tell which candidate in a multi-candidate file it addresses. For each
+candidate the table prints how many of the runs with a findings file
+recorded it and which did. When no run under the given directories has any
+fact file, per-candidate recall is not computable (there is no candidate
+list), so only the Jaccard section is printed, with a note that
+per-candidate is unavailable.
 
 --json prints {"runs": [...], "jaccard": [{"a", "b", "value"}, ...],
-"candidates": [{"file", "line", "kind", "n_runs", "recorded_by": n,
+"candidates": [{"file", "line", "kind", "rule", "n_runs", "recorded_by": n,
 "runs": [...]}]} (the same data, "candidates" empty and a "note" key set
 when no run has fact files) instead of the Markdown report.
 
@@ -49,27 +69,24 @@ import os
 import re
 import sys
 
-# candidate kind -> the security-finding rules that cover it (security-tools.md).
-SECURITY_KINDS = {
-    "interpolation": ("OODT-01",),
-    "unquoted_expansion": ("OODT-01",),
-    "eval_exec": ("OODT-01",),
-    "network_call": ("OODT-04", "OODT-05"),
-    "file_write_outside_job": ("OODT-07",),
-    "permission_change": ("OODT-03",),
-    "credential_string": ("OODT-02",),
-    "config_flag": ("OODT-08",),
-    "binary_in_template": ("OODT-04",),
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+CHECKS_JSON = os.path.join(SCRIPT_DIR, "checks.json")
+
+# template.json/form.json list key -> the checks.json check id that covers it.
+# (security.json candidates carry their own "rule" field instead -- one kind,
+# e.g. config_flag, can carry different rules per match -- so no table is
+# needed for those.)
+TEMPLATE_CHECK_ID = {
+    "absolute_paths": "hardcoded-site-paths",
+    "numeric_literals": "magic-numbers",
+    "hex_colors": "magic-numbers",
+    "commented_code": "dead-code",
+    "icons": "icon-matches-target-os",
 }
-TEMPLATE_KINDS = {
-    "absolute_paths": ("QUA-02",),
-    "numeric_literals": ("QUA-08",),
-    "hex_colors": ("QUA-08",),
-    "commented_code": ("QUA-04",),
-    "icons": ("QUA-06",),
-}
-FORM_KIND = ("form_attribute", ("QUA-07", "QUA-10"))
-LEADING_CITATION = re.compile(r"^([^\s:]+):(\d+)(?:-(\d+))?")
+FORM_CHECK_ID = "numeric-field-bounds"  # erb-missing-value shares QUA-* territory but
+                                        # numeric-field-bounds is the form.json rule of record here
+LEADING_CITATION = re.compile(r"^([^\s:]+):(\d+(?:\s*[-–]\s*\d+)?(?:\s*,\s*\d+(?:\s*[-–]\s*\d+)?)*)")
+LINE_SPEC = re.compile(r"(\d+)(?:\s*[-–]\s*(\d+))?")
 
 
 class InputError(Exception):
@@ -82,6 +99,18 @@ def load_json(path, what):
             return json.load(f)
     except (OSError, ValueError) as e:
         raise InputError("cannot read {} '{}': {}".format(what, path, e))
+
+
+def load_rule_table(path=CHECKS_JSON):
+    """{check_id: rule} from checks.json, or {} when it cannot be read."""
+    try:
+        data = load_json(path, "checks manifest")
+    except InputError:
+        return {}
+    checks = data.get("checks") if isinstance(data, dict) else None
+    if not isinstance(checks, list):
+        return {}
+    return {c["id"]: c.get("rule") for c in checks if isinstance(c, dict) and c.get("id")}
 
 
 def find_one(run_dir, name_glob):
@@ -115,8 +144,26 @@ def fact(pre_review, app_id, name):
         return None
 
 
-def load_candidates(pre_review):
-    """[(file, line, kind, rules)] deduplicated, from every app's fact files."""
+def app_prefix(app):
+    """Repo-relative prefix for an app-relative path, per check-rows.py's app_prefix:
+    'root' / '.' / '' -> no prefix; otherwise '<path>/' with any leading './' and
+    surrounding slashes stripped."""
+    p = (app.get("path") or ".").strip().strip("/")
+    p = p[2:] if p.startswith("./") else p
+    return "" if p in ("", ".") else p + "/"
+
+
+def repo_relative(prefix, path):
+    """path, prefixed with the app's prefix unless it is already repo-relative
+    (security.json/template.json paths are baked in at scan time; only
+    form.json's `file` is app-relative) -- check-rows.py's paths_for."""
+    if prefix and not path.startswith(prefix):
+        return prefix + path
+    return path
+
+
+def load_candidates(pre_review, rule_table):
+    """[(file, line, kind, rule)] deduplicated, from every app's fact files."""
     if pre_review is None:
         return []
     apps_path = os.path.join(pre_review, "apps.json")
@@ -133,35 +180,37 @@ def load_candidates(pre_review):
         if not isinstance(app, dict) or not app.get("app_id"):
             continue
         app_id = app["app_id"]
+        prefix = app_prefix(app)
 
         sec = fact(pre_review, app_id, "security.json")
         if isinstance(sec, dict):
             for c in sec.get("candidates") or []:
                 if c.get("file") and c.get("line") is not None:
-                    found.append((c["file"], c["line"], c.get("kind"),
-                                  SECURITY_KINDS.get(c.get("kind"), ())))
+                    found.append((repo_relative(prefix, c["file"]), c["line"],
+                                  c.get("kind"), c.get("rule")))
 
         tpl = fact(pre_review, app_id, "template.json")
         if isinstance(tpl, dict):
-            for key, rules in TEMPLATE_KINDS.items():
+            for key, check_id in TEMPLATE_CHECK_ID.items():
+                rule = rule_table.get(check_id)
                 for c in tpl.get(key) or []:
                     if c.get("file") and c.get("line") is not None:
-                        found.append((c["file"], c["line"], key, rules))
+                        found.append((repo_relative(prefix, c["file"]), c["line"], key, rule))
 
         form = fact(pre_review, app_id, "form.json")
         if isinstance(form, dict):
-            kind, rules = FORM_KIND
+            rule = rule_table.get(FORM_CHECK_ID)
+            ffile = form.get("file") or "form.yml"
             for a in form.get("attributes") or []:
                 if a.get("line") is not None:
-                    ffile = form.get("file") or "form.yml"
-                    found.append((ffile, a["line"], kind, rules))
+                    found.append((repo_relative(prefix, ffile), a["line"], "form_attribute", rule))
 
     seen, unique = set(), []
-    for file_, line, kind, rules in found:
+    for file_, line, kind, rule in found:
         key = (file_, line, kind)
         if key not in seen:
             seen.add(key)
-            unique.append((file_, line, kind, rules))
+            unique.append((file_, line, kind, rule))
     unique.sort(key=lambda c: (c[0], c[1], c[2] or ""))
     return unique
 
@@ -174,35 +223,34 @@ def fix_key(rec):
     return (rec.get("rule"), rec.get("defect_key"))
 
 
-def citation(evidence):
-    """(path, low, high) from a leading `path:N` or `path:N-M`, else None."""
+def citations(evidence):
+    """[(path, low, high), ...] from a leading `path:N`, `path:N-M`, or a
+    comma list of those; [] when evidence has no parseable line citation."""
     if not isinstance(evidence, str):
-        return None
+        return []
     m = LEADING_CITATION.match(evidence)
     if not m:
-        return None
-    path, lo, hi = m.group(1), int(m.group(2)), m.group(3)
-    return path, lo, int(hi) if hi else lo
+        return []
+    path, spec = m.group(1), m.group(2)
+    out = []
+    for piece in spec.split(","):
+        lm = LINE_SPEC.search(piece)
+        if not lm:
+            continue
+        lo = int(lm.group(1))
+        hi = int(lm.group(2)) if lm.group(2) else lo
+        out.append((path, lo, hi))
+    return out
 
 
-def anchor_file(defect_key):
-    if not isinstance(defect_key, str) or ":" not in defect_key:
-        return None
-    return defect_key.split(":", 1)[0]
-
-
-def records_candidate(records, file_, line, rules):
-    """Whether any FAIL/WARN/PASS record in this run recorded the candidate."""
+def records_candidate(records, file_, line):
+    """Whether any FAIL/WARN/PASS record in this run cites the candidate's exact file:line."""
     for rec in records:
         if rec.get("result") not in ("FAIL", "WARN", "PASS"):
             continue
-        cite = citation(rec.get("evidence"))
-        if cite is not None:
-            path, lo, hi = cite
+        for path, lo, hi in citations(rec.get("evidence")):
             if path == file_ and lo <= line <= hi:
                 return True
-        if rules and anchor_file(rec.get("defect_key")) == file_ and rec.get("rule") in rules:
-            return True
     return False
 
 
@@ -212,7 +260,7 @@ def jaccard(a, b):
     return len(a & b) / len(a | b)
 
 
-def gather_runs(run_dirs):
+def gather_runs(run_dirs, rule_table):
     """[(label, findings_records, candidates)]; raises InputError on a bad dir."""
     runs = []
     for d in run_dirs:
@@ -225,7 +273,7 @@ def gather_runs(run_dirs):
                   file=sys.stderr)
             continue
         pre_review = find_pre_review(d)
-        candidates = load_candidates(pre_review)
+        candidates = load_candidates(pre_review, rule_table)
         runs.append((label, records, candidates))
     return runs
 
@@ -240,14 +288,14 @@ def build_report(runs):
 
     all_candidates = {}
     for _, _, cands in runs:
-        for file_, line, kind, rules in cands:
-            all_candidates[(file_, line, kind)] = rules
+        for file_, line, kind, rule in cands:
+            all_candidates[(file_, line, kind)] = rule
 
     candidate_rows = []
-    for (file_, line, kind), rules in sorted(all_candidates.items(), key=lambda kv: (kv[0][0], kv[0][1])):
-        recorded_in = [label for label, records, _ in runs if records_candidate(records, file_, line, rules)]
+    for (file_, line, kind), rule in sorted(all_candidates.items(), key=lambda kv: (kv[0][0], kv[0][1])):
+        recorded_in = [label for label, records, _ in runs if records_candidate(records, file_, line)]
         candidate_rows.append({
-            "file": file_, "line": line, "kind": kind,
+            "file": file_, "line": line, "kind": kind, "rule": rule,
             "n_runs": len(runs), "recorded_by": len(recorded_in), "runs": recorded_in,
         })
 
@@ -266,12 +314,12 @@ def render_markdown(report):
         return "\n".join(lines)
     lines.append("## Per-candidate recall")
     lines.append("")
-    lines.append("| File:Line | Kind | Recorded by | Runs |")
-    lines.append("|---|---|---|---|")
+    lines.append("| File:Line | Kind | Rule | Recorded by | Runs |")
+    lines.append("|---|---|---|---|---|")
     for c in report["candidates"]:
-        lines.append("| {}:{} | {} | {}/{} | {} |".format(
-            c["file"], c["line"], c["kind"] or "", c["recorded_by"], c["n_runs"],
-            ", ".join(c["runs"]) or "(none)"))
+        lines.append("| {}:{} | {} | {} | {}/{} | {} |".format(
+            c["file"], c["line"], c["kind"] or "", c["rule"] or "",
+            c["recorded_by"], c["n_runs"], ", ".join(c["runs"]) or "(none)"))
     return "\n".join(lines)
 
 
@@ -284,8 +332,9 @@ def main(argv):
         print("usage: compare-runs.py <run-dir>... [--json]  (at least two run dirs required)",
               file=sys.stderr)
         return 2
+    rule_table = load_rule_table()
     try:
-        runs = gather_runs(args.run_dirs)
+        runs = gather_runs(args.run_dirs, rule_table)
     except InputError as e:
         print("error: {}".format(e), file=sys.stderr)
         return 2
