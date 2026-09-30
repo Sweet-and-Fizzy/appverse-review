@@ -472,6 +472,7 @@ check "checks unchanged" "syntax,shellcheck,semgrep,bandit,trivy,catalog" "$(j "
 check "readme ran" "ran|{'root': 'ran'}" "$(fct "$O" readme status)|$(fct "$O" readme per_app)"
 check "form ran, note names the parser" "ran|{'root': 'ran'}|$E2E_PARSER_NOTE" "$(fct "$O" form status)|$(fct "$O" form per_app)|$(fct "$O" form note)"
 check "readme.json written" "README.md|Overview" "$(fact "$O" root readme "'%s|%s' % (d['file'], d['rungs']['what it launches']['heading'])")"
+check "readme.json stub facts" "False|14" "$(fact "$O" root readme "'%s|%s' % (d['stub'], d['content_line_count'])")"
 check "form.json written" "form.yml.erb|submit.yml.erb|ERBVALUE" "$(fact "$O" root form "'%s|%s|%s' % (d['file'], d['submit_file'], d['erb_sentinel'])")"
 check "template ran, entry_point not_applicable" "ran|{'root': 'ran'}|not_applicable|{'root': 'not_applicable'}" "$(fct "$O" template status)|$(fct "$O" template per_app)|$(fct "$O" entry_point status)|$(fct "$O" entry_point per_app)"
 check "template.json written, no entry_point.json" "template|template/script.sh.erb|False" "$(fact "$O" root template "'%s|%s' % (d['dir'], ','.join(d['files']))")|$(yn test -e "$O/root/entry_point.json")"
@@ -482,6 +483,7 @@ check "form failed_to_run" "failed_to_run|{'root': 'failed_to_run'}" "$(fct "$O"
 check "note carries the parse error" "True" "$(fct "$O" form note | grep -qE 'root: form\.yml: .*line 3, column 12' && echo True || echo False)"
 check "form.json carries the error, no attributes" "True|[]" "$(j "$O/root/form.json" "'%s|%s' % ('line 3, column 12' in d['error'], d['attributes'])")"
 check "readme still ran" "ran" "$(fct "$O" readme status)"
+check "broken-app readme.json: a title and a contact line is a stub" "True|0" "$(fact "$O" root readme "'%s|%s' % (d['stub'], d['content_line_count'])")"
 
 echo "Test 33: app shape"
 check "monorepo (from the earlier run): app_id is the normalised subpath" "apps/good-app|apps/good-app|batch_connect|README.md,apps/bad-app|apps/bad-app|batch_connect|README.md" "$(j "$TMP/mono/apps.json" "','.join('%s|%s|%s|%s' % (e['app_id'], e['path'], e['app_type'], e['readme']) for e in d)")"
@@ -606,6 +608,102 @@ This app is for [brief use case].
 None.
 MD
 check "a heading line never inherits the previous paragraph's match" "5" "$(rd "$T/README2.md" "','.join(str(p['line']) for p in d['placeholders'])")"
+
+echo "Test 35c: stub and content_line_count"
+# sf <README>: stub|content_line_count
+sf() { rd "$1" "'%s|%s' % (d['stub'], d['content_line_count'])"; }
+check "broken-app (title and contact line): stub" "True|0" "$(sf "$FIX/broken-app/README.md")"
+check "passenger-flask-app (three content lines, no prerequisites heading): not a stub" "False|3" "$(sf "$FIX/passenger-flask-app/README.md")"
+check "containerized-server: not a stub" "False|3" "$(sf "$FIX/containerized-server/README.md")"
+T="$TMP/t35c"; mkdir -p "$T"
+printf '# Rstudio Server\n\nLaunches RStudio Server in a Slurm job on a compute node.\n\nNeeds R 4.3 and Apptainer on the compute nodes.\n\nInstall by cloning into /var/www/ood/apps/sys.\n' > "$T/seven.md"
+check "seven lines: intro, a prerequisite sentence, an install line: not a stub" "7|False|3" "$(wc -l < "$T/seven.md" | tr -d ' ')|$(sf "$T/seven.md")"
+printf '# App\n\n[![CI](https://img.shields.io/x.svg)](https://ci)\n![shot](docs/a.png)\nContact: someone@example.edu\n**Contact** the HPC team\nMail hpc-help@example.edu for access.\n\n## Overview\n' > "$T/contact.md"
+check "contact, email and badge/image lines are not content" "True|0" "$(sf "$T/contact.md")"
+cat > "$T/template.md" <<'MD'
+# App
+
+## Overview
+
+[Application Name] is an Open OnDemand app that launches [software name and version].
+
+## Features
+
+- Key feature 1
+
+## Requirements
+
+- [Runtime dependencies, e.g., Python 3.10]
+- [Scheduler: Slurm / PBS / LSF]
+MD
+check "every section body is template placeholder text: stub" "True|0" "$(sf "$T/template.md")"
+{ printf 'This line is real text.\nSo is this one, above the title.\nAnd a third real line.\n\n'; cat "$T/template.md"; } > "$T/template3.md"
+check "three real lines outside any section, every section body placeholder: still a stub" "True|3" "$(sf "$T/template3.md")"
+cat > "$T/fences.md" <<'MD'
+# App
+
+Runs a notebook server.
+
+```bash
+git clone https://example.org/app.git
+cd app
+module load python
+```
+
+| Setting | Value |
+|---|---|
+MD
+check "fence and table header/rule lines are not content" "True|1" "$(sf "$T/fences.md")"
+cat > "$T/tillicum-shaped.md" <<'MD'
+# Llama WebUI
+
+Batch Connect app that starts llama-server in a container on a GPU node.
+
+## Architecture
+
+The browser reaches a Python proxy through the OOD node proxy.
+
+## Slurm resources
+
+One GPU, four hours, the gpu partition.
+
+## Deployment
+
+Copy the app to the system apps directory and set the container path.
+
+## Logs and validation
+
+The job log is output.log in the session directory.
+
+## Troubleshooting
+
+### The model never becomes available
+
+Check the job log for an out-of-memory error.
+MD
+check "tillicum-shaped (many headings, none a prerequisites synonym): not a stub" "False|6|None" "$(rd "$T/tillicum-shaped.md" "'%s|%s|%s' % (d['stub'], d['content_line_count'], d['rungs']['prerequisites'])")"
+printf '# App\n\n## Current defaults\n\nCluster x.\n\n## Getting started\n\nLoad y.\n' > "$T/defaults.md"
+check "a 'defaults' heading is prerequisites" "Current defaults|3" "$(rd "$T/defaults.md" "'%s|%s' % (d['rungs']['prerequisites']['heading'], d['rungs']['prerequisites']['line'])")"
+printf '# App\n\n## Getting Started\n\nLoad y.\n' > "$T/started.md"
+check "a 'getting started' heading is prerequisites" "Getting Started|heading" "$(rd "$T/started.md" "'%s|%s' % (d['rungs']['prerequisites']['heading'], d['rungs']['prerequisites']['match'])")"
+cat > "$T/kinds.md" <<'MD'
+# App
+<!-- a comment -->
+Launches [software name and version].
+
+```sh
+x=1
+```
+Contact: a@b.org
+[![b](https://img.shields.io/x.svg)](https://ci)
+| A | B |
+|---|---|
+| 1 | 2 |
+Real text.
+Setext
+------
+MD
+check "readme_line_kinds" "heading,comment,placeholder,blank,fence,fence,fence,contact,badge,table-header,table-rule,content,content,heading,heading" "$(px "r=','.join(pr.readme_line_kinds(open(A[0]).read(), pr.load_placeholders()))" "$T/kinds.md")"
 
 echo "Test 36: form facts, vnc-stale-debugger (form.yml.erb)"
 D="$FIX/vnc-stale-debugger"

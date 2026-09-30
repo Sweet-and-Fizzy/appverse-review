@@ -63,7 +63,8 @@ the per-app dirs named in the previous apps.json are removed first):
                  prerequisites, installation, configuration, known
                  limitations, troubleshooting, screenshots, environment
                  variables, info panel, architecture: {heading, line,
-                 placeholder, match} or null}}. A rung is the first heading whose
+                 placeholder, match} or null}, stub, content_line_count}.
+                 A rung is the first heading whose
                  words contain one of its synonyms (RUNGS); one heading can
                  satisfy several rungs; placeholder is true when
                  the heading or every content line of its section (to the
@@ -76,6 +77,16 @@ the per-app dirs named in the previous apps.json are removed first):
                  placeholder line) between the H1 and the next heading
                  fills "what it launches" as {heading: the H1, line: the
                  paragraph's, placeholder: false, match: "intro"}.
+                 content_line_count counts content lines: not blank, a
+                 heading, in a fence or HTML comment, a placeholder line, a
+                 contact line (contains '@' or starts with Contact), a
+                 badge/image line (starts with '![' or '[!['), or a table's
+                 header or |---| row (readme_line_kinds). stub is true when
+                 content_line_count is under STUB_CONTENT_LINES (3), or when
+                 every heading whose own body (to the next heading) holds a
+                 content or placeholder line is placeholder text. It is the
+                 one stub decision: STR-01 reads it, and check-rating.py
+                 accepts the stub rating line only against it.
   <app_id>/form.json  {file (form.yml, else form.yml.erb, ERB stripped),
                  submit_file, erb_sentinel ("ERBVALUE": a min, max or
                  pattern computed by a <%= %> tag is recorded as that
@@ -690,7 +701,8 @@ def check_trivy(target, out):
 PLACEHOLDERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "readme-placeholders.txt")
 RUNGS = (
     ("what it launches", ("overview", "about", "description")),
-    ("prerequisites", ("requirements", "requirement", "prerequisites", "prerequisite", "dependencies")),
+    ("prerequisites", ("requirements", "requirement", "prerequisites", "prerequisite", "dependencies",
+                       "defaults", "getting started")),
     ("installation", ("install", "installation", "installing", "setup", "set up", "deploy",
                       "deployment", "deploying")),
     ("configuration", ("configuration", "configure", "configuring", "customize", "customization",
@@ -702,6 +714,10 @@ RUNGS = (
     ("info panel", ("info panel",)),
     ("architecture", ("architecture", "how it works")),
 )
+# readme.json "stub": fewer content lines than this, or every section body
+# placeholder text. A content line is what readme_line_kinds calls "content".
+STUB_CONTENT_LINES = 3
+CONTACT_LINE = re.compile(r"^[\s>*_+-]*contact\b", re.I)
 APP_TYPES = {"batch-connect-basic": "batch_connect", "batch-connect-vnc": "batch_connect",
              "batch_connect": "batch_connect", "batch-connect": "batch_connect",
              "passenger_app": "passenger", "passenger": "passenger",
@@ -1240,8 +1256,10 @@ def _markdown_lines(lines):
     return out
 
 
-def scan_readme(text, placeholders):
-    """readme.json for one README's text (file set by the caller)."""
+def _readme_parse(text, placeholders):
+    """The parse scan_readme and readme_line_kinds share: (lines, flags,
+    headings, heading_lines, underlines, table_rules, placeholder_rows,
+    phrase_of)."""
     lines = text.splitlines()
     flags = _markdown_lines(lines)
     low_phrases = [(p, p.lower()) for p in placeholders]
@@ -1297,7 +1315,66 @@ def scan_readme(text, placeholders):
         paragraph_phrase = p if not _unit_start(i) else None
         if p:
             placeholder_rows.append({"line": i + 1, "text": line.strip(), "phrase": p})
+    return lines, flags, headings, heading_lines, underlines, table_rules, placeholder_rows, phrase_of
+
+
+def readme_line_kinds(text, placeholders, parsed=None):
+    """One kind per README line (index 0 is line 1): heading (ATX, setext
+    text or underline), fence (inside a code fence, markers included),
+    comment (an HTML comment line), blank, placeholder (a readme.json
+    placeholder line), contact (contains '@' or starts with Contact), badge
+    (starts with '![' or '[!['), table-header and table-rule (a table's
+    header row and its |---| row), else content. check-evidence.py reads this for a `content: README.md:N`
+    citation, so the stub count and that check use one definition."""
+    lines, flags, _h, heading_lines, underlines, table_rules, placeholder_rows, _p = \
+        parsed or _readme_parse(text, placeholders)
     placeholder_lines = {r["line"] for r in placeholder_rows}
+    kinds = []
+    for i, line in enumerate(lines):
+        n, s = i + 1, line.strip()
+        if flags[i][0]:
+            kinds.append("fence")
+        elif n in heading_lines or n in underlines:
+            kinds.append("heading")
+        elif flags[i][1]:
+            kinds.append("comment")
+        elif not s:
+            kinds.append("blank")
+        elif n in placeholder_lines:
+            kinds.append("placeholder")
+        elif "@" in s or CONTACT_LINE.match(s):
+            kinds.append("contact")
+        elif s.startswith("![") or s.startswith("[!["):
+            kinds.append("badge")
+        elif n in table_rules:
+            kinds.append("table-rule" if n + 1 not in table_rules else "table-header")
+        else:
+            kinds.append("content")
+    return kinds
+
+
+def _stub(headings, kinds, phrase_of):
+    """(stub, content_line_count): stub when fewer than STUB_CONTENT_LINES
+    content lines, or when every heading whose own body (to the next heading
+    of any level) holds a content or placeholder line is placeholder text
+    (its heading text carries a phrase, or its body lines are all
+    placeholder lines)."""
+    count = kinds.count("content")
+    bodies = []
+    for idx, h in enumerate(headings):
+        end = headings[idx + 1]["line"] if idx + 1 < len(headings) else len(kinds) + 1
+        body = [kinds[n - 1] for n in range(h["line"] + 1, end) if kinds[n - 1] in ("content", "placeholder")]
+        if body:
+            bodies.append(bool(phrase_of(h["text"])) or "content" not in body)
+    return count < STUB_CONTENT_LINES or (bool(bodies) and all(bodies)), count
+
+
+def scan_readme(text, placeholders):
+    """readme.json for one README's text (file set by the caller)."""
+    parsed = _readme_parse(text, placeholders)
+    lines, flags, headings, heading_lines, underlines, table_rules, placeholder_rows, phrase_of = parsed
+    placeholder_lines = {r["line"] for r in placeholder_rows}
+    stub, content_line_count = _stub(headings, readme_line_kinds(text, placeholders, parsed), phrase_of)
 
     rungs = dict((r, None) for r, _ in RUNGS)
     for idx, h in enumerate(headings):
@@ -1354,7 +1431,8 @@ def scan_readme(text, placeholders):
             env_vars.append({"line": i + 1, "text": line.strip(), "match": "phrase"})
 
     return {"headings": headings, "placeholders": placeholder_rows, "screenshots": screenshots,
-            "env_vars": env_vars, "rungs": rungs}
+            "env_vars": env_vars, "rungs": rungs, "stub": stub,
+            "content_line_count": content_line_count}
 
 
 def _attr_lines(text):
