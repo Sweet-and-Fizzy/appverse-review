@@ -13,6 +13,8 @@
 [rows]   candidate template/after.sh:SC2154
 [rows]   candidate template/after.sh:SC2086
 [rows]   candidate template/before.sh.erb:SC2148
+[rows]   candidate template/proxy.py:B104
+[rows]   candidate template/proxy.py:B110
 [rows]   candidate template/script.sh.erb:SC2054
 [rows]   candidate template/script.sh.erb:SC2140
 [rows]   candidate template/script.sh.erb:SC2154

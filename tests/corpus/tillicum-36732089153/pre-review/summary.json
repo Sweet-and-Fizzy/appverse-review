@@ -1,7 +1,7 @@
 {
   "schema": "pre-review/1",
   "target": "/Users/drew/Sites/connectci/worktrees/appverse-review-walk/tests/corpus/.targets/UWrc-tillicum-llama-chat",
-  "generated_at": "2026-09-30T20:24:34Z",
+  "generated_at": "2026-09-30T20:56:42Z",
   "checks": [
     {
       "name": "syntax",
@@ -48,15 +48,18 @@
     },
     {
       "name": "bandit",
-      "status": "not_installed",
-      "version": "",
+      "status": "ran",
+      "version": "bandit 1.9.4",
       "command": "bandit -r . -f json",
-      "exit_code": null,
-      "output_file": null,
+      "exit_code": 1,
+      "output_file": "bandit.json",
       "files_examined": 1,
-      "note": "pip install bandit",
-      "finding_count": null,
-      "top_codes": []
+      "note": "",
+      "finding_count": 3,
+      "top_codes": [
+        "B110",
+        "B104"
+      ]
     },
     {
       "name": "trivy",
@@ -107,7 +110,7 @@
       "exit_code": null,
       "output_file": "<app_id>/form.json",
       "files_examined": 1,
-      "note": "YAML parser: built-in subset (PyYAML not importable)",
+      "note": "YAML parser: PyYAML",
       "finding_count": null,
       "top_codes": [],
       "per_app": {
@@ -152,7 +155,7 @@
       "exit_code": null,
       "output_file": "<app_id>/security.json",
       "files_examined": 6,
-      "note": "root: interpolation 25, unquoted_expansion 4, network_call 6, config_flag 1, tool_finding 8",
+      "note": "root: interpolation 25, unquoted_expansion 4, network_call 6, config_flag 1, tool_finding 10",
       "finding_count": null,
       "top_codes": [],
       "per_app": {

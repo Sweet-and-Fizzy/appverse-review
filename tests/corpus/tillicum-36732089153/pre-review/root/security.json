@@ -9,7 +9,7 @@
     "credential_string": 0,
     "config_flag": 1,
     "binary_in_template": 0,
-    "tool_finding": 8
+    "tool_finding": 10
   },
   "scope": "batch_connect",
   "files": [
@@ -625,6 +625,41 @@
       "text": "Tips depend on target shell and yours is unknown. Add a shebang or a 'shell' directive.",
       "note": "",
       "artifact": true
+    },
+    {
+      "kind": "tool_finding",
+      "check": "sec-tool-finding",
+      "rule": null,
+      "tag": null,
+      "tool": "bandit",
+      "code": "B104",
+      "file": "template/proxy.py",
+      "lines": [
+        52
+      ],
+      "line": 52,
+      "level": "MEDIUM",
+      "text": "Possible binding to all interfaces.",
+      "note": "",
+      "artifact": false
+    },
+    {
+      "kind": "tool_finding",
+      "check": "sec-tool-finding",
+      "rule": null,
+      "tag": null,
+      "tool": "bandit",
+      "code": "B110",
+      "file": "template/proxy.py",
+      "lines": [
+        352,
+        365
+      ],
+      "line": 352,
+      "level": "LOW",
+      "text": "Try, Except, Pass detected.",
+      "note": "",
+      "artifact": false
     },
     {
       "kind": "tool_finding",

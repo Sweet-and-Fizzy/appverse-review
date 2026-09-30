@@ -1,7 +1,7 @@
 {
   "schema": "pre-review/1",
   "target": "/Users/drew/Sites/connectci/worktrees/appverse-review-walk/tests/corpus/.targets/fasrc-ood-sas",
-  "generated_at": "2026-09-30T20:22:17Z",
+  "generated_at": "2026-09-30T20:55:23Z",
   "checks": [
     {
       "name": "syntax",
@@ -47,7 +47,7 @@
     {
       "name": "bandit",
       "status": "skipped",
-      "version": "",
+      "version": "bandit 1.9.4",
       "command": "bandit -r . -f json",
       "exit_code": null,
       "output_file": null,
@@ -105,7 +105,7 @@
       "exit_code": null,
       "output_file": "<app_id>/form.json",
       "files_examined": 1,
-      "note": "YAML parser: built-in subset (PyYAML not importable)",
+      "note": "YAML parser: PyYAML",
       "finding_count": null,
       "top_codes": [],
       "per_app": {
