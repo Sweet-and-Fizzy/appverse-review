@@ -1,0 +1,6 @@
+[floor] feedback floor: 15/15 fix-items covered
+[keys] finding keys: 39/39 valid
+[rating] ratings: consistent
+[rows] check-rows: 1 app, 19 required rows, 0 problems
+[evidence] evidence: 39/39 valid; report rows: 24/24 valid
+exit: 0
