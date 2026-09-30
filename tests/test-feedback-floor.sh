@@ -28,7 +28,7 @@ cat > "$TMP/ok.md" <<'EOF'
 Accept with suggestions.
 ## Draft feedback — edit before sending
 Please validate the free-text fields in submit.yml.erb; the input is unsanitized. It has no error handling, so add set -e to template/script.sh.erb.
-CHANGELOG.md describes a different, wrong app; please rewrite it. Consider tagging a release.
+CHANGELOG.md describes a different, wrong app; please rewrite it. There are no tagged releases; consider tagging one.
 form.yml hardcodes a module version at line 63; please make it configurable.
 <!-- feedback-covers: submit.yml.erb:unsanitized-input, template/script.sh.erb:no-error-handling, root:changelog-wrong-app, root:no-releases, form.yml:hardcoded-module-version -->
 EOF
@@ -285,7 +285,7 @@ Accept with suggestions.
 
 ## Draft feedback — edit before sending
 Please validate the free-text fields in submit.yml.erb; the input is unsanitized. It has no error handling, so add set -e to template/script.sh.erb.
-CHANGELOG.md describes a different, wrong app; please rewrite it. Consider tagging a release.
+CHANGELOG.md describes a different, wrong app; please rewrite it. There are no tagged releases; consider tagging one.
 form.yml hardcodes a module version at line 63; please make it configurable.
 EOF
 check "exit 0" 0 "$(run "$TMP/findings.json" "$TMP/above-heading.md")"
@@ -302,7 +302,7 @@ Line filler two.
 
 ## Draft feedback — edit before sending
 Please validate the free-text fields in submit.yml.erb; the input is unsanitized. It has no error handling, so add set -e to template/script.sh.erb.
-CHANGELOG.md describes a different, wrong app; please rewrite it. Consider tagging a release.
+CHANGELOG.md describes a different, wrong app; please rewrite it. There are no tagged releases; consider tagging one.
 form.yml hardcodes a module version at line 63; please make it configurable.
 EOF
 check "exit 1" 1 "$(run "$TMP/findings.json" "$TMP/far-above.md")"
@@ -317,7 +317,7 @@ Accept with suggestions.
 
 ## Draft feedback — edit before sending
 Please validate the free-text fields in submit.yml.erb; the input is unsanitized. It has no error handling, so add set -e to template/script.sh.erb.
-CHANGELOG.md describes a different, wrong app; please rewrite it. Consider tagging a release.
+CHANGELOG.md describes a different, wrong app; please rewrite it. There are no tagged releases; consider tagging one.
 form.yml hardcodes a module version at line 63; please make it configurable.
 <!-- feedback-covers: submit.yml.erb:unsanitized-input, template/script.sh.erb:no-error-handling, root:changelog-wrong-app, root:no-releases, form.yml:hardcoded-module-version -->
 EOF
@@ -345,5 +345,37 @@ check "PASS line named: exit 1" 1 "$(run "$TMP/rok.json" "$TMP/rok.md")"
 check "reason" 1 "$(grep -c 'MISSING QUA-08 template/script.sh.erb:magic-number (defect not described in feedback)' "$TMP/out")"
 sed 's/line 9\./line 22./' "$TMP/rok.md" > "$TMP/rok2.md"
 check "FAIL line named: exit 0" 0 "$(run "$TMP/rok.json" "$TMP/rok2.md")"
+
+echo "Test 25: a line number in a sentence about another file does not describe this file's defect"
+cat > "$TMP/t25.json" <<'EOF'
+[{"app_id":"root","rule":"OODT-08","defect_key":"template/script.sh.erb:debug-tracing-enabled","result":"WARN","severity":"low","evidence":"template/script.sh.erb:19,44,54"},
+ {"app_id":"root","rule":"QUA-06","defect_key":"form.yml:duplicate-yaml-key:custom_num_cores.help","result":"WARN","severity":"low","evidence":"form.yml:44,45"}]
+EOF
+cat > "$TMP/t25.md" <<'EOF'
+## Draft feedback
+<!-- feedback-covers: template/script.sh.erb:debug-tracing-enabled, form.yml:duplicate-yaml-key:custom_num_cores.help -->
+The script template/script.sh.erb needs a shebang. In form.yml the duplicate help keys on lines 44/45 should be merged.
+EOF
+check "exit 1" 1 "$(run "$TMP/t25.json" "$TMP/t25.md")"
+check "OODT-08 missing" 1 "$(grep -cF 'MISSING OODT-08 template/script.sh.erb:debug-tracing-enabled (defect not described in feedback)' "$TMP/out")"
+check "QUA-06 covered" 0 "$(grep -cF 'MISSING QUA-06' "$TMP/out")"
+
+echo "Test 26: file in one sentence, line in the next: still covered"
+cat > "$TMP/t26.md" <<'EOF'
+## Draft feedback
+<!-- feedback-covers: template/script.sh.erb:debug-tracing-enabled, form.yml:duplicate-yaml-key:custom_num_cores.help -->
+template/script.sh.erb turns on tracing. Lines 19, 44 and 54 each run set -x; drop them before release. form.yml has duplicate help keys at lines 44/45.
+EOF
+check "exit 0" 0 "$(run "$TMP/t25.json" "$TMP/t26.md")"
+
+echo "Test 27: a pseudo-anchor fix-item needs its subject in the prose, not only its covers key"
+cat > "$TMP/t27.json" <<'EOF'
+[{"app_id":"root","rule":"MNT-02","defect_key":"releases:no-releases","result":"WARN","severity":"low","evidence":"releases"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: releases:no-releases -->\nThe README is fine.\n' > "$TMP/t27a.md"
+check "exit 1" 1 "$(run "$TMP/t27.json" "$TMP/t27a.md")"
+check "reason" 1 "$(grep -cF 'MISSING MNT-02 releases:no-releases (subject not named in feedback)' "$TMP/out")"
+printf '## Draft feedback\n<!-- feedback-covers: releases:no-releases -->\nThere are no tagged releases yet; tag one when the next change lands.\n' > "$TMP/t27b.md"
+check "subject named: exit 0" 0 "$(run "$TMP/t27.json" "$TMP/t27b.md")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

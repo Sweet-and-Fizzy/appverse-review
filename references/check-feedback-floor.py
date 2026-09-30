@@ -23,12 +23,19 @@ fix-item and must be represented in the feedback section of the report:
      Dockerfile, by evidence of the form "NAME:<digit>" — the colon must
      immediately follow the name, with no space, so "GitHub releases API: 0"
      is not mistaken for a path.
-  3. when a path was recognized in step 2, the paragraph(s) that name the
-     file also describe the defect, not just the file: either a line number
-     parsed out of the finding's evidence (every integer, and every "a-b"
-     range's endpoints, plus any ":N", "line N", or "lines N-M" form) appears
-     in that paragraph, OR at least one distinctive word of the mechanism tag
-     appears there. The mechanism tag is the part of defect_key after the
+  3. when a path (or, for a pseudo-anchor, a subject — see below) was
+     recognized in step 2, the sentence window around the sentence(s) that
+     name it also describes the defect, not just names the file: either a
+     line number parsed out of the finding's evidence (every integer, and
+     every "a-b" range's endpoints, plus any ":N", "line N", or "lines N-M"
+     form) appears in that window, OR at least one distinctive word of the
+     mechanism tag appears there. A sentence window is the sentence that
+     names the file plus the sentence immediately after it — a sentence
+     ends at '.', ';', or ':' followed by whitespace, or a newline — so a
+     paragraph that names the file in one sentence and gives the line or
+     mechanism word in the next still passes, while a line number three
+     sentences away, or in a sentence about a different file, does not.
+     The mechanism tag is the part of defect_key after the
      anchor (the first ":"). If it starts with "other:", the distinctive
      words come from the remainder, hyphen-split. Otherwise, if it carries a
      ":{qualifier}", the qualifier IS the distinctive part by definition —
@@ -43,6 +50,21 @@ fix-item and must be represented in the feedback section of the report:
      "no-ci" — "no" is a stopword, "ci" is too short), rule 3 falls back to
      the line-number check alone; if the evidence also has no line number,
      rule 3 is considered satisfied (rules 1 and 2 still apply).
+
+  4. when a finding's evidence has no recognizable file path (a
+     pseudo-anchor, e.g. a repo-wide check like "0 tagged releases" with
+     evidence "GitHub releases API: 0"), the finding still has a subject:
+     words drawn from the defect_key's anchor (the part before the first
+     ":"), by a small table (e.g. "releases" -> "release", "CHANGELOG.md"
+     -> "changelog", "LICENSE" -> "license", ".github/workflows" -> "ci"/
+     "workflow"); a "root" anchor falls back to the mechanism tag's own
+     distinctive words. If the anchor yields no subject words, there is
+     nothing to verify and rule 1 alone governs, as before. Otherwise the
+     subject is treated like a file name: some paragraph must name it as a
+     whole word (or the finding is MISSING with reason "subject not named
+     in feedback"), and rule 3's sentence-window check then applies using
+     those same subject words in place of a line number or mechanism word.
+     A covers-line key alone never satisfies a pseudo-anchored fix-item.
 
      Known limit: when a qualified and an unqualified finding share the same
      base tag and anchor (e.g. "README.md:readme-inconsistency" and
@@ -81,6 +103,23 @@ PATH_PREFIX = re.compile(
 STOPWORDS = {
     "no", "not", "missing", "other", "wrong", "bad", "un", "non",
     "app", "key", "value", "file",
+}
+SENTENCE_END = re.compile(r"(?<=[.;:])\s+|\n")
+# A filename-shaped token anywhere in a sentence: a path/word segment with a
+# file extension (e.g. "form.yml", "template/script.sh.erb"). Used to detect
+# whether a sentence is about a *different* file than the one whose window
+# is being built, so that file's line numbers or mechanism words don't leak
+# in from a neighboring sentence about something else.
+FILENAME_TOKEN = re.compile(r"(?<![A-Za-z0-9_./\-])([A-Za-z0-9_./\-]+\.[A-Za-z0-9_.]+)(?![A-Za-z0-9_./\-])")
+# Pseudo-anchor -> subject words: what a fix-item with no recognizable file
+# path in its evidence is "about", drawn from the defect_key's anchor (the
+# part before the first ':'). General-purpose table, not specific to any one
+# audit finding — extend it as new pseudo-anchors show up.
+PSEUDO_SUBJECTS = {
+    "releases": ["release"],
+    "CHANGELOG.md": ["changelog"],
+    "LICENSE": ["license"],
+    ".github/workflows": ["ci", "workflow"],
 }
 
 
@@ -158,13 +197,65 @@ def token_in_prose(candidate, prose):
     return re.search(pattern, prose) is not None
 
 
+def named_in(candidate, text, ci=False):
+    """True if `candidate` appears in `text` as a whole token. File paths
+    (ci=False) use `token_in_prose`'s exact, path-aware boundaries. A
+    pseudo-anchor's subject words (ci=True) are plain words, not paths, so
+    they use `words_named`'s case-insensitive, hyphen/underscore-stripped
+    match instead (so a subject word "ci" matches prose "CI", and
+    "workflow" matches "workflows")."""
+    return words_named([candidate], text) if ci else token_in_prose(candidate, text)
+
+
 def paragraphs(prose):
     return [p for p in re.split(r"\n\s*\n", prose) if p.strip()]
 
 
-def paragraph_naming(candidates, prose):
-    """The paragraph(s) in which any of `candidates` appears as a whole token."""
-    return [p for p in paragraphs(prose) if any(token_in_prose(c, p) for c in candidates)]
+def paragraph_naming(candidates, prose, ci=False):
+    """The paragraph(s) in which any of `candidates` appears as a whole
+    token. `ci` selects case-insensitive, hyphen/underscore-stripped
+    matching for pseudo-anchor subject words instead of file-path
+    matching (see `named_in`)."""
+    return [p for p in paragraphs(prose) if any(named_in(c, p, ci) for c in candidates)]
+
+
+def sentences(paragraph):
+    """`paragraph` split into sentences: a sentence ends at '.', ';', or ':'
+    followed by whitespace, or at a newline."""
+    return [s for s in SENTENCE_END.split(paragraph) if s.strip()]
+
+
+def names_other_file(sentence, candidates):
+    """True if `sentence` contains a filename-shaped token that is none of
+    `candidates` — i.e. the sentence is about some other file. `candidates`
+    are compared as whole tokens, the same way a file is recognized as
+    named at all."""
+    for tok in FILENAME_TOKEN.findall(sentence):
+        if not any(token_in_prose(c, tok) or tok == c for c in candidates):
+            return True
+    return False
+
+
+def sentence_windows(paragraph, candidates, ci=False):
+    """Each sentence in `paragraph` that names one of `candidates` as a whole
+    token, joined with the sentence immediately after it — unless that next
+    sentence names a *different* file, in which case it is left out of the
+    window, so a line number or mechanism word that only sits in a sentence
+    about another file is not borrowed into this one. Rule 3 is checked
+    against these windows rather than the whole paragraph, so a description
+    three sentences away, or attached to a different file, does not count —
+    the description has to sit with the file. `ci` is as in
+    `paragraph_naming`."""
+    ss = sentences(paragraph)
+    windows = []
+    for i, s in enumerate(ss):
+        if not any(named_in(c, s, ci) for c in candidates):
+            continue
+        nxt = ss[i + 1:i + 2]
+        if nxt and names_other_file(nxt[0], candidates):
+            nxt = []
+        windows.append(" ".join([s] + nxt))
+    return windows
 
 
 def evidence_numbers(evidence):
@@ -224,33 +315,66 @@ def mechanism_words(defect_key):
     return [w for w in words if w.lower() not in STOPWORDS and len(w) > 2]
 
 
+def subject_words(defect_key):
+    """The subject of a pseudo-anchored fix-item (one whose evidence has no
+    recognizable file path): words drawn from the defect_key's anchor (the
+    part before the first ':'), via PSEUDO_SUBJECTS. A 'root' anchor has no
+    subject of its own, so it falls back to the finding's mechanism-tag
+    words instead. An anchor with no table entry (and not 'root') yields no
+    subject words — nothing for rule 4 to verify beyond rule 1."""
+    anchor = str(defect_key or "").split(":", 1)[0]
+    if anchor == "root":
+        return mechanism_words(defect_key)
+    return PSEUDO_SUBJECTS.get(anchor, [])
+
+
 def normalize(word):
     return re.sub(r"[-_]", "", word).lower()
+
+
+def words_named(words, prose):
+    """True if at least one of `words` appears in `prose` as a whole word,
+    comparing case-insensitively with hyphens/underscores stripped from
+    both sides (so "hardcoded" matches "hard-coded" and "CI" matches
+    "ci"), and tolerating a plain trailing "s" on either side (so a
+    singular word like "release" matches prose that says "releases", and
+    vice versa) — ordinary English pluralization, not a stem match."""
+    norm_prose = normalize(prose)
+    for w in words:
+        n = normalize(w)
+        if n and re.search(r"(?<![a-z0-9])" + re.escape(n) + r"s?(?![a-z0-9])", norm_prose):
+            return True
+    return False
 
 
 def word_named(defect_key, prose):
     """True if at least one distinctive mechanism-tag word appears in
     `prose`, comparing with hyphens/underscores stripped from both sides."""
-    norm_prose = normalize(prose)
-    for w in mechanism_words(defect_key):
-        n = normalize(w)
-        if n and re.search(r"(?<![a-z0-9])" + re.escape(n) + r"(?![a-z0-9])", norm_prose):
-            return True
-    return False
+    return words_named(mechanism_words(defect_key), prose)
 
 
-def defect_named(candidates, evidence, defect_key, named_paragraphs):
-    words = mechanism_words(defect_key)
+def defect_named(candidates, evidence, defect_key, named_paragraphs, words=None, ci=False):
+    """True if the defect is described in the sentence window(s) around
+    where `candidates` (the file path, or a pseudo-anchor's subject words)
+    is named — not merely somewhere in the same paragraph. Each paragraph
+    that names a candidate contributes one window per naming sentence.
+
+    `words` are the distinctive words to look for in the window; by default
+    the finding's mechanism-tag words (rule 3). A pseudo-anchor's caller
+    passes its subject words instead, with `ci=True` (see `named_in`)."""
+    if words is None:
+        words = mechanism_words(defect_key)
     singles, ranges = evidence_numbers(evidence)
     if not words and not singles and not ranges:
-        # No distinctive tag word and no line number to check against —
-        # rule 3 has nothing to verify; satisfied (rules 1 and 2 still apply).
+        # No distinctive word and no line number to check against — rule 3
+        # has nothing to verify; satisfied (rules 1 and 2 still apply).
         return True
     for p in named_paragraphs:
-        if line_named(candidates, evidence, p):
-            return True
-        if words and word_named(defect_key, p):
-            return True
+        for window in sentence_windows(p, candidates, ci):
+            if line_named(candidates, evidence, window):
+                return True
+            if words and words_named(words, window):
+                return True
     return False
 
 
@@ -299,6 +423,22 @@ def main(argv):
                 missing.append((f, "file not named in feedback"))
                 continue
             if not defect_named(candidates, f.get("evidence"), f.get("defect_key", ""), named_paragraphs):
+                missing.append((f, "defect not described in feedback"))
+        else:
+            # Pseudo-anchor: evidence has no recognizable file path. The
+            # finding still has a subject — the anchor's own words — and a
+            # covers-line key alone must not be enough to pass it.
+            subject = subject_words(key)
+            if not subject:
+                # No subject to verify (an anchor with no table entry, and
+                # not "root") — nothing beyond rule 1 to check, as before.
+                continue
+            candidates = tuple(subject)
+            named_paragraphs = paragraph_naming(candidates, prose, ci=True)
+            if not named_paragraphs:
+                missing.append((f, "subject not named in feedback"))
+                continue
+            if not defect_named(candidates, f.get("evidence"), key, named_paragraphs, words=subject, ci=True):
                 missing.append((f, "defect not described in feedback"))
     for f, reason in missing:
         print("MISSING {} {} ({})".format(f.get("rule", "?"), f.get("defect_key", "?"), reason))
