@@ -62,13 +62,19 @@ the per-app dirs named in the previous apps.json are removed first):
                  prerequisites, installation, configuration, known
                  limitations, troubleshooting, screenshots, environment
                  variables, info panel, architecture: {heading, line,
-                 placeholder} or null}}. A rung is the first heading whose
+                 placeholder, match} or null}}. A rung is the first heading whose
                  words contain one of its synonyms (RUNGS); one heading can
                  satisfy several rungs; placeholder is true when
                  the heading or every content line of its section (to the
                  next heading of the same or a higher level; HTML comments
                  and fence markers are not content) is a placeholder line.
                  Headings inside code fences or HTML comments are ignored.
+                 match is "heading", except that with no Overview-type
+                 heading, the first descriptive paragraph (four or more
+                 words; not a list, quote, table, image, badge, HTML or
+                 placeholder line) between the H1 and the next heading
+                 fills "what it launches" as {heading: the H1, line: the
+                 paragraph's, placeholder: false, match: "intro"}.
   <app_id>/form.json  {file (form.yml, else form.yml.erb, ERB stripped),
                  submit_file, erb_sentinel ("ERBVALUE": a min, max or
                  pattern computed by a <%= %> tag is recorded as that
@@ -124,7 +130,7 @@ the per-app dirs named in the previous apps.json are removed first):
                  binary)}. .erb files are ERB-stripped first, so a literal
                  inside a tag is not seen. Candidates only; every file is
                  repo-relative (with the app subpath).
-  <app_id>/entry_point.json  (Passenger) {file (config.ru, else
+  <app_id>/entry_point.json  (Passenger and companion) {file (config.ru, else
                  passenger_wsgi.py, else app.js), language (ruby | python |
                  node), parses (true | false | "not_checked" when ruby /
                  node is not on PATH; Python is checked in process with
@@ -150,10 +156,12 @@ the per-app dirs named in the previous apps.json are removed first):
                  form.json's reading, else the form file's line scan),
                  candidates [{kind, check, rule, tag, file, line, text,
                  note}] sorted by file, line and kind (interpolation adds
-                 attributes, guarded, quoted), skipped_files [{file,
+                 attributes, guarded (sanitised or validated),
+                 presence_checked, quoted), skipped_files [{file,
                  reason}]}. Comment lines are never candidates; text is the
                  trimmed source line, at most 200 chars. A binary under
-                 template/ is a binary_in_template candidate at line 1;
+                 template/ is a binary_in_template candidate at line 1
+                 unless its magic bytes say image or font (then skipped);
                  elsewhere it is skipped. One candidate per (file, line,
                  kind, tag). The record's note gives each app's non-zero
                  counts ("root: interpolation 7, config_flag 2", or "no
@@ -165,7 +173,7 @@ per_app {app_id: status}. An app's status is ran, skipped (no README / no
 form file / no template/ / no entry point / no in-scope file / path not
 read), not_applicable (template
 for a Passenger, companion or widget app; entry_point for any app but
-Passenger) or failed_to_run (form did not parse; the error is in the note
+Passenger or companion) or failed_to_run (form did not parse; the error is in the note
 and in form.json); a README, form, submit, template or entry-point file is
 read only under the shell-file rule (a regular file, or a symlink resolving
 to one inside the target; at most 1 MB), else the app is skipped with the
@@ -1228,7 +1236,23 @@ def scan_readme(text, placeholders):
                    and not re.match(r"^ {0,3}(`{3,}|~{3,})", lines[n - 1])]
         placeholder = bool(phrase_of(h["text"])) or all(n in placeholder_lines for n in content)
         for rung in todo:
-            rungs[rung] = {"heading": h["text"], "line": h["line"], "placeholder": placeholder}
+            rungs[rung] = {"heading": h["text"], "line": h["line"], "placeholder": placeholder,
+                           "match": "heading"}
+    # No Overview-type heading: a descriptive paragraph directly under the H1,
+    # before the next heading, says what the app launches.
+    h1 = next((h for h in headings if h["level"] == 1), None)
+    if rungs["what it launches"] is None and h1:
+        end = next((g["line"] for g in headings if g["line"] > h1["line"]), len(lines) + 1)
+        for n in range(h1["line"] + 1, end):
+            text_ = lines[n - 1].strip()
+            if not text_ or any(flags[n - 1]) or n in underlines or n in placeholder_lines:
+                continue
+            if re.match(r"^(?:[-*+] |\d+[.)] |>|\||!\[|\[!\[|<|`{3,}|~{3,})", text_):
+                continue
+            if len(re.findall(r"[A-Za-z]{2,}", text_)) >= 4:
+                rungs["what it launches"] = {"heading": h1["text"], "line": n, "placeholder": False,
+                                             "match": "intro"}
+                break
 
     screenshots, env_vars = [], []
     for i, line in enumerate(lines):
@@ -1932,7 +1956,7 @@ def check_template(target, apps, out):
 
 def check_entry_point(target, apps, out):
     per_app, notes, n = _app_fact("entry_point", lambda a: scan_entry_point(a["_dir"], target, out),
-                                  ("passenger",), "no Passenger entry point", target, apps, out)
+                                  ("passenger", "companion"), "no Passenger entry point", target, apps, out)
     return _fact_record("entry_point", "Passenger entry point: compile() / ruby -c / node --check, "
                         "dependency manifest", per_app, notes, n, "<app_id>/entry_point.json")
 
@@ -1986,7 +2010,7 @@ NET_CLIENT = re.compile(
     r"|\bFaraday\b|\bHTTParty\b|\bRestClient\b|\bfetch\s*\(\s*[\"'`]https?://|\baxios\b"
     r"|\bXMLHttpRequest\b|\bhttps?\.(?:request|get)\s*\(")
 URL = re.compile(r"\b(?:https?|ftp|wss?)://([^\s'\"<>()`]+)")
-URL_LOCAL = re.compile(r"^(?:localhost|127\.|0\.0\.0\.0|\[::1?\]|unix:|[$<{%]|ERBVALUE"
+URL_LOCAL = re.compile(r"^(?:localhost|127\.|0\.0\.0\.0|\[::1?\]|unix:|[$<{%]|#\{|ERBVALUE"
                        r"|(?:[\w-]+\.)*(?:example\.(?:com|org|net|edu)|w3\.org|xmlsoap\.org|purl\.org)"
                        r"(?:[:/]|$))", re.I)
 URL_PROSE = re.compile(r"^\s*(?:echo|printf|help|label|description|summary)\b|xmlns|<!DOCTYPE|\"-//", re.I)
@@ -2008,8 +2032,9 @@ EVAL_ANY = [
     (re.compile(r"\bos\.(?:system|popen)\s*\("), "command-injection", "os.system()/os.popen()"),
     (re.compile(r"\bchild_process\b.*\bexec(?:Sync)?\s*\(|\bexecSync\s*\(|(?<![\w.])cp\.exec\s*\("),
      "command-injection", "child_process exec"),
-    (re.compile(r"(?<![\w.:])(?:system|exec|spawn|IO\.popen|Open3\.\w+|%x)\s*[(\[{]?\s*[\"'].*#\{"
-                r"|`[^`]*#\{"), "command-injection", "shell command string with #{} interpolation"),
+    (re.compile(r"(?<![\w.:])(?:system|exec|spawn|IO\.popen|Open3\.\w+)\s*[(\[{]?\s*[\"'].*#\{"
+                r"|`[^`]*#\{|%x[(\[{][^)\]}]*#\{"), "command-injection",
+     "shell command string with #{} interpolation"),
 ]
 PIPE_SH = re.compile(r"\|\s*(?:sudo\s+(?:-\S+\s+)*)?(?:\S*/)?(?:ba|z|k|da)?sh(?=\s|$|;|\))")
 SUBPROCESS = re.compile(r"\bsubprocess\.\w+\s*\(")
@@ -2046,7 +2071,7 @@ CRED_SHAPE = re.compile(r"-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----|
 CONFIG_FLAGS = [
     (re.compile(r"(?<![\d.])0\.0\.0\.0(?![\d.])|\bINADDR_ANY\b|\[::\]"
                 r"|(?:--(?:host|ip|bind|listen|address)[= ]\s*|\bhost\s*[=:]\s*|\bbind\s*[=:(]\s*)"
-                r"[\"'\[]*::\]?(?![\w:.])"),
+                r"[\"'\[]*::\]?(?![\w:.])|\b(?:listen|bind|serve)\s*\([^)]*[\"']::[\"']"),
      "OODT-05", "bind-all-interfaces", "binds all interfaces", False),
     (re.compile(r"(?i)Access-Control-Allow-Origin[\"']?\s*[:,]?\s*[\"']?\*|\ballow_origin\s*=\s*[\"']\*"
                 r"|\b(?:origins?|allow_origins?|cors_origins?|cors_allowed_origins)\s*[:=]\s*\[?\s*[\"']\*[\"']"
@@ -2067,7 +2092,8 @@ CONFIG_FLAGS = [
                 r"|\bsslVerify\s+false"),
      "OODT-08", "disabled-ssl", "TLS verification disabled", False),
     (re.compile(SH_POS + r"set\s+(?:-[a-wyzA-Z]*x|-o\s+xtrace)|^#!.*\s-[a-z]*x\b|\bbash\s+-x\b"),
-     "OODT-08", "debug-tracing-enabled", "shell tracing on", True),
+     "OODT-08", "debug-tracing-enabled", "shell tracing on; trace output goes to the job's own "
+     "output.log; world-readable only if the job directory is", True),
     (re.compile(r"\bapp\.run\([^)]*\bdebug\s*=\s*True|^\s*DEBUG\s*=\s*True\b"
                 r"|\bFLASK_DEBUG\s*=\s*[\"']?(?:1|true|True)\b"),
      "OODT-08", "debug-tracing-enabled", "debug mode on", False),
@@ -2077,10 +2103,16 @@ CONFIG_FLAGS = [
     (re.compile(r"\bPIP_(?:EXTRA_)?INDEX_URL\s*=|--(?:extra-)?index-url\b|--trusted-host\b"),
      "OODT-08", "supply-chain-untrusted-index", "package index override", False),
 ]
-INLINE_GUARD = re.compile(r"\b(?:if|unless)\b|\s\?\s[^:]*\s:\s|\|\||\.presence\b|\.blank\?|\.present\?"
-                          r"|\.empty\?|\.nil\?|\.fetch\s*\(")
-COERCION = re.compile(r"\.to_i\b|\.to_f\b|\bInteger\(|\bFloat\(|\bshellescape\b|Shellwords\.escape"
-                      r"|\.to_json\b|\.inspect\b")
+PRESENCE = re.compile(r"\b(?:if|unless)\b|\s\?\s[^:]*\s:\s|\|\||\.presence\b|\.blank\?|\.present\?"
+                      r"|\.empty\?|\.nil\?|\.fetch\s*\(")
+# A reference followed by a presence predicate is a test, not the output.
+PRESENCE_TEST = re.compile(r"(?:\.\w+)*?\.(?:blank|present|empty|nil|zero|positive|negative)\?"
+                           r"|(?:\.\w+)*?\s*(?:==|!=|=~|!~|<=?|>=?)(?!=)")
+# A reference whose method chain ends in a sanitiser, or wrapped in one.
+SANITISE_AFTER = re.compile(r"(?:\.\w+[?!]?(?:\([^()]*\))?)*?\.(to_i|to_f|shellescape)\b")
+SANITISE_BEFORE = re.compile(r"(Shellwords\.(?:escape|shellescape)|Integer|Float)\(\s*$")
+# An enclosing condition that validates: a regex match or an allow-list check.
+VALIDATE = re.compile(r"=~|!~|\.match\??\s*\(|\.include\?\s*\(|\.in\?\s*\(")
 ERB_COMMENT = re.compile(r"<%#.*?%>", re.S)
 SH_ASSIGN = re.compile(r"^\s*(?:export\s+|local\s+|readonly\s+|declare\s+(?:-\w+\s+)*)?([A-Za-z_]\w*)=(.*)$")
 
@@ -2127,6 +2159,12 @@ def _scan_quotes(line, upto=None, family=None):
             i += 1
         elif c in "'\"":
             q = c
+        elif family == "hash" and c == "`":
+            q = c  # a Ruby backtick command is a string
+        elif family == "hash" and line.startswith("%x", i) and line[i + 2:i + 3] in ("(", "[", "{"):
+            q = {"(": ")", "[": "]", "{": "}"}[line[i + 2]]
+            i += 3
+            continue
         elif family in ("shell", "hash") and c == "#" and i > 0 and line[i - 1] in " \t":
             return q, i
         elif family == "slash" and line.startswith("//", i) and (i == 0 or line[i - 1] != ":"):
@@ -2163,15 +2201,27 @@ def _cred_hits(code):
 
 
 def _perm_note(cmd, rest):
-    worldw = False
+    """cmd, the mode when one is given, and whether it leaves the file (or,
+    for umask, new files) world-writable."""
     if cmd == "umask":
-        m = re.match(r"\s*0*([0-7]{1,4})\b", rest)
-        worldw = bool(m) and not int(m.group(1)[-1]) & 2
+        m = re.match(r"\s*\(?\s*(0?[oO]?[0-7]{1,4})\b", rest)
+        if not m:
+            return cmd
+        return "umask %s, %s" % (m.group(1), "world-writable" if not int(m.group(1)[-1]) & 2
+                                 else "not world-writable")
+    if cmd not in ("chmod", "fchmod"):
+        return cmd
+    m = MODE.search(rest)
+    sym = re.search(r"(?:^|[\s,(])([ugoa]*[-+=][rwxXst]+(?:,[ugoa]*[-+=][rwxXst]+)*)", rest)
+    if m:
+        mode, worldw = m.group(0), bool(int(m.group(1)[-1]) & 2)
+    elif sym:
+        mode = sym.group(1)
+        worldw = bool(re.search(r"(?:^|,)[ao]*\+[rwxXst]*w|(?:^|,)\+[rwxXst]*w|(?:^|,)[ao]*=[rwxXst]*w",
+                                mode))
     else:
-        m = MODE.search(rest)
-        worldw = (bool(m) and bool(int(m.group(1)[-1]) & 2)) or \
-            bool(re.search(r"(?:^|[\s,])[ao]?\+[rwxXst]*w", rest))
-    return cmd + ("; world-writable" if worldw else "")
+        return cmd
+    return "%s %s, %s" % (cmd, mode, "world-writable" if worldw else "not world-writable")
 
 
 def _write_target(target):
@@ -2182,7 +2232,7 @@ def _write_target(target):
         return "cron-install"
     if re.search(r"(?:^|/)\.\w", t):
         return "dotfile-write"
-    return None
+    return "write-outside-job"
 
 
 def _line_hits(code, family, urls=True):
@@ -2305,14 +2355,39 @@ def _shell_taint(texts, taint):
     return carried
 
 
+def _sanitised(body, names):
+    """(every output reference to one of names in body is sanitised,
+    the sanitisers seen). A reference followed by a presence predicate
+    (.blank?, .present?, .zero? ...) or a comparison (==, =~, <) is a test,
+    not output (x == "1" ? 'lab' : 'tree' outputs a literal); the rest must
+    end in .to_i / .to_f / .shellescape or sit inside Shellwords.escape(),
+    Integer() or Float()."""
+    ok, seen = True, set()
+    for v in names:
+        for m in _ref_word(v).finditer(body):
+            after = body[m.end():]
+            if PRESENCE_TEST.match(after):
+                continue
+            a, b = SANITISE_AFTER.match(after), SANITISE_BEFORE.search(body[:m.start()])
+            if a or b:
+                seen.add("." + a.group(1) if a else b.group(1) + "()")
+            else:
+                ok = False
+    return ok, seen
+
+
 def _interpolations(text, family, attrs, yaml_paths=None):
-    """[(line, attributes, guarded, quoted, note)]: one per line holding a
-    <%= %> tag that carries a form attribute, directly, through a variable
-    or a block parameter. guarded: every such tag sits under an ERB if /
-    unless / elsif whose condition references the attribute (or a variable
-    carrying it), or has its own presence check (if, unless, ternary, ||,
-    .presence, .blank?, .present?, .empty?, .nil?, fetch). quoted: every
-    such tag sits inside quotes on its line."""
+    """[(line, attributes, guarded, presence_checked, quoted, note)]: one per
+    line holding a <%= %> tag that carries a form attribute, directly,
+    through a variable or a block parameter. guarded: for every such tag,
+    the value is sanitised (.to_i, .to_f, .shellescape, Shellwords.escape(),
+    Integer(), Float()) or an enclosing ERB if / unless / elsif validates it
+    (=~, match, include?, in?). presence_checked: every such tag has its own
+    presence test (if, unless, ternary, ||, .presence, .blank?, .present?,
+    .empty?, .nil?, fetch) or sits under a condition that references the
+    attribute. quoted: every such tag sits inside quotes on its line
+    (lexical; the note says whether YAML or shell quotes, and that shell
+    double quotes still expand $(...))."""
     tags = _erb_tags(text)
     taint = _erb_taint(tags, list(attrs))
     lines = text.split("\n")
@@ -2337,22 +2412,29 @@ def _interpolations(text, family, attrs, yaml_paths=None):
             found |= taint[v]
         if not found or _is_comment(lines[start - 1], family, start):
             continue
-        guarded = True
+        guarded, presence, sanitisers = True, True, set()
         for a in found:
             names = [v for v, srcs in taint.items() if a in srcs]
-            if not (INLINE_GUARD.search(body) or any(
-                    c and any(_ref_word(v).search(c) for v in names) for c in stack)):
+            conds = [c for c in stack if c and any(_ref_word(v).search(c) for v in names)]
+            ok, seen = _sanitised(body, [v for v in carriers if a in taint[v]])
+            sanitisers |= seen
+            if not (ok or any(VALIDATE.search(c) for c in conds)):
                 guarded = False
+            if not (PRESENCE.search(body) or conds):
+                presence = False
         line = lines[start - 1]
         col = pos - (text.rfind("\n", 0, pos) + 1)
-        quoted = bool(_scan_quotes(line, col)[0])
-        entry = per_line.setdefault(start, {"attrs": set(), "guarded": True, "quoted": True,
-                                           "via": set(), "coerced": set()})
+        q = _scan_quotes(line, col)[0]
+        entry = per_line.setdefault(start, {"attrs": set(), "guarded": True, "presence": True,
+                                           "quoted": True, "quotes": set(), "via": set(),
+                                           "sanitisers": set()})
         entry["attrs"] |= found
         entry["guarded"] = entry["guarded"] and guarded
-        entry["quoted"] = entry["quoted"] and quoted
+        entry["presence"] = entry["presence"] and presence
+        entry["quoted"] = entry["quoted"] and bool(q)
+        entry["quotes"].add(q)
         entry["via"] |= {v for v in carriers if v not in attrs}
-        entry["coerced"] |= set(m.group(0) for m in COERCION.finditer(body))
+        entry["sanitisers"] |= sanitisers
     out = []
     for start in sorted(per_line):
         e = per_line[start]
@@ -2362,9 +2444,17 @@ def _interpolations(text, family, attrs, yaml_paths=None):
             note += " via " + ", ".join(sorted(e["via"]))
         if yaml_paths is not None and start - 1 < len(yaml_paths) and yaml_paths[start - 1]:
             note += "; under " + ".".join(yaml_paths[start - 1])
-        if e["coerced"]:
-            note += "; coerced by " + ", ".join(sorted(e["coerced"]))
-        out.append((start, sorted(e["attrs"]), e["guarded"], e["quoted"], note))
+        if e["sanitisers"]:
+            note += "; sanitised by " + ", ".join(sorted(e["sanitisers"]))
+        kind = "YAML" if yaml_paths is not None else "shell" if family == "shell" else None
+        if e["quotes"] == {""}:
+            note += "; unquoted"
+        else:
+            note += "; " + ("quoted" if e["quoted"] else "partly quoted") + \
+                (" (%s)" % kind if kind else "")
+            if kind == "shell" and '"' in e["quotes"]:
+                note += ", still expands $(...)"
+        out.append((start, sorted(e["attrs"]), e["guarded"], e["presence"], e["quoted"], note))
     return out
 
 
@@ -2457,9 +2547,20 @@ def _security_scope(app_dir, target, app_type, exclude):
     return scope, files, skipped
 
 
-def _is_binary(path):
+IMAGE_FONT_MAGIC = ((b"\x89PNG\r\n\x1a\n", "png"), (b"\xff\xd8\xff", "jpeg"), (b"GIF87a", "gif"),
+                    (b"GIF89a", "gif"), (b"\x00\x00\x01\x00", "ico"), (b"wOFF", "woff"),
+                    (b"wOF2", "woff2"), (b"\x00\x01\x00\x00", "ttf"), (b"OTTO", "otf"),
+                    (b"true", "ttf"))
+
+
+def _binary_kind(path):
+    """None for a text file; the image / font type named by its magic bytes;
+    else "binary"."""
     with open(path, "rb") as f:
-        return b"\0" in f.read(8192)
+        head = f.read(8192)
+    if b"\0" not in head:
+        return None
+    return next((k for magic, k in IMAGE_FONT_MAGIC if head.startswith(magic)), "binary")
 
 
 def scan_security(app_dir, target, app_type, exclude=None):
@@ -2484,9 +2585,13 @@ def scan_security(app_dir, target, app_type, exclude=None):
     for rel in sorted(files):
         full = files[rel]
         why = _refusal(target, full)
-        if rel.startswith(tpl) and why in (None, TOO_LARGE) and _is_binary(full):
+        bkind = _binary_kind(full) if rel.startswith(tpl) and why in (None, TOO_LARGE) else None
+        if bkind == "binary":
             add("binary_in_template", rel, 1, "binary file (%d bytes)" % os.path.getsize(full),
                 note="cannot be audited")
+            continue
+        if bkind:
+            skipped.append((rel, "%s file (by its magic bytes), not a candidate" % bkind))
             continue
         if why:
             skipped.append((rel, why))
@@ -2506,9 +2611,9 @@ def scan_security(app_dir, target, app_type, exclude=None):
         form_file = rel == prefix + name and name in FORM_FILES
         if attrs and rel.endswith(".erb") and (rel.startswith(tpl) or rel == prefix + "submit.yml.erb"):
             paths = _yaml_paths(strip_erb(raw).splitlines()) if not rel.startswith(tpl) else None
-            for line, found, guarded, quoted, note in _interpolations(raw, family, attrs, paths):
+            for line, found, guarded, presence, quoted, note in _interpolations(raw, family, attrs, paths):
                 add("interpolation", rel, line, raw_lines[line - 1], note=note, attributes=found,
-                    guarded=guarded, quoted=quoted)
+                    guarded=guarded, presence_checked=presence, quoted=quoted)
         seen = set()
         for i, line in enumerate(lines):
             if not line.strip() or _is_comment(line, family, i + 1):

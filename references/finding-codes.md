@@ -181,7 +181,8 @@ OODT-XX before hashing.
 `host-path-mount`
 
 **OODT-07:**
-`dotfile-write`, `cron-install`, `ssh-key-write`, `path-injection`
+`dotfile-write`, `cron-install`, `ssh-key-write`, `path-injection`,
+`write-outside-job`
 
 **OODT-08:**
 `debug-tracing-enabled`, `overly-broad-permissions`, `disabled-ssl`,

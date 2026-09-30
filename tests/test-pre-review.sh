@@ -495,8 +495,13 @@ echo "Test 34: readme facts, containerized-server and vnc-stale-debugger"
 R="$FIX/containerized-server/README.md"
 check "headings" "1|MLflow Tracking Server|1,2|Requirements|5" "$(rd "$R" "','.join('%s|%s|%s' % (h['level'], h['text'], h['line']) for h in d['headings'])")"
 check "rung keys in order" "what it launches,prerequisites,installation,configuration,known limitations,troubleshooting,screenshots,environment variables,info panel,architecture" "$(rd "$R" "','.join(d['rungs'])")"
-check "prerequisites rung" "{'heading': 'Requirements', 'line': 5, 'placeholder': False}" "$(rd "$R" "d['rungs']['prerequisites']")"
-check "other rungs null" "True" "$(rd "$R" "all(v is None for k, v in d['rungs'].items() if k != 'prerequisites')")"
+check "prerequisites rung" "{'heading': 'Requirements', 'line': 5, 'placeholder': False, 'match': 'heading'}" "$(rd "$R" "d['rungs']['prerequisites']")"
+check "intro paragraph under the H1 is what it launches" "{'heading': 'MLflow Tracking Server', 'line': 3, 'placeholder': False, 'match': 'intro'}" "$(rd "$R" "d['rungs']['what it launches']")"
+check "other rungs null" "True" "$(rd "$R" "all(v is None for k, v in d['rungs'].items() if k not in ('prerequisites', 'what it launches'))")"
+printf '# App\n\n[![CI](https://img.shields.io/x.svg)](https://ci)\n- a list item with words in it\nok go\n\n## Install\nx\n' > "$TMP/intro-neg.md"
+check "badge, list and short lines under the H1 are not an intro" "None" "$(rd "$TMP/intro-neg.md" "d['rungs']['what it launches']")"
+printf '# App\n\nLaunches a Jupyter server on a compute node.\n\n## Overview\nMore.\n' > "$TMP/intro-ov.md"
+check "an Overview heading wins over the intro" "Overview|heading" "$(rd "$TMP/intro-ov.md" "'%s|%s' % (d['rungs']['what it launches']['heading'], d['rungs']['what it launches']['match'])")"
 check "no placeholders, screenshots, env_vars" "[]|[]|[]" "$(rd "$R" "'%s|%s|%s' % (d['placeholders'], d['screenshots'], d['env_vars'])")"
 R="$FIX/vnc-stale-debugger/README.md"
 check "vnc headings (a # in a fence is not one)" "1|HPC Debugger|1,2|Overview|6,2|Requirements|11,2|Installation|17,2|Configuration|26" "$(rd "$R" "','.join('%s|%s|%s' % (h['level'], h['text'], h['line']) for h in d['headings'])")"
@@ -544,12 +549,12 @@ MD
 check "headings (ATX and setext, none from the fence)" "1|[Application Name]|1,2|Overview|3,2|Screenshots|8,2|Requirements and Setup|12,3|Environment|21,1|Setup heading|25,2|FAQ|28,2|Known Issues|32" "$(rd "$R" "','.join('%s|%s|%s' % (h['level'], h['text'], h['line']) for h in d['headings'])")"
 check "placeholder lines (none from the fence)" "1,5,6,30" "$(rd "$R" "','.join(str(p['line']) for p in d['placeholders'])")"
 check "placeholder phrase recorded" "[Application Name]" "$(rd "$R" "d['placeholders'][0]['phrase']")"
-check "overview rung is placeholder" "{'heading': 'Overview', 'line': 3, 'placeholder': True}" "$(rd "$R" "d['rungs']['what it launches']")"
-check "one heading, two rungs" "{'heading': 'Requirements and Setup', 'line': 12, 'placeholder': False}|{'heading': 'Requirements and Setup', 'line': 12, 'placeholder': False}" "$(rd "$R" "'%s|%s' % (d['rungs']['prerequisites'], d['rungs']['installation'])")"
-check "FAQ is troubleshooting, placeholder" "{'heading': 'FAQ', 'line': 28, 'placeholder': True}" "$(rd "$R" "d['rungs']['troubleshooting']")"
-check "Known Issues is known limitations" "{'heading': 'Known Issues', 'line': 32, 'placeholder': False}" "$(rd "$R" "d['rungs']['known limitations']")"
-check "screenshots rung" "{'heading': 'Screenshots', 'line': 8, 'placeholder': False}" "$(rd "$R" "d['rungs']['screenshots']")"
-check "Environment is environment variables" "{'heading': 'Environment', 'line': 21, 'placeholder': False}" "$(rd "$R" "d['rungs']['environment variables']")"
+check "overview rung is placeholder" "{'heading': 'Overview', 'line': 3, 'placeholder': True, 'match': 'heading'}" "$(rd "$R" "d['rungs']['what it launches']")"
+check "one heading, two rungs" "{'heading': 'Requirements and Setup', 'line': 12, 'placeholder': False, 'match': 'heading'}|{'heading': 'Requirements and Setup', 'line': 12, 'placeholder': False, 'match': 'heading'}" "$(rd "$R" "'%s|%s' % (d['rungs']['prerequisites'], d['rungs']['installation'])")"
+check "FAQ is troubleshooting, placeholder" "{'heading': 'FAQ', 'line': 28, 'placeholder': True, 'match': 'heading'}" "$(rd "$R" "d['rungs']['troubleshooting']")"
+check "Known Issues is known limitations" "{'heading': 'Known Issues', 'line': 32, 'placeholder': False, 'match': 'heading'}" "$(rd "$R" "d['rungs']['known limitations']")"
+check "screenshots rung" "{'heading': 'Screenshots', 'line': 8, 'placeholder': False, 'match': 'heading'}" "$(rd "$R" "d['rungs']['screenshots']")"
+check "Environment is environment variables" "{'heading': 'Environment', 'line': 21, 'placeholder': False, 'match': 'heading'}" "$(rd "$R" "d['rungs']['environment variables']")"
 check "screenshots (badge excluded)" "[{'line': 9, 'alt': 'Session view', 'target': 'docs/session.png'}]" "$(rd "$R" "d['screenshots']")"
 check "env_vars" "17:assignment,21:heading,23:phrase" "$(rd "$R" "','.join('%s:%s' % (e['line'], e['match']) for e in d['env_vars'])")"
 check "placeholder file is seeded" "True" "$(yn grep -qxF '[Application Name]' "$SCRIPT_DIR/references/readme-placeholders.txt")"
@@ -834,16 +839,19 @@ check "curl-pipe candidates" "interpolation:submit.yml.erb:7,interpolation:submi
 check "curl-pipe counts" "interpolation=9,eval_exec=2,network_call=1,config_flag=6" "$(sc "$D" "$D" batch_connect "$NZ")"
 check "curl-pipe scope takes Singularity.def" "True" "$(sc "$D" "$D" batch_connect "'Singularity.def' in d['files']")"
 check "curl-pipe submit interpolations (quoted, unguarded)" "7:num_cores:False:True|9:bc_num_hours:False:True" "$(sc "$D" "$D" batch_connect "$FL3 $IF'submit.yml.erb'])")"
-check "curl-pipe template interpolations: guarded by the enclosing if, quoted by the shell line" "7:conda_env_name:False:False|9:conda_env_name:False:False|10:conda_env_name:False:False|15:extra_packages:True:True|20:pip_index_url:True:True|25:setup_script_url:True:True|26:setup_script_url:True:True" "$(sc "$D" "$D" batch_connect "$FL3 $IF'template/script.sh.erb'])")"
+check "curl-pipe template interpolations: guarded by the enclosing if, quoted by the shell line" "7:conda_env_name:False:False|9:conda_env_name:False:False|10:conda_env_name:False:False|15:extra_packages:False:True|20:pip_index_url:False:True|25:setup_script_url:False:True|26:setup_script_url:False:True" "$(sc "$D" "$D" batch_connect "$FL3 $IF'template/script.sh.erb'])")"
+check "curl-pipe presence checks come from the enclosing if" "7:False|9:False|10:False|15:True|20:True|25:True|26:True" "$(sc "$D" "$D" batch_connect "'|'.join('%s:%s' % (c['line'], c['presence_checked']) for c in $IF'template/script.sh.erb'])")"
+check "shell double quotes still expand \$(...)" "True" "$(sc "$D" "$D" batch_connect "$IF'template/script.sh.erb'][-1]['note'].endswith('quoted (shell), still expands \$(...)')")"
 check "curl | bash is curl-pipe-exec, eval is eval-exec" "15:eval-exec|26:curl-pipe-exec" "$(sc "$D" "$D" batch_connect "'|'.join('%s:%s' % (c['line'], c['tag']) for c in $BY'eval_exec'])")"
 check "curl-pipe config flag rules and tags" "20:OODT-08:supply-chain-untrusted-index|32:OODT-05:bind-all-interfaces|34:OODT-05:disabled-auth|35:OODT-05:disabled-auth|36:OODT-05:cors-wildcard|37:OODT-05:disabled-xsrf" "$(sc "$D" "$D" batch_connect "'|'.join('%s:%s:%s' % (c['line'], c['rule'], c['tag']) for c in $BY'config_flag'])")"
 check "network call shape" "network_call|sec-network-call|OODT-04|unexpected-network-call|curl -fsSL \"<%= context.setup_script_url %>\" | bash" "$(sc "$D" "$D" batch_connect "'|'.join(str($BY'network_call'][0][k]) for k in ('kind','check','rule','tag','text'))")"
 check "interpolation note names the widget" "True" "$(sc "$D" "$D" batch_connect "'extra_packages (text_area)' in $BY'interpolation'][5]['note']")"
 D="$FIX/containerized-server"
 check "containerized-server candidates" "interpolation:submit.yml.erb:7,interpolation:submit.yml.erb:9,interpolation:submit.yml.erb:10,interpolation:submit.yml.erb:12,config_flag:template/create_nginx_conf.sh.erb:17,interpolation:template/script.sh.erb:9,interpolation:template/script.sh.erb:22,interpolation:template/script.sh.erb:23,config_flag:template/script.sh.erb:24" "$(sc "$D" "$D" batch_connect "$CL")"
-check "containerized-server submit flags" "7:csc_cores:False:True|9:csc_time:False:True|10:csc_memory:False:True|12:csc_nvme:True:True" "$(sc "$D" "$D" batch_connect "$FL3 $IF'submit.yml.erb'])")"
+check "containerized-server submit flags" "7:csc_cores:False:True|9:csc_time:False:True|10:csc_memory:False:True|12:csc_nvme:False:True" "$(sc "$D" "$D" batch_connect "$FL3 $IF'submit.yml.erb'])")"
 check "containerized-server CORS" "OODT-05|cors-wildcard" "$(sc "$D" "$D" batch_connect "'%s|%s' % ($BY'config_flag'][0]['rule'], $BY'config_flag'][0]['tag'])")"
 D="$FIX/passenger-flask-app"
+check "passenger-flask chmod note: mode, not world-writable" "chmod 0o700, not world-writable" "$(sc "$D" "$D" passenger "$BY'permission_change'][0]['note']")"
 check "passenger-flask candidates" "eval_exec:app.py:27,eval_exec:app.py:36,permission_change:app.py:68,eval_exec:app.py:69,eval_exec:app.py:80" "$(sc "$D" "$D" passenger "$CL")"
 check "shell=True is command-injection, noted with its line" "command-injection|True" "$(sc "$D" "$D" passenger "'%s|%s' % (d['candidates'][1]['tag'], 'shell=True (line 38)' in d['candidates'][1]['note'])")"
 check "passenger scope: all source; docs, LICENSE and requirements.txt left out" "all_source|app.py,bin/python,cloud_auth/__init__.py,cloud_auth/utils.py,manifest.yml,passenger_wsgi.py" "$(sc "$D" "$D" passenger "d['scope'] + '|' + ','.join(d['files'])")"
@@ -888,7 +896,7 @@ check "counts all 1" "$(echo "$KINDS" | tr ',' '\n' | sed 's/$/=1/' | paste -sd,
 check "rules and checks by kind" "OODT-04:sec-binary-in-template,OODT-01:sec-interpolation,OODT-01:sec-interpolation,OODT-04:sec-network-call,OODT-01:sec-eval-exec,OODT-07:sec-file-write-outside-job,OODT-03:sec-permissive-mode,OODT-02:sec-credential-string,OODT-05:sec-config-flag" "$(sc "$T" "$T" batch_connect "','.join('%s:%s' % (c['rule'], c['check']) for c in d['candidates'])")"
 check "tags by kind" "binary-in-template,unsanitized-user-input,unquoted-variable,unexpected-network-call,eval-exec,dotfile-write,permissive-file-mode,hardcoded-credential,bind-all-interfaces" "$(sc "$T" "$T" batch_connect "','.join(str(c['tag']) for c in d['candidates'])")"
 check "unquoted expansion names the variable and its attribute" "True|True" "$(sc "$T" "$T" batch_connect "'%s|%s' % ('\$RUNDIR' in d['candidates'][2]['note'], 'wd' in d['candidates'][2]['note'])")"
-check "world-writable mode is noted" "True" "$(sc "$T" "$T" batch_connect "'world-writable' in d['candidates'][6]['note']")"
+check "mode and world-writable are noted" "chmod 777, world-writable" "$(sc "$T" "$T" batch_connect "d['candidates'][6]['note']")"
 check "binary text; quiet.sh scanned" "binary file (12 bytes)|True" "$(sc "$T" "$T" batch_connect "d['candidates'][0]['text'] + '|' + str('template/quiet.sh' in d['files'])")"
 printf '#!/bin/bash\neval "%0300d"\n' 0 > "$T/template/long.sh"
 check "text capped at 200 chars" "200" "$(sc "$T" "$T" batch_connect "len([c for c in d['candidates'] if c['file']=='template/long.sh'][0]['text'])")"
@@ -918,15 +926,34 @@ script:
    <%- end %>
    <%- end -%>
 YML
-check "every interpolation with its line and flags" "6:custom_reservation:False:False|7:custom_email_address:False:False|9:custom_memory_per_node:True:True|10:custom_time:True:True|11:custom_num_cores:True:True|13:custom_num_gpus:True:True|17:extra_slurm:True:True" "$(sc "$T" "$T" batch_connect "$FL3 d['candidates'])")"
+check "every interpolation with its line and flags" "6:custom_reservation:False:False|7:custom_email_address:False:False|9:custom_memory_per_node:False:True|10:custom_time:False:True|11:custom_num_cores:True:True|13:custom_num_gpus:True:True|17:extra_slurm:False:True" "$(sc "$T" "$T" batch_connect "$FL3 d['candidates'])")"
+check "presence checks: inline blank?, enclosing if / unless" "6:False|7:False|9:True|10:True|11:True|13:True|17:True" "$(sc "$T" "$T" batch_connect "'|'.join('%s:%s' % (c['line'], c['presence_checked']) for c in d['candidates'])")"
+check "YAML quotes are named as such" "True|True" "$(sc "$T" "$T" batch_connect "'%s|%s' % (d['candidates'][6]['note'].endswith('quoted (YAML)'), d['candidates'][0]['note'].endswith('unquoted'))")"
 check "the block variable and the YAML key are in the note" "True|True" "$(sc "$T" "$T" batch_connect "'%s|%s' % ('via slurm_option' in d['candidates'][6]['note'], 'script.native' in d['candidates'][6]['note'])")"
 check "form.json: extra_slurm reaches the scheduler through the block" "[15, 16]|True" "$(fm "$T" "$FL $A'extra_slurm'] for k in ('submit_lines','reaches_scheduler'))")"
 T="$TMP/t46b"; mkdir -p "$T/template"
 printf 'attributes:\n  n:\n    widget: text_field\n' > "$T/form.yml"
 printf '#!/bin/bash\n# echo <%%= n %%>\n<%% if n.present? %%>\nA=<%%= n %%>\n<%% end %%>\nB="<%%= n %%>"; C=<%%= n.to_i %%>\n' > "$T/template/s.sh.erb"
 printf '#!/bin/bash\necho <%%= n %%>\n' > "$T/template/raw.sh"
-check "comment lines and non-.erb files are not interpolation; a line is quoted only if every tag is" "4:n:True:False|6:n:False:False" "$(sc "$T" "$T" batch_connect "$FL3 d['candidates'])")"
-check "coercion is noted" "True" "$(sc "$T" "$T" batch_connect "'.to_i' in d['candidates'][1]['note']")"
+check "comment lines and non-.erb files are not interpolation; a line is quoted only if every tag is" "4:n:False:False|6:n:False:False" "$(sc "$T" "$T" batch_connect "$FL3 d['candidates'])")"
+check "sanitiser is noted" "True" "$(sc "$T" "$T" batch_connect "'sanitised by .to_i' in d['candidates'][1]['note']")"
+T="$TMP/t46c"; mkdir -p "$T/template"
+printf 'attributes:\n  x:\n    widget: text_field\n  y:\n    widget: text_field\n' > "$T/form.yml"
+cat > "$T/template/g.sh.erb" <<'SH'
+#!/bin/bash
+A=<%= x.shellescape %>
+B=<%= x.blank? ? 'a' : x %>
+C=<%= Shellwords.escape(y) %>
+<% if y =~ /\A\w+\z/ %>
+D=<%= y %>
+<% end %>
+<% if %w[a b].include?(x) %>
+E=<%= x %>
+<% end %>
+F=<%= x.to_s.to_i %>
+G=<%= x == "1" ? 'lab' : 'tree' %>
+SH
+check "guarded means sanitised or validated; presence is separate" "2:True:False|3:False:True|4:True:False|6:True:True|9:True:True|11:True:False|12:True:True" "$(sc "$T" "$T" batch_connect "'|'.join('%s:%s:%s' % (c['line'], c['guarded'], c['presence_checked']) for c in d['candidates'] if c['kind']=='interpolation')")"
 
 echo "Test 47: security scope, monorepo, shared_paths, skipped files, summary record"
 T="$TMP/t47"; mkdir -p "$T/apps/p/node_modules/x" "$T/apps/p/vendor" "$T/shared" "$T/apps/b/template"
@@ -947,7 +974,7 @@ check "passenger app: repo-relative files, shared_paths added, vendored and doc 
 check "passenger app files: tests, docs, images, vendored code out" "apps/p/Gemfile,apps/p/lib/deny.rb,apps/p/passenger_wsgi.py,shared/lib.sh" "$(sc "$T/apps/p" "$T" passenger "','.join(d['files'])")"
 check "passenger app skipped files" "../outside:shared path outside target, not read|apps/p/blob.dat:binary file, not scanned|apps/p/leak.py:symlink outside target, not checked" "$(sc "$T/apps/p" "$T" passenger "'|'.join('%s:%s' % (s['file'], s['reason']) for s in d['skipped_files'])")"
 check "batch connect app: template, Dockerfile and shared_paths; other source out" "eval_exec:apps/b/Dockerfile:2,network_call:apps/b/Dockerfile:2,permission_change:apps/b/template/s.sh:2,eval_exec:shared/lib.sh:2,network_call:shared/lib.sh:2" "$(sc "$T/apps/b" "$T" batch_connect "$CL")"
-check "umask 000 is world-writable" "True" "$(sc "$T/apps/b" "$T" batch_connect "'world-writable' in $BY'permission_change'][0]['note']")"
+check "umask 000 is world-writable" "umask 000, world-writable" "$(sc "$T/apps/b" "$T" batch_connect "$BY'permission_change'][0]['note']")"
 check "record: ran per app, counts in the note" "ran|{'p': 'ran', 'b': 'ran'}|p: eval_exec 2, network_call 1; b: eval_exec 2, network_call 2, permission_change 1|<app_id>/security.json" "$(rec security "$T" "$TMP/o47" "'%s|%s|%s|%s' % (c['status'], c['per_app'], c['note'], c['output_file'])")"
 check "security.json written per app" "True|True" "$(yn test -e "$TMP/o47/p/security.json")|$(yn test -e "$TMP/o47/b/security.json")"
 T="$TMP/t47b"; mkdir -p "$T"; printf 'name: x\n' > "$T/manifest.yml"; printf '# x\n' > "$T/README.md"
@@ -957,5 +984,37 @@ check "an app with no in-scope file: skipped, noted" "skipped|root: no in-scope 
 O="$TMP/o47e"
 check "end to end exit 0" 0 "$(e2e "$FIX/containerized-server" "$O")"
 check "end to end: security record and security.json" "ran|{'root': 'ran'}|root: interpolation 7, config_flag 2|7" "$(fct "$O" security status)|$(fct "$O" security per_app)|$(fct "$O" security note)|$(fact "$O" root security "d['counts']['interpolation']")"
+
+echo "Test 48: security review fixes: images, write targets, set -x, Ruby commands, binds, URLs"
+T="$TMP/t48"; mkdir -p "$T/template/assets"
+printf 'x: 1\n' > "$T/form.yml"
+printf '\211PNG\r\n\032\n\0\0\0\rIHDR\0\0\0\1' > "$T/template/assets/logo.png"
+printf 'wOFF\0\1\0\0' > "$T/template/assets/f.woff"
+cat > "$T/template/script.sh" <<'SH'
+#!/bin/bash
+set -x
+cp out.log /tmp/run.log
+echo done > $HOME/notes.txt
+tee -a /usr/local/share/x.conf < in
+chmod 700 "$d"
+chmod u+x run.sh
+chmod o+w shared.txt
+SH
+check "images and fonts are not binary candidates, and are listed as skipped" "file_write_outside_job:3,file_write_outside_job:4,file_write_outside_job:5|template/assets/f.woff:woff file (by its magic bytes), not a candidate|template/assets/logo.png:png file (by its magic bytes), not a candidate" "$(sc "$T" "$T" batch_connect "','.join('%s:%s' % (c['kind'], c['line']) for c in d['candidates'] if c['kind'] in ('binary_in_template','file_write_outside_job')) + '|' + '|'.join('%s:%s' % (s['file'], s['reason']) for s in d['skipped_files'])")"
+check "non-dotfile targets are write-outside-job" "write-outside-job|write-outside-job|write-outside-job" "$(sc "$T" "$T" batch_connect "'|'.join(c['tag'] for c in $BY'file_write_outside_job'])")"
+check "set -x note says where the trace goes" "shell tracing on; trace output goes to the job's own output.log; world-readable only if the job directory is" "$(sc "$T" "$T" batch_connect "$BY'config_flag'][0]['note']")"
+check "permission notes state the mode" "chmod 700, not world-writable|chmod u+x, not world-writable|chmod o+w, world-writable" "$(sc "$T" "$T" batch_connect "'|'.join(c['note'] for c in $BY'permission_change'])")"
+check "write-outside-job is in the OODT-07 vocabulary" "1" "$(grep -c '`write-outside-job`' "$SCRIPT_DIR/references/finding-codes.md")"
+T="$TMP/t48b"; mkdir -p "$T"
+printf 'run App\n' > "$T/config.ru"
+cat > "$T/app.rb" <<'RB'
+out = `ls #{params[:dir]}`
+out2 = %x(ls #{params[:dir]})
+url = "http://#{host}/x"
+name = Foo::Bar.split('::')
+RB
+printf "app.listen(3000, '::')\nserver.listen(3000, 'localhost')\n" > "$T/server.js"
+check "Ruby backticks and %x() are eval_exec; #{} host is no URL; listen '::' binds" "eval_exec:app.rb:1,eval_exec:app.rb:2,config_flag:server.js:1" "$(sc "$T" "$T" passenger "$CL")"
+check "companion app gets entry_point.json" "ran|{'root': 'ran'}|config.ru" "$(printf 'app_type: companion\n' > "$T/appverse.yml"; rec entry_point "$T" "$TMP/o48" "'%s|%s' % (c['status'], c['per_app'])")|$(j "$TMP/o48/root/entry_point.json" "d['file']")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
