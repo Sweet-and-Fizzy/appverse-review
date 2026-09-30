@@ -1,0 +1,209 @@
+# Appverse review checks manifest.
+#
+# One entry per check the per-app report must carry a row for. The report
+# marks a row with `check: <id>` in its Check column; references/check-rows.py
+# verifies one row per applicable check per app, and that every candidate the
+# pre-review facts list is answered (R1). tests/test-docs-spine.sh verifies
+# every `check: <id>` in review-rubric.md is an id here, and every
+# code_quality id appears in the rubric's Code Quality section.
+#
+# This file is for humans. Scripts read checks.json, generated from it:
+#     python3 references/checks-sync.py            # write checks.json
+#     python3 references/checks-sync.py --verify   # exit 1 when out of sync
+#
+# Fields:
+#   id           the `check: <id>` label
+#   section      the rubric H2/H3 the check lives under
+#   app_types    batch_connect, passenger, companion, widget
+#   fact_source  the pre-review fact file(s) listing candidates, or none
+#   rule         the rule code findings for this check use
+#   row_required always: a row for every applicable app; when_candidates:
+#                a row only when the facts list a candidate (Security is
+#                row-per-candidate)
+#   dimension    structure, security, portability, documentation, code_quality
+#
+# Passenger apps: str-06-syntax and the Batch Connect facts (form.json,
+# template.json) do not apply; entry-point-parses applies instead.
+
+checks:
+  # Structure
+  - id: str-02-metadata
+    section: Repository structure
+    app_types: [batch_connect, passenger, companion, widget]
+    fact_source: none
+    rule: STR-02
+    row_required: always
+    dimension: structure
+  - id: str-03-yaml-valid
+    section: Validity
+    app_types: [batch_connect, passenger, companion, widget]
+    fact_source: none
+    rule: STR-03
+    row_required: always
+    dimension: structure
+  - id: str-06-syntax
+    section: Validity
+    app_types: [batch_connect]
+    fact_source: syntax.json
+    rule: STR-06
+    row_required: always
+    dimension: structure
+  - id: str-07-layout
+    section: Batch Connect layout
+    app_types: [batch_connect]
+    fact_source: none
+    rule: STR-07
+    row_required: always
+    dimension: structure
+  - id: entry-point-parses
+    section: Batch Connect layout
+    app_types: [passenger, companion]
+    fact_source: entry_point.json
+    rule: STR-07
+    row_required: always
+    dimension: structure
+  - id: str-04-references
+    section: Validity
+    app_types: [batch_connect, passenger, companion, widget]
+    fact_source: none
+    rule: STR-04
+    row_required: always
+    dimension: structure
+
+  # Security: row-per-candidate, so a row is required only when
+  # security.json lists a candidate of the check's kind.
+  - id: sec-interpolation
+    section: Pattern checks (all app types)
+    app_types: [batch_connect, passenger, companion, widget]
+    fact_source: security.json
+    rule: OODT-01
+    row_required: when_candidates
+    dimension: security
+  - id: sec-eval-exec
+    section: Pattern checks (all app types)
+    app_types: [batch_connect, passenger, companion, widget]
+    fact_source: security.json
+    rule: OODT-01
+    row_required: when_candidates
+    dimension: security
+  - id: sec-credential-string
+    section: Pattern checks (all app types)
+    app_types: [batch_connect, passenger, companion, widget]
+    fact_source: security.json
+    rule: OODT-02
+    row_required: when_candidates
+    dimension: security
+  - id: sec-permissive-mode
+    section: Pattern checks (all app types)
+    app_types: [batch_connect, passenger, companion, widget]
+    fact_source: security.json
+    rule: OODT-03
+    row_required: when_candidates
+    dimension: security
+  # A network call is OODT-04 (exfiltration); record OODT-05 instead when the
+  # call exposes a service to other users.
+  - id: sec-network-call
+    section: Pattern checks (all app types)
+    app_types: [batch_connect, passenger, companion, widget]
+    fact_source: security.json
+    rule: OODT-04
+    row_required: when_candidates
+    dimension: security
+  - id: sec-file-write-outside-job
+    section: Pattern checks (all app types)
+    app_types: [batch_connect, passenger, companion, widget]
+    fact_source: security.json
+    rule: OODT-07
+    row_required: when_candidates
+    dimension: security
+  # --no-auth, --disable-ssl, 0.0.0.0, CORS wildcard
+  - id: sec-config-flag
+    section: Pattern checks (all app types)
+    app_types: [batch_connect, passenger, companion, widget]
+    fact_source: security.json
+    rule: OODT-08
+    row_required: when_candidates
+    dimension: security
+  - id: sec-binary-in-template
+    section: Pattern checks (all app types)
+    app_types: [batch_connect, passenger, companion, widget]
+    fact_source: security.json
+    rule: OODT-04
+    row_required: when_candidates
+    dimension: security
+
+  # Portability
+  - id: hardcoded-site-paths
+    section: Portability
+    app_types: [batch_connect]
+    fact_source: template.json
+    rule: QUA-02
+    row_required: always
+    dimension: portability
+  - id: portability-rating
+    section: Portability
+    app_types: [batch_connect, passenger, companion, widget]
+    fact_source: none
+    rule: QUA-02
+    row_required: always
+    dimension: portability
+
+  # Documentation
+  - id: documentation-rating
+    section: Documentation
+    app_types: [batch_connect, passenger, companion, widget]
+    fact_source: readme.json
+    rule: QUA-01
+    row_required: always
+    dimension: documentation
+
+  # Code Quality
+  - id: error-handling
+    section: Code Quality
+    app_types: [batch_connect, passenger, companion, widget]
+    fact_source: none
+    rule: QUA-03
+    row_required: always
+    dimension: code_quality
+  - id: numeric-field-bounds
+    section: Code Quality
+    app_types: [batch_connect]
+    fact_source: form.json
+    rule: QUA-07
+    row_required: always
+    dimension: code_quality
+  - id: magic-numbers
+    section: Code Quality
+    app_types: [batch_connect]
+    fact_source: template.json
+    rule: QUA-08
+    row_required: always
+    dimension: code_quality
+  - id: duplicated-blocks
+    section: Code Quality
+    app_types: [batch_connect, passenger, companion, widget]
+    fact_source: none
+    rule: QUA-09
+    row_required: always
+    dimension: code_quality
+  - id: dead-code
+    section: Code Quality
+    app_types: [batch_connect]
+    fact_source: template.json
+    rule: QUA-04
+    row_required: always
+    dimension: code_quality
+  - id: erb-missing-value
+    section: Code Quality
+    app_types: [batch_connect]
+    fact_source: form.json
+    rule: QUA-10
+    row_required: always
+    dimension: code_quality
+  - id: icon-matches-target-os
+    section: Code Quality
+    app_types: [batch_connect]
+    fact_source: [template.json, readme.json]
+    rule: QUA-06
+    row_required: always
+    dimension: code_quality

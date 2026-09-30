@@ -83,6 +83,50 @@ stale=$(git grep -n -F -e "security-rubric.md" -e "appverse-security-rubric" \
   -- . ':!docs' ':!reviews' ':!tests' ':!references/review-rubric.md' || true)
 [ -z "$stale" ] && ok "no stale references" || { bad "no stale references"; echo "$stale"; }
 
+echo "Test 9: the checks manifest and the rubric agree (never skipped)"
+MANIFEST=references/checks.json
+manifest_ids=$(python3 -c 'import json,sys; [print(c["id"]) for c in json.load(open(sys.argv[1]))["checks"]]' "$MANIFEST" 2>/dev/null)
+[ -n "$manifest_ids" ] && ok "checks.json loads" || bad "checks.json loads"
+yml_ids=$(sed -n 's/^  - id: *//p' references/checks.yml)
+[ "$yml_ids" = "$manifest_ids" ] && ok "checks.yml and checks.json list the same ids in order" \
+  || { bad "checks.yml and checks.json list the same ids in order"; diff <(echo "$yml_ids") <(echo "$manifest_ids"); }
+unknown=""
+for id in $(grep -oE '`check: [A-Za-z0-9_.-]+`' "$RUBRIC" | sed 's/`check: //; s/`$//' | sort -u); do
+  echo "$manifest_ids" | grep -qxF -- "$id" || unknown="$unknown $id"
+done
+[ -z "$unknown" ] && ok "every rubric check: id is a manifest id" || bad "every rubric check: id is a manifest id (unknown:$unknown)"
+cq_section=$(awk '/^## Code Quality$/{f=1; next} /^## /{f=0} f' "$RUBRIC")
+cq_ids=$(python3 -c 'import json,sys; [print(c["id"]) for c in json.load(open(sys.argv[1]))["checks"] if c["dimension"] == "code_quality"]' "$MANIFEST" 2>/dev/null)
+[ -n "$cq_ids" ] && ok "manifest has code_quality checks" || bad "manifest has code_quality checks"
+for id in $cq_ids; do
+  echo "$cq_section" | grep -qF -- "\`check: $id\`" && ok "Code Quality names check: $id" || bad "Code Quality names check: $id"
+done
+
+echo "Test 10: checks.json is generated from checks.yml"
+python3 references/checks-sync.py --verify > /dev/null 2>&1; rc=$?
+case $rc in
+  0) ok "checks-sync.py --verify" ;;
+  3) echo "  SKIP  checks-sync.py --verify (PyYAML not installed)" ;;
+  *) bad "checks-sync.py --verify (exit $rc; run python3 references/checks-sync.py)" ;;
+esac
+# The verify path itself, with a stub yaml module that returns checks.json's
+# data (in sync) or that data minus its last check (out of sync).
+STUB=$(mktemp -d); trap 'rm -rf "$STUB"' EXIT
+cat > "$STUB/yaml.py" <<'PY'
+import json, os
+class YAMLError(Exception):
+    pass
+def safe_load(f):
+    data = json.load(open(os.environ["STUB_JSON"]))
+    if os.environ.get("STUB_DRIFT"):
+        data["checks"].pop()
+    return data
+PY
+STUB_JSON="$MANIFEST" PYTHONPATH="$STUB" python3 references/checks-sync.py --verify > /dev/null 2>&1
+[ $? -eq 0 ] && ok "verify passes when the YAML data matches checks.json" || bad "verify passes when the YAML data matches checks.json"
+STUB_JSON="$MANIFEST" STUB_DRIFT=1 PYTHONPATH="$STUB" python3 references/checks-sync.py --verify > /dev/null 2>&1
+[ $? -eq 1 ] && ok "verify fails (exit 1) when they differ" || bad "verify fails (exit 1) when they differ"
+
 echo
 echo "Done: $pass passed, $fail failed."
 [ "$fail" -eq 0 ]

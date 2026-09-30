@@ -1,0 +1,317 @@
+{
+  "checks": [
+    {
+      "id": "str-02-metadata",
+      "section": "Repository structure",
+      "app_types": [
+        "batch_connect",
+        "passenger",
+        "companion",
+        "widget"
+      ],
+      "fact_source": "none",
+      "rule": "STR-02",
+      "row_required": "always",
+      "dimension": "structure"
+    },
+    {
+      "id": "str-03-yaml-valid",
+      "section": "Validity",
+      "app_types": [
+        "batch_connect",
+        "passenger",
+        "companion",
+        "widget"
+      ],
+      "fact_source": "none",
+      "rule": "STR-03",
+      "row_required": "always",
+      "dimension": "structure"
+    },
+    {
+      "id": "str-06-syntax",
+      "section": "Validity",
+      "app_types": [
+        "batch_connect"
+      ],
+      "fact_source": "syntax.json",
+      "rule": "STR-06",
+      "row_required": "always",
+      "dimension": "structure"
+    },
+    {
+      "id": "str-07-layout",
+      "section": "Batch Connect layout",
+      "app_types": [
+        "batch_connect"
+      ],
+      "fact_source": "none",
+      "rule": "STR-07",
+      "row_required": "always",
+      "dimension": "structure"
+    },
+    {
+      "id": "entry-point-parses",
+      "section": "Batch Connect layout",
+      "app_types": [
+        "passenger",
+        "companion"
+      ],
+      "fact_source": "entry_point.json",
+      "rule": "STR-07",
+      "row_required": "always",
+      "dimension": "structure"
+    },
+    {
+      "id": "str-04-references",
+      "section": "Validity",
+      "app_types": [
+        "batch_connect",
+        "passenger",
+        "companion",
+        "widget"
+      ],
+      "fact_source": "none",
+      "rule": "STR-04",
+      "row_required": "always",
+      "dimension": "structure"
+    },
+    {
+      "id": "sec-interpolation",
+      "section": "Pattern checks (all app types)",
+      "app_types": [
+        "batch_connect",
+        "passenger",
+        "companion",
+        "widget"
+      ],
+      "fact_source": "security.json",
+      "rule": "OODT-01",
+      "row_required": "when_candidates",
+      "dimension": "security"
+    },
+    {
+      "id": "sec-eval-exec",
+      "section": "Pattern checks (all app types)",
+      "app_types": [
+        "batch_connect",
+        "passenger",
+        "companion",
+        "widget"
+      ],
+      "fact_source": "security.json",
+      "rule": "OODT-01",
+      "row_required": "when_candidates",
+      "dimension": "security"
+    },
+    {
+      "id": "sec-credential-string",
+      "section": "Pattern checks (all app types)",
+      "app_types": [
+        "batch_connect",
+        "passenger",
+        "companion",
+        "widget"
+      ],
+      "fact_source": "security.json",
+      "rule": "OODT-02",
+      "row_required": "when_candidates",
+      "dimension": "security"
+    },
+    {
+      "id": "sec-permissive-mode",
+      "section": "Pattern checks (all app types)",
+      "app_types": [
+        "batch_connect",
+        "passenger",
+        "companion",
+        "widget"
+      ],
+      "fact_source": "security.json",
+      "rule": "OODT-03",
+      "row_required": "when_candidates",
+      "dimension": "security"
+    },
+    {
+      "id": "sec-network-call",
+      "section": "Pattern checks (all app types)",
+      "app_types": [
+        "batch_connect",
+        "passenger",
+        "companion",
+        "widget"
+      ],
+      "fact_source": "security.json",
+      "rule": "OODT-04",
+      "row_required": "when_candidates",
+      "dimension": "security"
+    },
+    {
+      "id": "sec-file-write-outside-job",
+      "section": "Pattern checks (all app types)",
+      "app_types": [
+        "batch_connect",
+        "passenger",
+        "companion",
+        "widget"
+      ],
+      "fact_source": "security.json",
+      "rule": "OODT-07",
+      "row_required": "when_candidates",
+      "dimension": "security"
+    },
+    {
+      "id": "sec-config-flag",
+      "section": "Pattern checks (all app types)",
+      "app_types": [
+        "batch_connect",
+        "passenger",
+        "companion",
+        "widget"
+      ],
+      "fact_source": "security.json",
+      "rule": "OODT-08",
+      "row_required": "when_candidates",
+      "dimension": "security"
+    },
+    {
+      "id": "sec-binary-in-template",
+      "section": "Pattern checks (all app types)",
+      "app_types": [
+        "batch_connect",
+        "passenger",
+        "companion",
+        "widget"
+      ],
+      "fact_source": "security.json",
+      "rule": "OODT-04",
+      "row_required": "when_candidates",
+      "dimension": "security"
+    },
+    {
+      "id": "hardcoded-site-paths",
+      "section": "Portability",
+      "app_types": [
+        "batch_connect"
+      ],
+      "fact_source": "template.json",
+      "rule": "QUA-02",
+      "row_required": "always",
+      "dimension": "portability"
+    },
+    {
+      "id": "portability-rating",
+      "section": "Portability",
+      "app_types": [
+        "batch_connect",
+        "passenger",
+        "companion",
+        "widget"
+      ],
+      "fact_source": "none",
+      "rule": "QUA-02",
+      "row_required": "always",
+      "dimension": "portability"
+    },
+    {
+      "id": "documentation-rating",
+      "section": "Documentation",
+      "app_types": [
+        "batch_connect",
+        "passenger",
+        "companion",
+        "widget"
+      ],
+      "fact_source": "readme.json",
+      "rule": "QUA-01",
+      "row_required": "always",
+      "dimension": "documentation"
+    },
+    {
+      "id": "error-handling",
+      "section": "Code Quality",
+      "app_types": [
+        "batch_connect",
+        "passenger",
+        "companion",
+        "widget"
+      ],
+      "fact_source": "none",
+      "rule": "QUA-03",
+      "row_required": "always",
+      "dimension": "code_quality"
+    },
+    {
+      "id": "numeric-field-bounds",
+      "section": "Code Quality",
+      "app_types": [
+        "batch_connect"
+      ],
+      "fact_source": "form.json",
+      "rule": "QUA-07",
+      "row_required": "always",
+      "dimension": "code_quality"
+    },
+    {
+      "id": "magic-numbers",
+      "section": "Code Quality",
+      "app_types": [
+        "batch_connect"
+      ],
+      "fact_source": "template.json",
+      "rule": "QUA-08",
+      "row_required": "always",
+      "dimension": "code_quality"
+    },
+    {
+      "id": "duplicated-blocks",
+      "section": "Code Quality",
+      "app_types": [
+        "batch_connect",
+        "passenger",
+        "companion",
+        "widget"
+      ],
+      "fact_source": "none",
+      "rule": "QUA-09",
+      "row_required": "always",
+      "dimension": "code_quality"
+    },
+    {
+      "id": "dead-code",
+      "section": "Code Quality",
+      "app_types": [
+        "batch_connect"
+      ],
+      "fact_source": "template.json",
+      "rule": "QUA-04",
+      "row_required": "always",
+      "dimension": "code_quality"
+    },
+    {
+      "id": "erb-missing-value",
+      "section": "Code Quality",
+      "app_types": [
+        "batch_connect"
+      ],
+      "fact_source": "form.json",
+      "rule": "QUA-10",
+      "row_required": "always",
+      "dimension": "code_quality"
+    },
+    {
+      "id": "icon-matches-target-os",
+      "section": "Code Quality",
+      "app_types": [
+        "batch_connect"
+      ],
+      "fact_source": [
+        "template.json",
+        "readme.json"
+      ],
+      "rule": "QUA-06",
+      "row_required": "always",
+      "dimension": "code_quality"
+    }
+  ]
+}
