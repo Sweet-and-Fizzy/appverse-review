@@ -427,9 +427,11 @@ if has_sc; then
   O="$TMP/o31"
   check "exit 0" 0 "$(PATH="$FB" "$FB/bash" "$RUN" "$FIX/containerized-server" "$O" > "$TMP/stdout" 2> "$TMP/stderr"; echo $?)"
   # The shellcheck Result is recomputed from shellcheck.json so the test holds across shellcheck versions.
-  SC_RESULT="$(python3 -c 'import json,sys,collections; d=json.load(open(sys.argv[1])); c=collections.Counter("SC%s" % e["code"] for e in d); print("%d findings (%s)" % (len(d), ", ".join(k for k, _ in sorted(c.items(), key=lambda kv: (-kv[1], kv[0]))[:5])))' "$O/shellcheck.json")"
+  SC_RESULT="$(python3 -c 'import json,sys,collections; d=json.load(open(sys.argv[1])); c=collections.Counter("SC%s" % e["code"] for e in d); print("%d findings, 3 of them ERB-stripping artefacts (%s)" % (len(d), ", ".join(k for k, _ in sorted(c.items(), key=lambda kv: (-kv[1], kv[0]))[:5])))' "$O/shellcheck.json")"
+  # after.sh's app_port and port (OOD contract names) and before.sh.erb's SC1091
+  check "artifact_count: SC2154 app_port and port in after.sh, SC1091 in before.sh.erb" "3" "$(chk "$O" shellcheck artifact_count)"
   check "exact contents" "$(printf '%s\n' '**Check tiers:** Tiers 1–2' '' 'Tier 3 not checked — no isolated execution environment.' '' '| Tool | Status | Result |' '|---|---|---|' "| shellcheck | Run (ERB-stripped) | $SC_RESULT |" '| semgrep | Not run (not installed) | — |' '| bandit | Not run (no applicable files) | — |' '| trivy | Not run (no applicable files) | — |')" "$(cat "$O/tool-table.md")"
-else skip "shellcheck not installed"; skip "shellcheck not installed"; fi
+else skip "shellcheck not installed"; skip "shellcheck not installed"; skip "shellcheck not installed"; fi
 
 # Fact scanners (apps.json, <out>/<app_id>/readme.json and form.json). Two
 # end-to-end runs (tools off PATH, so they are fast) cover the files and the
@@ -637,8 +639,8 @@ cat > "$T/template.md" <<'MD'
 - [Scheduler: Slurm / PBS / LSF]
 MD
 check "every section body is template placeholder text: stub" "True|0" "$(sf "$T/template.md")"
-{ printf 'This line is real text.\nSo is this one, above the title.\nAnd a third real line.\n\n'; cat "$T/template.md"; } > "$T/template3.md"
-check "three real lines before the first heading, every section body placeholder: not a stub (the preamble counts)" "False|3" "$(sf "$T/template3.md")"
+{ printf 'This app launches a desktop session on a compute node.\nIt needs the site VNC server and websockify.\nDeployers set the cluster name in form.yml.\n\n'; cat "$T/template.md"; } > "$T/template3.md"
+check "three real lines (over 100 characters) before the first heading, every section body placeholder: not a stub (the preamble counts)" "False|3" "$(sf "$T/template3.md")"
 # The Appverse README template's generic sections, verbatim
 # (tamu-edu/appverse_readme_template README.md lines 158-215: Testing through
 # License). Every line but the generic "[MIT License](LICENSE)" is template
@@ -1337,5 +1339,114 @@ PY
 check "16 distinct codes collapse to 16 (tool, code) candidates" "16" "$(sco "$T" "$T" batch_connect "$O" "len([c for c in d['candidates'] if c['kind']=='tool_finding'])")"
 check "counts.tool_finding_collapsed is set" "True" "$(sco "$T" "$T" batch_connect "$O" "d['counts'].get('tool_finding_collapsed')")"
 check "a collapsed candidate has no single file; lines carry file:line strings" "None|True" "$(sco "$T" "$T" batch_connect "$O" "'%s|%s' % ($BY'tool_finding'][0]['file'], all(':' in x for x in $BY'tool_finding'][0]['lines']))")"
+
+echo "Test 52: stub by content characters, not lines (wrap-independent)"
+T="$TMP/t52"; mkdir -p "$T"
+# sfc <README>: stub|content_line_count|content_chars
+sfc() { rd "$1" "'%s|%s|%s' % (d['stub'], d['content_line_count'], d['content_chars'])"; }
+check "passenger-flask-app: 176 characters on three lines, not a stub" "False|3|176" "$(sfc "$FIX/passenger-flask-app/README.md")"
+# the same README with its three content lines joined onto one line
+printf '# Job Monitor\n\n## Overview\n\n%s\n' "$(grep -v '^#' "$FIX/passenger-flask-app/README.md" | grep . | tr '\n' ' ' | sed 's/ $//')" > "$T/joined.md"
+check "passenger-flask-app with its content lines joined into one: still not a stub (176 plus the two joining spaces)" "False|1|178" "$(sfc "$T/joined.md")"
+check "broken-app: 0 characters, a stub" "True|0|0" "$(sfc "$FIX/broken-app/README.md")"
+check "the unfilled template: a stub" "True|0|0" "$(sfc "$TMP/t35c/template.md")"
+check "every fixture README but broken-app has at least 100 content characters" "monorepo:176,containerized-server:197,curl-pipe-installer:947,passenger-flask-app:176,vnc-stale-debugger:751" \
+  "$(px "import os; r=','.join('%s:%d' % (f, pr.scan_readme(open(os.path.join(A[0], f, 'README.md')).read(), pr.load_placeholders())['content_chars']) for f in ('monorepo','containerized-server','curl-pipe-installer','passenger-flask-app','vnc-stale-debugger'))" "$FIX")"
+printf '# App\n\nThis\napp\nlaunches.\n' > "$T/words.md"
+check "three one-word lines: a stub (the line rule said not)" "True|3|16" "$(sfc "$T/words.md")"
+
+echo "Test 53: shellcheck artefacts of linting OOD's job-script files one at a time"
+T="$TMP/t53"; mkdir -p "$T/template" "$T/lib"
+printf 'x: 1\n' > "$T/form.yml"
+printf 'export WORK_ROOT=/tmp/w\nmyvar=1\n' > "$T/template/before.sh.erb"
+printf '#!/bin/bash\necho "$port $myvar $other"\n' > "$T/template/script.sh.erb"
+printf 'echo "$host"\n' > "$T/template/after.sh"
+printf 'echo "$port"\n' > "$T/lib/helper.sh"
+# ta <rel> <code> <message>: tool_artifact over the t53 target
+ta() { px "r=pr.tool_artifact(A[0], A[1], A[2], A[3])" "$T" "$1" "$2" "$3"; }
+check "SC2148 on template/before.sh.erb: artefact" "True" "$(ta template/before.sh.erb SC2148 'Tips depend on target shell')"
+check "SC2148 on a .sh.erb anywhere: artefact" "True" "$(ta bin/run.sh.erb SC2148 'Tips depend on target shell')"
+check "SC2148 on lib/helper.sh (not an OOD job-script file): not an artefact" "False" "$(ta lib/helper.sh SC2148 'Tips depend on target shell')"
+check "SC2154 on an OOD contract name (port): artefact" "True" "$(ta template/script.sh.erb SC2154 'port is referenced but not assigned.')"
+check "SC2154 on a variable the sibling before.sh.erb assigns (export form too): artefact" "True|True" "$(ta template/script.sh.erb SC2154 'myvar is referenced but not assigned.')|$(ta template/after.sh SC2154 'WORK_ROOT is referenced but not assigned.')"
+check "SC2154 on a variable nothing assigns: a real finding" "False" "$(ta template/script.sh.erb SC2154 'other is referenced but not assigned.')"
+check "SC2154 on port outside the job-script files: a real finding" "False" "$(ta lib/helper.sh SC2154 'port is referenced but not assigned.')"
+check "SC1090 and SC1091 in a job-script file: artefacts" "True|True" "$(ta template/after.sh SC1090 "Can't follow non-constant source.")|$(ta template/after.sh SC1091 'Not following: x was not specified as input')"
+check "SC2086 in before.sh.erb: a real finding" "False" "$(ta template/before.sh.erb SC2086 'Double quote to prevent globbing')"
+O="$TMP/o53"; mkdir -p "$O"
+cat > "$O/shellcheck.json" <<'JSON'
+[{"file": "template/script.sh.erb", "line": 2, "level": "warning", "code": 2154, "message": "port is referenced but not assigned."},
+ {"file": "template/script.sh.erb", "line": 2, "level": "warning", "code": 2154, "message": "myvar is referenced but not assigned."},
+ {"file": "template/after.sh", "line": 1, "level": "warning", "code": 2154, "message": "host is referenced but not assigned."},
+ {"file": "template/after.sh", "line": 3, "level": "warning", "code": 2154, "message": "other is referenced but not assigned."},
+ {"file": "template/before.sh.erb", "line": 1, "level": "error", "code": 2148, "message": "Tips depend on target shell and yours is unknown."},
+ {"file": "template/before.sh.erb", "line": 2, "level": "info", "code": 2086, "message": "Double quote to prevent globbing."}]
+JSON
+check "candidate artifact: true only when every finding of (tool, code, file) is an artefact" \
+  "template/after.sh:SC2154:[1, 3]:False|template/before.sh.erb:SC2148:[1]:True|template/before.sh.erb:SC2086:[2]:False|template/script.sh.erb:SC2154:[2]:True" \
+  "$(sco "$T" "$T" batch_connect "$O" "'|'.join('%s:%s:%s:%s' % (c['file'], c['code'], c['lines'], c['artifact']) for c in $BY'tool_finding'])")"
+check "tool table: N findings, M of them ERB-stripping artefacts" "6 findings, 2 of them ERB-stripping artefacts (SC2154, SC2086, SC2148)" \
+  "$(px "r=pr._tool_result(dict(name='shellcheck', status='ran', finding_count=6, artifact_count=2, top_codes=['SC2154', 'SC2086', 'SC2148']))")"
+check "tool table: no artefacts, the result reads as before" "6 findings (SC2154, SC2086)|1 finding (SC2164)" \
+  "$(px "r=pr._tool_result(dict(name='shellcheck', status='ran', finding_count=6, artifact_count=0, top_codes=['SC2154', 'SC2086'])) + '|' + pr._tool_result(dict(name='shellcheck', status='ran', finding_count=1, top_codes=['SC2164']))")"
+
+echo "Test 54: tool paths are normalised (bandit's ./ form), for shellcheck, semgrep and bandit"
+T="$TMP/t54"; mkdir -p "$T/template"
+printf 'x: 1\n' > "$T/form.yml"
+printf 'import os\n' > "$T/template/proxy.py"
+printf '#!/bin/bash\necho hi\n' > "$T/template/a.sh"
+O="$TMP/o54"; mkdir -p "$O"
+# tillicum's committed bandit.json, verbatim: every filename is ./template/proxy.py
+cp "$SCRIPT_DIR/tests/corpus/tillicum-36732089153/pre-review/bandit.json" "$O/bandit.json"
+check "tillicum's bandit.json against its scope: B104 at 52, B110 at 352 and 365" \
+  "bandit:B104:template/proxy.py:[52]|bandit:B110:template/proxy.py:[352, 365]" \
+  "$(sco "$T" "$T" batch_connect "$O" "'|'.join('%s:%s:%s:%s' % (c['tool'], c['code'], c['file'], c['lines']) for c in $BY'tool_finding'])")"
+rm -f "$O/bandit.json"
+cat > "$O/semgrep.json" <<'JSON'
+{"results": [{"check_id": "r.dotted", "path": "./template/proxy.py", "start": {"line": 1}, "extra": {"severity": "WARNING", "message": "m1"}},
+             {"check_id": "r.plain", "path": "template/proxy.py", "start": {"line": 1}, "extra": {"severity": "ERROR", "message": "m2"}},
+             {"check_id": "r.info", "path": "template/proxy.py", "start": {"line": 1}, "extra": {"severity": "INFO", "message": "m3"}}]}
+JSON
+printf '[{"file": "./template/a.sh", "line": 2, "level": "info", "code": 2086, "message": "q"}, {"file": "template/./a.sh", "line": 2, "level": "warning", "code": 2034, "message": "u"}]' > "$O/shellcheck.json"
+check "semgrep ./ and plain paths both land; INFO still excluded; shellcheck ./ and a/./b forms land" \
+  "shellcheck:SC2034:template/a.sh|shellcheck:SC2086:template/a.sh|semgrep:r.dotted:template/proxy.py|semgrep:r.plain:template/proxy.py" \
+  "$(sco "$T" "$T" batch_connect "$O" "'|'.join('%s:%s:%s' % (c['tool'], c['code'], c['file']) for c in $BY'tool_finding'])")"
+
+echo "Test 55: a tool JSON that is unreadable or the wrong shape gives no candidates and a note"
+T="$TMP/t54"; O="$TMP/o55"; mkdir -p "$O"
+# tn <expression over d>: scan_security over t54 with out-dir o55
+tn() { sco "$T" "$T" batch_connect "$O" "$1"; }
+TFN="'%d|%s' % (len($BY'tool_finding']), d['tool_notes'])"
+printf '{}' > "$O/shellcheck.json"; printf '[]' > "$O/semgrep.json"; printf '{}' > "$O/bandit.json"
+check "shellcheck.json {} and semgrep.json []: no candidates, a note each; bandit.json {} is its shape with no results" \
+  "0|['shellcheck.json not read (expected a JSON list)', 'semgrep.json not read (expected a JSON object)']" "$(tn "$TFN")"
+printf 'not json' > "$O/shellcheck.json"; rm -f "$O/semgrep.json" "$O/bandit.json"
+check "shellcheck.json not JSON: no candidates, a note" "0|['shellcheck.json not read (JSONDecodeError)']" "$(tn "$TFN")"
+printf '[3, {"file": "template/a.sh", "line": "2", "level": "info", "code": 2086, "message": "q"}, {"file": "template/a.sh", "line": 2, "level": "info", "code": 2086, "message": "q"}]' > "$O/shellcheck.json"
+printf '{"results": [{"check_id": "r.nostart", "path": "template/proxy.py", "extra": {"severity": "ERROR"}}, {"check_id": "r.ok", "path": "template/proxy.py", "start": {"line": 1}, "extra": {"severity": "ERROR"}}]}' > "$O/semgrep.json"
+check "a non-object item, a string line and a result without start are skipped; the valid ones stay" \
+  "2|['shellcheck.json: 2 item(s) with no file or line skipped', 'semgrep.json: 1 item(s) with no file or line skipped']" "$(tn "$TFN")"
+rm -f "$O/semgrep.json"
+python3 -c 'import json,sys; json.dump([{"file": "template/a.sh", "line": n, "level": "info", "code": 2086, "message": "q"} for n in range(1, 26)], open(sys.argv[1], "w"))' "$O/shellcheck.json"
+check "a candidate's lines are cut to 20, lines_total keeps the count" "20|25|20" "$(tn "'%d|%s|%s' % (len($BY'tool_finding'][0]['lines']), $BY'tool_finding'][0]['lines_total'], $BY'tool_finding'][0]['lines'][-1])")"
+check "under the cap there is no lines_total" "False" "$(sco "$TMP/t50" "$TMP/t50" batch_connect "$TMP/o50" "'lines_total' in $BY'tool_finding'][0]")"
+
+echo "Test 56: the security record's note says the collapse in words"
+O="$TMP/o56"; mkdir -p "$O"; cp "$TMP/o51/shellcheck.json" "$O/shellcheck.json"
+check "collapsed: a sentence, not a count of 1" "root: tool_finding 16; more than 15 tool-finding candidates, so they are collapsed to one per tool and code" \
+  "$(rec security "$TMP/t51" "$O" "c['note']")"
+printf '[]' > "$O/semgrep.json"; printf '[]' > "$O/shellcheck.json"
+check "a tool note reaches the summary note" "root: no candidates; semgrep.json not read (expected a JSON object)" \
+  "$(rec security "$TMP/t51" "$O" "c['note']")"
+
+echo "Test 57: a missing placeholder list is an error, not an empty list"
+check "load_placeholders raises on a missing file" "PlaceholdersMissing" "$(px "
+try:
+    pr.load_placeholders(A[0]); r='returned'
+except pr.PlaceholdersMissing as e:
+    r=type(e).__name__" "$TMP/no-such-placeholders.txt")"
+mkdir -p "$TMP/t57"; cp "$PR" "$TMP/t57/pre-review.py"
+check "pre-review exits 2 without readme-placeholders.txt beside it" "2" "$(python3 "$TMP/t57/pre-review.py" "$FIX/broken-app" "$TMP/o57" > "$TMP/stdout" 2> "$TMP/stderr"; echo $?)"
+check "the error names the file" "True" "$(grep -q '^error: cannot read placeholder list .*readme-placeholders.txt (No such file or directory)$' "$TMP/stderr" && echo True || echo False)"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
