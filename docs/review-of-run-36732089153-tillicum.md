@@ -61,3 +61,35 @@ Duplicate check, `software` match, and vocabulary checks are all NOT CHECKED / N
 | Duplicate paragraph | README.md:125-133 | Confirmed |
 | No prerequisites heading | README.md headings | Confirmed; content in lines 17-33 and 271-293 |
 | 0.0.0.0 bind | proxy.py:52 | Not re-read; consistent with README "Reverse proxy behavior" |
+
+## 6. Security candidates the scanner did not list
+
+Method: the 36 candidates in `pre-review/root/security.json` against a grep of every `<%=` site and every later use of the variables they assign, in a fresh clone at `f7c8d35`. The interpolation coverage of the shell and YAML files is complete for form attributes. The gaps are structural.
+
+### 6a. Sinks are not candidates, only assignments (one real finding missed)
+
+Every OODT-01 row sits on the line `VAR="<%= context.attr %>"`. Where `VAR` is consumed later is never a candidate, so the model answers "is this quoted" at the assignment and never has to answer "where does this end up". Three consequences in this app:
+
+- **`template/script.sh.erb:84` `API_ARGS=(--api-key "$API_KEY")`, passed at line 176 into the `apptainer run … serve` command line.** The user's API key is in the argv of a long-running process on a shared compute node, readable by any co-user through `ps` or `/proc/<pid>/cmdline`. The rows at lines 29, 30 and 157 all PASS on shell-quoting grounds, which is the wrong question for a secret. This compounds the OODT-05 finding the report did make: it says the 0.0.0.0 proxy is reachable by co-users "if the port is known", and both the port (`--port "$LLAMA_PORT"`, line 170) and the key are in the same `ps` line. The scanner's `credential_string` kind only looks for hardcoded secrets; "secret handed to a process via argv" is a distinct pattern and should be its own kind (the fix is `--api-key-file` or an env var, both of which llama-server supports).
+- **`template/script.sh.erb:136,138` `--mount type=bind,src="$src",dst="$dest"`.** User-supplied `mount*_source` and `mount*_dest` (free text_fields) go into a comma-delimited Apptainer option string. A `dest` of `/data,ro` or a `src` containing a comma changes the mount spec. Self-harm under the PUN model, but it is an option-injection candidate, and the row at lines 34–42 answered "user can only mount what their Unix credentials permit", which is true of the path and silent on the spec. The scanner listed lines 115 and 122 (same construct with `$MODEL_PATH`, a select) as `unquoted_expansion` because of the `$(dirname …)`, but not 136/138 where the free-text values land.
+- **`template/script.sh.erb:87,177`** `read -r -a EXTRA_ARGS_ARR <<< "$EXTRA_ARGS"` then into argv. The model answered this correctly at line 31 because it chased the variable on its own; the row discipline did not require it.
+
+Suggested fix: after finding `VAR="<%= attr %>"` in a shell file, emit a `sink` candidate at each later `$VAR` / `${VAR…}` use that appears inside a command, array append, or heredoc (skip `[ -n "$VAR" ]`, `${#VAR}`, and `echo` lines, or list them as `reviewed OK` targets). At minimum, put the sink line numbers on the interpolation candidate so the row must cite them. Add a `credential_exposure` kind for a secret-named variable (`api_key`, `token`, `password`, `secret`) reaching argv or a log line.
+
+### 6b. Non-shell files are scanned by tools only, or not at all
+
+`security.json` lists six files. `view.html.erb` and `form.js` are absent; `template/proxy.py` is present only through the `network_call` and `config_flag` regexes plus bandit and semgrep. The report cannot distinguish "no candidates" from "not looked", and the row-per-candidate promise does not hold outside shell and YAML.
+
+- `view.html.erb:6` interpolates `csrftoken`, `host`, `port` into a JavaScript template literal that is written to `document.cookie`; `:25` interpolates `host`/`port` into an `href`. These are OOD-provided values, so benign here, but they are interpolation sites with no row.
+- `template/proxy.py` is a hand-written reverse proxy that handles every HTTP method. Candidates a request-handler scan would list: `Origin` reflected into `Access-Control-Allow-Origin` with `Access-Control-Allow-Credentials: true` (lines 212–216, a classic CORS-reflection site, mitigated here by sitting behind OOD auth but never assessed); the `Authorization` header pass-through (line 322; the DEBUG log correctly prints presence only); `self.path` forwarded after prefix strip (line 310). Bandit's B104 is the only thing that reached the report from this file beyond the `http.client` imports.
+- `form.js:86` `innerHTML` with a static string, and `querySelector` built from code constants: nothing user-controlled, but not enumerated.
+
+Suggested fix: add `.html.erb` and `.js.erb` to the interpolation scan; add a `request_handler` kind for Python/Ruby/JS files that lists route handlers (`do_*`, `@app.route`, `get '/'`), header reflections, and `self.path`/`request.path` uses as candidates; and record per file in `summary.json` whether it was scanned for candidates or by tools only, so the report's "Examined" list means one thing.
+
+### 6c. Interpolations of non-attributes are not candidates
+
+`submit.yml.erb:3 <%= cluster %>` and `template/before.sh.erb:20 <%= csrftoken %>` are not listed. Both are OOD-provided, not user input, so excluding them from OODT-01 is defensible. It should be a documented decision, and the security section should state the count ("N interpolations of OOD-provided values not user-controlled") so a reader comparing the table to a grep of `<%=` gets a matching number.
+
+### Priority
+
+6a first, and specifically the argv-secret kind: it is the one item here that changes the verdict text a submitter reads, and it is a pattern every Batch Connect app with an API key will repeat. 6b's `request_handler` kind matters for the growing class of apps that ship their own proxy; the `.html.erb` interpolation scan is a small change. 6c is a wording fix.
