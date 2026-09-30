@@ -431,61 +431,80 @@ if has_sc; then
   check "exact contents" "$(printf '%s\n' '**Check tiers:** Tiers 1–2' '' 'Tier 3 not checked — no isolated execution environment.' '' '| Tool | Status | Result |' '|---|---|---|' "| shellcheck | Run (ERB-stripped) | $SC_RESULT |" '| semgrep | Not run (not installed) | — |' '| bandit | Not run (no applicable files) | — |' '| trivy | Not run (no applicable files) | — |')" "$(cat "$O/tool-table.md")"
 else skip "shellcheck not installed"; skip "shellcheck not installed"; fi
 
-# Fact scanners (apps.json, <out>/<app_id>/readme.json and form.json).
-# app <out> <python expression over a (apps.json)>; fact <out> <app_id> <name> <expression over d>
-app() { python3 -c 'import json,sys; a=json.load(open(sys.argv[1])); print(eval(sys.argv[2]))' "$1/apps.json" "$2" 2>&1; }
+# Fact scanners (apps.json, <out>/<app_id>/readme.json and form.json). Two
+# end-to-end runs (tools off PATH, so they are fast) cover the files and the
+# summary records; the scanner cases call pre-review.py's functions directly.
+PR="$SCRIPT_DIR/references/pre-review.py"
+# px <python code setting r> [args...]: pre-review.py imported as pr, args as A
+px() { python3 -c 'import importlib.util,sys; s=importlib.util.spec_from_file_location("pr",sys.argv[1]); pr=importlib.util.module_from_spec(s); s.loader.exec_module(pr); g={"pr":pr,"A":sys.argv[3:]}; exec(sys.argv[2],g); print(g["r"])' "$PR" "$@" 2>&1; }
+# rd <README> <expression over d (readme facts)>
+rd() { px "d=pr.scan_readme(open(A[0]).read(), pr.load_placeholders()); r=$2" "$1"; }
+# fm <app dir> <expression over d (form facts; target = app dir)>
+fm() { px "d=pr.scan_form(A[0], A[0]); r=$2" "$1"; }
+# ap <target> <expression over a (apps.json entries)>
+ap() { px "a=[pr._public(x) for x in pr.resolve_apps(A[0])]; r=$2" "$1"; }
+# rec <readme|form> <target> <out> <expression over c (the summary record)>
+rec() { px "c=pr.check_$1(A[0], pr.resolve_apps(A[0]), A[1]); r=$4" "$2" "$3"; }
+# e2e <target> <out>: an end-to-end run with no analysis tools on PATH
+FBF="$TMP/fbfacts"; fakebin "$FBF"
+e2e() { PATH="$FBF" "$FBF/bash" "$RUN" "$1" "$2" > "$TMP/stdout" 2> "$TMP/stderr"; echo $?; }
 fact() { j "$1/$2/$3.json" "$4"; }
-# fct <out> <scanner> <field>: one field of one fact record in summary.json
 fct() { j "$1/summary.json" "[c for c in d['facts'] if c['name']=='$2'][0]['$3']"; }
-has_yaml() { python3 -c 'import yaml' 2>/dev/null; }
-if has_yaml; then PARSER_NOTE="YAML parser: PyYAML"; else PARSER_NOTE="YAML parser: built-in subset (PyYAML not importable)"; fi
-ROW="'%s|%s|%s|%s' % (e['app_id'], e['path'], e['app_type'], e['readme'])"
+parser_note() { if "$1" -c 'import yaml' 2>/dev/null; then echo "YAML parser: PyYAML"; else echo "YAML parser: built-in subset (PyYAML not importable)"; fi; }
+PARSER_NOTE="$(parser_note python3)"
+# a venv's python3 symlinked into the fake bin dir loses the venv's packages
+E2E_PARSER_NOTE="$(parser_note "$FBF/python3")"
+ROW="','.join('%s|%s|%s|%s' % (e['app_id'], e['path'], e['app_type'], e['readme']) for e in a)"
+A="[a for a in d['attributes'] if a['name']=="
 
-echo "Test 32: app shape in apps.json"
-O="$TMP/mono"
-check "monorepo apps" "good-app|apps/good-app|batch_connect|README.md,bad-app|apps/bad-app|batch_connect|README.md" "$(app "$O" "','.join($ROW for e in a)")"
-check "monorepo per-app dirs" "True|True" "$(yn test -d "$O/good-app")|$(yn test -d "$O/bad-app")"
+echo "Test 32: end-to-end, vnc-stale-debugger and broken-app"
+O="$TMP/vnc"
+check "exit 0" 0 "$(e2e "$FIX/vnc-stale-debugger" "$O")"
+check "apps.json" "root|.|batch_connect|README.md" "$(j "$O/apps.json" "'|'.join(str(d[0][k]) for k in ('app_id','path','app_type','readme'))")"
 check "summary facts in order" "readme,form" "$(j "$O/summary.json" "','.join(c['name'] for c in d['facts'])")"
 check "checks unchanged" "syntax,shellcheck,semgrep,bandit,trivy,catalog" "$(j "$O/summary.json" "','.join(c['name'] for c in d['checks'])")"
-check "readme per_app" "{'good-app': 'ran', 'bad-app': 'ran'}" "$(fct "$O" readme per_app)"
-check "form per_app" "{'good-app': 'ran', 'bad-app': 'skipped'}" "$(fct "$O" form per_app)"
-check "single app is root" "root|.|batch_connect|README.md" "$(app "$TMP/cs" "','.join($ROW for e in a)")"
-check "passenger app" "root|.|passenger|README.md" "$(app "$TMP/flask" "','.join($ROW for e in a)")"
-T="$TMP/t32"; mkdir -p "$T/a" "$T/b" "$T/c"
-printf 'apps:\n  - path: a\n  - path: b\n    app_type: companion_app\n  - path: c\n  - path: ../escape\n' > "$T/appverse.yml"
+check "readme ran" "ran|{'root': 'ran'}" "$(fct "$O" readme status)|$(fct "$O" readme per_app)"
+check "form ran, note names the parser" "ran|{'root': 'ran'}|$E2E_PARSER_NOTE" "$(fct "$O" form status)|$(fct "$O" form per_app)|$(fct "$O" form note)"
+check "readme.json written" "README.md|Overview" "$(fact "$O" root readme "'%s|%s' % (d['file'], d['rungs']['what it launches']['heading'])")"
+check "form.json written" "form.yml.erb|submit.yml.erb|ERBVALUE" "$(fact "$O" root form "'%s|%s|%s' % (d['file'], d['submit_file'], d['erb_sentinel'])")"
+O="$TMP/o32b"; mkdir -p "$O/good-app"; printf '[{"app_id": "good-app"}]\n' > "$O/apps.json"; echo '{}' > "$O/good-app/readme.json"
+check "broken-app exit 0" 0 "$(e2e "$FIX/broken-app" "$O")"
+check "previous run's per-app dir removed" "False" "$(yn test -e "$O/good-app")"
+check "form failed_to_run" "failed_to_run|{'root': 'failed_to_run'}" "$(fct "$O" form status)|$(fct "$O" form per_app)"
+check "note carries the parse error" "True" "$(fct "$O" form note | grep -qE 'root: form\.yml: .*line 3, column 12' && echo True || echo False)"
+check "form.json carries the error, no attributes" "True|[]" "$(j "$O/root/form.json" "'%s|%s' % ('line 3, column 12' in d['error'], d['attributes'])")"
+check "readme still ran" "ran" "$(fct "$O" readme status)"
+
+echo "Test 33: app shape"
+check "monorepo (from the earlier run)" "good-app|apps/good-app|batch_connect|README.md,bad-app|apps/bad-app|batch_connect|README.md" "$(j "$TMP/mono/apps.json" "','.join('%s|%s|%s|%s' % (e['app_id'], e['path'], e['app_type'], e['readme']) for e in d)")"
+check "monorepo per_app" "{'good-app': 'ran', 'bad-app': 'ran'}|{'good-app': 'ran', 'bad-app': 'skipped'}" "$(fct "$TMP/mono" readme per_app)|$(fct "$TMP/mono" form per_app)"
+check "single app is root" "root|.|batch_connect|README.md" "$(ap "$FIX/containerized-server" "$ROW")"
+check "passenger app" "root|.|passenger|README.md" "$(ap "$FIX/passenger-flask-app" "$ROW")"
+T="$TMP/t33"; mkdir -p "$T/a" "$T/b" "$T/c"
+printf 'apps:\n  - path: a\n  - path: ./b/\n    app_type: companion_app\n  - path: c\n  - path: ../escape\n  - path: .\n' > "$T/appverse.yml"
 printf 'run app\n' > "$T/a/config.ru"; printf 'name: B\n' > "$T/b/manifest.yml"; printf 'x: 1\n' > "$T/c/README.md"
-O="$TMP/o32"
-check "exit 0" 0 "$(run "$T" "$O")"
-check "entry point, declared app_type, unknown, outside target" "a|a|passenger|None,b|b|companion|None,c|c|unknown|c/README.md,escape|../escape|unknown|None" "$(app "$O" "','.join($ROW for e in a)")"
-check "outside-target app is not read" "skipped" "$(j "$O/summary.json" "[c for c in d['facts'] if c['name']=='readme'][0]['per_app']['escape']")"
-check "readme note names the outside path" "True" "$(fct "$O" readme note | grep -qF 'escape: app path outside target, not read' && echo True || echo False)"
-T="$TMP/t32b"; mkdir -p "$T"; printf 'echo hi\n' > "$T/a.sh"
-check "no manifest is still one root app" 0 "$(run "$T" "$TMP/o32b")"
-check "root unknown" "root|.|unknown|None" "$(app "$TMP/o32b" "','.join($ROW for e in a)")"
-check "readme skipped without a README" "skipped" "$(fct "$TMP/o32b" readme status)"
-check "no readme.json without a README" "False" "$(yn test -e "$TMP/o32b/root/readme.json")"
+check "entry point, declared app_type, normalized path, unknown, outside target, path ." "a|a|passenger|None,b|b|companion|None,c|c|unknown|c/README.md,escape|../escape|unknown|None,root|.|unknown|None" "$(ap "$T" "$ROW")"
+check "outside-target app is skipped, named in the note" "skipped|True" "$(rec readme "$T" "$TMP/o33" "'%s|%s' % (c['per_app']['escape'], 'escape: app path outside target, not read' in c['note'])")"
+T="$TMP/t33b"; mkdir -p "$T"; printf 'echo hi\n' > "$T/a.sh"
+check "no manifest is still one root app" "root|.|unknown|None" "$(ap "$T" "$ROW")"
+check "readme skipped without a README, no readme.json" "skipped|False" "$(rec readme "$T" "$TMP/o33b" "c['status']")|$(yn test -e "$TMP/o33b/root/readme.json")"
 
-echo "Test 33: readme.json, containerized-server"
-O="$TMP/cs"
-check "file" "README.md" "$(fact "$O" root readme "d['file']")"
-check "headings" "1|MLflow Tracking Server|1,2|Requirements|5" "$(fact "$O" root readme "','.join('%s|%s|%s' % (h['level'], h['text'], h['line']) for h in d['headings'])")"
-check "rung keys in order" "what it launches,prerequisites,installation,configuration,known limitations,troubleshooting,screenshots,environment variables,info panel,architecture" "$(fact "$O" root readme "','.join(d['rungs'])")"
-check "prerequisites rung" "{'heading': 'Requirements', 'line': 5, 'placeholder': False}" "$(fact "$O" root readme "d['rungs']['prerequisites']")"
-check "other rungs null" "True" "$(fact "$O" root readme "all(v is None for k, v in d['rungs'].items() if k != 'prerequisites')")"
-check "no placeholders, screenshots, env_vars" "[]|[]|[]" "$(fact "$O" root readme "'%s|%s|%s' % (d['placeholders'], d['screenshots'], d['env_vars'])")"
-check "readme record ran" "ran|{'root': 'ran'}" "$(fct "$O" readme status)|$(fct "$O" readme per_app)"
+echo "Test 34: readme facts, containerized-server and vnc-stale-debugger"
+R="$FIX/containerized-server/README.md"
+check "headings" "1|MLflow Tracking Server|1,2|Requirements|5" "$(rd "$R" "','.join('%s|%s|%s' % (h['level'], h['text'], h['line']) for h in d['headings'])")"
+check "rung keys in order" "what it launches,prerequisites,installation,configuration,known limitations,troubleshooting,screenshots,environment variables,info panel,architecture" "$(rd "$R" "','.join(d['rungs'])")"
+check "prerequisites rung" "{'heading': 'Requirements', 'line': 5, 'placeholder': False}" "$(rd "$R" "d['rungs']['prerequisites']")"
+check "other rungs null" "True" "$(rd "$R" "all(v is None for k, v in d['rungs'].items() if k != 'prerequisites')")"
+check "no placeholders, screenshots, env_vars" "[]|[]|[]" "$(rd "$R" "'%s|%s|%s' % (d['placeholders'], d['screenshots'], d['env_vars'])")"
+R="$FIX/vnc-stale-debugger/README.md"
+check "vnc headings (a # in a fence is not one)" "1|HPC Debugger|1,2|Overview|6,2|Requirements|11,2|Installation|17,2|Configuration|26" "$(rd "$R" "','.join('%s|%s|%s' % (h['level'], h['text'], h['line']) for h in d['headings'])")"
+check "vnc rungs resolved" "what it launches:Overview:6,prerequisites:Requirements:11,installation:Installation:17,configuration:Configuration:26" "$(rd "$R" "','.join('%s:%s:%s' % (k, v['heading'], v['line']) for k, v in d['rungs'].items() if v)")"
+check "vnc no rung is placeholder" "False" "$(rd "$R" "any(v['placeholder'] for v in d['rungs'].values() if v)")"
+check "vnc no placeholders, screenshots, env_vars" "[]|[]|[]" "$(rd "$R" "'%s|%s|%s' % (d['placeholders'], d['screenshots'], d['env_vars'])")"
 
-echo "Test 34: readme.json, vnc-stale-debugger (a # inside a code fence is not a heading)"
-O="$TMP/vnc"
-check "exit 0" 0 "$(run "$FIX/vnc-stale-debugger" "$O")"
-check "headings" "1|HPC Debugger|1,2|Overview|6,2|Requirements|11,2|Installation|17,2|Configuration|26" "$(fact "$O" root readme "','.join('%s|%s|%s' % (h['level'], h['text'], h['line']) for h in d['headings'])")"
-check "rungs resolved" "what it launches:Overview:6,prerequisites:Requirements:11,installation:Installation:17,configuration:Configuration:26" "$(fact "$O" root readme "','.join('%s:%s:%s' % (k, v['heading'], v['line']) for k, v in d['rungs'].items() if v)")"
-check "no rung is placeholder" "False" "$(fact "$O" root readme "any(v['placeholder'] for v in d['rungs'].values() if v)")"
-check "no placeholders, screenshots, env_vars" "[]|[]|[]" "$(fact "$O" root readme "'%s|%s|%s' % (d['placeholders'], d['screenshots'], d['env_vars'])")"
-
-echo "Test 35: readme.json, placeholders, screenshots, env vars, synonyms"
-T="$TMP/t35"; mkdir -p "$T"
-cat > "$T/README.md" <<'EOF'
+echo "Test 35: readme facts, placeholders, screenshots, env vars, synonyms"
+T="$TMP/t35"; mkdir -p "$T"; R="$T/README.md"
+cat > "$R" <<'MD'
 # [Application Name]
 
 ## Overview
@@ -497,15 +516,16 @@ cat > "$T/README.md" <<'EOF'
 ![Session view](docs/session.png)
 [![build](https://img.shields.io/badge/build-passing.svg)](https://ci.example.org)
 
-## Setup
+## Requirements and Setup
 Set the cluster in form.yml.
 
 ```bash
 # not a heading
 export MY_APP_HOME=/data/app
+git clone https://github.com/YOUR-ORG/YOUR-APP.git
 ```
 
-### Environment variables
+### Environment
 
 Set the environment variable before launch.
 
@@ -515,52 +535,48 @@ Setup heading
 ## FAQ
 
 - [e.g., Multi-node jobs are not supported]
-EOF
-O="$TMP/o35"
-check "exit 0" 0 "$(run "$T" "$O")"
-check "headings (ATX and setext, none from the fence)" "1|[Application Name]|1,2|Overview|3,2|Screenshots|8,2|Setup|12,3|Environment variables|20,1|Setup heading|24,2|FAQ|27" "$(fact "$O" root readme "','.join('%s|%s|%s' % (h['level'], h['text'], h['line']) for h in d['headings'])")"
-check "placeholder lines" "1,5,6,29" "$(fact "$O" root readme "','.join(str(p['line']) for p in d['placeholders'])")"
-check "placeholder phrase recorded" "[Application Name]" "$(fact "$O" root readme "d['placeholders'][0]['phrase']")"
-check "overview rung is placeholder" "{'heading': 'Overview', 'line': 3, 'placeholder': True}" "$(fact "$O" root readme "d['rungs']['what it launches']")"
-check "Setup is installation, not placeholder" "{'heading': 'Setup', 'line': 12, 'placeholder': False}" "$(fact "$O" root readme "d['rungs']['installation']")"
-check "FAQ is troubleshooting, placeholder" "{'heading': 'FAQ', 'line': 27, 'placeholder': True}" "$(fact "$O" root readme "d['rungs']['troubleshooting']")"
-check "screenshots rung" "{'heading': 'Screenshots', 'line': 8, 'placeholder': False}" "$(fact "$O" root readme "d['rungs']['screenshots']")"
-check "environment variables rung" "{'heading': 'Environment variables', 'line': 20, 'placeholder': False}" "$(fact "$O" root readme "d['rungs']['environment variables']")"
-check "screenshots (badge excluded)" "[{'line': 9, 'alt': 'Session view', 'target': 'docs/session.png'}]" "$(fact "$O" root readme "d['screenshots']")"
-check "env_vars" "17:assignment,20:heading,22:phrase" "$(fact "$O" root readme "','.join('%s:%s' % (e['line'], e['match']) for e in d['env_vars'])")"
+
+## Known Issues
+None so far.
+MD
+check "headings (ATX and setext, none from the fence)" "1|[Application Name]|1,2|Overview|3,2|Screenshots|8,2|Requirements and Setup|12,3|Environment|21,1|Setup heading|25,2|FAQ|28,2|Known Issues|32" "$(rd "$R" "','.join('%s|%s|%s' % (h['level'], h['text'], h['line']) for h in d['headings'])")"
+check "placeholder lines (none from the fence)" "1,5,6,30" "$(rd "$R" "','.join(str(p['line']) for p in d['placeholders'])")"
+check "placeholder phrase recorded" "[Application Name]" "$(rd "$R" "d['placeholders'][0]['phrase']")"
+check "overview rung is placeholder" "{'heading': 'Overview', 'line': 3, 'placeholder': True}" "$(rd "$R" "d['rungs']['what it launches']")"
+check "one heading, two rungs" "{'heading': 'Requirements and Setup', 'line': 12, 'placeholder': False}|{'heading': 'Requirements and Setup', 'line': 12, 'placeholder': False}" "$(rd "$R" "'%s|%s' % (d['rungs']['prerequisites'], d['rungs']['installation'])")"
+check "FAQ is troubleshooting, placeholder" "{'heading': 'FAQ', 'line': 28, 'placeholder': True}" "$(rd "$R" "d['rungs']['troubleshooting']")"
+check "Known Issues is known limitations" "{'heading': 'Known Issues', 'line': 32, 'placeholder': False}" "$(rd "$R" "d['rungs']['known limitations']")"
+check "screenshots rung" "{'heading': 'Screenshots', 'line': 8, 'placeholder': False}" "$(rd "$R" "d['rungs']['screenshots']")"
+check "Environment is environment variables" "{'heading': 'Environment', 'line': 21, 'placeholder': False}" "$(rd "$R" "d['rungs']['environment variables']")"
+check "screenshots (badge excluded)" "[{'line': 9, 'alt': 'Session view', 'target': 'docs/session.png'}]" "$(rd "$R" "d['screenshots']")"
+check "env_vars" "17:assignment,21:heading,23:phrase" "$(rd "$R" "','.join('%s:%s' % (e['line'], e['match']) for e in d['env_vars'])")"
 check "placeholder file is seeded" "True" "$(yn grep -qxF '[Application Name]' "$SCRIPT_DIR/references/readme-placeholders.txt")"
+check "git checkout v1.0.0 is not a placeholder" "False" "$(yn grep -qF 'git checkout v1.0.0' "$SCRIPT_DIR/references/readme-placeholders.txt")"
 
-echo "Test 36: form.json, vnc-stale-debugger (form.yml.erb)"
-O="$TMP/vnc"
-FJ="$O/root/form.json"
-check "form ran" "ran|{'root': 'ran'}" "$(fct "$O" form status)|$(fct "$O" form per_app)"
-check "form note names the parser" "$PARSER_NOTE" "$(fct "$O" form note)"
-check "file and submit file" "form.yml.erb|submit.yml.erb" "$(j "$FJ" "'%s|%s' % (d['file'], d['submit_file'])")"
-check "names (attributes, then form-only)" "version,node_type,num_cores,input_file,bc_num_hours,bc_vnc_resolution" "$(j "$FJ" "','.join(a['name'] for a in d['attributes'])")"
-A="[a for a in d['attributes'] if a['name']=="
-check "num_cores" "number_field|0|48|None|False|29|True|True" "$(j "$FJ" "'|'.join(str(x[k]) for x in $A'num_cores'] for k in ('widget','min','max','pattern','required','line','defined','in_form'))")"
-check "num_cores reaches the scheduler via ppn" "True|[2]|True" "$(j "$FJ" "'|'.join(str(x[k]) for x in $A'num_cores'] for k in ('interpolated_in_submit','submit_lines','reaches_scheduler'))")"
-check "node_type referenced twice, reaches the scheduler" "True|[12, 24]|True" "$(j "$FJ" "'|'.join(str(x[k]) for x in $A'node_type'] for k in ('interpolated_in_submit','submit_lines','reaches_scheduler'))")"
-check "version not referenced" "False|[]|False" "$(j "$FJ" "'|'.join(str(x[k]) for x in $A'version'] for k in ('interpolated_in_submit','submit_lines','reaches_scheduler'))")"
-check "input_file defined, not in form" "text_field|37|True|False" "$(j "$FJ" "'|'.join(str(x[k]) for x in $A'input_file'] for k in ('widget','line','defined','in_form'))")"
-check "bc_num_hours in form only" "None|12|False|True" "$(j "$FJ" "'|'.join(str(x[k]) for x in $A'bc_num_hours'] for k in ('widget','line','defined','in_form'))")"
+echo "Test 36: form facts, vnc-stale-debugger (form.yml.erb)"
+D="$FIX/vnc-stale-debugger"
+check "file, submit file, sentinel" "form.yml.erb|submit.yml.erb|ERBVALUE" "$(fm "$D" "'%s|%s|%s' % (d['file'], d['submit_file'], d['erb_sentinel'])")"
+check "names (attributes, then form-only)" "version,node_type,num_cores,input_file,bc_num_hours,bc_vnc_resolution" "$(fm "$D" "','.join(a['name'] for a in d['attributes'])")"
+check "num_cores" "number_field|0|48|None|False|29|True|True" "$(fm "$D" "'|'.join(str(x[k]) for x in $A'num_cores'] for k in ('widget','min','max','pattern','required','line','defined','in_form'))")"
+check "num_cores reaches the scheduler via ppn" "True|[2]|True" "$(fm "$D" "'|'.join(str(x[k]) for x in $A'num_cores'] for k in ('interpolated_in_submit','submit_lines','reaches_scheduler'))")"
+check "node_type referenced twice, reaches the scheduler" "True|[12, 24]|True" "$(fm "$D" "'|'.join(str(x[k]) for x in $A'node_type'] for k in ('interpolated_in_submit','submit_lines','reaches_scheduler'))")"
+check "version not referenced" "False|[]|False" "$(fm "$D" "'|'.join(str(x[k]) for x in $A'version'] for k in ('interpolated_in_submit','submit_lines','reaches_scheduler'))")"
+check "input_file defined, not in form" "text_field|37|True|False" "$(fm "$D" "'|'.join(str(x[k]) for x in $A'input_file'] for k in ('widget','line','defined','in_form'))")"
+check "bc_num_hours in form only" "None|12|False|True" "$(fm "$D" "'|'.join(str(x[k]) for x in $A'bc_num_hours'] for k in ('widget','line','defined','in_form'))")"
 
-echo "Test 37: form.json, YAML form.yml, unparseable forms, Passenger"
-O="$TMP/o37a"
-check "broken-app exit 0" 0 "$(run "$FIX/broken-app" "$O")"
-check "broken-app form failed_to_run" "failed_to_run|{'root': 'failed_to_run'}" "$(fct "$O" form status)|$(fct "$O" form per_app)"
-check "note carries the parse error" "True" "$(fct "$O" form note | grep -qE 'root: form\.yml: .*line 3, column 12' && echo True || echo False)"
-check "form.json carries the error, no attributes" "True|[]" "$(j "$O/root/form.json" "'%s|%s' % ('line 3, column 12' in d['error'], d['attributes'])")"
-check "readme still ran" "ran" "$(fct "$O" readme status)"
-check "good-app hours bounds" "hours|number_field|1|48|3" "$(fact "$TMP/mono" good-app form "'|'.join(str(d['attributes'][0][k]) for k in ('name','widget','min','max','line'))")"
+echo "Test 37: form facts, YAML form.yml, references, bounds, unparseable forms, Passenger"
+check "good-app hours bounds" "hours|number_field|1|48|3" "$(fm "$FIX/monorepo/apps/good-app" "'|'.join(str(d['attributes'][0][k]) for k in ('name','widget','min','max','line'))")"
 T="$TMP/t37"; mkdir -p "$T"
-cat > "$T/form.yml" <<'EOF'
+cat > "$T/form.yml" <<'YML'
 # a comment
 cluster: "owens"
 form:
   - account
   - env_name
   - hours
+  - cores
+  - partition
+  - mem
 attributes:
   account:
     widget: text_field
@@ -569,37 +585,71 @@ attributes:
   env_name:
     widget: text_field
   hours: 4
-EOF
-cat > "$T/submit.yml.erb" <<'EOF'
+  cores:
+    widget: number_field
+    html_options: {min: 1, max: 8}
+  partition:
+    widget: text_field
+  mem:
+    widget: number_field
+YML
+cat > "$T/submit.yml.erb" <<'YML'
+<% a = 1; memv = mem %>
 ---
 cluster: "<%= env_name %>"
 batch_connect:
   template: "<%= hours %>"
 script:
   native: ["-A", "<%= account %>"]
-EOF
-O="$TMP/o37b"
-check "exit 0" 0 "$(run "$T" "$O")"
-check "form ran" "ran" "$(fct "$O" form status)"
-check "account" "text_field|^[a-z]+\$|True|8|True|[6]|True" "$(fact "$O" root form "'|'.join(str($A'account'][0][k]) for k in ('widget','pattern','required','line','interpolated_in_submit','submit_lines','reaches_scheduler'))")"
-check "env_name interpolated outside script" "False|True|[2]|False" "$(fact "$O" root form "'|'.join(str($A'env_name'][0][k]) for k in ('required','interpolated_in_submit','submit_lines','reaches_scheduler'))")"
-check "hours (scalar attribute) reaches batch_connect.template" "None|14|True|[4]|True" "$(fact "$O" root form "'|'.join(str($A'hours'][0][k]) for k in ('widget','line','interpolated_in_submit','submit_lines','reaches_scheduler'))")"
+  job_name: "<%= context.cores %>"
+  queue_name: "<%= @partition %>"
+  email: "<%= memv %>"
+YML
+FL="'|'.join(str(x[k]) for x in"
+check "account" "text_field|^[a-z]+\$|True|11|True|[7]|True" "$(fm "$T" "$FL $A'account'] for k in ('widget','pattern','required','line','interpolated_in_submit','submit_lines','reaches_scheduler'))")"
+check "env_name interpolated outside script" "False|True|[3]|False" "$(fm "$T" "$FL $A'env_name'] for k in ('required','interpolated_in_submit','submit_lines','reaches_scheduler'))")"
+check "hours (scalar attribute) reaches batch_connect.template" "None|17|True|[5]|True" "$(fm "$T" "$FL $A'hours'] for k in ('widget','line','interpolated_in_submit','submit_lines','reaches_scheduler'))")"
+check "html_options bounds; context.cores reaches" "1|8|18|[8]|True" "$(fm "$T" "$FL $A'cores'] for k in ('min','max','line','submit_lines','reaches_scheduler'))")"
+check "@partition reaches" "[9]|True" "$(fm "$T" "$FL $A'partition'] for k in ('submit_lines','reaches_scheduler'))")"
+check "taint through a ;-joined statement" "[1]|True" "$(fm "$T" "$FL $A'mem'] for k in ('submit_lines','reaches_scheduler'))")"
+T="$TMP/t37e"; mkdir -p "$T"
+printf 'attributes:\n  cores:\n    widget: number_field\n    min: 1\n    max: <%%= max_cores %%>\n' > "$T/form.yml.erb"
+check "ERB-computed bound is the sentinel" "ERBVALUE|ERBVALUE" "$(fm "$T" "'%s|%s' % (d['erb_sentinel'], d['attributes'][0]['max'])")"
 T="$TMP/t37c"; mkdir -p "$T"
 printf '<%% x = 1 %%>\nattributes:\n  a:\n    widget: {text_field\nform:\n  - a\n' > "$T/form.yml.erb"
-O="$TMP/o37c"
-check "unparseable form.yml.erb exit 0" 0 "$(run "$T" "$O")"
-check "failed_to_run" "failed_to_run" "$(fct "$O" form status)"
-check "error names the file and line 4" "True" "$(j "$O/root/form.json" "d['file'] == 'form.yml.erb' and 'line 4' in d['error']")"
-check "note names parser and error" "True" "$(fct "$O" form note | grep -qF "$PARSER_NOTE; root: form.yml.erb: " && echo True || echo False)"
-O="$TMP/flask"
-check "passenger form skipped" "skipped|{'root': 'skipped'}" "$(fct "$O" form status)|$(fct "$O" form per_app)"
-check "no form.json" "False" "$(yn test -e "$O/root/form.json")"
+check "unparseable form.yml.erb: error names line 4" "form.yml.erb|True|[]" "$(fm "$T" "'%s|%s|%s' % (d['file'], 'line 4' in d['error'], d['attributes'])")"
+check "record failed_to_run, note names parser and error" "failed_to_run|True" "$(rec form "$T" "$TMP/o37c" "'%s|%s' % (c['status'], c['note'].startswith('$PARSER_NOTE; root: form.yml.erb: '))")"
+check "passenger form skipped, no form.json" "skipped|{'root': 'skipped'}|False" "$(fct "$TMP/flask" form status)|$(fct "$TMP/flask" form per_app)|$(yn test -e "$TMP/flask/root/form.json")"
 
-echo "Test 38: rerun removes the previous run's per-app dirs"
-O="$TMP/o38"
-check "monorepo run" 0 "$(run "$FIX/monorepo" "$O")"
-check "single-app run into the same out-dir" 0 "$(run "$FIX/containerized-server" "$O")"
-check "good-app dir gone" "False" "$(yn test -e "$O/good-app")"
-check "root dir present" "True" "$(yn test -e "$O/root/readme.json")"
+echo "Test 38: the subset YAML parser refuses what it cannot read"
+sub() { printf '%b' "$1" > "$TMP/sub.yml"; px "t=open(A[0]).read()
+try:
+    pr._SubsetYaml(t).parse(); r='parsed'
+except pr.YamlError as e:
+    r=str(e)" "$TMP/sub.yml"; }
+check "anchor" "line 2, column 7: anchors (&) are not supported" "$(sub 'a: 1\nbase: &b {min: 1}\n')"
+check "alias" "line 2, column 4: aliases (*) are not supported" "$(sub 'a: 1\nb: *a\n')"
+check "merge key" "line 3, column 3: merge keys (<<) are not supported" "$(sub 'x:\n  y: 1\n  <<: {min: 1}\n')"
+check "tag" "line 1, column 4: tags (!) are not supported" "$(sub 'a: !ruby/sym x\n')"
+check "second document" "line 3, column 1: a second YAML document is not supported" "$(sub '---\na: 1\n---\nb: 2\n')"
+check "a leading --- is fine" "parsed" "$(sub '---\na: 1\n')"
+T="$TMP/t38"; mkdir -p "$T"; printf 'attributes:\n  a: &x\n    widget: text_field\n  b: *x\nform:\n  - a\n' > "$T/form.yml"
+check "subset parser: anchored form is failed_to_run" "failed_to_run" "$(px "pr._yaml_module=lambda: None; r=pr.check_form(A[0], pr.resolve_apps(A[0]), A[1])['status']" "$T" "$TMP/o38")"
+
+echo "Test 39: fact files are read only under the shell-file rule"
+OUTSIDE="$TMP/outside"; mkdir -p "$OUTSIDE"
+printf '# SECRET-OUTSIDE\n## Installation\nsecret\n' > "$OUTSIDE/README.md"
+printf 'attributes:\n  secret_outside:\n    widget: text_field\n' > "$OUTSIDE/form.yml"
+T="$TMP/symapp"; mkdir -p "$T"; ln -s "$OUTSIDE/README.md" "$T/README.md"; ln -s "$OUTSIDE/form.yml" "$T/form.yml"
+O="$TMP/o39"
+check "README outside: skipped" "skipped|{'root': 'skipped'}|root: README.md: symlink outside target, not checked" "$(rec readme "$T" "$O" "'%s|%s|%s' % (c['status'], c['per_app'], c['note'])")"
+check "form outside: skipped" "skipped|True" "$(rec form "$T" "$O" "'%s|%s' % (c['status'], 'root: form.yml: symlink outside target, not checked' in c['note'])")"
+check "no fact files, nothing from outside" "False|False|0" "$(yn test -e "$O/root/readme.json")|$(yn test -e "$O/root/form.json")|$(grep -rl 'SECRET-OUTSIDE\|secret_outside' "$O" 2>/dev/null | wc -l | tr -d ' ')"
+T="$TMP/symapp2"; mkdir -p "$T/docs"; printf '## Setup\nok\n' > "$T/docs/real.md"; ln -s docs/real.md "$T/README.md"
+printf 'attributes:\n  a:\n    widget: text_field\n' > "$T/form.yml"; ln -s "$OUTSIDE/form.yml" "$T/submit.yml.erb"
+check "README symlink inside: ran" "ran" "$(rec readme "$T" "$TMP/o39b" "c['status']")"
+check "submit outside: form skipped" "skipped|True" "$(rec form "$T" "$TMP/o39b" "'%s|%s' % (c['status'], 'root: submit.yml.erb: symlink outside target, not checked' in c['note'])")"
+T="$TMP/bigapp"; mkdir -p "$T"; python3 -c "import sys; open(sys.argv[1],'w').write('x\n' * 600000)" "$T/README.md"
+check "README over 1 MB: skipped" "skipped|root: README.md: skipped: file larger than 1 MB" "$(rec readme "$T" "$TMP/o39c" "'%s|%s' % (c['status'], c['note'])")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

@@ -52,8 +52,9 @@ the per-app dirs named in the previous apps.json are removed first):
                  An apps[].path outside the target or missing is listed
                  (app_type unknown) but never read.
   <app_id>/readme.json  {file, headings [{level, text, line}], placeholders
-                 [{line, text, phrase}] (lines containing a phrase from
-                 readme-placeholders.txt, case-insensitive), screenshots
+                 [{line, text, phrase}] (lines outside code fences
+                 containing a phrase from readme-placeholders.txt,
+                 case-insensitive), screenshots
                  [{line, alt, target}] (image links outside code fences;
                  badge images excluded), env_vars [{line, text, match}]
                  (match heading | assignment ([A-Z_]{3,}=) | phrase
@@ -62,13 +63,17 @@ the per-app dirs named in the previous apps.json are removed first):
                  limitations, troubleshooting, screenshots, environment
                  variables, info panel, architecture: {heading, line,
                  placeholder} or null}}. A rung is the first heading whose
-                 words contain a synonym (RUNGS); placeholder is true when
+                 words contain one of its synonyms (RUNGS); one heading can
+                 satisfy several rungs; placeholder is true when
                  the heading or every content line of its section (to the
                  next heading of the same or a higher level; HTML comments
                  and fence markers are not content) is a placeholder line.
                  Headings inside code fences or HTML comments are ignored.
   <app_id>/form.json  {file (form.yml, else form.yml.erb, ERB stripped),
-                 submit_file, error (the YAML parse error, else null),
+                 submit_file, erb_sentinel ("ERBVALUE": a min, max or
+                 pattern computed by a <%= %> tag is recorded as that
+                 string, so a non-null bound is a bound even when its value
+                 is not known), error (the YAML parse error, else null),
                  attributes [{name, widget, min, max, pattern, required,
                  line, defined, in_form, interpolated_in_submit,
                  submit_lines, reaches_scheduler}]}: every attributes: key,
@@ -77,15 +82,25 @@ the per-app dirs named in the previous apps.json are removed first):
                  ERB tag in submit.yml.erb, at submit_lines;
                  reaches_scheduler: its value reaches a <%= %> tag under
                  script.* or batch_connect.template, directly or through a
-                 variable assigned from it in a <% %> tag. PyYAML is used
-                 when importable, else a built-in subset parser; the form
-                 record's note says which.
+                 variable assigned from it in a <% %> tag (statements split
+                 on newlines and ;). A reference is the bare name,
+                 context.<name> or @<name>. min, max, pattern and required
+                 fall back to the attribute's html_options (whether OOD
+                 renders html_options min/max as bounds is unverified).
+                 PyYAML is used when importable, else a built-in subset
+                 parser; the form record's note says which. The subset
+                 parser refuses (as a parse error) anchors, aliases, tags,
+                 merge keys and a second document, which it cannot read
+                 correctly.
 
 summary.json also carries "facts": one record per fact scanner (readme,
 form), with the record fields above plus per_app {app_id: status}. An app's
 status is ran, skipped (no README / no form file / path not read) or
 failed_to_run (form did not parse; the error is in the note and in
-form.json); the record's status is failed_to_run if any app's is, else ran if
+form.json); a README, form or submit file is read only under the shell-file
+rule (a regular file, or a symlink resolving to one inside the target; at
+most 1 MB), else the app is skipped with the reason in the note. The
+record's status is failed_to_run if any app's is, else ran if
 any app's is, else skipped. A fact file is absent when its app was skipped.
 
 A tool's JSON is absent when the tool did not run. Status rules: no applicable
@@ -600,10 +615,10 @@ RUNGS = (
                       "deployment", "deploying")),
     ("configuration", ("configuration", "configure", "configuring", "customize", "customization",
                        "customizing")),
-    ("known limitations", ("known limitations", "limitations", "caveats")),
+    ("known limitations", ("known limitations", "limitations", "caveats", "known issues")),
     ("troubleshooting", ("troubleshooting", "faq", "common problems")),
     ("screenshots", ("screenshots", "screenshot")),
-    ("environment variables", ("environment variables", "environment variable")),
+    ("environment variables", ("environment variables", "environment variable", "environment")),
     ("info panel", ("info panel",)),
     ("architecture", ("architecture", "how it works")),
 )
@@ -655,14 +670,13 @@ class _SubsetYaml:
 
     def __init__(self, text):
         self.lines = []  # (lineno, indent, content)
-        raw = text.splitlines()
-        i = 0
-        while i < len(raw):
-            line = raw[i]
-            n = i + 1
-            i += 1
+        for n, line in enumerate(text.splitlines(), 1):
             body = self._strip_comment(line).rstrip()
-            if not body.strip() or body.strip() in ("---", "..."):
+            if body.strip() == "---" or body.startswith("--- "):
+                if self.lines:
+                    raise YamlError("line %d, column 1: a second YAML document is not supported" % n)
+                continue
+            if not body.strip() or body.strip() == "...":
                 continue
             lead = len(body) - len(body.lstrip(" "))
             if body[lead:lead + 1] == "\t":
@@ -713,6 +727,8 @@ class _SubsetYaml:
             if content.startswith("- "):
                 break
             key, rest = self._split_key(content, n, ind)
+            if key == "<<":
+                raise YamlError("line %d, column %d: merge keys (<<) are not supported" % (n, ind + 1))
             self.pos += 1
             out[key] = self._value(rest, n, ind + len(content) - len(rest), indent)
         return out
@@ -759,8 +775,15 @@ class _SubsetYaml:
             key = key[1:-1]
         return key, m.group(2)
 
+    @staticmethod
+    def _unsupported(text, n, col):
+        if text and text[0] in "&*!":
+            what = {"&": "anchors (&)", "*": "aliases (*)", "!": "tags (!)"}[text[0]]
+            raise YamlError("line %d, column %d: %s are not supported" % (n, col + 1, what))
+
     def _value(self, rest, n, col, indent):
         rest = rest.strip()
+        self._unsupported(rest, n, col)
         if not rest:
             nxt = self.lines[self.pos] if self.pos < len(self.lines) else None
             if nxt and nxt[1] == indent and (nxt[2].startswith("- ") or nxt[2] == "-"):
@@ -835,6 +858,8 @@ class _SubsetYaml:
                 mapping = {}
                 while tokens[pos[0]:pos[0] + 1] != ["}"]:
                     k = item()
+                    if k == "<<":
+                        err("merge keys (<<) are not supported")
                     if tokens[pos[0]:pos[0] + 1] != [":"]:
                         err("expected ':' in flow mapping")
                     pos[0] += 1
@@ -855,8 +880,9 @@ class _SubsetYaml:
             err("unexpected text after flow collection")
         return value
 
-    @staticmethod
-    def _scalar(text, n, col):
+    @classmethod
+    def _scalar(cls, text, n, col):
+        cls._unsupported(text, n, col)
         if text[:1] == '"':
             if len(text) < 2 or not text.endswith('"'):
                 raise YamlError("line %d, column %d: unclosed double-quoted string" % (n, col + 1))
@@ -884,18 +910,51 @@ def _read(path):
         return f.read()
 
 
+class Refused(Exception):
+    """A fact file that is not read: the message says which and why."""
+
+
+def _refusal(target, path):
+    """Why a fact file is not read (the shell-file walk's rule: a regular
+    file, or a symlink resolving to one inside the target; at most 1 MB),
+    or None when it may be read."""
+    mode = os.lstat(path).st_mode
+    if stat.S_ISLNK(mode):
+        real = os.path.realpath(path)
+        if not os.path.exists(real):
+            return DANGLING
+        if not _inside(target, real):
+            return OUTSIDE
+        if not os.path.isfile(real):
+            return NOT_REGULAR
+    elif not stat.S_ISREG(mode):
+        return NOT_REGULAR
+    if os.path.getsize(path) > MAX_SHELL_BYTES:
+        return TOO_LARGE
+    return None
+
+
+def _read_fact(target, path, rel):
+    """The text of a fact file, or Refused("<rel>: <reason>")."""
+    why = _refusal(target, path)
+    if why:
+        raise Refused("%s: %s" % (rel, why))
+    return _read(path)
+
+
 def _inside(target, path):
     root_real = os.path.realpath(target)
     real = os.path.realpath(path)
     return os.path.commonpath([real, root_real]) == root_real
 
 
-def _load_file(path, rel):
-    """Parsed YAML of a file, or None when it is absent or does not parse."""
-    if not os.path.isfile(path):
+def _load_file(target, path, rel):
+    """Parsed YAML of a file, or None when it is absent, refused, or does not
+    parse."""
+    if not os.path.lexists(path):
         return None
     try:
-        data = load_yaml(_read(path), rel)
+        data = load_yaml(_read_fact(target, path, rel), rel)
     except Exception:
         return None
     return data if isinstance(data, dict) else None
@@ -924,7 +983,7 @@ def _find_readme(app_dir):
         return None
     for name in sorted(os.listdir(app_dir)):
         if name.lower() in ("readme.md", "readme.markdown", "readme") and \
-                os.path.isfile(os.path.join(app_dir, name)):
+                not os.path.isdir(os.path.join(app_dir, name)):
             return name
     return None
 
@@ -951,11 +1010,11 @@ def resolve_apps(target):
     not read (outside the target, or missing) or None. The monorepo app_type
     precedence is the inline apps[] entry, then <path>/appverse.yml, then
     <path>/manifest.yml role, then entry-point files."""
-    root_meta = _load_file(os.path.join(target, "appverse.yml"), "appverse.yml") or {}
+    root_meta = _load_file(target, os.path.join(target, "appverse.yml"), "appverse.yml") or {}
     root_readme = _find_readme(target)
     apps_decl = root_meta.get("apps")
     if not isinstance(apps_decl, list) or not apps_decl:
-        manifest = _load_file(os.path.join(target, "manifest.yml"), "manifest.yml") or {}
+        manifest = _load_file(target, os.path.join(target, "manifest.yml"), "manifest.yml") or {}
         return [{"app_id": "root", "path": ".",
                  "app_type": _app_type([root_meta.get("app_type"), manifest.get("role")], target),
                  "readme": root_readme, "_dir": target, "_skip": None}]
@@ -963,8 +1022,8 @@ def resolve_apps(target):
     for entry in apps_decl:
         if not isinstance(entry, dict) or not isinstance(entry.get("path"), str) or not entry["path"].strip():
             continue
-        path = entry["path"].strip().rstrip("/") or "."
-        app_id = _app_id(path, taken)
+        path = os.path.normpath(entry["path"].strip()).replace(os.sep, "/")
+        app_id = "root" if path == "." and "root" not in taken else _app_id(path, taken)
         taken.add(app_id)
         full = os.path.join(target, path)
         skip = None
@@ -976,8 +1035,8 @@ def resolve_apps(target):
             apps.append({"app_id": app_id, "path": path, "app_type": "unknown", "readme": None,
                          "_dir": None, "_skip": skip})
             continue
-        sub = _load_file(os.path.join(full, "appverse.yml"), path + "/appverse.yml") or {}
-        manifest = _load_file(os.path.join(full, "manifest.yml"), path + "/manifest.yml") or {}
+        sub = _load_file(target, os.path.join(full, "appverse.yml"), path + "/appverse.yml") or {}
+        manifest = _load_file(target, os.path.join(full, "manifest.yml"), path + "/manifest.yml") or {}
         own = _find_readme(full)
         apps.append({"app_id": app_id, "path": path,
                      "app_type": _app_type([entry.get("app_type"), sub.get("app_type"),
@@ -1005,12 +1064,11 @@ def _norm_heading(text):
     return " ".join(re.findall(r"[a-z0-9]+", text))
 
 
-def _rung_for(text):
+def _rungs_for(text):
+    """Every rung a heading satisfies ("Requirements and Setup" is both
+    prerequisites and installation)."""
     words = " " + _norm_heading(text) + " "
-    for rung, synonyms in RUNGS:
-        if any(" " + s + " " in words for s in synonyms):
-            return rung
-    return None
+    return [rung for rung, synonyms in RUNGS if any(" " + s + " " in words for s in synonyms)]
 
 
 def _markdown_lines(lines):
@@ -1083,15 +1141,15 @@ def scan_readme(text, placeholders):
 
     placeholder_rows = []
     for i, line in enumerate(lines):
-        p = phrase_of(line)
+        p = None if flags[i][0] else phrase_of(line)
         if p:
             placeholder_rows.append({"line": i + 1, "text": line.strip(), "phrase": p})
     placeholder_lines = {r["line"] for r in placeholder_rows}
 
     rungs = dict((r, None) for r, _ in RUNGS)
     for idx, h in enumerate(headings):
-        rung = _rung_for(h["text"])
-        if not rung or rungs[rung] is not None:
+        todo = [r for r in _rungs_for(h["text"]) if rungs[r] is None]
+        if not todo:
             continue
         end = next((g["line"] for g in headings[idx + 1:] if g["level"] <= h["level"]), len(lines) + 1)
         content = [n for n in range(h["line"] + 1, end)
@@ -1099,7 +1157,8 @@ def scan_readme(text, placeholders):
                    and n not in underlines and n not in table_rules
                    and not re.match(r"^ {0,3}(`{3,}|~{3,})", lines[n - 1])]
         placeholder = bool(phrase_of(h["text"])) or all(n in placeholder_lines for n in content)
-        rungs[rung] = {"heading": h["text"], "line": h["line"], "placeholder": placeholder}
+        for rung in todo:
+            rungs[rung] = {"heading": h["text"], "line": h["line"], "placeholder": placeholder}
 
     screenshots, env_vars = [], []
     for i, line in enumerate(lines):
@@ -1116,7 +1175,8 @@ def scan_readme(text, placeholders):
                     screenshots.append({"line": i + 1, "alt": alt.group(1) if alt else "",
                                         "target": m.group(1)})
         if i + 1 in heading_lines:
-            if "environment variable" in _norm_heading(line):
+            if "environment variables" in _rungs_for(next(h["text"] for h in headings
+                                                           if h["line"] == i + 1)):
                 env_vars.append({"line": i + 1, "text": line.strip(), "match": "heading"})
             continue
         if re.search(r"[A-Z_]{3,}=", line):
@@ -1193,7 +1253,9 @@ def _submit_refs(text, names):
             continue
         start = text.count("\n", 0, m.start()) + 1
         tags.append(("out" if m.group(1) == "=" else "code", start, m.group(2)))
-    word = lambda n: re.compile(r"(?<![\w@$.])%s(?![\w?!])" % re.escape(n))
+    # a bare name, context.<name> or @<name>
+    word = lambda n: re.compile(r"(?:(?<![\w@$.])|(?<=\bcontext\.)|(?<=(?<![\w@])@))%s(?![\w?!])"
+                                % re.escape(n))
     taint = {n: {n} for n in names}  # variable -> attributes it carries
     changed = True
     while changed:
@@ -1201,8 +1263,8 @@ def _submit_refs(text, names):
         for kind, start, body in tags:
             if kind != "code":
                 continue
-            for stmt in body.splitlines():
-                m = re.match(r"^\s*([a-z_]\w*)\s*(?:\|\||\+|-|\*)?=(?!=|~)(.*)$", stmt)
+            for stmt in re.split(r"[\n;]", body):
+                m = re.match(r"^\s*@?([a-z_]\w*)\s*(?:\|\||\+|-|\*)?=(?!=|~)(.*)$", stmt)
                 if not m:
                     continue
                 carried = set()
@@ -1237,17 +1299,22 @@ def _num(value):
     return str(value)
 
 
-def scan_form(app_dir):
-    """form.json for one app directory, or None when it has no form file.
-    Raises nothing: a parse failure is returned as {"error": ...}."""
-    rel = next((f for f in ("form.yml", "form.yml.erb") if os.path.isfile(os.path.join(app_dir, f))), None)
+def scan_form(target, app_dir):
+    """form.json for one app directory, or None when it has no form file. A
+    parse failure is returned as {"error": ...}; a form or submit file that
+    may not be read (symlink out of the target, not regular, over 1 MB)
+    raises Refused."""
+    present = lambda f: os.path.lexists(os.path.join(app_dir, f))
+    rel = next((f for f in ("form.yml", "form.yml.erb") if present(f)), None)
     if rel is None:
         return None
-    submit = next((f for f in ("submit.yml.erb", "submit.yml")
-                   if os.path.isfile(os.path.join(app_dir, f))), None)
-    result = {"file": rel, "submit_file": submit, "error": None, "attributes": []}
-    text = strip_erb(_read(os.path.join(app_dir, rel))) if rel.endswith(".erb") \
-        else _read(os.path.join(app_dir, rel))
+    submit = next((f for f in ("submit.yml.erb", "submit.yml") if present(f)), None)
+    result = {"file": rel, "submit_file": submit, "erb_sentinel": "ERBVALUE", "error": None,
+              "attributes": []}
+    text = _read_fact(target, os.path.join(app_dir, rel), rel)
+    submit_text = _read_fact(target, os.path.join(app_dir, submit), submit) if submit else None
+    if rel.endswith(".erb"):
+        text = strip_erb(text)
     try:
         data = load_yaml(text, rel)
     except YamlError as e:
@@ -1263,7 +1330,7 @@ def scan_form(app_dir):
         if isinstance(data.get("form"), list) else []
     attr_lines, form_lines = _attr_lines(text)
     names = [str(k) for k in attrs] + [f for f in form if f not in attrs]
-    refs = _submit_refs(_read(os.path.join(app_dir, submit)), names) if submit else {}
+    refs = _submit_refs(submit_text, names) if submit else {}
     for name in names:
         spec = attrs.get(name)
         spec = spec if isinstance(spec, dict) else {}
@@ -1272,8 +1339,8 @@ def scan_form(app_dir):
         result["attributes"].append({
             "name": name,
             "widget": spec.get("widget"),
-            "min": _num(spec.get("min")),
-            "max": _num(spec.get("max")),
+            "min": _num(spec.get("min", html.get("min"))),
+            "max": _num(spec.get("max", html.get("max"))),
             "pattern": spec.get("pattern", html.get("pattern")),
             "required": bool(spec.get("required", html.get("required", False))),
             "line": attr_lines.get(name) if name in attrs else form_lines.get(name),
@@ -1315,7 +1382,12 @@ def check_readme(target, apps, out):
             notes.append("%s: no README" % app["app_id"])
             continue
         try:
-            data = scan_readme(_read(os.path.join(target, app["readme"])), placeholders)
+            data = scan_readme(_read_fact(target, os.path.join(target, app["readme"]), app["readme"]),
+                               placeholders)
+        except Refused as e:
+            per_app[app["app_id"]] = "skipped"
+            notes.append("%s: %s" % (app["app_id"], e))
+            continue
         except Exception as e:
             per_app[app["app_id"]] = "failed_to_run"
             notes.append(("%s: %s: %s" % (app["app_id"], type(e).__name__, e))[:STDERR_CHARS])
@@ -1327,7 +1399,7 @@ def check_readme(target, apps, out):
                         "screenshots, env vars, rungs", per_app, notes, n, "<app_id>/readme.json")
 
 
-def check_form(apps, out):
+def check_form(target, apps, out):
     per_app, notes, n = {}, [yaml_parser_note()], 0
     for app in apps:
         if app["_skip"]:
@@ -1335,7 +1407,11 @@ def check_form(apps, out):
             notes.append("%s: %s" % (app["app_id"], app["_skip"]))
             continue
         try:
-            data = scan_form(app["_dir"])
+            data = scan_form(target, app["_dir"])
+        except Refused as e:
+            per_app[app["app_id"]] = "skipped"
+            notes.append("%s: %s" % (app["app_id"], e))
+            continue
         except Exception as e:
             per_app[app["app_id"]] = "failed_to_run"
             notes.append(("%s: %s: %s" % (app["app_id"], type(e).__name__, e))[:STDERR_CHARS])
@@ -1456,7 +1532,7 @@ def main(argv):
                  "_skip": ("app shape not resolved: %s: %s" % (type(e).__name__, e))[:STDERR_CHARS]}]
     _write_json(out, "apps.json", [_public(a) for a in apps])
     facts = [guarded("readme", check_readme, target, apps, out),
-             guarded("form", check_form, apps, out)]
+             guarded("form", check_form, target, apps, out)]
 
     _write_json(out, "summary.json", {
         "schema": SCHEMA,

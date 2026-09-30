@@ -59,7 +59,6 @@ Batch Connect / Passenger apps:
 Widgets / Dashboards — check OOD docs for the correct path
 YOUR-APP
 Pin to a release (recommended)
-git checkout v1.0.0
 Edit `form.yml` and update these values for your cluster:
 Edit `manifest.yml` and update these values for your organization:
 | `description` | Your cluster and your documentation |
