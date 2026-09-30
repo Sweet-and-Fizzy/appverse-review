@@ -262,6 +262,7 @@ These catch capabilities used unsafely, across all app types.
 | Framework security features disabled (CSP, host checking) | Removes built-in protections | Insecure Configuration |
 | Debug output to world-readable locations | Leaks paths, usernames, system info | Insecure Configuration |
 | Missing `--cleanenv` with sensitive host environment | Host variables leak into the container | Container Security |
+| A static-analysis tool finding (shellcheck, semgrep, bandit) not already covered by another candidate (`check: sec-tool-finding`) | Varies by code — a tool finding is answered on its own merits, using the code's OODT mapping in `security-tools.md`'s Tool Lookup Table | Varies |
 
 ### OODT — Open OnDemand App Threats
 

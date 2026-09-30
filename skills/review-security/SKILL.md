@@ -75,6 +75,21 @@ candidate sites, not verdicts. Security has no rating: the rows are the output.
    | `sec-file-write-outside-job` | `file_write_outside_job` |
    | `sec-config-flag` | `config_flag` |
    | `sec-binary-in-template` | `binary_in_template` |
+   | `sec-tool-finding` | `tool_finding` |
+
+   `tool_finding` candidates are shaped differently: `tool` (`shellcheck`,
+   `semgrep` or `bandit`), `code` (`SC2164`, a semgrep check_id, `B602`),
+   `lines` (every line that tool raised that code at in that file, instead of
+   a single `line`), `level` (the tool's own level/severity), and `rule` /
+   `tag` null — there is one candidate per (tool, code, file), so a single
+   candidate can cover several lines. When an app has more than 15
+   tool-finding candidates they collapse to one per (tool, code) across
+   files, `lines` then holding `file:line` strings instead of bare line
+   numbers, and `security.json`'s `counts.tool_finding_collapsed` is `true`;
+   say so once in the report when it applies. shellcheck's `style` level and
+   semgrep's `INFO` severity are excluded (never candidates); bandit has no
+   severity floor. trivy findings are never `tool_finding` candidates — they
+   are not line-anchored, so they stay in `tool-table.md` only.
 
    **Records: one record per file per tag.** Every finding record is keyed
    `{file}:{tag}`, and a key appears once per app. Candidates of one check
@@ -116,6 +131,25 @@ candidate sites, not verdicts. Security has no rating: the rows are the output.
      ("job composer: running sbatch is its purpose"). Never penalize an app
      for its designed purpose; running shell commands with CORS open to all
      origins is a finding.
+   - `tool_finding`: every candidate gets its own row (the merge rule above
+     still applies to how several share a record, but never skips one).
+     Write PASS with the reason — an ERB artefact of the stripping (a
+     residual SC2154 for an OOD contract variable), style-only, a false
+     positive, or already covered by a candidate row elsewhere (name which
+     one) — or FAIL/WARN using the rule and tag `security-tools.md`'s Tool
+     Lookup Table maps the code to, per match, the same way a `config_flag`
+     candidate's rule and tag are chosen per match. The record is usually
+     `OODT-xx` (the mapped rule); a code whose defect is really a quality
+     issue rather than a security one (most of shellcheck's non-security
+     hygiene codes) records as `QUA-xx` instead and belongs with the Code
+     Quality findings — say which in the row. The row's Summary always
+     starts with the code (`SC2164: ...`, `B602: ...`, the semgrep check_id
+     as a whole token), since that is what a reader and `check-rows.py` use
+     to confirm the row answers that code and not merely the same line.
+     Several lines of the same candidate may be grouped in one citation
+     (`path:N,M`); a collapsed candidate (`security.json`'s
+     `counts.tool_finding_collapsed`) cites its `lines` as the `file:line`
+     strings it carries.
 
    A check with no candidates has no row: Security rows are required only
    where `security.json` lists a candidate (`row_required: when_candidates`).
@@ -139,14 +173,15 @@ candidate sites, not verdicts. Security has no rating: the rows are the output.
    already rendered the Check tiers line and the tool-scan table into
    `<pre-review>/tool-table.md`. Paste that file's contents verbatim as the
    Check tiers line and the table; never retype, reorder, recount, or reword
-   any of it. Then read `<pre-review>/summary.json` and each tool's JSON. A
-   tool finding at a candidate's line is corroboration: cite the tool and
-   finding ID in that row's summary (e.g., "bandit B602: subprocess with
-   shell=True"). A tool finding at no candidate's line is an additional
-   observation (step 4). Never run a tool, never ask to
-   run one, never write "pending approval". If `tool-table.md` is absent,
-   write the Check tiers line as `Tier 1 only` and the table with all four
-   rows (shellcheck, semgrep, bandit, trivy) as
+   any of it. Every shellcheck, semgrep and bandit finding is already a
+   `tool_finding` candidate in the step-3 loop (excluded: shellcheck `style`
+   level, semgrep `INFO`), answered there like any other candidate — this
+   step is for the table and for trivy, whose findings are not line-anchored
+   and so are never candidates; read a trivy finding here and, if it names a
+   real issue, record it as an additional observation (step 4). Never run a
+   tool, never ask to run one, never write "pending approval". If
+   `tool-table.md` is absent, write the Check tiers line as `Tier 1 only`
+   and the table with all four rows (shellcheck, semgrep, bandit, trivy) as
    `Not run (pre-review facts not found)` with Result `—`.
 6. **Tier 3 — Runtime checks** (when the app is runnable). Where the app has a
    WSGI/Rack entry point (`passenger_wsgi.py`, `config.ru`), a test harness, or

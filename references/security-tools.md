@@ -298,10 +298,27 @@ counts at the start of a string (`["curl", url]`, `"curl ..."`).
 | `credential_string` | A literal of four or more characters (no spaces, not a path, URL, variable or ERB tag) assigned (`=`, `:`, `=>`) to a name containing password, passphrase, pass, secret, token, api key, access key, private key or credential; an unquoted value of eight or more characters needs a letter and a digit. Names ending `_dir`, `_path`, `_file`, `_url`, `_name`, `_env`, `_field`, `_label`, `_id` and similar are skipped. Also `--password=<literal>`-style flags, `-----BEGIN ... PRIVATE KEY`, and AWS / GitHub / Slack token shapes | `sec-credential-string` | OODT-02 | `hardcoded-credential` |
 | `config_flag` | `0.0.0.0`, `[::]`, `::` as a host or a `listen(` / `bind(` argument, `INADDR_ANY` (OODT-05 `bind-all-interfaces`); `Access-Control-Allow-Origin: *`, `allow_origin='*'`, `origins="*"`, `CORS(app)`, `cors()` (OODT-05 `cors-wildcard`); `--no-auth`, `--auth none`, an empty `--...token=` / `--...password=` or `.token = ''` (OODT-05 `disabled-auth`); `disable_check_xsrf=True`, `WTF_CSRF_ENABLED = False`, `@csrf_exempt`, `skip_before_action :verify_authenticity_token` (OODT-05 `disabled-xsrf`); `--disable-ssl`, `--no-check-certificate`, `--insecure`, `curl -k`, `verify=False`, `rejectUnauthorized: false` (OODT-08 `disabled-ssl`); `set -x`, `bash -x` (the note says trace output goes to the job's own output.log, world-readable only if the job directory is), `app.run(debug=True)`, `DEBUG = True` (OODT-08 `debug-tracing-enabled`); `disable_host_check`, `allow_remote_access=True`, `ALLOWED_HOSTS = ['*']` (OODT-08 `dns-rebinding-relaxed`); `PIP_INDEX_URL=`, `--index-url`, `--trusted-host` (OODT-08 `supply-chain-untrusted-index`) | `sec-config-flag` | per match, as listed | per match, as listed |
 | `binary_in_template` | A file under `template/` with a NUL byte in its first 8 KB, at line 1, `text` "binary file (N bytes)". An image or font by its magic bytes (PNG, JPEG, GIF, ICO, WOFF/WOFF2, TTF/OTF) is not a candidate and is listed in `skipped_files`; SVG is text and is scanned | `sec-binary-in-template` | OODT-04 | `binary-in-template` |
+| `tool_finding` | Every shellcheck, semgrep or bandit finding at a file in the app's security scope (see "What the script runs per file type" above), one candidate per (tool, code, file): shellcheck `file`, `line`, `code` (rendered `SC%d`), `level`, `message`; semgrep `results[].path`, `start.line`, `check_id`, `extra.severity`, `extra.message`; bandit `results[].filename`, `line_number`, `test_id`, `issue_severity`, `issue_text`. Excluded: shellcheck `style` level, semgrep `INFO` severity (bandit has no floor — every severity is a candidate). A candidate's `lines` lists every line that tool raised that code at in that file (instead of a single `line`); `rule` and `tag` are null on the candidate itself — a FAIL/WARN record uses the rule and tag this table's Tool Lookup Table maps the code to, per match | `sec-tool-finding` | null | null |
 
 One candidate is written per (file, line, kind, tag), so a line can carry
 several kinds (`curl "$u" | bash` is an `eval_exec` and a `network_call`).
-Candidates are ordered by file, line, then kind in the table's order.
+Candidates are ordered by file, line, then kind in the table's order;
+`tool_finding` candidates are appended after the pattern-matched ones, one
+group per (tool, code, file).
+
+**tool_finding ceiling.** When an app has more than 15 `tool_finding`
+candidates, they collapse to one per (tool, code) across every file: `lines`
+then holds `file:line` strings (instead of bare line numbers within a single
+`file`, which is `null` on a collapsed candidate), and `security.json`'s
+`counts.tool_finding_collapsed` is `true`. This keeps a noisy tree from
+producing hundreds of near-duplicate rows; the security skill says once in
+the report when the ceiling applied.
+
+**trivy is excluded.** trivy's findings (dependency CVEs, container
+misconfigurations, secrets by pattern) are not anchored to a single line the
+way the other tools' are, so they are never `tool_finding` candidates. trivy
+stays visible only in `tool-table.md`'s Tool / Status / Result row; a trivy
+finding worth recording is an additional observation, not a candidate row.
 
 ## Interpreting tool output
 
