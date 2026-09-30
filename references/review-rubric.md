@@ -383,7 +383,7 @@ satisfies "what it launches" (`readme.json` records it as the intro). The
 level is the highest one whose requirements, and every lower level's, all
 have evidence. A README without evidence even for Minimal is a stub: that
 is the Structure gate failure (QUA-01 `docs-stub`), not a rating, and the
-report says "Minimal — not supported (stub README)".
+report says "Minimal — not supported (stub README; see QUA-01)".
 
 **Target for inclusion:** Adequate or above. Below the target is "accept with
 suggestions" when the gate criteria pass. A README that fails the Structure
