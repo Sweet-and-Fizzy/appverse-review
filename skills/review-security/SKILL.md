@@ -156,7 +156,10 @@ candidate sites, not verdicts. Security has no rating: the rows are the output.
      the row answers that code and not merely the same line. Several lines
      of the same candidate may be grouped in one citation (`path:N,M`); a
      collapsed candidate (`security.json`'s `counts.tool_finding_collapsed`)
-     cites its `lines` as the `file:line` strings it carries.
+     cites its `lines` as the `file:line` strings it carries. A candidate
+     that carries `lines_total` had its `lines` cut to the cap: the row's
+     Summary adds one sentence saying so, "and N more lines" where N is
+     `lines_total` minus the number of lines actually cited.
 
    A check with no candidates has no row: Security rows are required only
    where `security.json` lists a candidate (`row_required: when_candidates`).
