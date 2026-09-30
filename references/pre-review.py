@@ -40,8 +40,9 @@ the per-app dirs named in the previous apps.json are removed first):
   apps.json      [{app_id, path, app_type, readme}]: the app shape, resolved
                  as target-setup.md section 3 does. A root appverse.yml with
                  an apps: list is a monorepo, one app per apps[].path (app_id
-                 its last path component, made unique); otherwise one app,
-                 app_id "root", path ".". app_type is batch_connect |
+                 its normalised subpath, e.g. apps/good-app, made unique);
+                 otherwise one app, app_id "root", path ".". app_type is
+                 batch_connect |
                  passenger | companion | widget | unknown, from the declared
                  app_type (inline apps[] entry, then <path>/appverse.yml),
                  then the manifest role, then the entry-point files
@@ -161,8 +162,9 @@ the per-app dirs named in the previous apps.json are removed first):
                  reason}]}. Comment lines are never candidates; text is the
                  trimmed source line, at most 200 chars. A binary under
                  template/ is a binary_in_template candidate at line 1
-                 unless its magic bytes say image or font (then skipped);
-                 elsewhere it is skipped. One candidate per (file, line,
+                 unless its magic bytes say image or font AND its extension
+                 agrees (then skipped); elsewhere it is skipped. One
+                 candidate per (file, line,
                  kind, tag). The record's note gives each app's non-zero
                  counts ("root: interpolation 7, config_flag 2", or "no
                  candidates").
@@ -170,8 +172,8 @@ the per-app dirs named in the previous apps.json are removed first):
 summary.json also carries "facts": one record per fact scanner (readme,
 form, template, entry_point, security), with the record fields above plus
 per_app {app_id: status}. An app's status is ran, skipped (no README / no
-form file / no template/ / no entry point / no in-scope file / path not
-read), not_applicable (template
+form file for a batch_connect or unknown app / no template/ / no entry
+point / no in-scope file / path not read), not_applicable (form or template
 for a Passenger, companion or widget app; entry_point for any app but
 Passenger or companion) or failed_to_run (form did not parse; the error is in the note
 and in form.json); a README, form, submit, template or entry-point file is
@@ -728,14 +730,52 @@ def yaml_parser_note():
             else "YAML parser: built-in subset (PyYAML not importable)")
 
 
+def _safe_no_alias_loader(yaml):
+    """A yaml.SafeLoader subclass that refuses anchors, aliases, explicit
+    tags and merge keys with the same wording _SubsetYaml uses for the same
+    refusals, instead of expanding them (an alias bomb: nested anchored
+    aliases like &a [*b,*b,...] re-used under min: *h can blow up to
+    gigabytes in memory before any construction step sees it)."""
+
+    class _NoAliasSafeLoader(yaml.SafeLoader):
+        def compose_node(self, parent, index):
+            if self.check_event(yaml.events.AliasEvent):
+                event = self.peek_event()
+                raise YamlError("line %d, column %d: aliases (*) are not supported"
+                                % (event.start_mark.line + 1, event.start_mark.column + 1))
+            event = self.peek_event()
+            if event.anchor is not None:
+                raise YamlError("line %d, column %d: anchors (&) are not supported"
+                                % (event.start_mark.line + 1, event.start_mark.column + 1))
+            if event.tag is not None:
+                raise YamlError("line %d, column %d: tags (!) are not supported"
+                                % (event.start_mark.line + 1, event.start_mark.column + 1))
+            return super(_NoAliasSafeLoader, self).compose_node(parent, index)
+
+        def flatten_mapping(self, node):
+            for key_node, _ in node.value:
+                if key_node.tag == "tag:yaml.org,2002:merge":
+                    raise YamlError("line %d, column %d: merge keys (<<) are not supported"
+                                    % (key_node.start_mark.line + 1, key_node.start_mark.column + 1))
+            return super(_NoAliasSafeLoader, self).flatten_mapping(node)
+
+    return _NoAliasSafeLoader
+
+
 def load_yaml(text, name):
     """Parse YAML with PyYAML when importable, else the built-in subset parser.
-    Raises YamlError whose message names the file, line and column."""
+    Raises YamlError whose message names the file, line and column. Under
+    PyYAML, anchors, aliases, explicit tags and merge keys are refused before
+    any node is composed (see _safe_no_alias_loader), matching what the
+    subset parser refuses and its wording, so a crafted alias bomb cannot
+    expand in memory."""
     yaml = _yaml_module()
     if yaml is None:
         return _SubsetYaml(text).parse()
     try:
-        return yaml.safe_load(text)
+        return yaml.load(text, Loader=_safe_no_alias_loader(yaml))
+    except YamlError:
+        raise
     except yaml.YAMLError as e:
         raise YamlError(" ".join(str(e).replace('"<unicode string>"', name).split()))
 
@@ -1067,10 +1107,16 @@ def _find_readme(app_dir):
 
 
 def _app_id(path, taken):
-    base = re.sub(r"[^A-Za-z0-9._-]", "-", path.rstrip("/").rsplit("/", 1)[-1]).strip(".") or "app"
+    """A monorepo app's app_id is its normalised subpath itself (finding-codes.md:
+    apps/good-app, not the basename good-app), so the per-app fact directory
+    <out>/<app_id>/ nests under <out>/apps/. A subpath that collides with a
+    reserved name (RESERVED_IDS) or an already-taken id, or is "." or "root"
+    handled elsewhere, falls back to a dash-sanitised form, then a numbered
+    suffix."""
+    base = path.strip("/") or "app"
     app_id = base
     if app_id in RESERVED_IDS or app_id in taken:
-        app_id = re.sub(r"[^A-Za-z0-9._-]", "-", path.strip("/")).strip(".-") or "app"
+        app_id = re.sub(r"[^A-Za-z0-9._/-]", "-", base).strip(".-") or "app"
     k = 2
     while app_id in RESERVED_IDS or app_id in taken:
         app_id, k = "%s-%d" % (base, k), k + 1
@@ -1079,8 +1125,9 @@ def _app_id(path, taken):
 
 def resolve_apps(target):
     """App shape as target-setup.md section 3: a root appverse.yml with an
-    apps: list is a monorepo (each apps[].path an app, id its last path
-    component); otherwise the repo is one app, id "root", path ".".
+    apps: list is a monorepo (each apps[].path an app, id its normalised
+    subpath, e.g. apps/good-app, per finding-codes.md); otherwise the repo is
+    one app, id "root", path ".".
 
     Returns a list of {app_id, path, app_type, readme, _dir, _skip}: readme
     is the repo-relative README (a monorepo app without its own falls back to
@@ -1217,9 +1264,25 @@ def scan_readme(text, placeholders):
         if i and "|" in line and rule.match(line) and "|" in lines[i - 1] and not flags[i][0]:
             table_rules |= {i, i + 1}
 
+    # A placeholder phrase is matched per paragraph, not per line: a wrapped
+    # template paragraph's continuation line (previous line non-blank, this
+    # line not itself a heading, list item, blockquote or fence start) may
+    # carry none of the phrase text (the phrase was wrapped onto the line
+    # before) but is still part of the same placeholder sentence, so it
+    # inherits its paragraph's first line's match.
+    def _unit_start(n):
+        return (not lines[n].strip() or n in heading_lines or n in underlines
+                or flags[n][0] or flags[n][1]
+                or re.match(r"^ {0,3}(?:[-*+] |\d+[.)] |>|\||#{1,6}(?:\s|$)|`{3,}|~{3,})", lines[n]))
+
     placeholder_rows = []
+    paragraph_phrase = None
     for i, line in enumerate(lines):
-        p = None if flags[i][0] else phrase_of(line)
+        if flags[i][0]:
+            continue
+        continues = i and not _unit_start(i) and not _unit_start(i - 1)
+        p = phrase_of(line) if not continues else (phrase_of(line) or paragraph_phrase)
+        paragraph_phrase = p if not _unit_start(i) else None
         if p:
             placeholder_rows.append({"line": i + 1, "text": line.strip(), "phrase": p})
     placeholder_lines = {r["line"] for r in placeholder_rows}
@@ -1542,7 +1605,12 @@ def check_form(target, apps, out):
             notes.append(("%s: %s: %s" % (app["app_id"], type(e).__name__, e))[:STDERR_CHARS])
             continue
         if data is None:
-            per_app[app["app_id"]] = "skipped"
+            # form.yml applies only to batch_connect (and unknown, whose
+            # type resolution fell through to entry-point files); a
+            # Passenger, companion or widget app has no form by contract, so
+            # its absence is not_applicable, not skipped.
+            per_app[app["app_id"]] = ("not_applicable" if app["app_type"] not in
+                                      ("batch_connect", "unknown") else "skipped")
             continue
         n += 1
         _write_json(_app_dir_out(out, app), "form.json", data)
@@ -2111,6 +2179,9 @@ PRESENCE_TEST = re.compile(r"(?:\.\w+)*?\.(?:blank|present|empty|nil|zero|positi
 # A reference whose method chain ends in a sanitiser, or wrapped in one.
 SANITISE_AFTER = re.compile(r"(?:\.\w+[?!]?(?:\([^()]*\))?)*?\.(to_i|to_f|shellescape)\b")
 SANITISE_BEFORE = re.compile(r"(Shellwords\.(?:escape|shellescape)|Integer|Float)\(\s*$")
+# The note on an unguarded interpolation line names what _sanitised looks
+# for, so the reviewer knows the check was made, not merely absent from view.
+NO_SANITISER_NOTE = "no sanitiser (shellescape/to_i/to_f/Integer/Float/Shellwords.escape) on this line"
 # An enclosing condition that validates: a regex match or an allow-list check.
 VALIDATE = re.compile(r"=~|!~|\.match\??\s*\(|\.include\?\s*\(|\.in\?\s*\(")
 ERB_COMMENT = re.compile(r"<%#.*?%>", re.S)
@@ -2224,11 +2295,16 @@ def _perm_note(cmd, rest):
     return "%s %s, %s" % (cmd, mode, "world-writable" if worldw else "not world-writable")
 
 
+# crontab as a whole word, or cron as its own path segment (/etc/cron.d/,
+# /var/spool/cron/, cron.daily) - never a substring of a word (acronyms.txt).
+CRON_TARGET = re.compile(r"\bcrontab\b|(?:^|/)cron(?:\.\w+|/|$)")
+
+
 def _write_target(target):
     t = target.strip("\"'")
     if ".ssh/" in t or "authorized_keys" in t:
         return "ssh-key-write"
-    if "cron" in t or "systemd/user" in t:
+    if CRON_TARGET.search(t) or "systemd/user" in t:
         return "cron-install"
     if re.search(r"(?:^|/)\.\w", t):
         return "dotfile-write"
@@ -2446,6 +2522,8 @@ def _interpolations(text, family, attrs, yaml_paths=None):
             note += "; under " + ".".join(yaml_paths[start - 1])
         if e["sanitisers"]:
             note += "; sanitised by " + ", ".join(sorted(e["sanitisers"]))
+        elif not e["guarded"]:
+            note += "; " + NO_SANITISER_NOTE
         kind = "YAML" if yaml_paths is not None else "shell" if family == "shell" else None
         if e["quotes"] == {""}:
             note += "; unquoted"
@@ -2551,16 +2629,27 @@ IMAGE_FONT_MAGIC = ((b"\x89PNG\r\n\x1a\n", "png"), (b"\xff\xd8\xff", "jpeg"), (b
                     (b"GIF89a", "gif"), (b"\x00\x00\x01\x00", "ico"), (b"wOFF", "woff"),
                     (b"wOF2", "woff2"), (b"\x00\x01\x00\x00", "ttf"), (b"OTTO", "otf"),
                     (b"true", "ttf"))
+# The extensions a magic-byte kind may legitimately wear; a file whose bytes
+# say font or image but whose name does not match is not exempted by magic
+# alone (a renamed/disguised binary is still a candidate).
+MAGIC_EXTS = {"png": (".png",), "jpeg": (".jpg", ".jpeg"), "gif": (".gif",),
+              "ico": (".ico",), "woff": (".woff",), "woff2": (".woff2",),
+              "ttf": (".ttf",), "otf": (".otf",)}
 
 
 def _binary_kind(path):
-    """None for a text file; the image / font type named by its magic bytes;
-    else "binary"."""
+    """None for a text file; the image / font type named by its magic bytes
+    when the file's extension matches that type; else "binary" (including a
+    magic match whose extension does not agree)."""
     with open(path, "rb") as f:
         head = f.read(8192)
     if b"\0" not in head:
         return None
-    return next((k for magic, k in IMAGE_FONT_MAGIC if head.startswith(magic)), "binary")
+    kind = next((k for magic, k in IMAGE_FONT_MAGIC if head.startswith(magic)), None)
+    if kind is None:
+        return "binary"
+    ext = os.path.splitext(path)[1].lower()
+    return kind if ext in MAGIC_EXTS.get(kind, ()) else "binary"
 
 
 def scan_security(app_dir, target, app_type, exclude=None):

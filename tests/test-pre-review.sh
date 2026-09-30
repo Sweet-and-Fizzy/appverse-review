@@ -437,6 +437,12 @@ else skip "shellcheck not installed"; skip "shellcheck not installed"; fi
 PR="$SCRIPT_DIR/references/pre-review.py"
 # px <python code setting r> [args...]: pre-review.py imported as pr, args as A
 px() { python3 -c 'import importlib.util,sys; s=importlib.util.spec_from_file_location("pr",sys.argv[1]); pr=importlib.util.module_from_spec(s); s.loader.exec_module(pr); g={"pr":pr,"A":sys.argv[3:]}; exec(sys.argv[2],g); print(g["r"])' "$PR" "$@" 2>&1; }
+# YVENV_PY: a venv python with PyYAML installed, for exercising PyYAML-only
+# paths (this host's python3 has no PyYAML); empty when no such venv exists.
+YVENV_PY="/private/tmp/claude-501/-Users-drew-Sites-connectci-appverse-review/bf22b63a-7c35-4488-89f2-b3f69429d5d2/scratchpad/yvenv/bin/python3"
+if [ ! -x "$YVENV_PY" ] || ! "$YVENV_PY" -c 'import yaml' 2>/dev/null; then YVENV_PY=""; fi
+# pxv <python code setting r> [args...]: like px, but run under $YVENV_PY
+pxv() { "$YVENV_PY" -c 'import importlib.util,sys; s=importlib.util.spec_from_file_location("pr",sys.argv[1]); pr=importlib.util.module_from_spec(s); s.loader.exec_module(pr); g={"pr":pr,"A":sys.argv[3:]}; exec(sys.argv[2],g); print(g["r"])' "$PR" "$@" 2>&1; }
 # rd <README> <expression over d (readme facts)>
 rd() { px "d=pr.scan_readme(open(A[0]).read(), pr.load_placeholders()); r=$2" "$1"; }
 # fm <app dir> <expression over d (form facts; target = app dir)>
@@ -478,18 +484,30 @@ check "form.json carries the error, no attributes" "True|[]" "$(j "$O/root/form.
 check "readme still ran" "ran" "$(fct "$O" readme status)"
 
 echo "Test 33: app shape"
-check "monorepo (from the earlier run)" "good-app|apps/good-app|batch_connect|README.md,bad-app|apps/bad-app|batch_connect|README.md" "$(j "$TMP/mono/apps.json" "','.join('%s|%s|%s|%s' % (e['app_id'], e['path'], e['app_type'], e['readme']) for e in d)")"
-check "monorepo per_app" "{'good-app': 'ran', 'bad-app': 'ran'}|{'good-app': 'ran', 'bad-app': 'skipped'}" "$(fct "$TMP/mono" readme per_app)|$(fct "$TMP/mono" form per_app)"
+check "monorepo (from the earlier run): app_id is the normalised subpath" "apps/good-app|apps/good-app|batch_connect|README.md,apps/bad-app|apps/bad-app|batch_connect|README.md" "$(j "$TMP/mono/apps.json" "','.join('%s|%s|%s|%s' % (e['app_id'], e['path'], e['app_type'], e['readme']) for e in d)")"
+check "monorepo per_app" "{'apps/good-app': 'ran', 'apps/bad-app': 'ran'}|{'apps/good-app': 'ran', 'apps/bad-app': 'skipped'}" "$(fct "$TMP/mono" readme per_app)|$(fct "$TMP/mono" form per_app)"
+check "fact dir nests under the subpath" "True|True" "$(yn test -e "$TMP/mono/apps/good-app/readme.json")|$(yn test -e "$TMP/mono/apps/bad-app/readme.json")"
 check "single app is root" "root|.|batch_connect|README.md" "$(ap "$FIX/containerized-server" "$ROW")"
 check "passenger app" "root|.|passenger|README.md" "$(ap "$FIX/passenger-flask-app" "$ROW")"
 T="$TMP/t33"; mkdir -p "$T/a" "$T/b" "$T/c"
 printf 'apps:\n  - path: a\n  - path: ./b/\n    app_type: companion_app\n  - path: c\n  - path: ../escape\n  - path: .\n' > "$T/appverse.yml"
 printf 'run app\n' > "$T/a/config.ru"; printf 'name: B\n' > "$T/b/manifest.yml"; printf 'x: 1\n' > "$T/c/README.md"
-check "entry point, declared app_type, normalized path, unknown, outside target, path ." "a|a|passenger|None,b|b|companion|None,c|c|unknown|c/README.md,escape|../escape|unknown|None,root|.|unknown|None" "$(ap "$T" "$ROW")"
-check "outside-target app is skipped, named in the note" "skipped|True" "$(rec readme "$T" "$TMP/o33" "'%s|%s' % (c['per_app']['escape'], 'escape: app path outside target, not read' in c['note'])")"
+check "entry point, declared app_type, normalized path, unknown, outside target, path ." "a|a|passenger|None,b|b|companion|None,c|c|unknown|c/README.md,../escape|../escape|unknown|None,root|.|unknown|None" "$(ap "$T" "$ROW")"
+check "outside-target app is skipped, named in the note" "skipped|True" "$(rec readme "$T" "$TMP/o33" "'%s|%s' % (c['per_app']['../escape'], '../escape: app path outside target, not read' in c['note'])")"
 T="$TMP/t33b"; mkdir -p "$T"; printf 'echo hi\n' > "$T/a.sh"
 check "no manifest is still one root app" "root|.|unknown|None" "$(ap "$T" "$ROW")"
 check "readme skipped without a README, no readme.json" "skipped|False" "$(rec readme "$T" "$TMP/o33b" "c['status']")|$(yn test -e "$TMP/o33b/root/readme.json")"
+
+echo "Test 33b: monorepo app_id is the normalised subpath, not the basename"
+T="$TMP/t33c"; mkdir -p "$T/apps/good-app" "$T/other/good-app"
+printf 'apps:\n  - path: apps/good-app\n  - path: other/good-app\n' > "$T/appverse.yml"
+check "two apps sharing a basename get distinct subpath ids" "apps/good-app|apps/good-app,other/good-app|other/good-app" "$(ap "$T" "','.join('%s|%s' % (e['app_id'], e['path']) for e in a)")"
+T="$TMP/t33d"; mkdir -p "$T/apps/root" "$T/apps/stripped"
+printf 'apps:\n  - path: apps/root\n  - path: apps/stripped\n' > "$T/appverse.yml"
+check "a subpath merely containing a reserved basename is not reserved" "apps/root,apps/stripped" "$(ap "$T" "','.join(e['app_id'] for e in a)")"
+T="$TMP/t33e"; mkdir -p "$T/root" "$T/stripped"
+printf 'apps:\n  - path: root\n  - path: stripped\n' > "$T/appverse.yml"
+check "a top-level subpath literally reserved still falls back" "root-2,stripped-2" "$(ap "$T" "','.join(e['app_id'] for e in a)")"
 
 echo "Test 34: readme facts, containerized-server and vnc-stale-debugger"
 R="$FIX/containerized-server/README.md"
@@ -560,6 +578,35 @@ check "env_vars" "17:assignment,21:heading,23:phrase" "$(rd "$R" "','.join('%s:%
 check "placeholder file is seeded" "True" "$(yn grep -qxF '[Application Name]' "$SCRIPT_DIR/references/readme-placeholders.txt")"
 check "git checkout v1.0.0 is not a placeholder" "False" "$(yn grep -qF 'git checkout v1.0.0' "$SCRIPT_DIR/references/readme-placeholders.txt")"
 
+echo "Test 35b: a wrapped template paragraph's continuation line is still a placeholder"
+T="$TMP/t35b"; mkdir -p "$T"; R="$T/README.md"
+cat > "$R" <<'MD'
+# App
+
+## Troubleshooting
+
+This app is built for [brief use case] and is intended for
+use by researchers who need a quick interactive session
+on the cluster without further setup.
+
+## Known Issues
+None.
+MD
+check "wrapped placeholder: all three paragraph lines recorded, continuations included" "5,6,7" "$(rd "$R" "','.join(str(p['line']) for p in d['placeholders'])")"
+check "continuation line has no phrase text of its own, still flagged" "True" "$(rd "$R" "'[brief use case]' not in d['placeholders'][1]['text'] and d['placeholders'][1]['phrase'] == '[brief use case]'")"
+check "section with only a wrapped placeholder paragraph: rung is placeholder" "True" "$(rd "$R" "d['rungs']['troubleshooting']['placeholder']")"
+# a heading right after the wrapped text does not extend the paragraph
+cat > "$T/README2.md" <<'MD'
+# App
+
+## FAQ
+
+This app is for [brief use case].
+## Known Issues
+None.
+MD
+check "a heading line never inherits the previous paragraph's match" "5" "$(rd "$T/README2.md" "','.join(str(p['line']) for p in d['placeholders'])")"
+
 echo "Test 36: form facts, vnc-stale-debugger (form.yml.erb)"
 D="$FIX/vnc-stale-debugger"
 check "file, submit file, sentinel" "form.yml.erb|submit.yml.erb|ERBVALUE" "$(fm "$D" "'%s|%s|%s' % (d['file'], d['submit_file'], d['erb_sentinel'])")"
@@ -626,7 +673,11 @@ T="$TMP/t37c"; mkdir -p "$T"
 printf '<%% x = 1 %%>\nattributes:\n  a:\n    widget: {text_field\nform:\n  - a\n' > "$T/form.yml.erb"
 check "unparseable form.yml.erb: error names line 4" "form.yml.erb|True|[]" "$(fm "$T" "'%s|%s|%s' % (d['file'], 'line 4' in d['error'], d['attributes'])")"
 check "record failed_to_run, note names parser and error" "failed_to_run|True" "$(rec form "$T" "$TMP/o37c" "'%s|%s' % (c['status'], c['note'].startswith('$PARSER_NOTE; root: form.yml.erb: '))")"
-check "passenger form skipped, no form.json" "skipped|{'root': 'skipped'}|False" "$(fct "$TMP/flask" form status)|$(fct "$TMP/flask" form per_app)|$(yn test -e "$TMP/flask/root/form.json")"
+check "passenger form not_applicable, no form.json" "not_applicable|{'root': 'not_applicable'}|False" "$(fct "$TMP/flask" form status)|$(fct "$TMP/flask" form per_app)|$(yn test -e "$TMP/flask/root/form.json")"
+T="$TMP/t37d"; mkdir -p "$T"; printf 'app_type: companion\n' > "$T/appverse.yml"; printf 'run App\n' > "$T/config.ru"
+check "companion app with no form: not_applicable, not skipped" "not_applicable|{'root': 'not_applicable'}" "$(rec form "$T" "$TMP/o37d" "'%s|%s' % (c['status'], c['per_app'])")"
+T="$TMP/t37e2"; mkdir -p "$T"
+check "batch_connect app missing its form file: skipped (form applies but is absent)" "skipped|{'root': 'skipped'}" "$(rec form "$T" "$TMP/o37e2" "'%s|%s' % (c['status'], c['per_app'])")"
 
 echo "Test 38: the subset YAML parser refuses what it cannot read"
 sub() { printf '%b' "$1" > "$TMP/sub.yml"; px "t=open(A[0]).read()
@@ -642,6 +693,42 @@ check "second document" "line 3, column 1: a second YAML document is not support
 check "a leading --- is fine" "parsed" "$(sub '---\na: 1\n')"
 T="$TMP/t38"; mkdir -p "$T"; printf 'attributes:\n  a: &x\n    widget: text_field\n  b: *x\nform:\n  - a\n' > "$T/form.yml"
 check "subset parser: anchored form is failed_to_run" "failed_to_run" "$(px "pr._yaml_module=lambda: None; r=pr.check_form(A[0], pr.resolve_apps(A[0]), A[1])['status']" "$T" "$TMP/o38")"
+
+echo "Test 38a: PyYAML refuses anchors/aliases/tags/merge keys the same way (no expansion, so no alias bomb)"
+if [ -n "$YVENV_PY" ]; then
+  subv() { printf '%b' "$1" > "$TMP/subv.yml"; pxv "t=open(A[0]).read()
+try:
+    pr.load_yaml(t, 'x.yml'); r='parsed'
+except pr.YamlError as e:
+    r=str(e)" "$TMP/subv.yml"; }
+  check "PyYAML anchor" "line 2, column 7: anchors (&) are not supported" "$(subv 'a: 1\nbase: &b {min: 1}\n')"
+  check "PyYAML alias" "line 2, column 4: aliases (*) are not supported" "$(subv 'a: 1\nb: *a\n')"
+  check "PyYAML merge key" "line 3, column 3: merge keys (<<) are not supported" "$(subv 'x:\n  y: 1\n  <<: {min: 1}\n')"
+  check "PyYAML explicit tag" "line 1, column 4: tags (!) are not supported" "$(subv 'a: !!str 5\n')"
+  check "PyYAML: a plain form still parses" "parsed" "$(subv 'a: 1\nb: 2\n')"
+  T="$TMP/t38a"; mkdir -p "$T"
+  # a form.yml alias bomb: each level doubles the prior level's aliases;
+  # 20 levels from one leaf would be over a million refs if expanded.
+  { printf 'attributes:\n  a0:\n    widget: text_field\nform:\n  - a0\na0: &a0 x\n'
+    for i in $(seq 1 20); do printf 'a%d: &a%d [*a%d, *a%d]\n' "$i" "$i" "$((i-1))" "$((i-1))"; done
+    printf 'min: *a20\n'; } > "$T/form.yml"
+  check "alias bomb: refused, not expanded" "True" "$(pxv "import time
+t0 = time.time()
+try:
+    pr.load_yaml(open(A[0]).read(), 'form.yml')
+    r = 'parsed (BAD)'
+except pr.YamlError as e:
+    r = str('anchors (&) are not supported' in str(e) and time.time() - t0 < 5)" "$T/form.yml")"
+  check "alias bomb: form.json stays small (refused, not a 4GB dump)" "True" "$(pxv "d = pr.scan_form(A[0], A[0]); r = len(d['error']) < 1000" "$T")"
+else
+  skip "no venv python with PyYAML on this host"
+  skip "no venv python with PyYAML on this host"
+  skip "no venv python with PyYAML on this host"
+  skip "no venv python with PyYAML on this host"
+  skip "no venv python with PyYAML on this host"
+  skip "no venv python with PyYAML on this host"
+  skip "no venv python with PyYAML on this host"
+fi
 
 echo "Test 39: fact files are read only under the shell-file rule"
 OUTSIDE="$TMP/outside"; mkdir -p "$OUTSIDE"
@@ -816,7 +903,7 @@ echo "Test 43: template / entry_point records by app type"
 D="$FIX/containerized-server"
 check "batch connect: template ran, entry_point not_applicable" "ran|{'root': 'ran'}|6|root/template.json|not_applicable|{'root': 'not_applicable'}" "$(rec template "$D" "$TMP/o43" "'%s|%s|%s|%s' % (c['status'], c['per_app'], c['files_examined'], c['output_file'].replace('<app_id>', 'root'))")|$(rec entry_point "$D" "$TMP/o43" "'%s|%s' % (c['status'], c['per_app'])")"
 check "passenger (end to end): template not_applicable, entry_point ran" "not_applicable|{'root': 'not_applicable'}|ran|{'root': 'ran'}|False|passenger_wsgi.py" "$(fct "$TMP/flask" template status)|$(fct "$TMP/flask" template per_app)|$(fct "$TMP/flask" entry_point status)|$(fct "$TMP/flask" entry_point per_app)|$(yn test -e "$TMP/flask/root/template.json")|$(fact "$TMP/flask" root entry_point "d['file']")"
-check "monorepo without template dirs: skipped, noted" "{'good-app': 'skipped', 'bad-app': 'skipped'}|True" "$(fct "$TMP/mono" template per_app)|$(fct "$TMP/mono" template note | grep -q 'good-app: no template/ directory' && echo True || echo False)"
+check "monorepo without template dirs: skipped, noted" "{'apps/good-app': 'skipped', 'apps/bad-app': 'skipped'}|True" "$(fct "$TMP/mono" template per_app)|$(fct "$TMP/mono" template note | grep -q 'apps/good-app: no template/ directory' && echo True || echo False)"
 
 echo "Test 44: security candidates, fixtures"
 # sc <app dir> <target> <app_type> <expression over d (security facts)>
@@ -954,6 +1041,9 @@ F=<%= x.to_s.to_i %>
 G=<%= x == "1" ? 'lab' : 'tree' %>
 SH
 check "guarded means sanitised or validated; presence is separate" "2:True:False|3:False:True|4:True:False|6:True:True|9:True:True|11:True:False|12:True:True" "$(sc "$T" "$T" batch_connect "'|'.join('%s:%s:%s' % (c['line'], c['guarded'], c['presence_checked']) for c in d['candidates'] if c['kind']=='interpolation')")"
+check "unguarded line 3 (x.blank? ? 'a' : x) names the sanitisers looked for" "True" "$(sc "$T" "$T" batch_connect "'no sanitiser (shellescape/to_i/to_f/Integer/Float/Shellwords.escape) on this line' in [c for c in d['candidates'] if c['line']==3][0]['note']")"
+check "guarded-by-validation line 6 (=~) does not get the no-sanitiser note" "False" "$(sc "$T" "$T" batch_connect "'no sanitiser' in [c for c in d['candidates'] if c['line']==6][0]['note']")"
+check "guarded-by-sanitiser line 2 (.shellescape) does not get the no-sanitiser note" "False" "$(sc "$T" "$T" batch_connect "'no sanitiser' in [c for c in d['candidates'] if c['line']==2][0]['note']")"
 
 echo "Test 47: security scope, monorepo, shared_paths, skipped files, summary record"
 T="$TMP/t47"; mkdir -p "$T/apps/p/node_modules/x" "$T/apps/p/vendor" "$T/shared" "$T/apps/b/template"
@@ -975,8 +1065,8 @@ check "passenger app files: tests, docs, images, vendored code out" "apps/p/Gemf
 check "passenger app skipped files" "../outside:shared path outside target, not read|apps/p/blob.dat:binary file, not scanned|apps/p/leak.py:symlink outside target, not checked" "$(sc "$T/apps/p" "$T" passenger "'|'.join('%s:%s' % (s['file'], s['reason']) for s in d['skipped_files'])")"
 check "batch connect app: template, Dockerfile and shared_paths; other source out" "eval_exec:apps/b/Dockerfile:2,network_call:apps/b/Dockerfile:2,permission_change:apps/b/template/s.sh:2,eval_exec:shared/lib.sh:2,network_call:shared/lib.sh:2" "$(sc "$T/apps/b" "$T" batch_connect "$CL")"
 check "umask 000 is world-writable" "umask 000, world-writable" "$(sc "$T/apps/b" "$T" batch_connect "$BY'permission_change'][0]['note']")"
-check "record: ran per app, counts in the note" "ran|{'p': 'ran', 'b': 'ran'}|p: eval_exec 2, network_call 1; b: eval_exec 2, network_call 2, permission_change 1|<app_id>/security.json" "$(rec security "$T" "$TMP/o47" "'%s|%s|%s|%s' % (c['status'], c['per_app'], c['note'], c['output_file'])")"
-check "security.json written per app" "True|True" "$(yn test -e "$TMP/o47/p/security.json")|$(yn test -e "$TMP/o47/b/security.json")"
+check "record: ran per app, counts in the note" "ran|{'apps/p': 'ran', 'apps/b': 'ran'}|apps/p: eval_exec 2, network_call 1; apps/b: eval_exec 2, network_call 2, permission_change 1|<app_id>/security.json" "$(rec security "$T" "$TMP/o47" "'%s|%s|%s|%s' % (c['status'], c['per_app'], c['note'], c['output_file'])")"
+check "security.json written per app" "True|True" "$(yn test -e "$TMP/o47/apps/p/security.json")|$(yn test -e "$TMP/o47/apps/b/security.json")"
 T="$TMP/t47b"; mkdir -p "$T"; printf 'name: x\n' > "$T/manifest.yml"; printf '# x\n' > "$T/README.md"
 check "an app with nothing to flag: ran, no candidates" "ran|root: no candidates" "$(rec security "$T" "$TMP/o47b" "'%s|%s' % (c['status'], c['note'])")"
 T="$TMP/t47c"; mkdir -p "$T"; printf '# x\n' > "$T/README.md"
@@ -1005,6 +1095,17 @@ check "non-dotfile targets are write-outside-job" "write-outside-job|write-outsi
 check "set -x note says where the trace goes" "shell tracing on; trace output goes to the job's own output.log; world-readable only if the job directory is" "$(sc "$T" "$T" batch_connect "$BY'config_flag'][0]['note']")"
 check "permission notes state the mode" "chmod 700, not world-writable|chmod u+x, not world-writable|chmod o+w, world-writable" "$(sc "$T" "$T" batch_connect "'|'.join(c['note'] for c in $BY'permission_change'])")"
 check "write-outside-job is in the OODT-07 vocabulary" "1" "$(grep -c '`write-outside-job`' "$SCRIPT_DIR/references/finding-codes.md")"
+check "cron is never a substring of a word" "write-outside-job" "$(px "r=pr._write_target('\$HOME/acronyms.txt')")"
+check "crontab and a /cron path segment are cron-install" "cron-install|cron-install|cron-install|cron-install" "$(px "r='|'.join(pr._write_target(t) for t in ('/usr/bin/crontab', '/etc/cron.d/myjob', '/var/spool/cron/crontabs/user', '/etc/cron.daily/cleanup'))")"
+T="$TMP/t48e"; mkdir -p "$T/template"
+printf 'x: 1\n' > "$T/form.yml"
+printf '#!/bin/bash\necho x > $HOME/acronyms.txt\necho x >> /etc/cron.d/myjob\n' > "$T/template/s.sh"
+check "acronyms.txt is not tagged cron-install; a real cron path is" "write-outside-job:2|cron-install:3" "$(sc "$T" "$T" batch_connect "'|'.join('%s:%s' % (c['tag'], c['line']) for c in $BY'file_write_outside_job'])")"
+T="$TMP/t48c"; mkdir -p "$T/template"
+printf 'x: 1\n' > "$T/form.yml"
+printf 'true\0\1\0\0binarydata' > "$T/template/x.sh"
+printf 'true\0\1\0\0binarydata' > "$T/template/a.ttf"
+check "font magic in a .sh is a candidate; the same bytes in a .ttf are exempt" "binary_in_template:template/x.sh|template/a.ttf:ttf file (by its magic bytes), not a candidate" "$(sc "$T" "$T" batch_connect "'|'.join('%s:%s' % (c['kind'], c['file']) for c in d['candidates']) + '|' + '|'.join('%s:%s' % (s['file'], s['reason']) for s in d['skipped_files'])")"
 T="$TMP/t48b"; mkdir -p "$T"
 printf 'run App\n' > "$T/config.ru"
 cat > "$T/app.rb" <<'RB'
