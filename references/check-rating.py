@@ -6,10 +6,15 @@
 Per "## App:" section:
   1. The Documentation rating may not exceed the highest rung whose
      requirements, and every lower rung's, all have non-"none" evidence lines.
+     This is a ceiling, not an equality: a rating below the highest
+     supported rung (the reviewer judged a cited line thin) is not flagged,
+     since the evidence lines support at least that much.
      Evidence of the form `content: README.md:N` (a rung met by a cited
      content line rather than a matching heading) is non-"none" like any
      other citation; check-evidence.py verifies that line N is a content
-     line.
+     line. One content line may not meet two requirements: a `content:
+     <path>:N` cited for two of them is `MISMATCH <app> documentation:
+     content line <path>:N cited for two rungs (<a>, <b>)`.
   2. The Signals table's Documentation level must be the one the rating maps to
      (Strong/Exemplary -> Low, Adequate -> Medium, Minimal and Below minimal
      -> High).
@@ -19,7 +24,9 @@ signal (R4); only the Documentation rating and signal are checked.
 Below minimal. The rating `Below minimal` (no rung supports Minimal and the
 README is not a stub) claims no rung, so rule 1 cannot fail it; it is
 accepted when the findings JSON has a QUA-01 `docs-minimal` record for that
-app whose result is WARN or FAIL, and is a MISMATCH without one.
+app whose result is WARN or FAIL, and is a MISMATCH without one. With a
+pre-review directory whose readme.json says `stub: true`, it is a MISMATCH
+either way: a stub README takes the stub line below, not Below minimal.
 
 A stub README. The rating line `Minimal — not supported (stub README; see
 QUA-01)` is accepted in place of rule 1 when the findings JSON has a QUA-01
@@ -40,36 +47,48 @@ Rule 2 still applies (Minimal maps to High).
      (MNT-02 to MNT-06), recorded as FAIL is a mismatch — the rubric holds
      both are never a failure. A check counts as suggestion-class when
      checks.json (loaded from beside this script) marks it `"weight":
-     "suggestion"`; a record matches a check when its rule equals the
-     check's rule and its tag (the part of defect_key after the first ':',
-     itself truncated before any further ':' qualifier) equals the check's
-     tag. A maintenance record matches when its rule is one of MNT-02
-     through MNT-06 (MNT-01, activity, is a real failure and is untouched).
+     "suggestion"`. A record matches a check by its rule alone when
+     checks.json has exactly one check with that rule (whatever tag the
+     record carries, so choosing another tag of the same rule does not
+     escape the rule), and by rule and tag when the rule has several checks
+     (its tag is the part of defect_key after the first ':', truncated
+     before any further ':' qualifier). A maintenance record matches when
+     its rule is one of MNT-02 through MNT-06 (MNT-01, activity, is a real
+     failure and is untouched). When checks.json cannot be read, is not
+     JSON or has no checks list, the script exits 2 with `error: cannot
+     load references/checks.json (<reason>)` rather than skip the rule.
      This rule is general — it is not keyed to any particular app or run.
   4. Within each app's "### Security" section (up to the next "### "),
-     count table rows whose first cell is an OODT-xx code and whose
-     Result — the cell after the Check cell when that row's own table has
-     one, else the second cell — normalises to FAIL or WARN
-     (normalize_result, imported from report_parse.py). The section can
+     count table rows whose Result cell normalises to FAIL or WARN
+     (normalize_result, imported from report_parse.py), whatever rule code
+     the first cell holds: a tool-finding row records under a QUA-xx rule,
+     and emphasis or backticks in the cell do not hide an OODT-xx code. The
+     Result cell is the table's Result column when its header has one, else
+     the cell after the Check cell, else the second cell. The section can
      hold more than one table (Findings, then Additional observations
      (review)); each table's header (a '|' row immediately followed by a
-     '|---'-style separator row, the separator itself required to contain
-     '|' so a bare '---' prose divider is never read as one) is read on
-     its own, so a Check column in one table never carries over into the
-     next. When that count is nonzero, "No tool-detectable issues in the
-     checked tiers." must not appear — the report would be claiming its
-     own rows are clean. A missing sentence when the count is 0 is not
-     flagged: this rule fails a claim the rows contradict, it never
-     requires prose that isn't there. This rule is general — it is not
-     keyed to any particular app or run.
+     separator row, report_parse.is_separator, itself required to start
+     with '|' so a bare '---' prose divider is never read as one) is read on
+     its own, so one table's columns never carry over into the next. When
+     that count is nonzero, "No tool-detectable issues in the checked
+     tiers." must not appear — the report would be claiming its own rows
+     are clean. The sentence is matched with emphasis dropped, whitespace
+     (a line wrap) collapsed and with or without its final period. A
+     missing sentence when the count is 0 is not flagged: this rule fails a
+     claim the rows contradict, it never requires prose that isn't there.
+     This rule is general — it is not keyed to any particular app or run.
+
+Every MISMATCH line that names an app uses its pre-review directory name
+(fact_app_id: "root" for a single app with no id or "."), so the same app
+reads the same in every line.
 
 The findings argument is read: for the Below minimal and stub-README
 exceptions above, and for rule 3, which scans every record regardless of
 app section.
 
 Exit 0 when consistent, 1 with one MISMATCH line per problem, 2 when the
-report or findings cannot be read, a needed section is missing, or a
-readme.json the stub check reads is not valid JSON.
+report, findings or checks.json cannot be read, a needed section is
+missing, or a readme.json the stub check reads is not valid JSON.
 """
 import json
 import os
@@ -80,13 +99,12 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CHECKS_JSON = os.path.join(SCRIPT_DIR, "checks.json")
 sys.path.insert(0, SCRIPT_DIR)
 from report_parse import (  # noqa: E402
-    app_sections as _app_sections, normalize_result, split_row,
+    app_sections as _app_sections, header_name, is_separator, normalize_result, split_row,
 )
 
 GOOD_PRACTICE_RULES = {"MNT-02", "MNT-03", "MNT-04", "MNT-05", "MNT-06"}
 
 SECURITY_CLAIM_SENTENCE = "No tool-detectable issues in the checked tiers."
-OODT_ROW_RE = re.compile(r"^\|\s*(OODT-\d+)\s*\|")
 
 RUNGS = [
     ("Minimal", ["what it launches", "prerequisites"]),
@@ -102,6 +120,8 @@ RATING_RE = re.compile(r"Rating:\s*\**\s*((?i:below\s+minimal)|Minimal|Adequate|
 STUB_NOT_STUB = "stub rating but readme.json says the README is not a stub"
 STUB_NO_RECORD = "stub rating but no STR-01 readme-not-substantive FAIL record and no readme.json stub fact"
 BELOW_NO_RECORD = "Below minimal rating but no QUA-01 docs-minimal WARN or FAIL record"
+BELOW_BUT_STUB = "Below minimal rating but readme.json says the README is a stub (the stub line applies)"
+CONTENT_CITE_RE = re.compile(r"(?<![\w-])content:\s*[`*]*([^\s`*:]+):(\d+)")
 NONE_WORDS = {"none", "n/a", "na", "absent", "missing", "not", "no"}
 STUB_LINE = "Minimal \u2014 not supported (stub README; see QUA-01)"  # the form the docs write
 STUB_RATING = re.compile(r"Rating:\s*\**\s*Minimal\s*(?:\u2014|\u2013|--?)\s*not supported\s*"
@@ -151,6 +171,23 @@ def parse_evidence(doc):
         # and "** README.md:27"; drop the emphasis markers from both.
         out[re.sub(r"[*_`]", "", k).strip().lower()] = v.strip().strip("*_`").strip()
     return out
+
+
+def reused_content_lines(app_id, evidence):
+    """MISMATCH lines for a `content: <path>:N` line cited for two rung
+    requirements: one line of prose does not meet two requirements. Named
+    by the first two requirements (in RUNGS order) that cite it."""
+    order = [req for _, reqs in RUNGS for req in reqs]
+    first = {}
+    lines = []
+    for req in sorted(evidence, key=lambda k: order.index(k) if k in order else len(order)):
+        for path, n in CONTENT_CITE_RE.findall(evidence[req]):
+            cite = "{}:{}".format(path, n)
+            if cite in first and first[cite] != req:
+                lines.append("MISMATCH {} documentation: content line {} cited for two rungs ({}, {})"
+                             .format(app_id, cite, first[cite], req))
+            first.setdefault(cite, req)
+    return lines
 
 
 def highest_supported_rung(evidence):
@@ -239,25 +276,45 @@ def defect_tag(defect_key):
     return tag.split(":", 1)[0]
 
 
-def load_suggestion_checks(path=CHECKS_JSON):
-    """id -> (rule, tag) for every checks.json entry marked weight: suggestion.
-    [] / {} when checks.json cannot be read or has no checks list."""
+class ChecksUnreadable(Exception):
+    pass
+
+
+def load_checks(path=CHECKS_JSON):
+    """checks.json's checks list. Raises ChecksUnreadable (with the reason)
+    when the file cannot be read, is not JSON, or has no checks list: rule
+    3 cannot tell a suggestion from a target without it, and a silent pass
+    would hide that."""
     try:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
-    except (OSError, ValueError):
-        return {}
+    except OSError as e:
+        raise ChecksUnreadable(e.strerror or str(e))
+    except ValueError as e:
+        raise ChecksUnreadable(str(e))
     checks = data.get("checks") if isinstance(data, dict) else None
     if not isinstance(checks, list):
-        return {}
-    return {
-        c["id"]: (c.get("rule"), c.get("tag"))
-        for c in checks
-        if isinstance(c, dict) and c.get("weight") == "suggestion" and c.get("id")
-    }
+        raise ChecksUnreadable("no checks list")
+    return [c for c in checks if isinstance(c, dict) and c.get("id")]
 
 
-def never_fail_mismatches(findings, suggestion_checks):
+def matching_check(record, checks):
+    """The checks.json entry a record belongs to: by rule alone when exactly
+    one check carries that rule (whatever the record's tag, so a
+    suggestion cannot be escaped by picking another tag of its rule), else
+    by rule and tag. None when nothing matches."""
+    rule = record.get("rule")
+    same_rule = [c for c in checks if c.get("rule") == rule]
+    if len(same_rule) == 1:
+        return same_rule[0]
+    tag = defect_tag(record.get("defect_key"))
+    for c in same_rule:
+        if c.get("tag") == tag:
+            return c
+    return None
+
+
+def never_fail_mismatches(findings, checks):
     """MISMATCH lines for suggestion-class checks and MNT-02..MNT-06
     good-practice signals recorded as FAIL — the rubric holds neither is
     ever a failure. One line per matching FAIL record."""
@@ -266,65 +323,73 @@ def never_fail_mismatches(findings, suggestion_checks):
         if r.get("result") != "FAIL":
             continue
         rule = r.get("rule")
-        tag = defect_tag(r.get("defect_key"))
-        app_id = str(r.get("app_id") or "").strip().strip("/") or "root"
-        for check_id, (check_rule, check_tag) in suggestion_checks.items():
-            if rule == check_rule and tag == check_tag:
-                lines.append(
-                    "MISMATCH {} {} {}: suggestion (check {}) recorded as FAIL".format(
-                        app_id, rule, r.get("defect_key"), check_id))
-                break
-        else:
-            if rule in GOOD_PRACTICE_RULES:
-                lines.append(
-                    "MISMATCH {} {} {}: good-practice signal recorded as FAIL".format(
-                        app_id, rule, r.get("defect_key")))
+        app_id = fact_app_id(str(r.get("app_id") or "").strip().strip("/"))
+        check = matching_check(r, checks)
+        if check is not None and check.get("weight") == "suggestion":
+            lines.append(
+                "MISMATCH {} {} {}: suggestion (check {}) recorded as FAIL".format(
+                    app_id, rule, r.get("defect_key"), check["id"]))
+        elif rule in GOOD_PRACTICE_RULES:
+            lines.append(
+                "MISMATCH {} {} {}: good-practice signal recorded as FAIL".format(
+                    app_id, rule, r.get("defect_key")))
     return lines
 
 
-SEPARATOR_ROW_RE = re.compile(r"^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$")
-
-
 def count_flagged_security_rows(security):
-    """Count table rows in a '### Security' body whose first cell is an
-    OODT-xx code and whose Result cell (the cell after Check when that
-    row's own table has a Check column, else the second cell) normalises
-    to FAIL or WARN. The '### Security' body can hold more than one table
-    (Findings, then Additional observations (review)), and each table's
-    header is read independently — a Check column in one table must not
-    leak into the next, which may have no Check column of its own."""
-    result_index = 1  # default: no Check column ("Rule | Result | ...")
+    """Count table rows in a '### Security' body whose Result cell
+    normalises to FAIL or WARN, whatever the rule code in the first cell (a
+    tool-finding row records under a QUA-xx rule; `**OODT-01**` is read as
+    OODT-01). The Result cell is the table's own Result column when its
+    header has one, else the cell after Check, else the second cell. The
+    body can hold more than one table (Findings, then Additional
+    observations (review)), and each table's header is read independently —
+    a column layout in one table must not leak into the next."""
     count = 0
     lines = security.splitlines()
+    result_index = None
     for i, line in enumerate(lines):
         stripped = line.strip()
-        # A header row is a '|' row immediately followed by a '|---' style
-        # separator row: that pair starts a new table, so its own Check
-        # column (or lack of one) replaces whatever the last table set.
-        next_line = lines[i + 1].strip() if i + 1 < len(lines) else ""
-        if (stripped.startswith("|") and "|" in next_line and
-                SEPARATOR_ROW_RE.match(next_line)):
-            header = split_row(line)
-            result_index = header.index("Check") + 1 if "Check" in header else 1
+        if not stripped.startswith("|"):
+            result_index = None
             continue
-        if not OODT_ROW_RE.match(line):
+        # A header row is a '|' row immediately followed by a '|---' style
+        # separator row: that pair starts a new table.
+        next_line = lines[i + 1].strip() if i + 1 < len(lines) else ""
+        if next_line.startswith("|") and is_separator(next_line):
+            header = [header_name(c) for c in split_row(line)]
+            if "result" in header:
+                result_index = header.index("result")
+            else:
+                result_index = header.index("check") + 1 if "check" in header else 1
+            continue
+        if result_index is None or is_separator(stripped):
             continue
         cells = split_row(line)
-        if result_index >= len(cells):
+        if not re.sub(r"[*`_\s]", "", cells[0] if cells else ""):
             continue
-        if normalize_result(cells[result_index]) in ("FAIL", "WARN"):
+        if result_index < len(cells) and normalize_result(cells[result_index]) in ("FAIL", "WARN"):
             count += 1
     return count
 
 
+def normalize_prose(text):
+    """text with emphasis markers dropped, whitespace runs collapsed and a
+    trailing period removed, for matching a sentence however it is
+    emphasised, wrapped or ended."""
+    return re.sub(r"\s+", " ", re.sub(r"[*_`]", "", text)).strip().rstrip(".")
+
+
 def security_claim_mismatch(app_id, security):
     """MISMATCH line for a '### Security' body that claims "No tool-detectable
-    issues in the checked tiers." while its own rows contradict that claim
-    (a FAIL or WARN row present). None when the claim holds, and also None
-    when the sentence is simply absent — a checker fails a claim the report
-    makes against its own rows; it never requires prose that isn't there."""
+    issues in the checked tiers." (with or without emphasis, a line wrap or
+    the final period) while its own rows contradict that claim (a FAIL or
+    WARN row present). None when the claim holds, and also None when the
+    sentence is simply absent — a checker fails a claim the report makes
+    against its own rows; it never requires prose that isn't there."""
     count = count_flagged_security_rows(security)
-    if count > 0 and SECURITY_CLAIM_SENTENCE in security:
+    prose = normalize_prose("\n".join(l for l in security.splitlines() if not l.lstrip().startswith("|")))
+    if count > 0 and normalize_prose(SECURITY_CLAIM_SENTENCE) in prose:
         return ('MISMATCH {} security: "{}" with {} FAIL/WARN row{} above it'
                 .format(app_id, SECURITY_CLAIM_SENTENCE, count, "" if count == 1 else "s"))
     return None
@@ -353,6 +418,11 @@ def main(argv):
         print("error: findings '{}' is not a list".format(argv[2]), file=sys.stderr)
         return 2
     findings = [r for r in findings if isinstance(r, dict)]
+    try:
+        checks = load_checks()
+    except ChecksUnreadable as e:
+        print("error: cannot load references/checks.json ({})".format(e), file=sys.stderr)
+        return 2
     problems = 0
     seen = 0
     sections = list(app_sections(report))
@@ -398,6 +468,14 @@ def main(argv):
             if not has_record(findings, "QUA-01", "docs-minimal", ("WARN", "FAIL"), {app_id or ""}, single):
                 problems += 1
                 print("MISMATCH {} documentation: {}".format(fact_app_id(app_id), BELOW_NO_RECORD))
+            try:
+                stub_fact = readme_stub_fact(pre_review_dir, app_id)
+            except ValueError as e:
+                print("error: {}".format(e), file=sys.stderr)
+                return 2
+            if stub_fact is True:
+                problems += 1
+                print("MISMATCH {} documentation: {}".format(fact_app_id(app_id), BELOW_BUT_STUB))
         elif supported is None or RATING_ORDER.index(rating) > RATING_ORDER.index(supported):
             # name the first requirement that blocks the claimed rung
             blocker = None
@@ -411,13 +489,16 @@ def main(argv):
             problems += 1
             print("MISMATCH Documentation rating ({} claimed but '{}' evidence is {}; highest supported rung is {})".format(
                 rating, blocker, "missing" if blocker not in evidence else "none", supported or "none"))
+        for line in reused_content_lines(fact_app_id(app_id), evidence):
+            problems += 1
+            print(line)
         if doc_sig != DOC_SIGNAL[rating]:
             problems += 1
             print("MISMATCH Documentation signal (report says {}; rating {} maps to {})".format(doc_sig, rating, DOC_SIGNAL[rating]))
 
         security = subsection(body, "Security")
         if security is not None:
-            claim_problem = security_claim_mismatch(app_id or "root", security)
+            claim_problem = security_claim_mismatch(fact_app_id(app_id), security)
             if claim_problem:
                 problems += 1
                 print(claim_problem)
@@ -425,8 +506,7 @@ def main(argv):
         print("error: no '## App:' section in report", file=sys.stderr)
         return 2
 
-    suggestion_checks = load_suggestion_checks()
-    for line in never_fail_mismatches(findings, suggestion_checks):
+    for line in never_fail_mismatches(findings, checks):
         problems += 1
         print(line)
 

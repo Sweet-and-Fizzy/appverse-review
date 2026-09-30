@@ -440,4 +440,98 @@ report_sec Strong Low "$FULL" "$SEC_BARE_RULE" > "$TMP/r31.md"
 check "exit 1" 1 "$(run "$TMP/r31.md" "$TMP/f1.json")"
 check "reason" 1 "$(grep -cF 'MISMATCH root security: "No tool-detectable issues in the checked tiers." with 1 FAIL/WARN row above it' "$TMP/out")"
 
+echo "Test 32: a tool-finding row under a QUA-xx rule, an emphasised OODT cell and the sentence without its period all count"
+SEC_QUA_TOOL='#### Findings
+
+| Rule | Check | Result | Severity | Tag | Summary | Evidence |
+|---|---|---|---|---|---|---|
+| QUA-03 | `check: sec-tool-finding` | WARN | low | — | SC2164: cd without an exit check | template/script.sh.erb:22 |
+
+No tool-detectable issues in the checked tiers.'
+report_sec Strong Low "$FULL" "$SEC_QUA_TOOL" > "$TMP/r32.md"
+check "QUA-03 WARN tool row: exit 1" 1 "$(run "$TMP/r32.md" "$TMP/f1.json")"
+check "QUA-03 WARN tool row: reason" 'MISMATCH root security: "No tool-detectable issues in the checked tiers." with 1 FAIL/WARN row above it' "$(head -1 "$TMP/out")"
+SEC_BOLD_CELL='| Rule | Check | Result | Severity | Tag | Summary | Evidence |
+|---|---|---|---|---|---|---|
+| **OODT-01** | `check: sec-interpolation` | **FAIL** | high | unintentional | bad thing | submit.yml.erb:6 |
+
+No tool-detectable issues in the checked tiers.'
+report_sec Strong Low "$FULL" "$SEC_BOLD_CELL" > "$TMP/r32b.md"
+check "**OODT-01** cell: exit 1" 1 "$(run "$TMP/r32b.md" "$TMP/f1.json")"
+report_sec Strong Low "$FULL" "${SEC_TWO_WARN%.}" > "$TMP/r32c.md"
+check "sentence without its period: exit 1" 1 "$(run "$TMP/r32c.md" "$TMP/f1.json")"
+report_sec Strong Low "$FULL" "${SEC_TWO_WARN%No tool-detectable issues in the checked tiers.}**No tool-detectable issues in the
+checked tiers.**" > "$TMP/r32d.md"
+check "sentence bolded and wrapped: exit 1" 1 "$(run "$TMP/r32d.md" "$TMP/f1.json")"
+SEC_QUA_PASS='| Rule | Check | Result | Severity | Tag | Summary | Evidence |
+|---|---|---|---|---|---|---|
+| — | `check: sec-tool-finding` | PASS | info | — | SC2148 on a sourced before.sh fragment: an artefact | template/before.sh.erb:1 |
+| QUA-03 | `check: sec-tool-finding` | PASS | info | — | SC2086 reviewed: the value is an integer | template/script.sh.erb:30 |
+
+No tool-detectable issues in the checked tiers.'
+report_sec Strong Low "$FULL" "$SEC_QUA_PASS" > "$TMP/r32e.md"
+check "PASS tool rows (any rule cell) with the sentence: exit 0" 0 "$(run "$TMP/r32e.md" "$TMP/f1.json")"
+
+echo "Test 33: a rule with exactly one check matches by rule alone; a rule with several keeps rule and tag"
+report Strong Low "$FULL" > "$TMP/r33.md"
+cat > "$TMP/f33.json" <<'EOF'
+[
+  {"app_id":"root","rule":"QUA-08","defect_key":"form.yml:undocumented-resource-limit","aspect":"quality","severity":"low","result":"FAIL","summary":"x","evidence":"form.yml:3"},
+  {"app_id":"root","rule":"QUA-10","defect_key":"submit.yml.erb:other:nil-reservation","aspect":"quality","severity":"low","result":"FAIL","summary":"x","evidence":"submit.yml.erb:6"},
+  {"app_id":"root","rule":"QUA-02","defect_key":"form.yml:hardcoded-cluster","aspect":"quality","severity":"low","result":"FAIL","summary":"x","evidence":"form.yml:3"},
+  {"app_id":"root","rule":"QUA-01","defect_key":"README.md:docs-minimal","aspect":"quality","severity":"low","result":"FAIL","summary":"x","evidence":"README.md:1"}
+]
+EOF
+check "exit 1" 1 "$(run "$TMP/r33.md" "$TMP/f33.json")"
+check "QUA-08 by rule alone" 1 "$(grep -cxF 'MISMATCH root QUA-08 form.yml:undocumented-resource-limit: suggestion (check magic-numbers) recorded as FAIL' "$TMP/out")"
+check "QUA-10 other: slug by rule alone" 1 "$(grep -cxF 'MISMATCH root QUA-10 submit.yml.erb:other:nil-reservation: suggestion (check erb-missing-value) recorded as FAIL' "$TMP/out")"
+check "only those two" "ratings: 2 mismatches" "$(tail -1 "$TMP/out")"
+mkdir -p "$TMP/refs2"
+cp "$CHECK" "$SCRIPT_DIR/references/report_parse.py" "$TMP/refs2/"
+cat > "$TMP/refs2/checks.json" <<'EOF'
+{"checks":[
+ {"id":"magic-numbers","rule":"QUA-08","tag":"magic-number","weight":"suggestion"},
+ {"id":"resource-limits","rule":"QUA-08","tag":"undocumented-resource-limit","weight":"target"}
+]}
+EOF
+python3 "$TMP/refs2/check-rating.py" "$TMP/r33.md" "$TMP/f33.json" > "$TMP/out" 2>&1
+check "two QUA-08 checks: the target tag is not a suggestion" "ratings: consistent" "$(tail -1 "$TMP/out")"
+printf '[{"app_id":"root","rule":"QUA-08","defect_key":"form.yml:magic-number","result":"FAIL","evidence":"form.yml:4"}]' > "$TMP/f33b.json"
+python3 "$TMP/refs2/check-rating.py" "$TMP/r33.md" "$TMP/f33b.json" > "$TMP/out" 2>&1
+check "two QUA-08 checks: the suggestion tag still matches" 1 "$(grep -cxF 'MISMATCH root QUA-08 form.yml:magic-number: suggestion (check magic-numbers) recorded as FAIL' "$TMP/out")"
+
+echo "Test 34: an unreadable checks.json is exit 2, never a silent pass"
+rm "$TMP/refs2/checks.json"
+python3 "$TMP/refs2/check-rating.py" "$TMP/r33.md" "$TMP/f33.json" > "$TMP/out" 2>&1
+check "missing: exit 2" 2 "$?"
+check "missing: the error line" "error: cannot load references/checks.json (No such file or directory)" "$(cat "$TMP/out")"
+printf '{"checks": [' > "$TMP/refs2/checks.json"
+python3 "$TMP/refs2/check-rating.py" "$TMP/r33.md" "$TMP/f33.json" > "$TMP/out" 2>&1
+check "corrupt: exit 2" 2 "$?"
+check "corrupt: the error line" 1 "$(grep -c '^error: cannot load references/checks.json (Expecting value: line 1 column 13 (char 12))$' "$TMP/out")"
+printf '{"rules": []}' > "$TMP/refs2/checks.json"
+python3 "$TMP/refs2/check-rating.py" "$TMP/r33.md" "$TMP/f33.json" > "$TMP/out" 2>&1
+check "no checks list: the error line" "error: cannot load references/checks.json (no checks list)" "$(cat "$TMP/out")"
+
+echo "Test 35: one content: line may not meet two rung requirements"
+REUSE='  - what it launches: content: README.md:3
+  - prerequisites: content: README.md:7
+  - installation: content: README.md:7
+  - configuration: README.md:99
+  - known limitations: README.md:200'
+report Adequate Medium "$REUSE" > "$TMP/r35.md"
+check "exit 1" 1 "$(run "$TMP/r35.md" "$TMP/f1.json")"
+check "reason" "MISMATCH root documentation: content line README.md:7 cited for two rungs (prerequisites, installation)|ratings: 1 mismatch" "$(paste -sd'|' "$TMP/out")"
+DISTINCT='  - what it launches: content: README.md:3
+  - prerequisites: content: README.md:7
+  - installation: content: README.md:9
+  - configuration: README.md:99
+  - known limitations: README.md:200'
+report Adequate Medium "$DISTINCT" > "$TMP/r35b.md"
+check "distinct content lines: exit 0" 0 "$(run "$TMP/r35b.md" "$TMP/f1.json")"
+
+echo "Test 36: Below minimal on a README the facts call a stub is a MISMATCH"
+check "stub: true facts: exit 1" 1 "$(run "$TMP/r22h.md" "$TMP/f22h.json" "$TMP/pre-stub")"
+check "stub: true facts: reason" "MISMATCH root documentation: Below minimal rating but readme.json says the README is a stub (the stub line applies)" "$(head -1 "$TMP/out")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
