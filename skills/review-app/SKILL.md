@@ -101,6 +101,11 @@ string; if unavailable, write `unknown`.
 | Contributors | ... | ... |
 | CHANGELOG | ... | ... |
 | CI | ... | ... |
+<!-- A signal a source was tried for and failed to provide (e.g. `gh`
+     missing/unauthenticated) is NOT CHECKED, reason "unavailable". A signal
+     the maintenance skill deliberately does not compute is "Not assessed",
+     reason "not read by design" — never "unavailable" for a source that was
+     never tried. -->
 
 | Dimension | Level | Evidence |
 |---|---|---|
@@ -161,7 +166,7 @@ string; if unavailable, write `unknown`.
 
 ### Security
 
-Findings are classified under OODT (Open OnDemand App Threats); codes are defined in the rubric's Security section.
+Findings are classified under OODT (Open OnDemand App Threats); codes are defined in the rubric's Security section at https://openondemand.connectci.org/appverse-review-rubric#security.
 
 <!-- Paste <pre-review>/tool-table.md here verbatim: the Check tiers line, the tier 3 line, and the Tool / Status / Result table. Never retype it. If the file is absent, write "**Check tiers:** Tier 1 only" and the table with all four rows (shellcheck, semgrep, bandit, trivy) as "Not run (pre-review facts not found)" with Result "—". -->
 
@@ -266,10 +271,12 @@ not found" if absent>
 
 ## Catalog checks
 <!-- Query the public JSON:API — see the Reviewer Process's "Reading the catalog
-     without a login". These need no reviewer account; record what each
-     returned. List an item as not checked only if its query actually failed,
-     and say so. -->
-- Duplicate check against the existing catalog — <result>
+     without a login". These need no reviewer account; perform the reads when
+     the catalog is reachable and record what each returned. List an item as
+     not checked only if its query actually failed, and say so. -->
+- Duplicate check against the existing catalog — <result>. State the pages
+  read of the app list (e.g. "pages 1–N of the app list"); if only page 1 was
+  read, say so rather than implying full coverage.
   - **Duplicate-check rationale:** _<reviewer fills in — the outcome and why,
     per the Reviewer Process's Duplicate check; edit before pasting into the issue or
     email>_
@@ -303,7 +310,7 @@ Apply the decision rubric below (from the rubric's "Decision rubric" section):
 
 | Outcome | Criteria |
 |---------|----------|
-| **Accept** | Passes all gate criteria, adequate+ documentation, partially portable+ config. Always conditional on the duplicate/catalog checks the review cannot perform — word any Accept as pending those. |
+| **Accept** | Passes all gate criteria, adequate+ documentation, partially portable+ config. Always conditional on the duplicate check, which the review performs the catalog reads for but leaves the decision itself to the reviewer — word any Accept as pending that. |
 | **Accept with suggestions** | Passes gate criteria but has clear improvement areas. A below-target Documentation or Portability rating belongs here, not Request changes, when gate criteria are otherwise met. |
 | **Request changes** | Missing a required (gate) criterion but fixable. A fixable security misconfiguration, even High severity (e.g. CORS open to all origins), is Request changes, not Reject. |
 | **Reject** | Duplicate app, no license, abandoned/unmaintained, not an OOD app, or a security finding tagged potentially malicious or unfixable without redesigning the app. |
@@ -348,6 +355,17 @@ evidence nor a word from its defect key. Write the defect in plain words for
 the contributor; the check is looking for the file and either the line or
 what is wrong, not jargon. (This complements the Derived-only rule: feedback
 ⊆ findings, and fix-items ⊆ feedback.)
+
+**Required vs. suggested.** A fix-item is required when it is a gate
+criterion or a `code_quality` check whose manifest `weight` is `target`
+(`references/checks.yml`) and it was recorded FAIL; everything else —
+`weight: suggestion` checks, and any FAIL/WARN that isn't a gate
+criterion or a `target` check — is suggested. Word the feedback
+accordingly rather than flattening every fix-item into the same register.
+
+**Never advise removing a real caveat.** Never advise removing a comment or
+help text that states a real constraint (a partition that requires a GPU, a
+limit); advise rewording it.
 
 - **Reviewer mode:** append a draft contributor feedback message using the
   Reviewer Process's Step 4 feedback guidance (specific, references files, links the README

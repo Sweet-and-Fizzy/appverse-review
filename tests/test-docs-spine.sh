@@ -183,9 +183,7 @@ has references/finding-codes.md "entry-point-parse-error" "finding-codes.md list
 has skills/review-structure/SKILL.md ":entry-point-parse-error\` (STR-07" "structure skill files entry-point-parse-error under STR-07"
 lacks "$QUA_SKILL" "expected to fail" "review-quality has no stale check-rating expected-to-fail wording"
 
-tr '\n' ' ' < skills/review-maintenance/SKILL.md | grep -q -F -- "Records under MNT-02 to MNT-06 are WARN at most" \
-  && ok "maintenance skill states check-rating rejects a good-practice FAIL" \
-  || bad "maintenance skill states check-rating rejects a good-practice FAIL"
+has skills/review-maintenance/SKILL.md "Records under MNT-02 to MNT-06 are WARN at most" "maintenance skill states check-rating rejects a good-practice FAIL"
 
 echo "Test 11c: the security-claim sentence bullet follows the rows, in both docs"
 has "$SEC_SKILL" "no row in either table is FAIL or WARN" "review-security states the sentence follows the rows"
@@ -207,13 +205,7 @@ while read -r id weight; do
     target)
       has "$RUBRIC" "\`check: $id\`) | Target for inclusion |" "$id row: Target for inclusion" ;;
     suggestion)
-      if grep -q -F -- "\`check: $id\`) | Suggestion |" "$RUBRIC"; then
-        ok "$id row: Suggestion"
-      elif grep -q -F -- "\`check: $id\` — " "$RUBRIC"; then
-        ok "$id named as a Code Quality check (polish finding, not a Target-for-inclusion table row)"
-      else
-        bad "$id row: Suggestion"
-      fi ;;
+      has "$RUBRIC" "\`check: $id\`) | Suggestion |" "$id row: Suggestion" ;;
     *) bad "$id has a recognised manifest weight (got '$weight')" ;;
   esac
 done < "$WEIGHTS_OUT"

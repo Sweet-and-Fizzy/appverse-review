@@ -132,7 +132,9 @@ The report is organized the way the rubric is:
   whatever the reviewer's own open-ended reading found beyond the
   enumeration.
 - **Review scope**: which security tiers ran and what was not checked.
-- **Catalog checks** the tool could not perform, left for you.
+- **Catalog checks**, performed when the catalog is reachable and stating the
+  pages of the app list read; the duplicate decision itself is still yours
+  to settle.
 - The tool's **recommendation** and rationale, and a **draft feedback** note.
 
 Low is the good end of every signal. A High signal means "read this section
@@ -156,8 +158,9 @@ taking them on trust. Spot-check that:
 3. Portability and Documentation ratings and any correctness-&-polish findings match what you see —
    documentation level, portability, and any copy-paste artifacts or typos.
 4. Upkeep signals are current — last commit, releases, CI, CHANGELOG.
-5. The duplicate check is settled — the review cannot see the catalog, so this is
-   the reviewer's to confirm (see Duplicate check above).
+5. The duplicate check is settled — the report performs the catalog reads
+   when it can reach the catalog, but the duplicate decision itself is the
+   reviewer's to confirm (see Duplicate check above).
 
 Trust the report's structure but verify its substance; if a finding does not
 hold, correct it before it reaches the contributor.
@@ -174,8 +177,11 @@ The draft feedback in the report is the tool's first pass. Make it yours:
 - Be specific: name the file and line, say what to change, and link an example
   where one exists.
 - The draft ends with an HTML comment `<!-- feedback-covers: … -->` listing
-  the finding keys it addresses. It is machine-checked. If you add a
-  fix-item to the feedback, add its key; if you remove one, remove the key.
+  the finding keys it addresses. `check-feedback-floor.py` verifies that the
+  file (or, for a repo-level finding, its pseudo-anchor subject) and a line
+  number or the mechanism word appear near each other in the feedback prose —
+  not that the advice itself is right. If you add a fix-item to the
+  feedback, add its key; if you remove one, remove the key.
 
 **Good feedback:**
 > The README lists prerequisites but doesn't include installation steps. Please add a section showing how to clone and deploy the app (see [ProteinStructure-OOD](https://github.com/EpiGenomicsCode/ProteinStructure-OOD) for an example).

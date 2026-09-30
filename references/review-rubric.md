@@ -413,13 +413,18 @@ target for the first two.
 | No undocumented magic numbers or hardcoded literals (resource limits, tunables, ports, hex colors, module versions) without comments (`check: magic-numbers`) | Suggestion |
 | No large blocks of duplicated code (`QUA-09`, `check: duplicated-blocks`) | Suggestion |
 | No commented-out dead code (`check: dead-code`) | Suggestion |
-| ERB templates handle missing/empty values gracefully (`QUA-10`, `check: erb-missing-value`) | Suggestion |
+| ERB templates handle missing/nil values gracefully (`QUA-10`, `check: erb-missing-value`) | Suggestion |
+| Desktop/panel icon exists on the README's target OS (`QUA-06`, `check: icon-matches-target-os`) | Suggestion |
 
 **Correctness and polish** defects are also Code Quality findings: copy-paste
 artifacts from the template an app was cloned from (a MATLAB reference in a
 SAS app, a CHANGELOG describing a different app), duplicate YAML keys (valid
 YAML, but last-wins, so the parser does not catch them and the author almost
 certainly did not intend it), wrong help text, and README typos.
+
+**Draft feedback guidance.** Never advise removing a comment or help text
+that states a real constraint (a partition that requires a GPU, a limit);
+advise rewording it.
 
 **Named checks:**
 
@@ -470,7 +475,7 @@ individual findings, never from the signal levels.
 
 | Outcome | Criteria |
 |---------|----------|
-| **Accept** | Passes all gate criteria, adequate+ documentation, partially portable+ config. Always conditional on the duplicate/catalog checks the review cannot perform — word any Accept as pending those. |
+| **Accept** | Passes all gate criteria, adequate+ documentation, partially portable+ config. Always conditional on the duplicate check, which the review performs the catalog reads for but leaves the decision itself to the reviewer — word any Accept as pending that. |
 | **Accept with suggestions** | Passes gate criteria but has clear improvement areas — include specific feedback. Below-target docs or portability belongs here, not Request changes, when the gate criteria are otherwise met. |
 | **Request changes** | Missing a gate criterion but fixable — provide specific list of what to address. A fixable security misconfiguration, even High severity (e.g. CORS open to all origins), is Request changes, not Reject. |
 | **Reject** | Duplicate app, no license, abandoned/unmaintained, not an OOD app, or a Critical-severity security finding (tagged potentially malicious or unfixable without redesigning the app — see the severity scale in `finding-codes.md`). "Not an OOD app" is a reviewer-only trigger — no automated check produces it. |

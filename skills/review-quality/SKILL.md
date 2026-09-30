@@ -179,9 +179,14 @@ These rows carry no `check:` marker.
   empty values gracefully (`check: erb-missing-value`, QUA-10: an unguarded
   interpolation is `erb-missing-value-unhandled`), desktop/panel icon exists
   on the README's target OS (`check: icon-matches-target-os`, QUA-06
-  `icon-os-mismatch`). An unmet target for inclusion — error handling,
-  input validation — is recorded as FAIL, not WARN; suggestions that are
-  unmet are WARN. The rubric's Code Quality section says which of these are
+  `icon-os-mismatch`). A blank form field arrives as `nil` (YAML null), not
+  an empty string; `.to_s` turns it into `""`. An unguarded `<%= context.x
+  %>` therefore writes nothing (or `nil` under `.inspect`) into the YAML,
+  which is why a guard or default is needed.
+
+  An unmet target for inclusion — error handling, input validation — is
+  recorded as FAIL, not WARN; suggestions that are unmet are WARN. The
+  rubric's Code Quality section says which of these are
   targets for inclusion and which are improvement suggestions — weight each
   finding the way the rubric frames it, rather than applying your own
   severity scale, and keep the labels consistent with findings you record

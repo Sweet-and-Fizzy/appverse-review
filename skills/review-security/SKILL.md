@@ -10,9 +10,9 @@ Rubric: `${CLAUDE_PLUGIN_ROOT}/references/review-rubric.md` — section
 "Security". Read it before starting. It defines the check tiers, the
 capability baselines per app type, the pattern checks, and the OODT (Open
 OnDemand App Threats) taxonomy. Expand OODT on first use in the report and
-link it to the published rubric at
-https://openondemand.connectci.org/appverse-review-rubric so readers can look
-up a code.
+link it to the published rubric's Security section at
+https://openondemand.connectci.org/appverse-review-rubric#security so readers
+can look up a code.
 
 **Setup:** Use the orchestrator's prepared target if provided; otherwise follow
 `${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` first.

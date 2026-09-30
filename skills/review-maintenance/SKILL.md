@@ -33,7 +33,12 @@ In the working tree: CHANGELOG file present and current; CI configuration
 present (`.github/workflows/`, or equivalent).
 
 If `gh` is missing or unauthenticated: use `git log -1 --format=%ci` for
-last-commit age and mark the other signals NOT CHECKED.
+last-commit age and mark the other signals NOT CHECKED, with the reason
+`unavailable` — `gh` was needed and the attempt failed. Reserve
+`unavailable` for that case. A signal this skill deliberately does not
+compute (for example, one it chooses not to derive from git history) is
+`Not assessed` with the reason `not read by design`, not `unavailable`:
+the source was never tried, so it did not fail.
 
 ## Output
 
@@ -52,8 +57,8 @@ an anchor such as `RELEASES` or `github/commits`.
 Weight each signal the way the rubric's Upkeep section frames it:
 activity within 12 months is its target for inclusion, while releases, issue
 responsiveness, contributors, CHANGELOG, and CI are good-practice indicators, not
-requirements — a missing release is a suggestion, never a failure. Records
-under MNT-02 to MNT-06 are WARN at most; `check-rating.py` rejects a FAIL.
+requirements — a missing release is a suggestion, never a failure.
+Records under MNT-02 to MNT-06 are WARN at most; `check-rating.py` rejects a FAIL.
 Apply the brand-new-app waiver where relevant and say so. Don't invent your
 own severity scale, and keep labels consistent with the rubric and with your
 other findings.
