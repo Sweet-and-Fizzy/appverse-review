@@ -125,7 +125,10 @@ check "the fixture has the FAIL row" 1 "$(grep -cF '| FAIL | high | unintentiona
 check "cited site answered" 0 "$(grep -cF 'submit.yml.erb:4' "$TMP/out")"
 printf '%s\n' '| OODT-01 | `check: sec-interpolation` | NOT CHECKED | — | — | ERB too dynamic | template/script.sh.erb:12, 30 |' > "$TMP/r4row"
 sed "/check: sec-interpolation.*FAIL/r $TMP/r4row" "$TMP/r4.md" > "$TMP/r4b.md"
-check "a NOT CHECKED row citing the rest answers them: exit 0" 0 "$(run "$TMP/r4b.md" "$TMP/findings.json" "$TMP/checks.json" "$O4")"
+check "a NOT CHECKED row citing the rest answers none of them: exit 1" 1 "$(run "$TMP/r4b.md" "$TMP/findings.json" "$TMP/checks.json" "$O4")"
+check "NOT CHECKED leaves line 12 UNCITED" 1 "$(count "UNCITED root sec-interpolation template/script.sh.erb:12")"
+check "NOT CHECKED leaves line 30 UNCITED" 1 "$(count "UNCITED root sec-interpolation template/script.sh.erb:30")"
+check "summary" 1 "$(count "check-rows: 1 app, 6 required rows, 2 problems")"
 
 echo "Test 5: citations match exactly: a longer line number or a longer path does not count"
 sed 's/template\/script.sh.erb:10-14/template\/script.sh.erb:120; other\/template\/script.sh.erb:12/' "$TMP/report.md" > "$TMP/r5.md"
@@ -142,6 +145,12 @@ done
 for ev in 'template/script.sh.erb: line 12' 'template/script.sh.erb line 12' 'template/script.sh.erb:10,11' 'template/script.sh.erb:13–14'; do
   sed "s|template/script.sh.erb:10-14|$ev|" "$TMP/report.md" > "$TMP/r5c.md"
   check "does not cite: $ev" 1 "$(run "$TMP/r5c.md" "$TMP/findings.json" "$TMP/checks.json" "$O")"
+done
+
+echo "Test 5b2: backticks, emphasis and ./ around the path are stripped"
+for ev in '`./template/script.sh.erb:12`' '`template/script.sh.erb`:12' '**template/script.sh.erb**:12' 'x; reviewed OK: ./template/script.sh.erb:9,12'; do
+  sed "s|template/script.sh.erb:10-14|$ev|" "$TMP/report.md" > "$TMP/r5c.md"
+  check "cites: $ev" 0 "$(run "$TMP/r5c.md" "$TMP/findings.json" "$TMP/checks.json" "$O")"
 done
 
 echo "Test 5c: Result is read from its leading token after markdown and emoji"
@@ -230,6 +239,30 @@ check "a clean" 0 "$(grep -c ' a ' "$TMP/out")"
 sed 's/apps\/a\/form.yml:3/form.yml:9/' "$TMP/rm.md" > "$TMP/rm2.md"
 run "$TMP/rm2.md" "$TMP/findings.json" "$TMP/checks.json" "$M" > /dev/null
 check "prefixed candidate label" 1 "$(count "UNCITED a numeric-field-bounds apps/a/form.yml:3")"
+
+echo "Test 12b: a MISSING check lists its candidates on the following lines"
+grep -vF 'check: sec-interpolation' "$TMP/report.md" > "$TMP/r12b.md"
+check "exit 1" 1 "$(run "$TMP/r12b.md" "$TMP/findings.json" "$TMP/checks.json" "$O")"
+check "MISSING then its candidates" "MISSING root sec-interpolation
+  candidate submit.yml.erb:4
+  candidate template/script.sh.erb:12" "$(grep -A2 -xF 'MISSING root sec-interpolation' "$TMP/out")"
+check "summary counts the check once" 1 "$(count "check-rows: 1 app, 6 required rows, 1 problem")"
+
+echo "Test 12c: a '|' in the Summary does not shift the Evidence cell"
+O12="$TMP/out-bc12"; cp -R "$O" "$O12"
+cat > "$O12/root/security.json" <<'JSON'
+{"candidates": [
+  {"kind": "interpolation", "file": "submit.yml.erb", "line": 4, "text": "x", "rule": "OODT-01", "note": ""},
+  {"kind": "interpolation", "file": "template/script.sh.erb", "line": 12, "text": "x", "rule": "OODT-01", "note": ""},
+  {"kind": "eval_exec", "file": "template/before.sh.erb", "line": 3, "text": "curl -s x | bash", "rule": "OODT-01", "note": ""},
+  {"kind": "eval_exec", "file": "template/before.sh.erb", "line": 7, "text": "curl -s y | bash", "rule": "OODT-01", "note": ""}
+]}
+JSON
+printf '%s\n' '| OODT-01 | `check: sec-eval-exec` | FAIL | high | unintentional | `curl -s x | bash` runs remote code | template/before.sh.erb:3 |' > "$TMP/r12row"
+printf '%s\n' '| OODT-01 | `check: sec-eval-exec` | FAIL | high | unintentional | curl -s y | bash runs remote code | template/before.sh.erb:7 |' >> "$TMP/r12row"
+sed "/check: sec-interpolation.*template\/script.sh.erb:10-14/r $TMP/r12row" "$TMP/report.md" > "$TMP/r12c.md"
+check "backticked and bare pipes in Summary: exit 0" 0 "$(run "$TMP/r12c.md" "$TMP/findings.json" "$TMP/checks.json" "$O12")"
+check "no UNCITED" 0 "$(grep -c '^UNCITED' "$TMP/out")"
 
 echo "Test 13: missing or unreadable inputs exit 2"
 check "no report" 2 "$(run "$TMP/nope.md" "$TMP/findings.json" "$TMP/checks.json" "$O")"

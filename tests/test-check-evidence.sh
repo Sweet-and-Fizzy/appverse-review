@@ -137,4 +137,28 @@ printf '[%s]' "$(rec QUA-02 big.yml:hardcoded-path big.yml:1)" > "$TMP/o.json"
 check "exit 0" 0 "$(run "$TMP/o.json" --target "$TMP/t")"
 check "summary mentions the skip" 1 "$(grep -cF "evidence: 1/1 valid (1 line count not checked: file over 5 MB)" "$TMP/out")"
 
+echo "Test 17: every citation group and every comma item is validated, the reviewed-OK segment included"
+printf '[%s]' "$(rec OODT-01 template/script.sh.erb:unsanitized-user-input 'template/script.sh.erb:2,999 x; reviewed OK: template/nope.sh:9,23')" > "$TMP/p.json"
+check "exit 1" 1 "$(run "$TMP/p.json" --target "$TMP/t")"
+check "comma item 999 reported" 1 "$(grep -cF "BAD OODT-01 template/script.sh.erb:unsanitized-user-input template/script.sh.erb:2,999 x; reviewed OK: template/nope.sh:9,23 (template/script.sh.erb: line 999 past end of file, has 5 lines)" "$TMP/out")"
+check "reviewed-OK path reported" 1 "$(grep -cF "(template/nope.sh: file not found (case-exact))" "$TMP/out")"
+check "counted as one bad finding" "evidence: 0/1 valid" "$(tail -1 "$TMP/out")"
+printf '[%s]' "$(rec OODT-01 template/script.sh.erb:unsanitized-user-input 'template/script.sh.erb:2 x; reviewed OK: form.yml:1,3')" > "$TMP/p2.json"
+check "all groups valid: exit 0" 0 "$(run "$TMP/p2.json" --target "$TMP/t")"
+
+echo "Test 18: a backtick-wrapped path and a ./ path are the same file"
+printf '[%s,%s,%s]' \
+  "$(rec QUA-02 template/script.sh.erb:hardcoded-path '`template/script.sh.erb:3`')" \
+  "$(rec QUA-02 form.yml:hardcoded-path './form.yml:2 and **form.yml**:3')" \
+  "$(rec QUA-02 form.yml:x '`./form.yml`:1')" > "$TMP/q.json"
+check "exit 0" 0 "$(run "$TMP/q.json" --target "$TMP/t")"
+check "summary" "evidence: 3/3 valid" "$(tail -1 "$TMP/out")"
+printf '[%s]' "$(rec QUA-02 form.yml:hardcoded-path '`./form.yml:7`')" > "$TMP/q2.json"
+check "backticked ./ path past EOF is BAD" 1 "$(run "$TMP/q2.json" --target "$TMP/t")"
+check "reason" 1 "$(grep -cF '(line 7 past end of file, has 3 lines)' "$TMP/out")"
+
+echo "Test 19: prose that looks like host:port or image:tag is not a citation"
+printf '[%s]' "$(rec OODT-05 template/script.sh.erb:bind-all-interfaces 'template/script.sh.erb:3 --host 0.0.0.0:5000 image python:3 http://localhost:8080 ruby:3.1')" > "$TMP/r.json"
+check "exit 0" 0 "$(run "$TMP/r.json" --target "$TMP/t")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

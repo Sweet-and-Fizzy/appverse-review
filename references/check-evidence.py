@@ -3,15 +3,22 @@
 
     python3 references/check-evidence.py review-<slug>.findings.json --target <repo-dir>
 
-A finding's `evidence` is free text. When it starts with `<path>:<n>` or
-`<path>:<n>-<m>` (a bare path, then a colon, then one or two integers), only
-that leading citation is parsed — anything after the digits (another
-`:...`, trailing prose) is ignored, so `"form.yml:12:extra"` is read as
-`form.yml` line 12. The path must name a real file under --target (matched
-case-exactly: `readme.md` does not stand in for `README.md`, since some
-filesystems accept that locally and CI would not) and every cited line
-number must be within that file's length (1-indexed; 0 and anything past
-EOF is BAD).
+A finding's `evidence` is free text. Every citation group in it is
+validated, not only a leading one: repo_paths.parse_citations (the grammar
+check-rows.py and compare-runs.py share) finds each `path:N`, `path:N-M`,
+`path:N–M` or `path:N,M` anywhere in the string, the `; reviewed OK:`
+segment included, with a leading `./`, wrapping backticks and `*`/`**`
+emphasis stripped from the path. Anything after the line list (another
+`:...`, trailing prose) is not part of the citation, so `"form.yml:12:extra"`
+is read as `form.yml` line 12. Each path must name a real file under
+--target (matched case-exactly: `readme.md` does not stand in for
+`README.md`, since some filesystems accept that locally and CI would not)
+and every cited line, every comma item and both ends of every range, must
+be within that file's length (1-indexed; 0 and anything past EOF is BAD).
+
+A bare word with no `/` or `.` that is not a pseudo-anchor (`python:3` in a
+quoted command) is validated only when it names a real file under --target
+(`Dockerfile:3`); otherwise it is prose and left alone.
 
 A pseudo-anchor (the same fixed set check-keys.py treats as not-a-real-file:
 LICENSE, README.md, CHANGELOG.md, .github/workflows, releases, issues,
@@ -34,11 +41,11 @@ The cited path must also be repo-relative: absolute paths, a `..` segment,
 or a path that otherwise resolves outside --target are BAD ("path is not
 repo-relative"), never walked out to the real filesystem.
 
-Evidence that does not start with `<path>:<n>[-<m>]` (a free-text phrase, a
-bare filename with no line, "(no file)", etc.) is left alone; this script
-only checks the citations it can parse as a file:line reference.
+Evidence with no citation group (a free-text phrase, a bare filename with
+no line, "(no file)", etc.) is left alone; this script only checks the
+citations it can parse as a file:line reference.
 
-Without --target, only the `<path>:<n>[-<m>]` shape, path-hygiene, and
+Without --target, only the citation shape, path-hygiene, and
 pseudo-anchor rules are checked; file existence and line-length are skipped
 (nothing to check them against).
 
@@ -49,40 +56,22 @@ as BAD) rather than paying to scan a large file just to bound-check a
 citation.
 
 Exit 0 when every evidence citation is valid, 1 when any is not (one BAD
-line each, in the form `BAD <rule> <defect_key> <evidence> (<reason>)`),
+line per bad citation group, in the form `BAD <rule> <defect_key>
+<evidence> (<reason>)`; when the evidence has more than one group the
+reason starts with the group's path, `(template/nope.sh: file not found
+(case-exact))`). The summary counts findings: a finding is valid when all
+its groups are.
 2 when the input cannot be read or is malformed.
 """
 import argparse
 import json
 import os
-import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from repo_paths import PSEUDO_ANCHORS, exists_case_exact  # noqa: E402
+from repo_paths import PSEUDO_ANCHORS, exists_case_exact, parse_citations  # noqa: E402
 
 MAX_LINE_COUNT_BYTES = 5 * 1024 * 1024  # 5 MB
-
-# The leading "<path>:<n>" or "<path>:<n>-<m>" citation. The path is
-# everything up to the first colon (colons are excluded from the path
-# character class, so this cannot be fooled by a colon inside the path);
-# whatever follows the digits (more ":...", trailing prose) is not part of
-# the match and is ignored by design (a:1:2 -> path "a", line 1).
-EVIDENCE_PREFIX = re.compile(
-    r"^([^\s:][^:]*?):(\d+)(?:-(\d+))?"
-)
-
-
-def parse_citation(evidence):
-    """Return (path, [line numbers]) if evidence starts with a <path>:<n>
-    or <path>:<n>-<m> citation, else None."""
-    m = EVIDENCE_PREFIX.match(str(evidence or "").strip())
-    if not m:
-        return None
-    path, start, end = m.group(1), m.group(2), m.group(3)
-    lines = [int(start)] if end is None else [int(start), int(end)]
-    return path, lines
-
 
 def not_repo_relative(path, target):
     """Whether path is unsafe to resolve under target: absolute, a '..'
@@ -116,40 +105,55 @@ def line_count(path, cache):
     return n
 
 
-def validate(finding, target, line_cache, skipped):
-    rule = finding.get("rule") or "<missing>"
-    key = finding.get("defect_key") or "<missing>"
-    evidence = finding.get("evidence")
-    parsed = parse_citation(evidence)
-    if parsed is None:
-        return rule, key, evidence, None
-    path, lines = parsed
+def check_group(path, lines, target, line_cache, skipped):
+    """The reason one citation group is BAD, or None. Appends to skipped
+    when the file is too large to count."""
     is_pseudo = path in PSEUDO_ANCHORS
-    if is_pseudo and target is None:
+    bare = "/" not in path and "." not in path and not is_pseudo
+    if target is None:
         # Some pseudo-anchors (README.md, CHANGELOG.md, LICENSE) are also
         # real files a Documentation/Structure finding may legitimately cite
         # a line of; others (releases, commits, root, ...) never are. Without
         # --target there's no way to tell the two apart, so a pseudo-anchor
         # citing a line stays BAD in format-only mode.
-        return rule, key, evidence, "pseudo-anchor, not a file"
-    if target is None:
-        return rule, key, evidence, None
+        return "pseudo-anchor, not a file" if is_pseudo else None
     if not_repo_relative(path, target):
-        return rule, key, evidence, "path is not repo-relative"
+        return "path is not repo-relative"
     resolved_target = os.path.realpath(target)
     full = os.path.join(resolved_target, path)
     if not os.path.isfile(full) or not exists_case_exact(resolved_target, path):
+        if bare:
+            return None  # a bare word that is not a file is prose (python:3)
         if is_pseudo:
-            return rule, key, evidence, "pseudo-anchor, not a file"
-        return rule, key, evidence, "file not found (case-exact)"
+            return "pseudo-anchor, not a file"
+        return "file not found (case-exact)"
     n_lines = line_count(full, line_cache)
     if n_lines is None:
-        skipped.append((rule, key, evidence))
-        return rule, key, evidence, None
-    for n in lines:
-        if n < 1 or n > n_lines:
-            return rule, key, evidence, "line {} past end of file, has {} lines".format(n, n_lines)
-    return rule, key, evidence, None
+        skipped.append(path)
+        return None
+    low = [n for n in lines if n < 1]
+    high = [n for n in lines if n > n_lines]
+    if low or high:
+        n = low[0] if low else max(high)
+        return "line {} past end of file, has {} lines".format(n, n_lines)
+    return None
+
+
+def validate(finding, target, line_cache, skipped):
+    """(rule, key, evidence, [reason, ...]) — one reason per BAD group."""
+    rule = finding.get("rule") or "<missing>"
+    key = finding.get("defect_key") or "<missing>"
+    evidence = finding.get("evidence")
+    groups = parse_citations(evidence)
+    reasons = []
+    before = len(skipped)
+    for path, lines in groups:
+        reason = check_group(path, lines, target, line_cache, skipped)
+        if reason:
+            reasons.append(reason if len(groups) == 1 else "{}: {}".format(path, reason))
+    if len(skipped) > before:
+        del skipped[before + 1:]  # count a finding once in the not-checked tally
+    return rule, key, evidence, reasons
 
 
 def main(argv):
@@ -174,9 +178,10 @@ def main(argv):
     line_cache = {}
     skipped = []
     for finding in findings:
-        rule, key, evidence, reason = validate(finding, args.target, line_cache, skipped)
-        if reason:
+        rule, key, evidence, reasons = validate(finding, args.target, line_cache, skipped)
+        if reasons:
             bad += 1
+        for reason in reasons:
             print("BAD {} {} {} ({})".format(rule, key, evidence, reason))
     summary = "evidence: {}/{} valid".format(len(findings) - bad, len(findings))
     if skipped:

@@ -21,25 +21,37 @@ for template.json):
   list at least one candidate. A required check with no row is
       MISSING <app_id> <id>
 
-  Candidates. A row answers exactly the candidates its Evidence cites,
-  whatever its Result (FAIL, WARN, PASS or NOT CHECKED): a FAIL citing one
-  of three sites answers that one only. When the facts list candidates, every
-  candidate must be cited by some row of the check. Each candidate left
-  uncited is
+  A MISSING check that has candidates is followed by one line per
+  candidate, so the whole gap shows in one pass:
+      MISSING <app_id> <id>
+        candidate <file:line>
+
+  Candidates. A FAIL, WARN or PASS row answers exactly the candidates its
+  Evidence cites: a FAIL citing one of three sites answers that one only.
+  A NOT CHECKED row answers no candidate (it still counts as the check's
+  row). When the facts list candidates, every candidate must be cited by
+  some FAIL/WARN/PASS row of the check. Each candidate left uncited is
       UNCITED <app_id> <id> <file:line>
   (for a syntax.json or entry_point.json candidate, which has no line, the
   label is the bare path). A check with no candidates is satisfied by any
   row, a plain PASS included.
 
-  Citations. The candidate's repo-relative path (or, for form.json
-  candidates, the app-relative path form.json records), optionally with a
-  leading ./, then a colon and a line list: N, N-M or N–M (en dash), or a
-  comma list of those (22,25 or 22, 25). The list must cover the line. The
-  path may not be preceded by another path character, and a number may not
-  run on into more digits, so script.sh:1 does not match script.sh:12 and
-  other/script.sh:1 does not match script.sh:1. Prose is not a citation:
-  "script.sh: line 12" and "script.sh line 12" do not cite line 12. A
-  path-only candidate is cited by the path alone or with any line.
+  Citations. Parsed by repo_paths.parse_citations, the grammar shared with
+  check-evidence.py and compare-runs.py: the candidate's repo-relative path
+  (or, for form.json candidates, the app-relative path form.json records),
+  optionally with a leading ./, backticks or */** emphasis, then a colon and
+  a line list: N, N-M or N–M (en dash), or a comma list of those (22,25 or
+  22, 25). The list must cover the line. Paths compare whole, and a number
+  may not run on into more digits, so script.sh:1 does not match
+  script.sh:12 and other/script.sh:1 does not match script.sh:1. Prose is
+  not a citation: "script.sh: line 12" and "script.sh line 12" do not cite
+  line 12. A '; reviewed OK:' segment is part of the same cell and cites the
+  same way. A path-only candidate is cited by the path alone or with any
+  line.
+
+  Cells. A '|' inside backticks does not split a cell. When a row still has
+  more cells than its header (an unescaped '|' in a Summary), the Evidence
+  cell is everything from the Evidence column to the end of the row.
 
 Candidate sets, per check id (fact files are <out>/<app_id>/<name>.json,
 syntax.json is <out>/syntax.json; a missing fact file means no candidates):
@@ -81,6 +93,9 @@ import os
 import re
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from repo_paths import parse_citations  # noqa: E402
+
 APP_TYPES = ("batch_connect", "passenger", "companion", "widget")
 SECURITY_KINDS = {
     "sec-interpolation": ("interpolation", "unquoted_expansion"),
@@ -102,8 +117,6 @@ CONSTRAINED_WIDGETS = {"select", "radio_button", "radio", "check_box", "checkbox
 MARKER = re.compile(r"`check:\s*([A-Za-z0-9_.-]+)`")
 RESULTS = ("NOT CHECKED", "FAIL", "WARN", "PASS")
 RESULT_RE = re.compile(r"[^A-Z]*(" + "|".join(RESULTS).replace(" ", r"\s+") + r")(?![A-Z])")
-LINE_SPEC = r"\d+(?:\s*[-\u2013]\s*\d+)?(?!\d)"
-LINE_LIST = LINE_SPEC + r"(?:\s*,\s*" + LINE_SPEC + r")*"
 
 
 class InputError(Exception):
@@ -175,7 +188,7 @@ def form_candidates(check_id, form, prefix):
                 bounded = both or a.get("pattern") is not None
             if bounded:
                 continue
-            out.append((label(cites[0][0], a.get("line")), cites))
+            out.append((label(cites[0][0], a.get("line")), cites, None))
         elif check_id == "erb-missing-value":
             if not a.get("interpolated_in_submit") or a.get("guarded") is True:
                 continue
@@ -183,11 +196,13 @@ def form_candidates(check_id, form, prefix):
             for n in lines:
                 cites = cites + site(prefix, sfile, n)
             first = site(prefix, sfile, lines[0])[0] if lines else cites[0]
-            out.append((label(*first), cites))
+            out.append((label(*first), cites, None))
     return out
 
 
 def candidates(check, app, out):
+    """[(label, cites, rule)]: rule is the candidate's own rule when its fact
+    carries one (security.json), else None (the check's rule applies)."""
     cid = check["id"]
     app_id = app["app_id"]
     prefix = app_prefix(app)
@@ -196,18 +211,18 @@ def candidates(check, app, out):
         for e in fact(out, app_id, "syntax.json") or []:
             p = e.get("path") or ""
             if e.get("ok") is False and p.startswith(prefix):
-                found.append((p, [(p, None)]))
+                found.append((p, [(p, None)], None))
     elif cid == "entry-point-parses":
         ep = fact(out, app_id, "entry_point.json")
         if isinstance(ep, dict) and ep.get("parses") is False and ep.get("file"):
             p = ep["file"]
-            found.append((p, [(x, None) for x in paths_for(prefix, p)]))
+            found.append((p, [(x, None) for x in paths_for(prefix, p)], None))
     elif cid in SECURITY_KINDS:
         sec = fact(out, app_id, "security.json")
         for c in (sec.get("candidates") or []) if isinstance(sec, dict) else []:
             if c.get("kind") in SECURITY_KINDS[cid] and c.get("file"):
                 cites = site(prefix, c["file"], c.get("line"))
-                found.append((label(cites[0][0], c.get("line")), cites))
+                found.append((label(cites[0][0], c.get("line")), cites, c.get("rule")))
     elif cid in TEMPLATE_KEYS:
         tpl = fact(out, app_id, "template.json")
         if isinstance(tpl, dict):
@@ -215,32 +230,26 @@ def candidates(check, app, out):
                 for c in tpl.get(key) or []:
                     if c.get("file"):
                         cites = site(prefix, c["file"], c.get("line"))
-                        found.append((label(cites[0][0], c.get("line")), cites))
+                        found.append((label(cites[0][0], c.get("line")), cites, None))
     elif cid in ("numeric-field-bounds", "erb-missing-value"):
         found = form_candidates(cid, fact(out, app_id, "form.json"), prefix)
     seen, unique = set(), []
-    for lab, cites in found:
+    for lab, cites, rule in found:
         if lab not in seen:
             seen.add(lab)
-            unique.append((lab, cites))
+            unique.append((lab, cites, rule))
     return unique
 
 
-def covers(spec_list, line):
-    for spec in spec_list.split(","):
-        bounds = [int(x) for x in re.findall(r"\d+", spec)]
-        if bounds and bounds[0] <= line <= bounds[-1]:
-            return True
-    return False
-
-
 def cited(evidence, path, line):
-    pat = r"(?<![\w./-])(?:\./)?" + re.escape(path)
+    """Whether evidence cites path (and line, when not None)."""
+    groups = parse_citations(evidence)
     if line is None:
-        return re.search(pat + r"(?![\w./-])", evidence) is not None or \
-            re.search(pat + r":\d", evidence) is not None
-    return any(covers(m.group(1), int(line))
-               for m in re.finditer(pat + r":(" + LINE_LIST + r")", evidence))
+        if any(p == path for p, _ in groups):
+            return True
+        pat = r"(?<![\w./-])(?:\./)?" + re.escape(path) + r"(?![\w/-]|\.\w)"
+        return re.search(pat, evidence) is not None
+    return any(p == path and int(line) in lines for p, lines in groups)
 
 
 def normalize_result(cell):
@@ -252,12 +261,41 @@ def normalize_result(cell):
 # ---- report parsing -------------------------------------------------------
 
 def split_row(line):
+    """Cells of a table row. A '|' escaped as '\\|' or inside a backtick code
+    span (`a | b`, closed by the same number of backticks) does not split."""
     s = line.strip()
     if s.startswith("|"):
         s = s[1:]
     if s.endswith("|") and not s.endswith("\\|"):
         s = s[:-1]
-    return [c.strip() for c in re.split(r"(?<!\\)\|", s)]
+    cells, cur, i, fence = [], [], 0, 0
+    while i < len(s):
+        ch = s[i]
+        if ch == "\\" and i + 1 < len(s):
+            cur.append(s[i:i + 2])
+            i += 2
+            continue
+        if ch == "`":
+            j = i
+            while j < len(s) and s[j] == "`":
+                j += 1
+            run = j - i
+            if fence == 0:
+                if "`" * run in s[j:]:
+                    fence = run  # opens only when a closing run follows
+            elif run == fence:
+                fence = 0
+            cur.append(s[i:j])
+            i = j
+            continue
+        if ch == "|" and fence == 0:
+            cells.append("".join(cur).strip())
+            cur = []
+        else:
+            cur.append(ch)
+        i += 1
+    cells.append("".join(cur).strip())
+    return cells
 
 
 def is_separator(line):
@@ -270,7 +308,9 @@ def header_name(cell):
 
 
 def rows_by_check(body):
-    """{check_id: [(result, evidence), ...]} from tables with a Check column."""
+    """{check_id: [{"result", "severity", "evidence"}, ...]} from tables with a
+    Check column. Evidence runs from the Evidence column to the end of the
+    row when the row has more cells than the header."""
     rows = {}
     lines = body.splitlines()
     i = 0
@@ -285,6 +325,7 @@ def rows_by_check(body):
             ci = head.index("check")
             ri = head.index("result") if "result" in head else None
             ei = head.index("evidence") if "evidence" in head else None
+            si = head.index("severity") if "severity" in head else None
             while i < len(lines) and lines[i].lstrip().startswith("|"):
                 cells = split_row(lines[i])
                 get = lambda k: cells[k] if k is not None and k < len(cells) else ""
@@ -292,8 +333,12 @@ def rows_by_check(body):
                 if result is None:
                     i += 1
                     continue
+                evidence = get(ei)
+                if ei is not None and len(cells) > len(head):
+                    evidence = " | ".join(cells[ei:])
+                row = {"result": result, "severity": get(si), "evidence": evidence}
                 for cid in MARKER.findall(get(ci)):
-                    rows.setdefault(cid, []).append((result, get(ei)))
+                    rows.setdefault(cid, []).append(row)
                 i += 1
             continue
         i += 1
@@ -366,10 +411,12 @@ def main(argv):
             cid = check["id"]
             found = rows.get(cid)
             if not found:
-                problems.append("MISSING {} {}".format(app["app_id"], cid))
+                problems.append("MISSING {} {}".format(app["app_id"], cid) +
+                                "".join("\n  candidate {}".format(c[0]) for c in cands))
                 continue
-            for lab, cites in cands:
-                if not any(cited(ev, p, n) for _, ev in found for p, n in cites):
+            answering = [r["evidence"] for r in found if r["result"] != "NOT CHECKED"]
+            for lab, cites, _ in cands:
+                if not any(cited(ev, p, n) for ev in answering for p, n in cites):
                     problems.append("UNCITED {} {} {}".format(app["app_id"], cid, lab))
     for p in problems:
         print(p)
