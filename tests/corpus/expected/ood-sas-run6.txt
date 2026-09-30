@@ -1,17 +1,64 @@
 # recall-floor: 3/8 (off-candidate hits/items against tests/recall-set; the run's findings are fixed, so
 # this pins the recall matching, not the model)
-# not-applicable: this run has no pre-review/apps.json (it predates the fact files), so check-rows cannot run;
-# the [rows] error line and exit 2 are expected, not a checker fault.
-# known-wrong: the [evidence] BAD lines for `min`, `max` and `pattern` quote keys the row says are absent
-# ("no max"), so they can never be on the cited line; the cited-value rule misfires on them.
+# pre-rows report: this report predates the per-check rows and the tool-finding candidates, so [rows] MISSING/UNCITED lines are expected; they measure the old format, not a checker fault.
+# note: [evidence] NOTE lines are the cited-value rule in informational mode (precision under 80% on this corpus); they never change the exit code.
 [floor] feedback floor: 16/16 fix-items covered
 [keys] finding keys: 23/23 valid
 [rating] ratings: consistent
-[rows] error: cannot read apps.json 'tests/corpus/ood-sas-run6/pre-review/apps.json': [Errno 2] No such file or directory: 'tests/corpus/ood-sas-run6/pre-review/apps.json'
+[rows] MISSING root str-02-metadata
+[rows] MISSING root str-03-yaml-valid
+[rows] MISSING root str-06-syntax
+[rows] MISSING root str-07-layout
+[rows] MISSING root str-04-references
+[rows] MISSING root sec-interpolation
+[rows]   candidate submit.yml.erb:6
+[rows]   candidate submit.yml.erb:7
+[rows]   candidate submit.yml.erb:9
+[rows]   candidate submit.yml.erb:10
+[rows]   candidate submit.yml.erb:11
+[rows]   candidate submit.yml.erb:13
+[rows]   candidate submit.yml.erb:17
+[rows]   candidate template/script.sh.erb:11
+[rows]   candidate template/script.sh.erb:12
+[rows]   candidate template/script.sh.erb:64
+[rows] MISSING root sec-eval-exec
+[rows]   candidate template/script.sh.erb:72
+[rows] MISSING root sec-config-flag
+[rows]   candidate template/script.sh.erb:19
+[rows]   candidate template/script.sh.erb:44
+[rows]   candidate template/script.sh.erb:54
+[rows] MISSING root sec-tool-finding
+[rows]   candidate template/before.sh.erb:SC2148
+[rows]   candidate template/script.sh.erb:SC2086
+[rows]   candidate template/script.sh.erb:SC2164
+[rows] MISSING root hardcoded-site-paths
+[rows]   candidate template/script.sh.erb:21
+[rows] MISSING root portability-rating
+[rows] MISSING root documentation-rating
+[rows] MISSING root error-handling
+[rows] UNCITED root numeric-field-bounds form.yml:15
+[rows] UNCITED root numeric-field-bounds form.yml:27
+[rows] UNCITED root numeric-field-bounds form.yml:30
+[rows] UNCITED root numeric-field-bounds form.yml:65
+[rows] UNCITED root numeric-field-bounds form.yml:72
+[rows] MISSING root magic-numbers
+[rows]   candidate template/script.sh.erb:46
+[rows] MISSING root duplicated-blocks
+[rows] MISSING root dead-code
+[rows]   candidate template/script.sh.erb:33
+[rows]   candidate template/script.sh.erb:39
+[rows]   candidate template/script.sh.erb:78
+[rows] MISSING root erb-missing-value
+[rows]   candidate submit.yml.erb:10
+[rows]   candidate submit.yml.erb:7
+[rows]   candidate submit.yml.erb:9
+[rows]   candidate submit.yml.erb:11
+[rows]   candidate submit.yml.erb:12
+[rows]   candidate submit.yml.erb:6
+[rows]   candidate submit.yml.erb:15
+[rows] check-rows: 1 app, 19 required rows, 22 problems
 [evidence] BAD QUA-05 CHANGELOG.md:wrong-app-changelog CHANGELOG.md:9-63 — entries reference MATLAB versions; links point to https://github.com/OSC/bc_osc_matlab (line 63 past end of file, has 62 lines)
 [evidence] BAD MNT-03 CHANGELOG.md:no-changelog CHANGELOG.md:1-63 — all entries reference MATLAB versions and OSC/bc_osc_matlab URLs (line 63 past end of file, has 62 lines)
-[evidence] BAD report:numeric-field-bounds numeric-field-bounds form.yml:31, 38 (`custom_memory_per_node` is not on form.yml:31)
-[evidence] BAD report:numeric-field-bounds numeric-field-bounds form.yml:31, 38 (`min` is not on form.yml:31)
-[evidence] BAD report:numeric-field-bounds numeric-field-bounds form.yml:31, 38 (`max` is not on form.yml:31)
-[evidence] evidence: 21/23 valid; report rows: 1/2 valid
-exit: 2
+[evidence] NOTE report:numeric-field-bounds numeric-field-bounds form.yml:31, 38 (`custom_memory_per_node` is not on form.yml:31)
+[evidence] evidence: 21/23 valid; report rows: 2/2 valid
+exit: 1

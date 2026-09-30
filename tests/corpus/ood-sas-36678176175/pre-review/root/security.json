@@ -8,7 +8,8 @@
     "permission_change": 0,
     "credential_string": 0,
     "config_flag": 3,
-    "binary_in_template": 0
+    "binary_in_template": 0,
+    "tool_finding": 3
   },
   "scope": "batch_connect",
   "files": [
@@ -236,7 +237,61 @@
       "line": 72,
       "text": "eval exec $COMMAND",
       "note": "eval"
+    },
+    {
+      "kind": "tool_finding",
+      "check": "sec-tool-finding",
+      "rule": null,
+      "tag": null,
+      "tool": "shellcheck",
+      "code": "SC2148",
+      "file": "template/before.sh.erb",
+      "lines": [
+        1
+      ],
+      "line": 1,
+      "level": "error",
+      "text": "Tips depend on target shell and yours is unknown. Add a shebang or a 'shell' directive.",
+      "note": "",
+      "artifact": true
+    },
+    {
+      "kind": "tool_finding",
+      "check": "sec-tool-finding",
+      "rule": null,
+      "tag": null,
+      "tool": "shellcheck",
+      "code": "SC2086",
+      "file": "template/script.sh.erb",
+      "lines": [
+        22,
+        25,
+        72
+      ],
+      "line": 22,
+      "level": "info",
+      "text": "Double quote to prevent globbing and word splitting.",
+      "note": "",
+      "artifact": false
+    },
+    {
+      "kind": "tool_finding",
+      "check": "sec-tool-finding",
+      "rule": null,
+      "tag": null,
+      "tool": "shellcheck",
+      "code": "SC2164",
+      "file": "template/script.sh.erb",
+      "lines": [
+        25
+      ],
+      "line": 25,
+      "level": "warning",
+      "text": "Use 'cd ... || exit' or 'cd ... || return' in case cd fails.",
+      "note": "",
+      "artifact": false
     }
   ],
+  "tool_notes": [],
   "skipped_files": []
 }

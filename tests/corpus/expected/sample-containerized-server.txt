@@ -1,8 +1,13 @@
-# known-wrong: the hand-made sample report has no Draft feedback section; a missing report section is a malformed
-# report (exit 1), not a checker that could not run, so the [floor] error line and exit 2 are wrong.
-[floor] error: no '## Draft feedback' or '## Fix before submitting' section
+# expected: the hand-made sample report has no Draft feedback section by construction; a missing section is a malformed report, exit 1.
+[floor] MISSING section: no '## Draft feedback' or '## Fix before submitting' section
 [keys] finding keys: 17/17 valid
 [rating] ratings: consistent
-[rows] check-rows: 1 app, 17 required rows, 0 problems
+[rows] MISSING root sec-tool-finding
+[rows]   candidate template/after.sh:SC2154
+[rows]   candidate template/before.sh.erb:SC1091
+[rows]   candidate template/before.sh.erb:SC2155
+[rows]   candidate template/script.sh.erb:SC2034
+[rows]   candidate template/script.sh.erb:SC2086
+[rows] check-rows: 1 app, 18 required rows, 1 problem
 [evidence] evidence: 17/17 valid; report rows: 29/29 valid
-exit: 2
+exit: 1

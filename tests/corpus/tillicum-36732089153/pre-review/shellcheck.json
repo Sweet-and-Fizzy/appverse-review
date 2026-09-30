@@ -176,90 +176,13 @@
   },
   {
     "file": "template/script.sh.erb",
-    "line": 208,
-    "endLine": 208,
-    "column": 5,
-    "endColumn": 43,
+    "line": 207,
+    "endLine": 216,
+    "column": 1,
+    "endColumn": 2,
     "level": "info",
-    "code": 2317,
-    "message": "Command appears to be unreachable. Check usage (or ignore if invoked indirectly).",
-    "fix": null
-  },
-  {
-    "file": "template/script.sh.erb",
-    "line": 209,
-    "endLine": 209,
-    "column": 5,
-    "endColumn": 63,
-    "level": "info",
-    "code": 2317,
-    "message": "Command appears to be unreachable. Check usage (or ignore if invoked indirectly).",
-    "fix": null
-  },
-  {
-    "file": "template/script.sh.erb",
-    "line": 211,
-    "endLine": 211,
-    "column": 5,
-    "endColumn": 12,
-    "level": "info",
-    "code": 2317,
-    "message": "Command appears to be unreachable. Check usage (or ignore if invoked indirectly).",
-    "fix": null
-  },
-  {
-    "file": "template/script.sh.erb",
-    "line": 213,
-    "endLine": 213,
-    "column": 5,
-    "endColumn": 35,
-    "level": "info",
-    "code": 2317,
-    "message": "Command appears to be unreachable. Check usage (or ignore if invoked indirectly).",
-    "fix": null
-  },
-  {
-    "file": "template/script.sh.erb",
-    "line": 213,
-    "endLine": 213,
-    "column": 38,
-    "endColumn": 42,
-    "level": "info",
-    "code": 2317,
-    "message": "Command appears to be unreachable. Check usage (or ignore if invoked indirectly).",
-    "fix": null
-  },
-  {
-    "file": "template/script.sh.erb",
-    "line": 214,
-    "endLine": 214,
-    "column": 5,
-    "endColumn": 30,
-    "level": "info",
-    "code": 2317,
-    "message": "Command appears to be unreachable. Check usage (or ignore if invoked indirectly).",
-    "fix": null
-  },
-  {
-    "file": "template/script.sh.erb",
-    "line": 214,
-    "endLine": 214,
-    "column": 33,
-    "endColumn": 37,
-    "level": "info",
-    "code": 2317,
-    "message": "Command appears to be unreachable. Check usage (or ignore if invoked indirectly).",
-    "fix": null
-  },
-  {
-    "file": "template/script.sh.erb",
-    "line": 215,
-    "endLine": 215,
-    "column": 5,
-    "endColumn": 13,
-    "level": "info",
-    "code": 2317,
-    "message": "Command appears to be unreachable. Check usage (or ignore if invoked indirectly).",
+    "code": 2329,
+    "message": "This function is never invoked. Check usage (or ignored if invoked indirectly).",
     "fix": null
   }
 ]

@@ -16,11 +16,17 @@
   "screenshots": [],
   "env_vars": [],
   "rungs": {
-    "what it launches": null,
+    "what it launches": {
+      "heading": "MLflow Tracking Server",
+      "line": 3,
+      "placeholder": false,
+      "match": "intro"
+    },
     "prerequisites": {
       "heading": "Requirements",
       "line": 5,
-      "placeholder": false
+      "placeholder": false,
+      "match": "heading"
     },
     "installation": null,
     "configuration": null,
@@ -30,5 +36,8 @@
     "environment variables": null,
     "info panel": null,
     "architecture": null
-  }
+  },
+  "stub": false,
+  "content_line_count": 3,
+  "content_chars": 197
 }

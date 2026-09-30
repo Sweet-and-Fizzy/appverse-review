@@ -8,7 +8,8 @@
     "permission_change": 0,
     "credential_string": 0,
     "config_flag": 2,
-    "binary_in_template": 0
+    "binary_in_template": 0,
+    "tool_finding": 5
   },
   "scope": "batch_connect",
   "files": [
@@ -41,11 +42,12 @@
       "file": "submit.yml.erb",
       "line": 7,
       "text": "- \"<%= csc_cores %>\"",
-      "note": "csc_cores; under script.native",
+      "note": "csc_cores; under script.native; no sanitiser (shellescape/to_i/to_f/Integer/Float/Shellwords.escape) on this line; quoted (YAML)",
       "attributes": [
         "csc_cores"
       ],
       "guarded": false,
+      "presence_checked": false,
       "quoted": true
     },
     {
@@ -56,11 +58,12 @@
       "file": "submit.yml.erb",
       "line": 9,
       "text": "- \"<%= csc_time %>\"",
-      "note": "csc_time; under script.native",
+      "note": "csc_time; under script.native; no sanitiser (shellescape/to_i/to_f/Integer/Float/Shellwords.escape) on this line; quoted (YAML)",
       "attributes": [
         "csc_time"
       ],
       "guarded": false,
+      "presence_checked": false,
       "quoted": true
     },
     {
@@ -71,11 +74,12 @@
       "file": "submit.yml.erb",
       "line": 10,
       "text": "- \"--mem=<%= csc_memory %>G\"",
-      "note": "csc_memory; under script.native",
+      "note": "csc_memory; under script.native; no sanitiser (shellescape/to_i/to_f/Integer/Float/Shellwords.escape) on this line; quoted (YAML)",
       "attributes": [
         "csc_memory"
       ],
       "guarded": false,
+      "presence_checked": false,
       "quoted": true
     },
     {
@@ -86,11 +90,12 @@
       "file": "submit.yml.erb",
       "line": 12,
       "text": "- \"--gres=nvme:<%= csc_nvme %>\"",
-      "note": "csc_nvme; under script.native",
+      "note": "csc_nvme; under script.native; no sanitiser (shellescape/to_i/to_f/Integer/Float/Shellwords.escape) on this line; quoted (YAML)",
       "attributes": [
         "csc_nvme"
       ],
-      "guarded": true,
+      "guarded": false,
+      "presence_checked": true,
       "quoted": true
     },
     {
@@ -111,11 +116,12 @@
       "file": "template/script.sh.erb",
       "line": 9,
       "text": "module load <%= context.mlflow_version %>",
-      "note": "mlflow_version (select)",
+      "note": "mlflow_version (select); no sanitiser (shellescape/to_i/to_f/Integer/Float/Shellwords.escape) on this line; unquoted",
       "attributes": [
         "mlflow_version"
       ],
       "guarded": false,
+      "presence_checked": false,
       "quoted": false
     },
     {
@@ -126,11 +132,12 @@
       "file": "template/script.sh.erb",
       "line": 22,
       "text": "--backend-store-uri \"<%= context.tracking_uri %>\" \\",
-      "note": "tracking_uri (text_field)",
+      "note": "tracking_uri (text_field); no sanitiser (shellescape/to_i/to_f/Integer/Float/Shellwords.escape) on this line; quoted (shell), still expands $(...)",
       "attributes": [
         "tracking_uri"
       ],
       "guarded": false,
+      "presence_checked": false,
       "quoted": true
     },
     {
@@ -141,11 +148,12 @@
       "file": "template/script.sh.erb",
       "line": 23,
       "text": "--default-artifact-root \"<%= context.artifact_root %>\" \\",
-      "note": "artifact_root (path_selector)",
+      "note": "artifact_root (path_selector); no sanitiser (shellescape/to_i/to_f/Integer/Float/Shellwords.escape) on this line; quoted (shell), still expands $(...)",
       "attributes": [
         "artifact_root"
       ],
       "guarded": false,
+      "presence_checked": false,
       "quoted": true
     },
     {
@@ -157,7 +165,97 @@
       "line": 24,
       "text": "--host 0.0.0.0 \\",
       "note": "binds all interfaces"
+    },
+    {
+      "kind": "tool_finding",
+      "check": "sec-tool-finding",
+      "rule": null,
+      "tag": null,
+      "tool": "shellcheck",
+      "code": "SC2154",
+      "file": "template/after.sh",
+      "lines": [
+        3,
+        4
+      ],
+      "line": 3,
+      "level": "warning",
+      "text": "app_port is referenced but not assigned.",
+      "note": "",
+      "artifact": true
+    },
+    {
+      "kind": "tool_finding",
+      "check": "sec-tool-finding",
+      "rule": null,
+      "tag": null,
+      "tool": "shellcheck",
+      "code": "SC1091",
+      "file": "template/before.sh.erb",
+      "lines": [
+        2
+      ],
+      "line": 2,
+      "level": "info",
+      "text": "Not following: /appl/profile/zz-csc-env.sh was not specified as input (see shellcheck -x).",
+      "note": "",
+      "artifact": true
+    },
+    {
+      "kind": "tool_finding",
+      "check": "sec-tool-finding",
+      "rule": null,
+      "tag": null,
+      "tool": "shellcheck",
+      "code": "SC2155",
+      "file": "template/before.sh.erb",
+      "lines": [
+        4,
+        5,
+        7
+      ],
+      "line": 4,
+      "level": "warning",
+      "text": "Declare and assign separately to avoid masking return values.",
+      "note": "",
+      "artifact": false
+    },
+    {
+      "kind": "tool_finding",
+      "check": "sec-tool-finding",
+      "rule": null,
+      "tag": null,
+      "tool": "shellcheck",
+      "code": "SC2034",
+      "file": "template/script.sh.erb",
+      "lines": [
+        6
+      ],
+      "line": 6,
+      "level": "warning",
+      "text": "PATCH_BIN appears unused. Verify use (or export if used externally).",
+      "note": "",
+      "artifact": false
+    },
+    {
+      "kind": "tool_finding",
+      "check": "sec-tool-finding",
+      "rule": null,
+      "tag": null,
+      "tool": "shellcheck",
+      "code": "SC2086",
+      "file": "template/script.sh.erb",
+      "lines": [
+        17,
+        21
+      ],
+      "line": 17,
+      "level": "info",
+      "text": "Double quote to prevent globbing and word splitting.",
+      "note": "",
+      "artifact": false
     }
   ],
+  "tool_notes": [],
   "skipped_files": []
 }

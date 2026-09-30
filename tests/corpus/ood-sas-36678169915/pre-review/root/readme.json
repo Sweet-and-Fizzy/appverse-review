@@ -229,6 +229,11 @@
       "phrase": "The app may need more time to start. Increase the connection timeout"
     },
     {
+      "line": 191,
+      "text": "To verify your installation:",
+      "phrase": "To verify your installation:"
+    },
+    {
       "line": 193,
       "text": "1. Launch the app from the OOD dashboard with default settings",
       "phrase": "Launch the app from the OOD dashboard with default settings"
@@ -242,6 +247,36 @@
       "line": 198,
       "text": "<!-- Be honest about what doesn't work or hasn't been tested. -->",
       "phrase": "Be honest about what doesn't work or hasn't been tested."
+    },
+    {
+      "line": 205,
+      "text": "Contributions are welcome. To contribute:",
+      "phrase": "Contributions are welcome. To contribute:"
+    },
+    {
+      "line": 207,
+      "text": "1. [Fork this repository](https://github.com/fasrc/ood-sas/fork).",
+      "phrase": "Fork this repository"
+    },
+    {
+      "line": 208,
+      "text": "2. Create a feature branch (`git checkout -b feature/my-improvement`).",
+      "phrase": "Create a feature branch (`git checkout -b feature/my-improvement`)"
+    },
+    {
+      "line": 209,
+      "text": "3. Submit a pull request with a description of your changes.",
+      "phrase": "Submit a pull request with a description of your changes"
+    },
+    {
+      "line": 213,
+      "text": "This app is part of the [OOD Appverse](https://ondemand.connectci.org/affinity-groups/ood-appverse). Join the [Appverse Affinity Group](https://ondemand.connectci.org/affinity-groups/ood-appverse) to connect with other contributors.",
+      "phrase": "This app is part of the [OOD Appverse](https://ondemand.connectci.org/affinity-groups/ood-appverse)"
+    },
+    {
+      "line": 220,
+      "text": "- [Open OnDemand](https://openondemand.org/) \u2014 the HPC portal framework.",
+      "phrase": "[Open OnDemand](https://openondemand.org/) \u2014 the HPC portal framework"
     }
   ],
   "screenshots": [
@@ -303,5 +338,8 @@
     "environment variables": null,
     "info panel": null,
     "architecture": null
-  }
+  },
+  "stub": false,
+  "content_line_count": 74,
+  "content_chars": 4593
 }

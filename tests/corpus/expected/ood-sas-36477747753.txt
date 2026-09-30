@@ -1,11 +1,59 @@
 # recall-floor: 2/8 (off-candidate hits/items against tests/recall-set; the run's findings are fixed, so
 # this pins the recall matching, not the model)
-# not-applicable: this run has no pre-review/apps.json (it predates the fact files), so check-rows cannot run;
-# the [rows] error line and exit 2 are expected, not a checker fault.
+# pre-rows report: this report predates the per-check rows and the tool-finding candidates, so [rows] MISSING/UNCITED lines are expected; they measure the old format, not a checker fault.
 [floor] feedback floor: 12/12 fix-items covered
 [keys] INVALID MNT-02 RELEASES:no-releases (anchor is not a repo path or allowed pseudo-anchor)
 [keys] finding keys: 13/14 valid
 [rating] ratings: consistent
-[rows] error: cannot read apps.json 'tests/corpus/ood-sas-36477747753/pre-review/apps.json': [Errno 2] No such file or directory: 'tests/corpus/ood-sas-36477747753/pre-review/apps.json'
+[rows] MISSING root str-02-metadata
+[rows] MISSING root str-03-yaml-valid
+[rows] MISSING root str-06-syntax
+[rows] MISSING root str-07-layout
+[rows] MISSING root str-04-references
+[rows] MISSING root sec-interpolation
+[rows]   candidate submit.yml.erb:6
+[rows]   candidate submit.yml.erb:7
+[rows]   candidate submit.yml.erb:9
+[rows]   candidate submit.yml.erb:10
+[rows]   candidate submit.yml.erb:11
+[rows]   candidate submit.yml.erb:13
+[rows]   candidate submit.yml.erb:17
+[rows]   candidate template/script.sh.erb:11
+[rows]   candidate template/script.sh.erb:12
+[rows]   candidate template/script.sh.erb:64
+[rows] MISSING root sec-eval-exec
+[rows]   candidate template/script.sh.erb:72
+[rows] MISSING root sec-config-flag
+[rows]   candidate template/script.sh.erb:19
+[rows]   candidate template/script.sh.erb:44
+[rows]   candidate template/script.sh.erb:54
+[rows] MISSING root sec-tool-finding
+[rows]   candidate template/before.sh.erb:SC2148
+[rows]   candidate template/script.sh.erb:SC2086
+[rows]   candidate template/script.sh.erb:SC2164
+[rows] MISSING root hardcoded-site-paths
+[rows]   candidate template/script.sh.erb:21
+[rows] MISSING root portability-rating
+[rows] MISSING root documentation-rating
+[rows] MISSING root error-handling
+[rows] UNCITED root numeric-field-bounds form.yml:27
+[rows] UNCITED root numeric-field-bounds form.yml:65
+[rows] UNCITED root numeric-field-bounds form.yml:72
+[rows] MISSING root magic-numbers
+[rows]   candidate template/script.sh.erb:46
+[rows] MISSING root duplicated-blocks
+[rows] MISSING root dead-code
+[rows]   candidate template/script.sh.erb:33
+[rows]   candidate template/script.sh.erb:39
+[rows]   candidate template/script.sh.erb:78
+[rows] MISSING root erb-missing-value
+[rows]   candidate submit.yml.erb:10
+[rows]   candidate submit.yml.erb:7
+[rows]   candidate submit.yml.erb:9
+[rows]   candidate submit.yml.erb:11
+[rows]   candidate submit.yml.erb:12
+[rows]   candidate submit.yml.erb:6
+[rows]   candidate submit.yml.erb:15
+[rows] check-rows: 1 app, 19 required rows, 20 problems
 [evidence] evidence: 14/14 valid; report rows: 2/2 valid
-exit: 2
+exit: 1

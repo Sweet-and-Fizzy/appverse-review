@@ -8,7 +8,8 @@
     "permission_change": 0,
     "credential_string": 0,
     "config_flag": 1,
-    "binary_in_template": 0
+    "binary_in_template": 0,
+    "tool_finding": 8
   },
   "scope": "batch_connect",
   "files": [
@@ -556,7 +557,151 @@
       "line": 157,
       "text": "echo \"  API key:      $([ -n \"$API_KEY\" ] && echo \"configured (${#API_KEY} chars)\" || echo none)\"",
       "note": "$API_KEY unquoted; carries api_key"
+    },
+    {
+      "kind": "tool_finding",
+      "check": "sec-tool-finding",
+      "rule": null,
+      "tag": null,
+      "tool": "shellcheck",
+      "code": "SC2148",
+      "file": "template/after.sh",
+      "lines": [
+        1
+      ],
+      "line": 1,
+      "level": "error",
+      "text": "Tips depend on target shell and yours is unknown. Add a shebang or a 'shell' directive.",
+      "note": "",
+      "artifact": true
+    },
+    {
+      "kind": "tool_finding",
+      "check": "sec-tool-finding",
+      "rule": null,
+      "tag": null,
+      "tool": "shellcheck",
+      "code": "SC2154",
+      "file": "template/after.sh",
+      "lines": [
+        4
+      ],
+      "line": 4,
+      "level": "warning",
+      "text": "port is referenced but not assigned.",
+      "note": "",
+      "artifact": true
+    },
+    {
+      "kind": "tool_finding",
+      "check": "sec-tool-finding",
+      "rule": null,
+      "tag": null,
+      "tool": "shellcheck",
+      "code": "SC2086",
+      "file": "template/after.sh",
+      "lines": [
+        35
+      ],
+      "line": 35,
+      "level": "info",
+      "text": "Double quote to prevent globbing and word splitting.",
+      "note": "",
+      "artifact": false
+    },
+    {
+      "kind": "tool_finding",
+      "check": "sec-tool-finding",
+      "rule": null,
+      "tag": null,
+      "tool": "shellcheck",
+      "code": "SC2148",
+      "file": "template/before.sh.erb",
+      "lines": [
+        1
+      ],
+      "line": 1,
+      "level": "error",
+      "text": "Tips depend on target shell and yours is unknown. Add a shebang or a 'shell' directive.",
+      "note": "",
+      "artifact": true
+    },
+    {
+      "kind": "tool_finding",
+      "check": "sec-tool-finding",
+      "rule": null,
+      "tag": null,
+      "tool": "shellcheck",
+      "code": "SC2054",
+      "file": "template/script.sh.erb",
+      "lines": [
+        112,
+        115,
+        117,
+        122,
+        124,
+        128,
+        136,
+        138
+      ],
+      "line": 112,
+      "level": "warning",
+      "text": "Use spaces, not commas, to separate array elements.",
+      "note": "",
+      "artifact": false
+    },
+    {
+      "kind": "tool_finding",
+      "check": "sec-tool-finding",
+      "rule": null,
+      "tag": null,
+      "tool": "shellcheck",
+      "code": "SC2140",
+      "file": "template/script.sh.erb",
+      "lines": [
+        128
+      ],
+      "line": 128,
+      "level": "warning",
+      "text": "Word is of the form \"A\"B\"C\" (B indicated). Did you mean \"ABC\" or \"A\\\"B\\\"C\"?",
+      "note": "",
+      "artifact": false
+    },
+    {
+      "kind": "tool_finding",
+      "check": "sec-tool-finding",
+      "rule": null,
+      "tag": null,
+      "tool": "shellcheck",
+      "code": "SC2154",
+      "file": "template/script.sh.erb",
+      "lines": [
+        152
+      ],
+      "line": 152,
+      "level": "warning",
+      "text": "port is referenced but not assigned.",
+      "note": "",
+      "artifact": true
+    },
+    {
+      "kind": "tool_finding",
+      "check": "sec-tool-finding",
+      "rule": null,
+      "tag": null,
+      "tool": "shellcheck",
+      "code": "SC2329",
+      "file": "template/script.sh.erb",
+      "lines": [
+        207
+      ],
+      "line": 207,
+      "level": "info",
+      "text": "This function is never invoked. Check usage (or ignored if invoked indirectly).",
+      "note": "",
+      "artifact": false
     }
   ],
+  "tool_notes": [],
   "skipped_files": []
 }
