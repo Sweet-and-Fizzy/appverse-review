@@ -4,8 +4,15 @@
 Every finding with result FAIL or WARN and severity low or above is a
 fix-item and must be represented in the feedback section of the report:
 
-  1. its defect_key is listed in a trailing HTML comment
+  1. its defect_key is listed in an HTML comment
        <!-- feedback-covers: key1, key2, ... -->
+     normally trailing inside the feedback section, but also recognized up
+     to five lines above the '## Draft feedback' / '## Fix before
+     submitting' heading itself, since a model sometimes writes it just
+     above the heading instead of inside the section. If a covers comment
+     appears in both places (or more than once in either), the last one
+     found wins — read top to bottom, the in-section one wins over a
+     pre-heading one.
   2. if its evidence starts with a file path, that path appears in the
      feedback prose as a whole token. For a root-level finding
      (app_id == "root") the path's basename also satisfies this; for a

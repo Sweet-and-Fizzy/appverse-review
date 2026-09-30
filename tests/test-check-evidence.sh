@@ -35,7 +35,7 @@ check "reason" 1 "$(grep -cF "BAD QUA-02 template/script.sh.erb:hardcoded-path t
 echo "Test 3: missing file is BAD"
 printf '[%s]' "$(rec QUA-02 nope.yml:hardcoded-path nope.yml:1)" > "$TMP/b.json"
 check "exit 1" 1 "$(run "$TMP/b.json" --target "$TMP/t")"
-check "reason" 1 "$(grep -cF "BAD QUA-02 nope.yml:hardcoded-path nope.yml:1 (file does not exist)" "$TMP/out")"
+check "reason" 1 "$(grep -cF "BAD QUA-02 nope.yml:hardcoded-path nope.yml:1 (file not found (case-exact))" "$TMP/out")"
 
 echo "Test 4: a non-file:line phrase is allowed as-is"
 printf '[%s,%s]' \
@@ -85,5 +85,42 @@ echo "Test 12: line 0 is BAD (files are 1-indexed)"
 printf '[%s]' "$(rec QUA-02 form.yml:hardcoded-path form.yml:0)" > "$TMP/j.json"
 check "exit 1" 1 "$(run "$TMP/j.json" --target "$TMP/t")"
 check "reason" 1 "$(grep -cF "BAD QUA-02 form.yml:hardcoded-path form.yml:0 (line 0 past end of file, has 3 lines)" "$TMP/out")"
+
+echo "Test 13: case-exact existence: readme.md is BAD (real file is README.md, a pseudo-anchor only in its real case), README.md is OK"
+printf 'Title\nBody text.\n' > "$TMP/t/README.md"
+printf '[%s]' "$(rec QUA-06 readme.md:readme-typo readme.md:2)" > "$TMP/k.json"
+check "exit 1" 1 "$(run "$TMP/k.json" --target "$TMP/t")"
+check "reason" 1 "$(grep -cF "BAD QUA-06 readme.md:readme-typo readme.md:2 (file not found (case-exact))" "$TMP/out")"
+printf '[%s]' "$(rec QUA-06 Form.yml:case-typo Form.yml:2)" > "$TMP/k2.json"
+check "different-case form.yml exit 1" 1 "$(run "$TMP/k2.json" --target "$TMP/t")"
+check "different-case form.yml reason" 1 "$(grep -cF "BAD QUA-06 Form.yml:case-typo Form.yml:2 (file not found (case-exact))" "$TMP/out")"
+printf '[%s]' "$(rec QUA-06 form.yml:case-typo form.yml:2)" > "$TMP/k3.json"
+check "exact-case form.yml exit 0" 0 "$(run "$TMP/k3.json" --target "$TMP/t")"
+
+echo "Test 14: trailing colon-junk after the citation is ignored; the first path:line run is validated"
+printf '[%s]' "$(rec QUA-02 form.yml:hardcoded-path form.yml:2:extra)" > "$TMP/l.json"
+check "exit 0" 0 "$(run "$TMP/l.json" --target "$TMP/t")"
+printf '[%s]' "$(rec QUA-02 form.yml:hardcoded-path form.yml:999:x)" > "$TMP/l2.json"
+check "exit 1" 1 "$(run "$TMP/l2.json" --target "$TMP/t")"
+check "reason" 1 "$(grep -cF "BAD QUA-02 form.yml:hardcoded-path form.yml:999:x (line 999 past end of file, has 3 lines)" "$TMP/out")"
+
+echo "Test 15: path hygiene: absolute or traversal paths are BAD without touching the real filesystem"
+printf '[%s]' "$(rec QUA-02 hack:traversal ../x.yml:1)" > "$TMP/m.json"
+check "exit 1" 1 "$(run "$TMP/m.json" --target "$TMP/t")"
+check "reason" 1 "$(grep -cF "BAD QUA-02 hack:traversal ../x.yml:1 (path is not repo-relative)" "$TMP/out")"
+printf '[%s]' "$(rec QUA-02 hack:absolute /etc/passwd:1)" > "$TMP/n.json"
+check "exit 1" 1 "$(run "$TMP/n.json" --target "$TMP/t")"
+check "reason" 1 "$(grep -cF "BAD QUA-02 hack:absolute /etc/passwd:1 (path is not repo-relative)" "$TMP/out")"
+
+echo "Test 16: a file over 5 MB is not read for a line count; the citation passes and the summary says so"
+python3 -c "
+with open('$TMP/t/big.yml', 'wb') as f:
+    f.write(b'x\n' * 1)
+    f.seek(6 * 1024 * 1024)
+    f.write(b'x\n')
+"
+printf '[%s]' "$(rec QUA-02 big.yml:hardcoded-path big.yml:1)" > "$TMP/o.json"
+check "exit 0" 0 "$(run "$TMP/o.json" --target "$TMP/t")"
+check "summary mentions the skip" 1 "$(grep -cF "evidence: 1/1 valid (1 line count not checked: file over 5 MB)" "$TMP/out")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

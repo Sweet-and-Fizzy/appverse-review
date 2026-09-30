@@ -308,4 +308,23 @@ EOF
 check "exit 1" 1 "$(run "$TMP/findings.json" "$TMP/far-above.md")"
 check "reports 0/5" "feedback floor: 0/5 fix-items covered" "$(tail -1 "$TMP/out")"
 
+echo "Test 23: a covers comment above the heading AND another inside the section: the in-section one wins"
+cat > "$TMP/combined.md" <<'EOF'
+# Appverse Review: x
+## Overall recommendation
+Accept with suggestions.
+<!-- feedback-covers: root:no-releases -->
+
+## Draft feedback — edit before sending
+Please validate the free-text fields in submit.yml.erb; the input is unsanitized. It has no error handling, so add set -e to template/script.sh.erb.
+CHANGELOG.md describes a different, wrong app; please rewrite it. Consider tagging a release.
+form.yml hardcodes a module version at line 63; please make it configurable.
+<!-- feedback-covers: submit.yml.erb:unsanitized-input, template/script.sh.erb:no-error-handling, root:changelog-wrong-app, root:no-releases, form.yml:hardcoded-module-version -->
+EOF
+check "exit 0 (in-section list, not just the pre-heading one, is used)" 0 "$(run "$TMP/findings.json" "$TMP/combined.md")"
+check "reports 5/5" "feedback floor: 5/5 fix-items covered" "$(tail -1 "$TMP/out")"
+sed 's/, root:no-releases -->/ -->/; s/, root:no-releases,/,/' "$TMP/combined.md" > "$TMP/combined-partial.md"
+check "exit 1 when the in-section list drops a key the pre-heading one had" 1 "$(run "$TMP/findings.json" "$TMP/combined-partial.md")"
+check "names the finding dropped from the in-section list" 1 "$(grep -c 'MISSING MNT-02 root:no-releases' "$TMP/out")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
