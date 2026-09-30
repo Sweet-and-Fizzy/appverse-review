@@ -93,15 +93,52 @@ the per-app dirs named in the previous apps.json are removed first):
                  merge keys and a second document, which it cannot read
                  correctly.
 
+  <app_id>/template.json  (Batch Connect and unknown app types) {dir,
+                 files (every file under template/ that was scanned),
+                 icons [{file, line, name, kind}] (Icon= in a .desktop,
+                 button-icon in xfce4-panel.xml; kind desktop | xfce4-panel),
+                 absolute_paths [{file, line, text}] (SITE_PATH: /scratch,
+                 /project(s), /home, /opt, /usr/local, /usr/share, /appl,
+                 /apps, /sw, /software, /data, /work after a line start,
+                 space, quote or =), numeric_literals [{file, line, value}]
+                 (shell files only: bare integers and hex, except sleep's
+                 argument, 0, 1, ports 22/80/443, array indices, redirect
+                 fds, decimals and dotted versions, path parts, and any
+                 literal on a line with a # comment or after one),
+                 commented_code [{file, line, count}] (shell files only:
+                 three or more consecutive #-lines whose text with the #
+                 removed is not blank and passes bash -n; a block bash
+                 rejects is not code, so under bash < 4 a block in bash 4
+                 syntax is not reported and the record's note says so),
+                 skipped_files [{file, reason}] (refused under the
+                 shell-file rule, or binary)}. .erb files are ERB-stripped
+                 first, so a literal inside a tag is not seen. Candidates
+                 only; every file is repo-relative (with the app subpath).
+  <app_id>/entry_point.json  (Passenger) {file (config.ru, else
+                 passenger_wsgi.py, else app.js), language (ruby | python |
+                 node), parses (true | false | "not_checked" when ruby /
+                 node is not on PATH; Python is checked in process with
+                 compile(), so no .pyc lands in the target), error,
+                 dependency_manifest (Gemfile; requirements.txt,
+                 pyproject.toml, Pipfile, setup.py; package.json; or
+                 null), consistent (Python: every third-party import in the
+                 app's .py files, stdlib and local modules excluded, is
+                 named in requirements.txt, with IMPORT_DIST for names that
+                 differ; null when not judged: Ruby, Node, another Python
+                 manifest), note}.
+
 summary.json also carries "facts": one record per fact scanner (readme,
-form), with the record fields above plus per_app {app_id: status}. An app's
-status is ran, skipped (no README / no form file / path not read) or
-failed_to_run (form did not parse; the error is in the note and in
-form.json); a README, form or submit file is read only under the shell-file
-rule (a regular file, or a symlink resolving to one inside the target; at
-most 1 MB), else the app is skipped with the reason in the note. The
-record's status is failed_to_run if any app's is, else ran if
-any app's is, else skipped. A fact file is absent when its app was skipped.
+form, template, entry_point), with the record fields above plus per_app
+{app_id: status}. An app's status is ran, skipped (no README / no form file
+/ no template/ / no entry point / path not read), not_applicable (template
+for a Passenger, companion or widget app; entry_point for any app but
+Passenger) or failed_to_run (form did not parse; the error is in the note
+and in form.json); a README, form, submit, template or entry-point file is
+read only under the shell-file rule (a regular file, or a symlink resolving
+to one inside the target; at most 1 MB), else the app is skipped with the
+reason in the note. The record's status is failed_to_run if any app's is,
+else ran if any app's is, else not_applicable if every app's is, else
+skipped. A fact file is absent when its app was skipped or not_applicable.
 
 A tool's JSON is absent when the tool did not run. Status rules: no applicable
 files -> skipped ("no applicable files"); binary not on PATH -> not_installed
@@ -1356,7 +1393,8 @@ def scan_form(target, app_dir):
 def _fact_record(name, command, per_app, notes, files_examined, output):
     statuses = set(per_app.values())
     status = ("failed_to_run" if "failed_to_run" in statuses else
-              "ran" if "ran" in statuses else "skipped")
+              "ran" if "ran" in statuses else
+              "not_applicable" if statuses == {"not_applicable"} else "skipped")
     rec = record(name, status, command=command, output_file=output,
                  files_examined=files_examined, note="; ".join(notes))
     rec["per_app"] = per_app
@@ -1428,6 +1466,329 @@ def check_form(target, apps, out):
             per_app[app["app_id"]] = "ran"
     return _fact_record("form", "form.yml / form.yml.erb (ERB stripped) attributes, cross-referenced "
                         "with submit.yml.erb", per_app, notes, n, "<app_id>/form.json")
+
+
+# template.json: candidates the quality skill judges (QUA-02, QUA-04, QUA-06, QUA-08).
+SITE_PATH = re.compile(r"(^|[\s\"'=])(/(?:scratch|projects?|home|opt|usr/local|usr/share|appl|apps|sw|"
+                       r"software|data|work)[/\w.-]*)")
+# A bare integer or hex literal: not part of a word, a decimal, a path, a
+# $N parameter, a word-number (cuda-11) or a date; nor a redirect's fd (2>, >&2).
+NUMERIC = re.compile(r"(?<![\w.$/&])(?<!\w-)(0[xX][0-9a-fA-F]+|\d+)(?![\w./<>])(?!-\w)")
+NUMERIC_OK = {"0", "1", "22", "80", "443"}
+COMMENT = re.compile(r"(^|\s)#")
+COMMENT_LINE = re.compile(r"^\s*#")
+UNCOMMENT = re.compile(r"^\s*#+ ?")
+DESKTOP_ICON = re.compile(r"^\s*Icon\s*=\s*(.*?)\s*$")
+PANEL_ICON = re.compile(r"""name\s*=\s*["']button-icon["'][^>]*?value\s*=\s*["']([^"']*)["']""")
+SHEBANG_SHELL = re.compile(r"^#!\s*\S*/(?:env\s+)?(?:ba|z|k|da)?sh\b")
+NO_TEMPLATE = "no template/ directory"
+
+
+def _is_shell(rel, text):
+    base = rel[:-4] if rel.endswith(".erb") else rel
+    return rel.endswith(SHELL_SUFFIXES) or base.endswith((".sh", ".bash")) or \
+        bool(SHEBANG_SHELL.match(text.split("\n", 1)[0]))
+
+
+def _has_comment(line):
+    return bool(COMMENT.search(line)) and not line.startswith("#!")
+
+
+def _numeric_literals(lines):
+    """[(line, value)]: bare integers/hex, except sleep's argument, 0, 1, the
+    ports 22/80/443, array indices ([N]) and any literal on a line that has a
+    # comment or follows one."""
+    found = []
+    for i, line in enumerate(lines):
+        if _has_comment(line) or (i > 0 and _has_comment(lines[i - 1])):
+            continue
+        for m in NUMERIC.finditer(line):
+            value, before, after = m.group(1), line[:m.start()], line[m.end():]
+            if value in NUMERIC_OK or re.search(r"\bsleep\s+[\"']?$", before) or \
+                    (before.endswith("[") and after.startswith("]")):
+                continue
+            found.append((i + 1, value))
+    return found
+
+
+def _commented_code(lines, bash):
+    """[(first line, count)]: runs of three or more #-lines (a line-1 shebang
+    excluded) whose text, # removed, is not blank and passes bash -n. A run
+    bash rejects is not code, whatever bash's version (an old bash rejects
+    bash 4 syntax, so such a block goes unreported there)."""
+    runs, start = [], None
+    for i, line in enumerate(lines + [""]):
+        is_comment = COMMENT_LINE.match(line) and not (i == 0 and line.startswith("#!"))
+        if is_comment and start is None:
+            start = i
+        elif not is_comment and start is not None:
+            if i - start >= 3:
+                runs.append((start, i))
+            start = None
+    found = []
+    for a, b in runs:
+        block = "\n".join(UNCOMMENT.sub("", l, count=1) for l in lines[a:b]) + "\n"
+        if not block.strip() or bash is None:
+            continue
+        try:
+            p = subprocess.run([bash, "-n"], input=block, capture_output=True, text=True,
+                               errors="replace", timeout=60)
+        except Exception:
+            continue
+        if p.returncode == 0:
+            found.append((a + 1, b - a))
+    return found
+
+
+def _icons(rel, lines):
+    name = rel.rsplit("/", 1)[-1]
+    base = name[:-4] if name.endswith(".erb") else name
+    found = []
+    for i, line in enumerate(lines):
+        if base.endswith(".desktop"):
+            m = DESKTOP_ICON.match(line)
+            if m:
+                found.append((i + 1, m.group(1), "desktop"))
+        elif base == "xfce4-panel.xml":
+            m = PANEL_ICON.search(line)
+            if m:
+                found.append((i + 1, m.group(1), "xfce4-panel"))
+    return found
+
+
+def _app_rel(app_dir, target):
+    rel = os.path.relpath(app_dir, target).replace(os.sep, "/")
+    return "" if rel == "." else rel + "/"
+
+
+def scan_template(app_dir, target):
+    """template.json for one app directory, or None when it has no template/
+    directory. Every file under template/ is read under the shell-file rule
+    (refused and binary files are listed in skipped_files); .erb files are
+    ERB-stripped first. absolute_paths and icons come from every file,
+    numeric_literals and commented_code from shell files (by suffix or
+    shebang). A template/ that is itself a symlink leaving the target (or
+    not a directory) raises Refused."""
+    prefix = _app_rel(app_dir, target)
+    tdir = os.path.join(app_dir, "template")
+    if not os.path.lexists(tdir):
+        return None
+    if os.path.islink(tdir) and not _inside(target, tdir):
+        raise Refused("%stemplate: %s" % (prefix, OUTSIDE))
+    if not os.path.isdir(tdir):
+        raise Refused("%stemplate: not a directory, not checked" % prefix)
+    files, rejected = _classify(tdir)
+    for r, why in list(rejected.items()):  # _classify's bound is template/; ours is the target
+        if why == OUTSIDE and _refusal(target, os.path.join(tdir, r)) in (None, TOO_LARGE):
+            files.append(r)
+            del rejected[r]
+    files.sort()
+    bash = shutil.which("bash")
+    result = {"dir": prefix + "template", "files": [], "icons": [], "absolute_paths": [],
+              "numeric_literals": [], "commented_code": [], "skipped_files": []}
+    skipped = [(r, why) for r, why in rejected.items()]
+    for r in files:
+        rel = prefix + "template/" + r
+        try:
+            text = _read_fact(target, os.path.join(tdir, r), rel)
+        except Refused as e:
+            skipped.append((r, str(e).split(": ", 1)[1]))
+            continue
+        if "\x00" in text:
+            skipped.append((r, "binary file, not scanned"))
+            continue
+        result["files"].append(rel)
+        if rel.endswith(".erb"):
+            text = strip_erb(text)
+        lines = text.split("\n")
+        for line, name, kind in _icons(rel, lines):
+            result["icons"].append({"file": rel, "line": line, "name": name, "kind": kind})
+        for i, line in enumerate(lines):
+            for m in SITE_PATH.finditer(line):
+                result["absolute_paths"].append({"file": rel, "line": i + 1, "text": m.group(2)})
+        if _is_shell(rel, text):
+            for line, value in _numeric_literals(lines):
+                result["numeric_literals"].append({"file": rel, "line": line, "value": value})
+            for line, count in _commented_code(lines, bash):
+                result["commented_code"].append({"file": rel, "line": line, "count": count})
+    result["skipped_files"] = [{"file": prefix + "template/" + r, "reason": why}
+                               for r, why in sorted(skipped)]
+    return result
+
+
+# entry_point.json: the Passenger entry point's parse and its dependency manifest.
+ENTRY_LANGUAGE = {"config.ru": "ruby", "passenger_wsgi.py": "python", "app.js": "node"}
+DEPENDENCY_MANIFESTS = {"ruby": ("Gemfile",), "python": ("requirements.txt", "pyproject.toml",
+                                                          "Pipfile", "setup.py"),
+                        "node": ("package.json",)}
+# import name -> distribution name, where they differ (normalized: lower case, _ for -.)
+IMPORT_DIST = {"yaml": "pyyaml", "dotenv": "python_dotenv", "pil": "pillow", "sklearn": "scikit_learn",
+               "bs4": "beautifulsoup4", "cv2": "opencv_python", "dateutil": "python_dateutil",
+               "jwt": "pyjwt", "ldap": "python_ldap", "magic": "python_magic", "zmq": "pyzmq"}
+
+
+def _norm_dist(name):
+    return re.sub(r"[-_.]+", "_", name).lower()
+
+
+def _python_imports(app_dir, target, files):
+    """Top-level names of the absolute imports in the app's .py files."""
+    import ast
+    names = set()
+    for rel in files:
+        try:
+            tree = ast.parse(_read_fact(target, os.path.join(app_dir, rel), rel))
+        except Exception:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                names.update(a.name.split(".")[0] for a in node.names)
+            elif isinstance(node, ast.ImportFrom) and not node.level and node.module:
+                names.add(node.module.split(".")[0])
+    return names
+
+
+def _stdlib_names(names=getattr(sys, "stdlib_module_names", None)):
+    """Standard-library top-level module names: sys.stdlib_module_names
+    (3.10+), else the builtins plus what the stdlib directories hold."""
+    if names:
+        return set(names)
+    import sysconfig
+    found = set(sys.builtin_module_names)
+    paths = sysconfig.get_paths()
+    dirs = {paths.get("stdlib"), paths.get("platstdlib")}
+    dirs |= {os.path.join(d, "lib-dynload") for d in list(dirs) if d}
+    for d in filter(None, dirs):
+        try:
+            entries = os.listdir(d)
+        except OSError:
+            continue
+        for n in entries:
+            if n.endswith(".py") or n.endswith(".so") or n.endswith(".pyd"):
+                found.add(n.split(".")[0])
+            elif n not in ("site-packages", "dist-packages") and os.path.isdir(os.path.join(d, n)):
+                found.add(n)
+    return found
+
+
+def _python_consistency(app_dir, target, manifest, exclude):
+    """(consistent, note): every third-party import (not stdlib, not a module
+    or package in the app) is named in requirements.txt. Best effort: a
+    manifest other than requirements.txt is not judged."""
+    stdlib = _stdlib_names()
+    files = [p for p in _classify(app_dir, exclude)[0] if p.endswith(".py")]
+    local = {p.split("/")[0][:-3] if p.count("/") == 0 else p.split("/")[0] for p in files}
+    third = sorted(n for n in _python_imports(app_dir, target, files)
+                   if n not in stdlib and n not in local and n != "__future__")
+    if manifest is None:
+        return (False, "no dependency manifest; third-party imports: " + ", ".join(third)) if third \
+            else (True, "no dependency manifest; no third-party imports")
+    if manifest != "requirements.txt":
+        return None, "not checked: %s is not read" % manifest
+    declared = set()
+    for line in _read_fact(target, os.path.join(app_dir, manifest), manifest).splitlines():
+        m = re.match(r"\s*([A-Za-z0-9][A-Za-z0-9._-]*)", line)
+        if m and not line.lstrip().startswith(("#", "-")):
+            declared.add(_norm_dist(m.group(1)))
+    missing = [n for n in third if _norm_dist(n) not in declared
+               and IMPORT_DIST.get(n.lower()) not in declared]
+    if missing:
+        return False, "not in requirements.txt: " + ", ".join(missing)
+    return True, ("third-party imports all in requirements.txt: " + ", ".join(third)) if third \
+        else "no third-party imports"
+
+
+def _parse_entry(language, app_dir, target, rel):
+    """(parses, error): True / False, or "not_checked" when the checker is absent."""
+    text = _read_fact(target, os.path.join(app_dir, rel), rel)
+    if language == "python":
+        try:  # the py_compile check, in process, so no .pyc lands in the target
+            compile(text, rel, "exec")
+            return True, None
+        except SyntaxError as e:
+            return False, ("line %s: %s" % (e.lineno, e.msg))[:STDERR_CHARS]
+    tool = {"ruby": ["ruby", "-c"], "node": ["node", "--check"]}[language]
+    if shutil.which(tool[0]) is None:
+        return "not_checked", "%s not found on PATH" % tool[0]
+    rc, _, err, error = run(tool + [_arg(rel)], timeout=60, cwd=app_dir)
+    if error:
+        return "not_checked", error
+    return (True, None) if rc == 0 else (False, (err.strip() or "exit %s" % rc)[:STDERR_CHARS])
+
+
+def scan_entry_point(app_dir, target, exclude=None):
+    """entry_point.json for one app directory, or None when it has no
+    Passenger entry point (config.ru, passenger_wsgi.py, app.js, first found).
+    An entry point that may not be read raises Refused."""
+    prefix = _app_rel(app_dir, target)
+    entry = next((f for f in PASSENGER_ENTRY if os.path.lexists(os.path.join(app_dir, f))), None)
+    if entry is None:
+        return None
+    language = ENTRY_LANGUAGE[entry]
+    parses, error = _parse_entry(language, app_dir, target, entry)
+    manifest = next((f for f in DEPENDENCY_MANIFESTS[language]
+                     if os.path.lexists(os.path.join(app_dir, f))), None)
+    if language == "python":
+        consistent, note = _python_consistency(app_dir, target, manifest, exclude)
+    else:
+        consistent, note = None, "not checked: %s dependency consistency is not judged" % language
+    return {"file": prefix + entry, "language": language, "parses": parses, "error": error,
+            "dependency_manifest": prefix + manifest if manifest else None,
+            "consistent": consistent, "note": note}
+
+
+def _app_fact(name, scan, applies, missing, target, apps, out):
+    """Run scan(app) for each app whose type applies; (per_app, notes, n)."""
+    per_app, notes, n = {}, [], 0
+    for app in apps:
+        app_id = app["app_id"]
+        if app["_skip"]:
+            per_app[app_id] = "skipped"
+            notes.append("%s: %s" % (app_id, app["_skip"]))
+            continue
+        if app["app_type"] not in applies:
+            per_app[app_id] = "not_applicable"
+            continue
+        try:
+            data = scan(app)
+        except Refused as e:
+            per_app[app_id] = "skipped"
+            notes.append("%s: %s" % (app_id, e))
+            continue
+        except Exception as e:
+            per_app[app_id] = "failed_to_run"
+            notes.append(("%s: %s: %s" % (app_id, type(e).__name__, e))[:STDERR_CHARS])
+            continue
+        if data is None:
+            per_app[app_id] = "skipped"
+            notes.append("%s: %s" % (app_id, missing))
+            continue
+        n += len(data["files"]) if name == "template" else 1
+        _write_json(_app_dir_out(out, app), name + ".json", data)
+        per_app[app_id] = "ran"
+    return per_app, notes, n
+
+
+def check_template(target, apps, out):
+    per_app, notes, n = _app_fact("template", lambda a: scan_template(a["_dir"], target),
+                                  ("batch_connect", "unknown"), NO_TEMPLATE, target, apps, out)
+    bash = shutil.which("bash") if "ran" in per_app.values() else ""
+    if bash is None:
+        notes.insert(0, "bash not found on PATH: commented_code not checked")
+    elif bash:
+        major, ver = _bash_major(bash)
+        if major is not None and major < 4:
+            notes.insert(0, "bash %s on PATH: a commented block using bash 4 syntax is not "
+                            "reported as commented_code" % ver)
+    return _fact_record("template", "template/ scan: icons, site paths, numeric literals, "
+                        "commented-out code (bash -n)", per_app, notes, n, "<app_id>/template.json")
+
+
+def check_entry_point(target, apps, out):
+    per_app, notes, n = _app_fact("entry_point", lambda a: scan_entry_point(a["_dir"], target, out),
+                                  ("passenger",), "no Passenger entry point", target, apps, out)
+    return _fact_record("entry_point", "Passenger entry point: compile() / ruby -c / node --check, "
+                        "dependency manifest", per_app, notes, n, "<app_id>/entry_point.json")
 
 
 def check_catalog(args):
@@ -1532,7 +1893,9 @@ def main(argv):
                  "_skip": ("app shape not resolved: %s: %s" % (type(e).__name__, e))[:STDERR_CHARS]}]
     _write_json(out, "apps.json", [_public(a) for a in apps])
     facts = [guarded("readme", check_readme, target, apps, out),
-             guarded("form", check_form, target, apps, out)]
+             guarded("form", check_form, target, apps, out),
+             guarded("template", check_template, target, apps, out),
+             guarded("entry_point", check_entry_point, target, apps, out)]
 
     _write_json(out, "summary.json", {
         "schema": SCHEMA,

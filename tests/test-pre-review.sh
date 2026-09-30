@@ -461,12 +461,14 @@ echo "Test 32: end-to-end, vnc-stale-debugger and broken-app"
 O="$TMP/vnc"
 check "exit 0" 0 "$(e2e "$FIX/vnc-stale-debugger" "$O")"
 check "apps.json" "root|.|batch_connect|README.md" "$(j "$O/apps.json" "'|'.join(str(d[0][k]) for k in ('app_id','path','app_type','readme'))")"
-check "summary facts in order" "readme,form" "$(j "$O/summary.json" "','.join(c['name'] for c in d['facts'])")"
+check "summary facts in order" "readme,form,template,entry_point" "$(j "$O/summary.json" "','.join(c['name'] for c in d['facts'])")"
 check "checks unchanged" "syntax,shellcheck,semgrep,bandit,trivy,catalog" "$(j "$O/summary.json" "','.join(c['name'] for c in d['checks'])")"
 check "readme ran" "ran|{'root': 'ran'}" "$(fct "$O" readme status)|$(fct "$O" readme per_app)"
 check "form ran, note names the parser" "ran|{'root': 'ran'}|$E2E_PARSER_NOTE" "$(fct "$O" form status)|$(fct "$O" form per_app)|$(fct "$O" form note)"
 check "readme.json written" "README.md|Overview" "$(fact "$O" root readme "'%s|%s' % (d['file'], d['rungs']['what it launches']['heading'])")"
 check "form.json written" "form.yml.erb|submit.yml.erb|ERBVALUE" "$(fact "$O" root form "'%s|%s|%s' % (d['file'], d['submit_file'], d['erb_sentinel'])")"
+check "template ran, entry_point not_applicable" "ran|{'root': 'ran'}|not_applicable|{'root': 'not_applicable'}" "$(fct "$O" template status)|$(fct "$O" template per_app)|$(fct "$O" entry_point status)|$(fct "$O" entry_point per_app)"
+check "template.json written, no entry_point.json" "template|template/script.sh.erb|False" "$(fact "$O" root template "'%s|%s' % (d['dir'], ','.join(d['files']))")|$(yn test -e "$O/root/entry_point.json")"
 O="$TMP/o32b"; mkdir -p "$O/good-app"; printf '[{"app_id": "good-app"}]\n' > "$O/apps.json"; echo '{}' > "$O/good-app/readme.json"
 check "broken-app exit 0" 0 "$(e2e "$FIX/broken-app" "$O")"
 check "previous run's per-app dir removed" "False" "$(yn test -e "$O/good-app")"
@@ -651,5 +653,117 @@ check "README symlink inside: ran" "ran" "$(rec readme "$T" "$TMP/o39b" "c['stat
 check "submit outside: form skipped" "skipped|True" "$(rec form "$T" "$TMP/o39b" "'%s|%s' % (c['status'], 'root: submit.yml.erb: symlink outside target, not checked' in c['note'])")"
 T="$TMP/bigapp"; mkdir -p "$T"; python3 -c "import sys; open(sys.argv[1],'w').write('x\n' * 600000)" "$T/README.md"
 check "README over 1 MB: skipped" "skipped|root: README.md: skipped: file larger than 1 MB" "$(rec readme "$T" "$TMP/o39c" "'%s|%s' % (c['status'], c['note'])")"
+
+echo "Test 40: template facts, containerized-server"
+# tp <app dir> <target> <expression over d (template facts)>
+tp() { px "d=pr.scan_template(A[0], A[1]); r=$3" "$1" "$2"; }
+D="$FIX/containerized-server"
+check "dir and files" "template|template/after.sh,template/before.sh.erb,template/bin/nginx,template/config/.gitkeep,template/create_nginx_conf.sh.erb,template/script.sh.erb" "$(tp "$D" "$D" "'%s|%s' % (d['dir'], ','.join(d['files']))")"
+check "absolute paths" "template/before.sh.erb:2:/appl/profile/zz-csc-env.sh,template/bin/nginx:2:/appl/opt/ood/,template/script.sh.erb:4:/appl/opt/ood/,template/script.sh.erb:5:/appl/opt/ood/,template/script.sh.erb:6:/appl/opt/ood/" "$(tp "$D" "$D" "','.join('%s:%s:%s' % (x['file'], x['line'], x['text']) for x in d['absolute_paths'])")"
+check "numeric literals (sleep 5, 1, 1.1, 0.0.0.0, \$1, sha1sum excluded)" "template/after.sh:4:300,template/create_nginx_conf.sh.erb:4:128,template/create_nginx_conf.sh.erb:11:403,template/script.sh.erb:25:5000" "$(tp "$D" "$D" "','.join('%s:%s:%s' % (x['file'], x['line'], x['value']) for x in d['numeric_literals'])")"
+check "no icons, no commented code, nothing skipped" "[]|[]|[]" "$(tp "$D" "$D" "'%s|%s|%s' % (d['icons'], d['commented_code'], d['skipped_files'])")"
+check "vnc: /usr/share path, no literals in module versions" "template/script.sh.erb:4:/usr/share/Modules/init/bash|[]" "$(tp "$FIX/vnc-stale-debugger" "$FIX/vnc-stale-debugger" "'%s|%s' % (','.join('%s:%s:%s' % (x['file'], x['line'], x['text']) for x in d['absolute_paths']), d['numeric_literals'])")"
+
+echo "Test 41: template facts, icons, literal exclusions, commented code, monorepo paths"
+T="$TMP/t41"; A1="$T/apps/one"; mkdir -p "$A1/template/sub"
+printf 'apps:\n  - path: apps/one\n' > "$T/appverse.yml"; printf 'x: 1\n' > "$A1/form.yml"
+printf '[Desktop Entry]\nName=Term\nIcon=utilities-terminal\nExec=xterm\n' > "$A1/template/sub/term.desktop"
+cat > "$A1/template/xfce4-panel.xml" <<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfce4-panel" version="1.0">
+  <property name="plugin-5" type="string" value="launcher">
+    <property name="button-icon" type="string" value="firefox"/>
+  </property>
+</channel>
+XML
+cat > "$A1/template/run.sh" <<'SH'
+#!/bin/bash
+sleep 30
+python -m http.server 8080
+ssh -p 22 host; listen 80; nc -l 443
+x=0; y=1
+echo "${arr[3]}"
+timeout 600 cmd # ten minutes
+# the next line waits
+wait_for 120
+exec 3>/dev/null 2>&1
+mask=0x1F
+version=2.3.1
+ulimit -n 4096
+
+# for f in *.log; do
+#   rm "$f"
+# done
+
+# This is a note
+# (about things
+# that do not parse
+
+# only
+# two
+
+###
+#
+#
+
+# Start the server
+# wait a bit
+# and exit
+SH
+printf '#!/bin/bash\ncd /scratch/$USER\ncp x "/home/a b" --dir=/work/x\nsource /etc/profile; ls $HOME/data\ncd /projects/<%%= account %%>/runs\n' > "$A1/template/paths.sh.erb"
+printf 'ab\0cd /opt/x 4096\n' > "$A1/template/tool.bin"
+OUTSIDE41="$TMP/outside41"; mkdir -p "$OUTSIDE41"; printf 'cd /scratch/SECRET41\n' > "$OUTSIDE41/x.sh"
+ln -s "$OUTSIDE41/x.sh" "$A1/template/leak.sh"
+check "files (repo-relative, app subpath)" "apps/one/template|apps/one/template/paths.sh.erb,apps/one/template/run.sh,apps/one/template/sub/term.desktop,apps/one/template/xfce4-panel.xml" "$(tp "$A1" "$T" "'%s|%s' % (d['dir'], ','.join(d['files']))")"
+check "skipped files: symlink out, binary" "apps/one/template/leak.sh:symlink outside target, not checked,apps/one/template/tool.bin:binary file, not scanned" "$(tp "$A1" "$T" "','.join('%s:%s' % (x['file'], x['reason']) for x in d['skipped_files'])")"
+check "icons" "apps/one/template/sub/term.desktop:3:utilities-terminal:desktop,apps/one/template/xfce4-panel.xml:4:firefox:xfce4-panel" "$(tp "$A1" "$T" "','.join('%s:%s:%s:%s' % (x['file'], x['line'], x['name'], x['kind']) for x in d['icons'])")"
+check "absolute paths (ERB stripped; /etc and \$HOME/data are not)" "apps/one/template/paths.sh.erb:2:/scratch/,apps/one/template/paths.sh.erb:3:/home/a,apps/one/template/paths.sh.erb:3:/work/x,apps/one/template/paths.sh.erb:5:/projects/ERBVALUE/runs" "$(tp "$A1" "$T" "','.join('%s:%s:%s' % (x['file'], x['line'], x['text']) for x in d['absolute_paths'])")"
+check "numeric literals (sleep, ports, 0/1, index, comments, fds, decimals excluded; hex kept)" "3:8080,11:0x1F,13:4096" "$(tp "$A1" "$T" "','.join('%s:%s' % (x['line'], x['value']) for x in d['numeric_literals'] if x['file'].endswith('run.sh'))")"
+check "no literals from .desktop/.xml" "True" "$(tp "$A1" "$T" "all(x['file'].endswith('.sh') for x in d['numeric_literals'])")"
+check "commented code: the loop and the parseable prose block, not the note, the pair or the banner" "apps/one/template/run.sh:15:3,apps/one/template/run.sh:30:3" "$(tp "$A1" "$T" "','.join('%s:%s:%s' % (x['file'], x['line'], x['count']) for x in d['commented_code'])")"
+check "nothing read from outside" "0" "$(tp "$A1" "$T" "str(d).count('SECRET41')")"
+T2="$TMP/t41b"; mkdir -p "$T2/template"; printf '#!/bin/bash\necho hi\n' > "$T2/template/a.sh"
+printf 'x=1\n# case "$x" in\n#   a) echo a ;;&\n#   *) echo b ;;\n# esac\n' > "$T2/template/b.sh"
+if [ "$("$REAL_BASH" -c 'echo "${BASH_VERSINFO[0]}"')" -ge 4 ]; then EXP41="template/b.sh:2:4"; else EXP41=""; fi
+check "a bash 4 block counts only where bash >= 4 accepts it" "$EXP41" "$(tp "$T2" "$T2" "','.join('%s:%s:%s' % (x['file'], x['line'], x['count']) for x in d['commented_code'])")"
+mkdir -p "$T2/shared"; printf 'cd /data/x\n' > "$T2/shared/lib.sh"; ln -s ../shared/lib.sh "$T2/template/lib.sh"
+check "a symlink out of template/ but inside the target is read" "template/lib.sh:1:/data/x" "$(tp "$T2" "$T2" "','.join('%s:%s:%s' % (x['file'], x['line'], x['text']) for x in d['absolute_paths'])")"
+T3="$TMP/t41c"; mkdir -p "$T3"; printf 'x: 1\n' > "$T3/form.yml"; mkdir -p "$OUTSIDE41/template"; printf 'cd /scratch/SECRET41\n' > "$OUTSIDE41/template/a.sh"
+ln -s "$OUTSIDE41/template" "$T3/template"
+check "template dir symlinked out: skipped, nothing written" "skipped|root: template: symlink outside target, not checked|False" "$(rec template "$T3" "$TMP/o41c" "'%s|%s' % (c['status'], c['note'].split('; ')[-1])")|$(yn test -e "$TMP/o41c/root/template.json")"
+
+echo "Test 42: entry_point facts (Passenger)"
+# ep <app dir> <target> <expression over d (entry point facts)>
+ep() { px "d=pr.scan_entry_point(A[0], A[1]); r=$3" "$1" "$2"; }
+D="$FIX/passenger-flask-app"
+check "flask entry point" "passenger_wsgi.py|python|True|None|requirements.txt|True" "$(ep "$D" "$D" "'|'.join(str(d[k]) for k in ('file','language','parses','error','dependency_manifest','consistent'))")"
+check "flask note names the checked imports" "third-party imports all in requirements.txt: flask" "$(ep "$D" "$D" "d['note']")"
+check "no .pyc written into the target" "0" "$(find "$D" -name '*.pyc' | wc -l | tr -d ' ')"
+check "stdlib fallback (Python < 3.10) lists the stdlib, not site-packages" "True|False" "$(px "n=pr._stdlib_names(None); r='%s|%s' % (set(['os','json','subprocess','ast']) <= n, 'flask' in n)")"
+check "template record carries no bash note for a Passenger app" "" "$(fct "$TMP/flask" template note)"
+T="$TMP/t42a"; mkdir -p "$T"; printf 'def x(:\n    pass\n' > "$T/passenger_wsgi.py"
+check "python syntax error" "False|True" "$(ep "$T" "$T" "'%s|%s' % (d['parses'], d['error'].startswith('line 1: '))")"
+T="$TMP/t42b"; mkdir -p "$T/pkg"; printf 'import numpy\nimport os\nfrom pkg import mod\nfrom . import rel\nfrom app import application\n' > "$T/passenger_wsgi.py"
+printf 'import yaml\n' > "$T/app.py"; : > "$T/pkg/__init__.py"
+check "no manifest, third-party imports: inconsistent" "None|False|no dependency manifest; third-party imports: numpy, yaml" "$(ep "$T" "$T" "'%s|%s|%s' % (d['dependency_manifest'], d['consistent'], d['note'])")"
+printf 'PyYAML>=6\n' > "$T/requirements.txt"
+check "requirements missing one import" "requirements.txt|False|not in requirements.txt: numpy" "$(ep "$T" "$T" "'%s|%s|%s' % (d['dependency_manifest'], d['consistent'], d['note'])")"
+printf 'PyYAML>=6\nnumpy==2.0 ; python_version>"3"\n' > "$T/requirements.txt"
+check "requirements complete (PyYAML provides yaml)" "True" "$(ep "$T" "$T" "d['consistent']")"
+T="$TMP/t42c"; mkdir -p "$T"; printf 'run lambda { |env| [200, {}, ["ok"]] }\n' > "$T/config.ru"; printf "source 'https://rubygems.org'\n" > "$T/Gemfile"
+check "config.ru without ruby on PATH: not_checked" "config.ru|ruby|not_checked|Gemfile|None" "$(PATH="$FBF" px "d=pr.scan_entry_point(A[0], A[1]); r='|'.join(str(d[k]) for k in ('file','language','parses','dependency_manifest','consistent'))" "$T" "$T")"
+if command -v ruby >/dev/null 2>&1; then
+  check "config.ru parses under ruby -c" "True" "$(ep "$T" "$T" "d['parses']")"
+  T="$TMP/t42d"; mkdir -p "$T"; printf 'run lambda {\n' > "$T/config.ru"
+  check "bad config.ru fails ruby -c" "False|True" "$(ep "$T" "$T" "'%s|%s' % (d['parses'], bool(d['error']))")"
+else skip "ruby not installed"; skip "ruby not installed"; fi
+T="$TMP/t42e"; mkdir -p "$T"; ln -s "$OUTSIDE/README.md" "$T/passenger_wsgi.py"
+check "entry point symlinked out: skipped" "skipped|root: passenger_wsgi.py: symlink outside target, not checked|False" "$(rec entry_point "$T" "$TMP/o42e" "'%s|%s' % (c['status'], c['note'])")|$(yn test -e "$TMP/o42e/root/entry_point.json")"
+
+echo "Test 43: template / entry_point records by app type"
+D="$FIX/containerized-server"
+check "batch connect: template ran, entry_point not_applicable" "ran|{'root': 'ran'}|6|root/template.json|not_applicable|{'root': 'not_applicable'}" "$(rec template "$D" "$TMP/o43" "'%s|%s|%s|%s' % (c['status'], c['per_app'], c['files_examined'], c['output_file'].replace('<app_id>', 'root'))")|$(rec entry_point "$D" "$TMP/o43" "'%s|%s' % (c['status'], c['per_app'])")"
+check "passenger (end to end): template not_applicable, entry_point ran" "not_applicable|{'root': 'not_applicable'}|ran|{'root': 'ran'}|False|passenger_wsgi.py" "$(fct "$TMP/flask" template status)|$(fct "$TMP/flask" template per_app)|$(fct "$TMP/flask" entry_point status)|$(fct "$TMP/flask" entry_point per_app)|$(yn test -e "$TMP/flask/root/template.json")|$(fact "$TMP/flask" root entry_point "d['file']")"
+check "monorepo without template dirs: skipped, noted" "{'good-app': 'skipped', 'bad-app': 'skipped'}|True" "$(fct "$TMP/mono" template per_app)|$(fct "$TMP/mono" template note | grep -q 'good-app: no template/ directory' && echo True || echo False)"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
