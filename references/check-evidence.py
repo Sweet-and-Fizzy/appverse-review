@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Validate every finding's evidence citation against the reviewed repo.
 
-    python3 references/check-evidence.py review-<slug>.findings.json --target <repo-dir>
+    python3 references/check-evidence.py review-<slug>.findings.json --target <repo-dir> [--report <report.md>]
 
 A finding's `evidence` is free text. Every citation group in it is
 validated, not only a leading one: repo_paths.parse_citations (the grammar
@@ -55,23 +55,60 @@ all — counted as "not checked" (reported in the summary line, not treated
 as BAD) rather than paying to scan a large file just to bound-check a
 citation.
 
+A cited value must actually be on the line it is cited against. For every
+finding, and (when --report is given) for every report table row that
+carries a `check:` marker, each backtick-wrapped token in the summary (the
+finding's `summary` field; the row's Summary cell) that looks like a
+specific value rather than a code, a path or a number — a single token (no
+spaces), 3 or more characters, not purely numeric, not a short two-letter
+token, and not itself shaped like a path (containing `/` or `.`, which
+would make `form.yml` or `template/script.sh.erb` a false positive) or a
+lint code (uppercase letters followed directly by digits, shellcheck's
+`SC2086` shape) — must occur as a substring on at least one line of the
+evidence's (the row's Evidence cell's) cited range, in any citation group.
+Otherwise `BAD <rule> <defect_key> <evidence> (`<value>` is not on
+<path>:<N>)`, one line per offending value, citing the first cited line
+that was checked. This catches a citation whose line is right but whose
+quoted value is wrong (a stale line number after an edit, a copy-paste
+from the wrong row) as well as a right value cited against the wrong line.
+It is checked only where --target is given (nothing to read the line
+against otherwise) and only for a group that already passed the
+path/line-existence checks above (an already-BAD group is not also
+value-checked).
+
 Exit 0 when every evidence citation is valid, 1 when any is not (one BAD
 line per bad citation group, in the form `BAD <rule> <defect_key>
 <evidence> (<reason>)`; when the evidence has more than one group the
 reason starts with the group's path, `(template/nope.sh: file not found
 (case-exact))`). The summary counts findings: a finding is valid when all
-its groups are.
-2 when the input cannot be read or is malformed.
+its groups are, and (with --report) all its report rows are too.
+2 when the input cannot be read or is malformed, or --report names a file
+that cannot be read.
 """
 import argparse
+import importlib.util
 import json
 import os
+import re
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, SCRIPT_DIR)
 from repo_paths import PSEUDO_ANCHORS, exists_case_exact, parse_citations  # noqa: E402
 
+# check-rows.py's row/table parsing (split_row, rows_by_check, header_name) is
+# reused for --report scanning rather than duplicated; a later task moves the
+# shared pieces into their own module, so this is the only place that imports
+# check-rows.py this way (the pattern compare-runs.py and check-rating.py
+# already use for the same reason).
+_spec = importlib.util.spec_from_file_location("check_rows", os.path.join(SCRIPT_DIR, "check-rows.py"))
+check_rows = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(check_rows)
+
 MAX_LINE_COUNT_BYTES = 5 * 1024 * 1024  # 5 MB
+
+BACKTICK_RE = re.compile(r"`([^`]+)`")
+LINT_CODE_RE = re.compile(r"^[A-Z]+[0-9]+$")
 
 def not_repo_relative(path, target):
     """Whether path is unsafe to resolve under target: absolute, a '..'
@@ -105,9 +142,68 @@ def line_count(path, cache):
     return n
 
 
+def cited_values(text):
+    """Backtick-wrapped tokens in text that look like a specific cited value
+    rather than a code, a path or a number: a single token (no whitespace),
+    3+ characters, not purely digits, not a two-letter token, not shaped
+    like a path (a '/' or '.' in it — so `form.yml` and
+    `template/script.sh.erb` are never candidates), and not shaped like a
+    lint code (uppercase letters immediately followed by digits, `SC2086`
+    or `E501`). No value is special-cased by name: only this shape test."""
+    out = []
+    if not isinstance(text, str):
+        return out
+    for m in BACKTICK_RE.finditer(text):
+        v = m.group(1)
+        if not v or " " in v or "\t" in v or len(v) < 3:
+            continue
+        if v.isdigit():
+            continue
+        if "/" in v or "." in v:
+            continue
+        if LINT_CODE_RE.match(v):
+            continue
+        out.append(v)
+    return out
+
+
+def line_text(path, n, cache):
+    """The 1-indexed line n of path, or None when the file is not cached
+    with line text (over MAX_LINE_COUNT_BYTES, unreadable, or n out of
+    range). Caches the whole file's lines, keyed separately from
+    line_count's cache since most citations never need line text."""
+    if path not in cache:
+        try:
+            if os.path.getsize(path) > MAX_LINE_COUNT_BYTES:
+                cache[path] = None
+            else:
+                with open(path, "rb") as f:
+                    cache[path] = [line.decode("utf-8", "replace") for line in f.read().splitlines()]
+        except OSError:
+            cache[path] = None
+    lines = cache[path]
+    if lines is None or n < 1 or n > len(lines):
+        return None
+    return lines[n - 1]
+
+
+def value_on_lines(value, path, lines, text_cache):
+    """Whether value occurs as a substring on at least one of lines (1-
+    indexed) of path. False when none of the lines could be read."""
+    for n in lines:
+        text = line_text(path, n, text_cache)
+        if text is not None and value in text:
+            return True
+    return False
+
+
 def check_group(path, lines, target, line_cache, skipped):
-    """The reason one citation group is BAD, or None. Appends to skipped
-    when the file is too large to count."""
+    """(reason, full_path) for one citation group: reason is None when the
+    group is fine, full_path is the resolved file path when the group
+    named a real, checkable file (None otherwise: a bare prose word, a
+    pseudo-anchor, or a BAD group) so a caller can reuse it for a value
+    check without re-resolving. Appends to skipped when the file is too
+    large to count."""
     is_pseudo = path in PSEUDO_ANCHORS
     bare = "/" not in path and "." not in path and not is_pseudo
     if target is None:
@@ -116,50 +212,125 @@ def check_group(path, lines, target, line_cache, skipped):
         # a line of; others (releases, commits, root, ...) never are. Without
         # --target there's no way to tell the two apart, so a pseudo-anchor
         # citing a line stays BAD in format-only mode.
-        return "pseudo-anchor, not a file" if is_pseudo else None
+        return ("pseudo-anchor, not a file" if is_pseudo else None), None
     if not_repo_relative(path, target):
-        return "path is not repo-relative"
+        return "path is not repo-relative", None
     resolved_target = os.path.realpath(target)
     full = os.path.join(resolved_target, path)
     if not os.path.isfile(full) or not exists_case_exact(resolved_target, path):
         if bare:
-            return None  # a bare word that is not a file is prose (python:3)
+            return None, None  # a bare word that is not a file is prose (python:3)
         if is_pseudo:
-            return "pseudo-anchor, not a file"
-        return "file not found (case-exact)"
+            return "pseudo-anchor, not a file", None
+        return "file not found (case-exact)", None
     n_lines = line_count(full, line_cache)
     if n_lines is None:
         skipped.append(path)
-        return None
+        return None, None
     low = [n for n in lines if n < 1]
     high = [n for n in lines if n > n_lines]
     if low or high:
         n = low[0] if low else max(high)
-        return "line {} past end of file, has {} lines".format(n, n_lines)
-    return None
+        return "line {} past end of file, has {} lines".format(n, n_lines), None
+    return None, full
 
 
-def validate(finding, target, line_cache, skipped):
-    """(rule, key, evidence, [reason, ...]) — one reason per BAD group."""
+def check_values(summary, groups, good_paths, text_cache):
+    """One '`<value>` is not on <path>:<N>' reason per backtick value in
+    summary not found on any line of any citation group that resolved to a
+    real, checkable file (good_paths: {group path: full path}). The cited
+    line reported is the first line of the first such group."""
+    reasons = []
+    checkable = [(path, good_paths[path], lines) for path, lines in groups if path in good_paths]
+    if not checkable:
+        return reasons
+    for value in cited_values(summary):
+        if any(value_on_lines(value, full, lines, text_cache) for _, full, lines in checkable):
+            continue
+        path, _, lines = checkable[0]
+        reasons.append("`{}` is not on {}:{}".format(value, path, lines[0]))
+    return reasons
+
+
+def validate(finding, target, line_cache, skipped, text_cache=None):
+    """(rule, key, evidence, [reason, ...]) — one reason per BAD citation
+    group, plus (when text_cache is given and every group is fine) one per
+    backtick value in `summary` not found on any cited line."""
     rule = finding.get("rule") or "<missing>"
     key = finding.get("defect_key") or "<missing>"
     evidence = finding.get("evidence")
     groups = parse_citations(evidence)
     reasons = []
+    good_paths = {}
     before = len(skipped)
     for path, lines in groups:
-        reason = check_group(path, lines, target, line_cache, skipped)
+        reason, full = check_group(path, lines, target, line_cache, skipped)
         if reason:
             reasons.append(reason if len(groups) == 1 else "{}: {}".format(path, reason))
+        elif full:
+            good_paths[path] = full
     if len(skipped) > before:
         del skipped[before + 1:]  # count a finding once in the not-checked tally
+    if text_cache is not None and not reasons:
+        reasons.extend(check_values(finding.get("summary"), groups, good_paths, text_cache))
     return rule, key, evidence, reasons
+
+
+def report_rows(text):
+    """[(check_id, evidence, summary), ...] for every table row, in any
+    '## App:' section or not, that carries a `check:` marker in its Check
+    column and a recognized Result. Built the same way check-rows.py's
+    rows_by_check walks tables (split_row/is_separator/header_name/MARKER,
+    reused via the check_rows import above), but also keeps the Summary
+    cell, which rows_by_check discards."""
+    out = []
+    lines = text.splitlines()
+    i = 0
+    while i < len(lines):
+        if lines[i].lstrip().startswith("|") and i + 1 < len(lines) and check_rows.is_separator(lines[i + 1]):
+            head = [check_rows.header_name(c) for c in check_rows.split_row(lines[i])]
+            i += 2
+            if "check" not in head:
+                while i < len(lines) and lines[i].lstrip().startswith("|"):
+                    i += 1
+                continue
+            ci = head.index("check")
+            ri = head.index("result") if "result" in head else None
+            ei = head.index("evidence") if "evidence" in head else None
+            sumi = head.index("summary") if "summary" in head else None
+            while i < len(lines) and lines[i].lstrip().startswith("|"):
+                cells = check_rows.split_row(lines[i])
+                get = lambda k: cells[k] if k is not None and k < len(cells) else ""
+                result = check_rows.normalize_result(get(ri))
+                if result is None:
+                    i += 1
+                    continue
+                evidence = get(ei)
+                if ei is not None and len(cells) > len(head):
+                    evidence = " | ".join(cells[ei:])
+                cids = check_rows.MARKER.findall(get(ci))
+                if cids:
+                    out.append((", ".join(cids), evidence, get(sumi)))
+                i += 1
+            continue
+        i += 1
+    return out
+
+
+def validate_row(check_id, evidence, summary, target, line_cache, skipped, text_cache):
+    """Like validate(), for one report row: (check_id, evidence, [reason,
+    ...])."""
+    rule, key, ev, reasons = validate(
+        {"rule": "report:" + check_id, "defect_key": check_id, "evidence": evidence, "summary": summary},
+        target, line_cache, skipped, text_cache)
+    return rule, key, ev, reasons
 
 
 def main(argv):
     ap = argparse.ArgumentParser()
     ap.add_argument("findings")
     ap.add_argument("--target", default=None, help="reviewed repo checkout; enables file/line existence checks")
+    ap.add_argument("--report", default=None, help="review report .md; also checks its `check:`-marked table rows")
     args = ap.parse_args(argv[1:])
     if args.target is not None and (not args.target or not os.path.isdir(args.target)):
         # An empty --target would silently mean the cwd and reject every real path.
@@ -174,16 +345,36 @@ def main(argv):
     if not isinstance(findings, list) or not all(isinstance(x, dict) for x in findings):
         print("error: findings must be a JSON list of objects", file=sys.stderr)
         return 2
+    report_text = None
+    if args.report is not None:
+        try:
+            with open(args.report, encoding="utf-8") as f:
+                report_text = f.read()
+        except OSError as e:
+            print("error: {}".format(e), file=sys.stderr)
+            return 2
     bad = 0
     line_cache = {}
     skipped = []
+    text_cache = {} if args.target is not None else None
     for finding in findings:
-        rule, key, evidence, reasons = validate(finding, args.target, line_cache, skipped)
+        rule, key, evidence, reasons = validate(finding, args.target, line_cache, skipped, text_cache)
         if reasons:
             bad += 1
         for reason in reasons:
             print("BAD {} {} {} ({})".format(rule, key, evidence, reason))
     summary = "evidence: {}/{} valid".format(len(findings) - bad, len(findings))
+    if report_text is not None:
+        rows = report_rows(report_text)
+        row_bad = 0
+        for check_id, evidence, row_summary in rows:
+            rule, key, ev, reasons = validate_row(check_id, evidence, row_summary, args.target, line_cache, skipped, text_cache)
+            if reasons:
+                row_bad += 1
+            for reason in reasons:
+                print("BAD {} {} {} ({})".format(rule, key, ev, reason))
+        summary += "; report rows: {}/{} valid".format(len(rows) - row_bad, len(rows))
+        bad += row_bad
     if skipped:
         summary += " ({} line count not checked: file over 5 MB)".format(len(skipped))
     print(summary)

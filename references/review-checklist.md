@@ -149,7 +149,10 @@ taking them on trust. Spot-check that:
    cited `file:line` actually shows the flagged pattern. Remember the
    "Additional observations (review)" table is the reviewer's own open-ended
    pass, distinct from the per-candidate rows above it: read it as free-form
-   findings, not as answers to the enumeration.
+   findings, not as answers to the enumeration. `check-evidence.py` (with
+   `--report`) automates part of this: it confirms every cited `file:line`
+   exists and is in range, and that a specific value quoted in backticks in a
+   finding's or row's summary actually appears on the line(s) cited for it.
 3. Portability and Documentation ratings and any correctness-&-polish findings match what you see —
    documentation level, portability, and any copy-paste artifacts or typos.
 4. Upkeep signals are current — last commit, releases, CI, CHANGELOG.

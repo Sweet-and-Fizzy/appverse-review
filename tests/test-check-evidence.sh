@@ -11,6 +11,8 @@ check() { local name="$1" expected="$2" actual="$3"
 run() { python3 "$CHECK" "$@" > "$TMP/out" 2>&1; echo $?; }
 rec() { # rule defect_key evidence
   printf '{"app_id":"root","rule":"%s","defect_key":"%s","aspect":"x","severity":"low","result":"WARN","summary":"s","evidence":"%s"}' "$1" "$2" "$3"; }
+recs() { # rule defect_key evidence summary
+  python3 -c 'import json,sys; print(json.dumps({"app_id":"root","rule":sys.argv[1],"defect_key":sys.argv[2],"aspect":"x","severity":"low","result":"WARN","summary":sys.argv[4],"evidence":sys.argv[3]}))' "$1" "$2" "$3" "$4"; }
 
 # a fake target tree: template/script.sh.erb has 5 lines, form.yml has 3
 mkdir -p "$TMP/t/template" "$TMP/t/apps/sub"
@@ -20,6 +22,7 @@ printf 'x: 1\ny: 2\n' > "$TMP/t/apps/sub/form.yml"
 printf 'Title\nBody text.\n' > "$TMP/t/README.md"
 
 echo "Test 1: valid file:line and file:line-line pass"
+
 printf '[%s,%s]' \
   "$(rec QUA-02 template/script.sh.erb:hardcoded-path template/script.sh.erb:3)" \
   "$(rec OODT-01 submit.yml.erb:unsanitized-input template/script.sh.erb:2-4)" \
@@ -163,5 +166,90 @@ check "reason" 1 "$(grep -cF '(line 7 past end of file, has 3 lines)' "$TMP/out"
 echo "Test 19: prose that looks like host:port or image:tag is not a citation"
 printf '[%s]' "$(rec OODT-05 template/script.sh.erb:bind-all-interfaces 'template/script.sh.erb:3 --host 0.0.0.0:5000 image python:3 http://localhost:8080 ruby:3.1')" > "$TMP/r.json"
 check "exit 0" 0 "$(run "$TMP/r.json" --target "$TMP/t")"
+
+echo "Test 20: a backtick-quoted value in the summary must be on the cited line"
+python3 -c "
+with open('$TMP/t/long-README.md', 'w') as f:
+    for n in range(1, 131):
+        f.write('cluster line {}\n'.format(n) if n != 115 else 'cluster name: odyssey\n')
+"
+printf '[%s]' "$(recs QUA-02 long-README.md:cluster-name 'long-README.md:115' '`odyssey3` documented at')" > "$TMP/s1.json"
+check "exit 1" 1 "$(run "$TMP/s1.json" --target "$TMP/t")"
+check "reason" 1 "$(grep -cF 'BAD QUA-02 long-README.md:cluster-name long-README.md:115 (`odyssey3` is not on long-README.md:115)' "$TMP/out")"
+
+python3 -c "
+with open('$TMP/t/long-README.md', 'w') as f:
+    for n in range(1, 131):
+        f.write('cluster line {}\n'.format(n) if n != 115 else 'cluster name: odyssey3\n')
+"
+printf '[%s]' "$(recs QUA-02 long-README.md:cluster-name 'long-README.md:115' '`odyssey3` documented at')" > "$TMP/s2.json"
+check "value present on the cited line: exit 0" 0 "$(run "$TMP/s2.json" --target "$TMP/t")"
+
+echo "Test 20b: a value inside a cited range is found anywhere in the range"
+python3 -c "
+with open('$TMP/t/long-README.md', 'w') as f:
+    for n in range(1, 131):
+        f.write('cluster line {}\n'.format(n) if n != 118 else 'cluster name: odyssey3\n')
+"
+printf '[%s]' "$(recs QUA-02 long-README.md:cluster-name 'long-README.md:110-120' '`odyssey3` documented at')" > "$TMP/s3.json"
+check "value on line 118 within a 110-120 range: exit 0" 0 "$(run "$TMP/s3.json" --target "$TMP/t")"
+
+echo "Test 20c: codes, paths, numbers and two-letter tokens are never flagged, even absent"
+printf '[%s]' "$(recs QUA-02 long-README.md:notes 'long-README.md:1' 'see `SC2164`, `form.yml`, `42`, and `ab` for details')" > "$TMP/s4.json"
+check "exit 0 (no value shape matches)" 0 "$(run "$TMP/s4.json" --target "$TMP/t")"
+
+echo "Test 20d: without --target, the value rule is not checked (nothing to read the line against)"
+printf '[%s]' "$(recs QUA-02 long-README.md:cluster-name 'long-README.md:115' '`odyssey3` documented at')" > "$TMP/s5.json"
+check "exit 0 without target" 0 "$(run "$TMP/s5.json")"
+
+echo "Test 21: a report table row with a check: marker is scanned the same way (--report)"
+python3 -c "
+with open('$TMP/t/long-README.md', 'w') as f:
+    for n in range(1, 131):
+        f.write('cluster line {}\n'.format(n) if n != 115 else 'cluster name: odyssey\n')
+"
+printf '[]' > "$TMP/empty.json"
+cat > "$TMP/report.md" <<'EOF'
+## App: SAS (root)
+
+### Portability
+
+| Rule | Check | Result | Severity | Summary | Evidence |
+|---|---|---|---|---|---|
+| QUA-02 | `check: hardcoded-site-paths` | WARN | medium | `odyssey3` documented in the README configuration table | long-README.md:115 |
+EOF
+check "exit 1" 1 "$(run "$TMP/empty.json" --target "$TMP/t" --report "$TMP/report.md")"
+check "reason" 1 "$(grep -cF '(`odyssey3` is not on long-README.md:115)' "$TMP/out")"
+check "row summary line" "evidence: 0/0 valid; report rows: 0/1 valid" "$(tail -1 "$TMP/out")"
+
+echo "Test 21b: the same report row with the correct value passes"
+python3 -c "
+with open('$TMP/t/long-README.md', 'w') as f:
+    for n in range(1, 131):
+        f.write('cluster line {}\n'.format(n) if n != 115 else 'cluster name: odyssey3\n')
+"
+check "exit 0" 0 "$(run "$TMP/empty.json" --target "$TMP/t" --report "$TMP/report.md")"
+check "row summary line" "evidence: 0/0 valid; report rows: 1/1 valid" "$(tail -1 "$TMP/out")"
+
+echo "Test 21c: a report row with no check: marker is not scanned"
+cat > "$TMP/report2.md" <<'EOF'
+## App: SAS (root)
+
+### Code Quality
+
+| Rule | Check | Result | Severity | Summary | Evidence |
+|---|---|---|---|---|---|
+| QUA-05 | | WARN | low | copy-paste references `odyssey3` in the changelog | long-README.md:115 |
+EOF
+python3 -c "
+with open('$TMP/t/long-README.md', 'w') as f:
+    for n in range(1, 131):
+        f.write('cluster line {}\n'.format(n) if n != 115 else 'cluster name: odyssey\n')
+"
+check "exit 0 (unmarked row skipped)" 0 "$(run "$TMP/empty.json" --target "$TMP/t" --report "$TMP/report2.md")"
+check "row summary line" "evidence: 0/0 valid; report rows: 0/0 valid" "$(tail -1 "$TMP/out")"
+
+echo "Test 21d: --report naming an unreadable file is exit 2"
+check "exit 2" 2 "$(run "$TMP/empty.json" --target "$TMP/t" --report "$TMP/nope-report.md")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
