@@ -17,7 +17,7 @@ mkdir -p "$TMP/t/template" "$TMP/t/apps/sub"
 printf 'a\nb\nc\nd\ne\n' > "$TMP/t/template/script.sh.erb"
 printf 'k1: v1\nk2: v2\nk3: v3\n' > "$TMP/t/form.yml"
 printf 'x: 1\ny: 2\n' > "$TMP/t/apps/sub/form.yml"
-touch "$TMP/t/README.md"
+printf 'Title\nBody text.\n' > "$TMP/t/README.md"
 
 echo "Test 1: valid file:line and file:line-line pass"
 printf '[%s,%s]' \
@@ -45,7 +45,7 @@ printf '[%s,%s]' \
 check "exit 0" 0 "$(run "$TMP/c.json" --target "$TMP/t")"
 check "summary" "evidence: 2/2 valid" "$(tail -1 "$TMP/out")"
 
-echo "Test 5: a pseudo-anchor with a line number is BAD"
+echo "Test 5: a pseudo-anchor with a line number is BAD when it does not exist as a real file"
 printf '[%s,%s]' \
   "$(rec MNT-02 releases:no-releases releases:3)" \
   "$(rec MNT-01 commits:stale commits:1-2)" \
@@ -53,6 +53,20 @@ printf '[%s,%s]' \
 check "exit 1" 1 "$(run "$TMP/d.json" --target "$TMP/t")"
 check "releases reason" 1 "$(grep -cF "BAD MNT-02 releases:no-releases releases:3 (pseudo-anchor, not a file)" "$TMP/out")"
 check "commits reason" 1 "$(grep -cF "BAD MNT-01 commits:stale commits:1-2 (pseudo-anchor, not a file)" "$TMP/out")"
+
+echo "Test 5b: a pseudo-anchor that IS also a real, case-exact file validates like any other path"
+printf '[%s]' "$(rec QUA-06 README.md:readme-typo README.md:2)" > "$TMP/d1.json"
+check "README.md:2 against a real 2-line README exit 0" 0 "$(run "$TMP/d1.json" --target "$TMP/t")"
+check "summary" "evidence: 1/1 valid" "$(tail -1 "$TMP/out")"
+printf '[%s]' "$(rec QUA-06 README.md:readme-typo README.md:99)" > "$TMP/d2.json"
+check "README.md:99 past EOF is still BAD, not pseudo-anchor-BAD" 1 "$(run "$TMP/d2.json" --target "$TMP/t")"
+check "reason is line-past-EOF, not pseudo-anchor" 1 "$(grep -cF "BAD QUA-06 README.md:readme-typo README.md:99 (line 99 past end of file, has 2 lines)" "$TMP/out")"
+printf '[%s]' "$(rec MNT-02 releases:no-releases releases:1)" > "$TMP/d3.json"
+check "releases:1 is still BAD (no real 'releases' file in target)" 1 "$(run "$TMP/d3.json" --target "$TMP/t")"
+check "releases reason unchanged" 1 "$(grep -cF "BAD MNT-02 releases:no-releases releases:1 (pseudo-anchor, not a file)" "$TMP/out")"
+printf '[%s]' "$(rec QUA-06 README.md:readme-typo README.md:2)" > "$TMP/d4.json"
+check "without --target a pseudo-anchor citing a line stays BAD (can't tell if it's a real file)" 1 "$(run "$TMP/d4.json")"
+check "format-only reason" 1 "$(grep -cF "BAD QUA-06 README.md:readme-typo README.md:2 (pseudo-anchor, not a file)" "$TMP/out")"
 
 echo "Test 6: a monorepo subpath resolves under the target root"
 printf '[%s]' "$(rec QUA-06 apps/sub/form.yml:duplicate-key apps/sub/form.yml:2)" > "$TMP/e.json"

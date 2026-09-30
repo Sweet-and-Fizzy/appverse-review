@@ -11,14 +11,24 @@ that leading citation is parsed — anything after the digits (another
 case-exactly: `readme.md` does not stand in for `README.md`, since some
 filesystems accept that locally and CI would not) and every cited line
 number must be within that file's length (1-indexed; 0 and anything past
-EOF is BAD). A pseudo-anchor (the same fixed set check-keys.py treats as
-not-a-real-file: LICENSE, README.md, CHANGELOG.md, .github/workflows,
-releases, issues, contributors, commits, root — imported from repo_paths so
-the two scripts cannot drift) is never a file, so citing a line number
-against one is always BAD, even though the bare pseudo-anchor by itself (no
-line, as in "GitHub releases API: 0") is fine — that phrase does not match
-the `<path>:<n>` shape at all, since the digits are not glued to the anchor
-with a colon.
+EOF is BAD).
+
+A pseudo-anchor (the same fixed set check-keys.py treats as not-a-real-file:
+LICENSE, README.md, CHANGELOG.md, .github/workflows, releases, issues,
+contributors, commits, root — imported from repo_paths so the two scripts
+cannot drift) citing a line number is BAD only when that path does not also
+exist as a real, case-exact file under --target. Some pseudo-anchors
+(README.md, CHANGELOG.md, LICENSE) commonly ARE real files too, and a
+Documentation or Structure finding must be able to cite a line of one (e.g.
+"README.md:2"); others (releases, issues, contributors, commits, root,
+.github/workflows-as-a-bare-string) are never real files, so a line number
+against one of those stays BAD. When the pseudo-anchor path does exist as a
+file, it is validated exactly like any other path (case-exact existence,
+line within length). Without --target there is no way to tell which case
+applies, so a pseudo-anchor citing a line stays BAD in format-only mode. The
+bare pseudo-anchor by itself (no line, as in "GitHub releases API: 0") is
+always fine regardless — that phrase does not match the `<path>:<n>` shape
+at all, since the digits are not glued to the anchor with a colon.
 
 The cited path must also be repo-relative: absolute paths, a `..` segment,
 or a path that otherwise resolves outside --target are BAD ("path is not
@@ -114,7 +124,13 @@ def validate(finding, target, line_cache, skipped):
     if parsed is None:
         return rule, key, evidence, None
     path, lines = parsed
-    if path in PSEUDO_ANCHORS:
+    is_pseudo = path in PSEUDO_ANCHORS
+    if is_pseudo and target is None:
+        # Some pseudo-anchors (README.md, CHANGELOG.md, LICENSE) are also
+        # real files a Documentation/Structure finding may legitimately cite
+        # a line of; others (releases, commits, root, ...) never are. Without
+        # --target there's no way to tell the two apart, so a pseudo-anchor
+        # citing a line stays BAD in format-only mode.
         return rule, key, evidence, "pseudo-anchor, not a file"
     if target is None:
         return rule, key, evidence, None
@@ -123,6 +139,8 @@ def validate(finding, target, line_cache, skipped):
     resolved_target = os.path.realpath(target)
     full = os.path.join(resolved_target, path)
     if not os.path.isfile(full) or not exists_case_exact(resolved_target, path):
+        if is_pseudo:
+            return rule, key, evidence, "pseudo-anchor, not a file"
         return rule, key, evidence, "file not found (case-exact)"
     n_lines = line_count(full, line_cache)
     if n_lines is None:
