@@ -320,4 +320,24 @@ report_sec Strong Low "$FULL" "$SEC_NO_CHECK_COL" > "$TMP/r29.md"
 check "exit 0" 0 "$(run "$TMP/r29.md" "$TMP/f1.json")"
 check "summary" "ratings: consistent" "$(tail -1 "$TMP/out")"
 
+echo "Test 30: a Check column in the Findings table must not leak into the Additional observations table's own header"
+SEC_MIXED_TABLES='#### Findings
+
+| Rule | Check | Result | Severity | Tag | Summary | Evidence |
+|---|---|---|---|---|---|---|
+| OODT-01 | `check: sec-interpolation` | PASS | info | — | quoted scheduler argument | submit.yml.erb:6 |
+
+#### Additional observations (review)
+
+| Rule | Result | Severity | Tag | Summary | Evidence |
+|---|---|---|---|---|---|
+| OODT-06 | FAIL | high | unintentional | bad thing found on the open-ended pass | submit.yml.erb:9 |'
+report_sec Strong Low "$FULL" "$SEC_MIXED_TABLES" > "$TMP/r30.md"
+check "no sentence: exit 0" 0 "$(run "$TMP/r30.md" "$TMP/f1.json")"
+check "no sentence: summary" "ratings: consistent" "$(tail -1 "$TMP/out")"
+report_sec Strong Low "$FULL" "$SEC_MIXED_TABLES
+No tool-detectable issues in the checked tiers." > "$TMP/r30b.md"
+check "with sentence: exit 1" 1 "$(run "$TMP/r30b.md" "$TMP/f1.json")"
+check "with sentence: reason" 1 "$(grep -cF 'MISMATCH root security: "No tool-detectable issues in the checked tiers." with 1 FAIL/WARN row above it' "$TMP/out")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

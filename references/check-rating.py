@@ -31,13 +31,18 @@ rating does. Rule 2 still applies (Minimal maps to High).
      This rule is general — it is not keyed to any particular app or run.
   4. Within each app's "### Security" section (up to the next "### "),
      count table rows whose first cell is an OODT-xx code and whose
-     Result — the cell after the Check cell when the table has one, else
-     the second cell — normalises to FAIL or WARN (normalize_result,
-     imported from check-rows.py). "No tool-detectable issues in the
-     checked tiers." must appear exactly when that count is 0, except
-     that a section reading "security.json lists no candidates; no
-     observations." (the no-findings form) never requires the sentence.
-     This rule is general — it is not keyed to any particular app or run.
+     Result — the cell after the Check cell when that row's own table has
+     one, else the second cell — normalises to FAIL or WARN
+     (normalize_result, imported from check-rows.py). The section can
+     hold more than one table (Findings, then Additional observations
+     (review)); each table's header (a '|' row immediately followed by a
+     '|---' separator row) is read on its own, so a Check column in one
+     table never carries over into the next. "No tool-detectable issues
+     in the checked tiers." must appear exactly when that count is 0,
+     except that a section reading "security.json lists no candidates;
+     no observations." (the no-findings form) never requires the
+     sentence. This rule is general — it is not keyed to any particular
+     app or run.
 
 The findings argument is read: for the stub-README exception above, and for
 rule 3, which scans every record regardless of app section.
@@ -202,19 +207,31 @@ def never_fail_mismatches(findings, suggestion_checks):
     return lines
 
 
+SEPARATOR_ROW_RE = re.compile(r"^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$")
+
+
 def count_flagged_security_rows(security):
     """Count table rows in a '### Security' body whose first cell is an
-    OODT-xx code and whose Result cell (the cell after Check when the
-    table's header has one, else the second cell) normalises to FAIL or
-    WARN."""
+    OODT-xx code and whose Result cell (the cell after Check when that
+    row's own table has a Check column, else the second cell) normalises
+    to FAIL or WARN. The '### Security' body can hold more than one table
+    (Findings, then Additional observations (review)), and each table's
+    header is read independently — a Check column in one table must not
+    leak into the next, which may have no Check column of its own."""
     result_index = 1  # default: no Check column ("Rule | Result | ...")
     count = 0
-    for line in security.splitlines():
+    lines = security.splitlines()
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        # A header row is a '|' row immediately followed by a '|---' style
+        # separator row: that pair starts a new table, so its own Check
+        # column (or lack of one) replaces whatever the last table set.
+        if (stripped.startswith("|") and i + 1 < len(lines) and
+                SEPARATOR_ROW_RE.match(lines[i + 1].strip())):
+            header = check_rows.split_row(line)
+            result_index = header.index("Check") + 1 if "Check" in header else 1
+            continue
         if not OODT_ROW_RE.match(line):
-            if line.strip().startswith("|") and "Check" in line:
-                header = check_rows.split_row(line)
-                if "Check" in header:
-                    result_index = header.index("Check") + 1
             continue
         cells = check_rows.split_row(line)
         if result_index >= len(cells):
