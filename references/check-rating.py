@@ -375,10 +375,11 @@ def count_flagged_security_rows(security):
 
 
 def normalize_prose(text):
-    """text with emphasis markers dropped, whitespace runs collapsed and a
+    """text with emphasis markers dropped, U+2011 (non-breaking hyphen)
+    mapped to a plain '-', whitespace runs collapsed, casefolded and a
     trailing period removed, for matching a sentence however it is
-    emphasised, wrapped or ended."""
-    return re.sub(r"\s+", " ", re.sub(r"[*_`]", "", text)).strip().rstrip(".")
+    emphasised, wrapped, cased, hyphenated or ended."""
+    return re.sub(r"\s+", " ", re.sub(r"[*_`]", "", text.replace("\u2011", "-"))).strip().rstrip(".").casefold()
 
 
 def security_claim_mismatch(app_id, security):

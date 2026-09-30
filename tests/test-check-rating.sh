@@ -471,6 +471,14 @@ SEC_QUA_PASS='| Rule | Check | Result | Severity | Tag | Summary | Evidence |
 No tool-detectable issues in the checked tiers.'
 report_sec Strong Low "$FULL" "$SEC_QUA_PASS" > "$TMP/r32e.md"
 check "PASS tool rows (any rule cell) with the sentence: exit 0" 0 "$(run "$TMP/r32e.md" "$TMP/f1.json")"
+SEC_LOWERCASE="${SEC_TWO_WARN%No tool-detectable issues in the checked tiers.}no tool-detectable issues in the checked tiers."
+report_sec Strong Low "$FULL" "$SEC_LOWERCASE" > "$TMP/r32f.md"
+check "sentence in lowercase: exit 1" 1 "$(run "$TMP/r32f.md" "$TMP/f1.json")"
+check "sentence in lowercase: reason" 1 "$(grep -cF 'MISMATCH root security: "No tool-detectable issues in the checked tiers." with 2 FAIL/WARN rows above it' "$TMP/out")"
+SEC_NBHYPHEN="${SEC_TWO_WARN%No tool-detectable issues in the checked tiers.}No tool\xe2\x80\x91detectable issues in the checked tiers."
+printf '%b' "$SEC_NBHYPHEN" > "$TMP/nbh.txt"
+report_sec Strong Low "$FULL" "$(cat "$TMP/nbh.txt")" > "$TMP/r32g.md"
+check "sentence with a non-breaking hyphen (U+2011): exit 1" 1 "$(run "$TMP/r32g.md" "$TMP/f1.json")"
 
 echo "Test 33: a suggestion check matches any tag in its tags list; a tag of the same rule it does not own does not match"
 report Strong Low "$FULL" > "$TMP/r33.md"
