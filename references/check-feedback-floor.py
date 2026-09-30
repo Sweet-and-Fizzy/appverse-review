@@ -37,10 +37,12 @@ fix-item and must be represented in the feedback section of the report:
      evidence does (evidence_literals: a token of three or more characters
      outside the citations and the '; reviewed OK:' part that holds a
      digit, '_', '/' or '.', or two or more capitals, such as
-     `bc_osc_matlab` or `MATLAB`, never the finding's own file name). A sentence window runs from the sentence
-     that names the file up to, but not including, the first later sentence
-     that names a *different* file — a sentence ends at '.', ';', or ':'
-     followed by whitespace, or a newline. A real report typically names a
+     `bc_osc_matlab` or `MATLAB`, never the finding's own file name). A
+     sentence window runs from the sentence that names the file up to, but
+     not including, the first later sentence that names a *different* file
+     — a sentence ends at '.' or ';' followed by whitespace, or a newline; a
+     ':' does not end one, so a lead-in and its detail ("The repo is stale:
+     the last commit ...") stay one sentence. A real report typically names a
      file once in a lead-in sentence and then describes several of its
      defects over the sentences that follow, and that still passes; the
      window only has to stop once the prose moves on to a different file,
@@ -185,7 +187,9 @@ STOPWORDS = {
 # be droppable on its own (STOPWORDS) when what's left after it isn't a
 # genuine negated phrase.
 NEGATION_PREFIXES = {"no", "missing", "without", "unhandled", "undocumented"}
-SENTENCE_END = re.compile(r"(?<=[.;:])\s+|\n")
+# ':' does not end a sentence: "The repo is stale: the last commit ..." is
+# one sentence, its lead-in and its detail.
+SENTENCE_END = re.compile(r"(?<=[.;])\s+|\n")
 # A filename-shaped token anywhere in a sentence: a path/word segment with a
 # file extension (e.g. "form.yml", "template/script.sh.erb"). Used to detect
 # whether a sentence is about a *different* file than the one whose window
@@ -312,7 +316,7 @@ def paragraph_naming(candidates, prose, ci=False):
 
 
 def sentences(paragraph):
-    """`paragraph` split into sentences: a sentence ends at '.', ';', or ':'
+    """`paragraph` split into sentences: a sentence ends at '.' or ';'
     followed by whitespace, or at a newline."""
     return [s for s in SENTENCE_END.split(paragraph) if s.strip()]
 
@@ -436,8 +440,10 @@ def _singular(word):
 
 def mechanism_words(defect_key):
     """Distinctive words of the mechanism tag (see `tag_words`). Stopwords,
-    bare 1-2 letter fragments and words that name the anchor itself
-    (`anchor_words`) are dropped. When dropping the anchor's words is what
+    NEGATION_PREFIXES (they negate what follows rather than name it:
+    "undocumented" in "undocumented-hex-color" would match any
+    "undocumented" in the window), bare 1-2 letter fragments and words
+    that name the anchor itself (`anchor_words`) are dropped. When dropping the anchor's words is what
     empties the list ("wrong-app-changelog" on CHANGELOG.md), the tag's
     other words of three or more letters, stopwords included but not
     NEGATION_PREFIXES, stand in ("wrong", "app"): the defect is then named
@@ -448,7 +454,8 @@ def mechanism_words(defect_key):
     named = anchor_words(defect_key)
     # Drop stopwords and bare 1-2 letter fragments (e.g. "ci" from "no-ci")
     # — too short to be a distinctive, recognizable word in prose.
-    distinctive = [w for w in words if w.lower() not in STOPWORDS and len(w) > 2]
+    distinctive = [w for w in words if w.lower() not in STOPWORDS and len(w) > 2
+                   and w.lower() not in NEGATION_PREFIXES]
     kept = [w for w in distinctive if _singular(normalize(w)) not in named]
     if distinctive and not kept:
         kept = [w for w in words if len(w) > 2 and w.lower() not in NEGATION_PREFIXES

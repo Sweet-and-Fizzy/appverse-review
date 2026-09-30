@@ -452,8 +452,8 @@ check "exit 1" 1 "$(run "$TMP/t34.json" "$TMP/t34a.md")"
 check "reports 0/2" "feedback floor: 0/2 fix-items covered" "$(tail -1 "$TMP/out")"
 check "commits reason" 1 "$(grep -cF 'MISSING MNT-01 commits:stale-repo (subject not named in feedback)' "$TMP/out")"
 check "issues reason" 1 "$(grep -cF 'MISSING MNT-05 issues:unresponsive-issues (subject not named in feedback)' "$TMP/out")"
-printf '## Draft feedback\n<!-- feedback-covers: commits:stale-repo, issues:unresponsive-issues -->\nThe last commit was over a year ago, so the repo is stale. There are open issues with no maintainer response, so they look unresponsive.\n' > "$TMP/t34b.md"
-check "subjects named: exit 0" 0 "$(run "$TMP/t34.json" "$TMP/t34b.md")"
+printf '## Draft feedback\n<!-- feedback-covers: commits:stale-repo, issues:unresponsive-issues -->\nThe repo is stale: the last commit was over a year ago. There are open issues with no maintainer response, so they look unresponsive.\n' > "$TMP/t34b.md"
+check "subjects named, a ':' lead-in in one sentence: exit 0" 0 "$(run "$TMP/t34.json" "$TMP/t34b.md")"
 
 echo "Test 35: a 'root' pseudo-anchor whose mechanism tag has no distinctive word is MISSING with 'no subject for pseudo-anchor root', not a silent pass"
 cat > "$TMP/t35.json" <<'EOF'
@@ -553,5 +553,15 @@ printf '## Draft feedback\n<!-- feedback-covers: CHANGELOG.md:wrong-app-changelo
 check "evidence value in the window: exit 0" 0 "$(run "$TMP/t46.json" "$TMP/t46.md")"
 printf '## Draft feedback\n<!-- feedback-covers: CHANGELOG.md:wrong-app-changelog -->\nThanks for adding CHANGELOG.md; the diff links all reference upstream.\n' > "$TMP/t46b.md"
 check "file named, plain words from the evidence only: exit 1" 1 "$(run "$TMP/t46.json" "$TMP/t46b.md")"
+
+echo "Test 47: a negation prefix in a tag (undocumented) is not a distinctive word; a ':' does not end a sentence"
+cat > "$TMP/t47.json" <<'EOF'
+[{"app_id":"root","rule":"QUA-08","defect_key":"template/script.sh.erb:undocumented-hex-color","result":"WARN","severity":"low","evidence":"template/script.sh.erb:46"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: template/script.sh.erb:undocumented-hex-color -->\nTwo undocumented values remain: the path in template/script.sh.erb is site-specific.\n' > "$TMP/t47a.md"
+check "only 'undocumented' in the window: exit 1" 1 "$(run "$TMP/t47.json" "$TMP/t47a.md")"
+check "reason" "MISSING QUA-08 template/script.sh.erb:undocumented-hex-color (defect not described in feedback)" "$(head -1 "$TMP/out")"
+printf '## Draft feedback\n<!-- feedback-covers: template/script.sh.erb:undocumented-hex-color -->\nPolish in template/script.sh.erb: the hex color needs a comment.\n' > "$TMP/t47b.md"
+check "the defect after a ':' lead-in, same sentence: exit 0" 0 "$(run "$TMP/t47.json" "$TMP/t47b.md")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
