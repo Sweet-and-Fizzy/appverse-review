@@ -495,8 +495,17 @@ jobs:
               echo "needs_repair=true" >> "$GITHUB_OUTPUT"
               exit 1
             fi
+          elif [ -s "$WS/review-${SLUG}.md" ]; then
+            # The session wrote the report and stopped. Everything the other
+            # two files hold is in the report; the repair writes them.
+            {
+              echo "[findings] MISSING review-${SLUG}.findings.json (build it from the report, target-setup.md section 4)"
+              [ -s "$WS/review-${SLUG}.meta.json" ] || echo "[meta] MISSING review-${SLUG}.meta.json (write it from the report, review-app SKILL.md section 5)"
+            } | tee "$WS/check-output.txt"
+            echo "needs_repair=true" >> "$GITHUB_OUTPUT"
+            exit 1
           else
-            echo "::warning::report or findings JSON missing — checks not run"
+            echo "::warning::report missing — checks not run, nothing to repair"
           fi
 
       - name: Repair review outputs
@@ -552,7 +561,7 @@ jobs:
             - metadata: ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.meta.json
             - checker output to fix: ${{ github.workspace }}/check-output.txt
               (the lines starting [floor], [keys], [rating], [rows],
-              [evidence] or [meta] and containing MISSING, INVALID,
+              [evidence], [findings] or [meta] and containing MISSING, INVALID,
               MISMATCH, UNCITED or BAD; everything else there is context)
             - pre-review facts: ${{ github.workspace }}/pre-review/
             - the rules the checkers apply: ${{ github.workspace }}/appverse-review/skills/review-app/SKILL.md
@@ -571,6 +580,16 @@ jobs:
               comment.
             - A rating MISMATCH: change the rating or the record, whichever
               the line says is unsupported.
+            - A [findings] MISSING line: write the findings file as a JSON
+              array of records in the format of
+              ${{ github.workspace }}/appverse-review/references/target-setup.md
+              section 4. If the report contains a fenced JSON findings block,
+              copy it. Otherwise write one record for every row of the
+              report's Structure, Security, Portability, Documentation and Code
+              Quality tables and every gate and upkeep row with a rule code,
+              taking rule, result, severity, file:line evidence and summary
+              from the row, and a defect_key in the vocabulary of
+              finding-codes.md. Then run the checkers and fix what they list.
             - A [meta] MISSING line: write the metadata file in the format
               of review-app SKILL.md section 5, taking every value from the
               report (decision, ratings, signals, maintenance) and the
