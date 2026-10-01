@@ -196,4 +196,22 @@ printf '[{"app_id":"root","rule":"STR-06","defect_key":"template/script.sh.erb:b
 check "exit 0" 0 "$(run "$TMP/l1.json" --target "$TMP/t")"
 check "summary" "finding keys: 1/1 valid" "$(tail -1 "$TMP/out")"
 
+echo "Test 25: a FAIL/WARN record whose evidence cites lines but none in its anchor file is INVALID"
+recev() { # app_id rule defect_key result evidence
+  printf '{"app_id":"%s","rule":"%s","defect_key":"%s","aspect":"x","severity":"low","result":"%s","summary":"s","evidence":"%s"}' "$1" "$2" "$3" "$4" "$5"; }
+printf '[%s]' "$(recev root QUA-10 submit.yml.erb:erb-missing-value-unhandled WARN 'form.yml:27,65; reviewed OK: form.yml:15')" > "$TMP/m1.json"
+touch "$TMP/t/submit.yml.erb"
+check "exit 1" 1 "$(run "$TMP/m1.json" --target "$TMP/t")"
+check "reason" "INVALID QUA-10 submit.yml.erb:erb-missing-value-unhandled (evidence does not cite the anchor file)" "$(head -1 "$TMP/out")"
+printf '[%s,%s,%s,%s,%s,%s]' \
+  "$(recev root QUA-10 submit.yml.erb:erb-missing-value-unhandled WARN 'submit.yml.erb:6; form.yml:27')" \
+  "$(recev root QUA-10 submit.yml.erb:erb-missing-value-unhandled PASS 'form.yml:27')" \
+  "$(recev root QUA-06 README.md:readme-typo WARN 'form.yml:3')" \
+  "$(recev root QUA-02 template:hardcoded-path WARN 'template/script.sh.erb:21')" \
+  "$(recev apps/x QUA-02 apps/x/form.yml:hardcoded-cluster WARN 'form.yml:3')" \
+  "$(recev root MNT-02 releases:no-releases WARN 'GitHub releases API: 0')" > "$TMP/m2.json"
+mkdir -p "$TMP/t/apps/x"; touch "$TMP/t/apps/x/form.yml"
+check "anchor cited, a PASS, a pseudo-anchor, a directory anchor, an app-relative citation and no citation: exit 0" 0 "$(run "$TMP/m2.json" --target "$TMP/t")"
+check "summary" "finding keys: 6/6 valid" "$(tail -1 "$TMP/out")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

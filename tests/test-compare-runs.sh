@@ -408,4 +408,60 @@ check "line 17: ra has only a QUA-10 row and a NOT CHECKED row" "| submit.yml.er
 check "line 18: W low / P" "| submit.yml.erb:18 | sec-interpolation | OODT-01 | W low | P | 1/2 | 2/2 |" "$(grep -F '| submit.yml.erb:18 |' "$TMP/out")"
 check "line 19: reviewed OK is P" "| submit.yml.erb:19 | sec-interpolation | OODT-01 | P | P | 0/2 | 2/2 |" "$(grep -F '| submit.yml.erb:19 |' "$TMP/out")"
 
+echo "Test 21: sec-tool-finding's code-naming rule -- citing the line is not enough, the"
+echo "row's Summary must name the candidate's own code (an SC2086 candidate at :22 is not"
+echo "answered by a row that cites :22 but names SC2164)"
+mkdir -p "$TMP/tfa/pre-review/root" "$TMP/tfb/pre-review/root"
+echo '[{"app_id": "root", "path": ".", "app_type": "batch_connect", "readme": "README.md"}]' > "$TMP/tfa/pre-review/apps.json"
+cat > "$TMP/tfa/pre-review/root/security.json" <<'EOF'
+{"candidates": [
+  {"kind": "tool_finding", "check": "sec-tool-finding", "rule": null, "tag": null, "tool": "shellcheck", "code": "SC2086", "file": "template/script.sh.erb", "lines": [22], "level": "info", "text": "Double quote to prevent globbing and word splitting."},
+  {"kind": "tool_finding", "check": "sec-tool-finding", "rule": null, "tag": null, "tool": "shellcheck", "code": "SC2164", "file": "template/script.sh.erb", "lines": [25], "level": "warning", "text": "Use cd ... || exit"}
+]}
+EOF
+cp -R "$TMP/tfa/pre-review" "$TMP/tfb/"
+echo '[]' > "$TMP/tfa/review-app.findings.json"; echo '[]' > "$TMP/tfb/review-app.findings.json"
+# Run A: a row naming SC2086 answers the SC2086 candidate (P).
+cat > "$TMP/tfa/review-app.md" <<'EOF'
+## App: X (root)
+
+| Rule | Check | Result | Severity | Tag | Summary | Evidence |
+|---|---|---|---|---|---|---|
+| QUA-03 | `check: sec-tool-finding` | PASS | — | — | SC2086: unquoted variable, style only | template/script.sh.erb:22 |
+| QUA-03 | `check: sec-tool-finding` | PASS | — | — | SC2164: cd without exit; before.sh sets -e | template/script.sh.erb:25 |
+EOF
+# Run B: a row cites :22 but names the wrong code (SC2164) -- unanswered ('-').
+cat > "$TMP/tfb/review-app.md" <<'EOF'
+## App: X (root)
+
+| Rule | Check | Result | Severity | Tag | Summary | Evidence |
+|---|---|---|---|---|---|---|
+| QUA-03 | `check: sec-tool-finding` | PASS | — | — | SC2164: cd without exit; before.sh sets -e | template/script.sh.erb:22 |
+EOF
+check "exit 0" 0 "$(run "$TMP/tfa" "$TMP/tfb")"
+check "SC2086 candidate: A names it (P), B cites the line but names SC2164 (-)" \
+  "| template/script.sh.erb:SC2086 | sec-tool-finding |  | P | - | 0/2 | 1/2 |" \
+  "$(grep -F '| template/script.sh.erb:SC2086 |' "$TMP/out")"
+
+echo "Test 22: sec-tool-finding candidates in --json: file is the path, line is the first"
+echo "cited line (not the whole label with a null line)"
+out_tf_json=$(run "$TMP/tfa" "$TMP/tfb" --json)
+check "json exit 0" 0 "$out_tf_json"
+check "SC2086 candidate: file is the path, line is 22" "template/script.sh.erb|22" "$(python3 -c "
+import json
+d = json.load(open('$TMP/out'))
+for c in d['candidates']:
+    if c['candidate'] == 'template/script.sh.erb:SC2086':
+        print('%s|%s' % (c['file'], c['line']))
+        break
+")"
+check "SC2164 candidate: file is the path, line is 25" "template/script.sh.erb|25" "$(python3 -c "
+import json
+d = json.load(open('$TMP/out'))
+for c in d['candidates']:
+    if c['candidate'] == 'template/script.sh.erb:SC2164':
+        print('%s|%s' % (c['file'], c['line']))
+        break
+")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

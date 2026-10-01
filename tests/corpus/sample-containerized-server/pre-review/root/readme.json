@@ -1,0 +1,43 @@
+{
+  "file": "README.md",
+  "headings": [
+    {
+      "level": 1,
+      "text": "MLflow Tracking Server",
+      "line": 1
+    },
+    {
+      "level": 2,
+      "text": "Requirements",
+      "line": 5
+    }
+  ],
+  "placeholders": [],
+  "screenshots": [],
+  "env_vars": [],
+  "rungs": {
+    "what it launches": {
+      "heading": "MLflow Tracking Server",
+      "line": 3,
+      "placeholder": false,
+      "match": "intro"
+    },
+    "prerequisites": {
+      "heading": "Requirements",
+      "line": 5,
+      "placeholder": false,
+      "match": "heading"
+    },
+    "installation": null,
+    "configuration": null,
+    "known limitations": null,
+    "troubleshooting": null,
+    "screenshots": null,
+    "environment variables": null,
+    "info panel": null,
+    "architecture": null
+  },
+  "stub": false,
+  "content_line_count": 3,
+  "content_chars": 197
+}

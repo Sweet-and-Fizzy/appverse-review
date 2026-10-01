@@ -1,0 +1,44 @@
+{
+  "repo_url": "https://github.com/fasrc/ood-sas",
+  "sha": "462790a1fdd1616038ea3536454a4e508c668471",
+  "ref": "main",
+  "repo_shape": "inferred_single",
+  "not_archived": "pass",
+  "public": "pass",
+  "model": "claude-opus-4-6",
+  "recommendation": {
+    "decision": "Accept with suggestions",
+    "note": "The app passes all gate criteria: the README is substantive, the MIT license is present, manifest.yml has all required fields, YAML files are valid, and the Batch Connect layout is complete. Documentation is Adequate and configuration is Partially portable, both meeting their targets for inclusion. The catalog has no existing SAS app (not a duplicate) and a SAS Software entry exists. However, the app has clear improvement areas: the CHANGELOG and a form help string are copy-pasted from a MATLAB template and describe the wrong software, the main job script lacks error handling (set -e), and two numeric form fields are missing upper bounds. Three Low-severity security findings note unsanitized pass-through of extra Slurm options, unquoted shell variables, and debug tracing left enabled. The recommendation is Accept with suggestions."
+  },
+  "apps": [
+    {
+      "app_id": "root",
+      "name": "SAS",
+      "decision": "Accept with suggestions",
+      "assessments": {
+        "documentation": "adequate",
+        "documentation_summary": "Covers what it launches, prerequisites, installation, configuration, known limitations, troubleshooting, and screenshots; environment variable documentation is absent, preventing Strong rating.",
+        "portability": "partially_portable",
+        "portability_summary": "Main site-specific values (cluster, module, partition) are centralized in form.yml and documented in README; script.sh.erb contains an undocumented hardcoded /scratch path and help text has a site-specific Harvard URL."
+      },
+      "reported_signals": {
+        "security": "Medium",
+        "portability": "Medium",
+        "documentation": "Medium"
+      }
+    }
+  ],
+  "maintenance_assessment": {
+    "active_within_12mo": true,
+    "waiver_brand_new": false,
+    "signals": {
+      "releases": false,
+      "changelog": false,
+      "ci": false,
+      "multiple_contributors": true,
+      "issues_responded": null
+    },
+    "summary": "Active (last push 2026-07-08), 4 contributors, but no releases, no CI, CHANGELOG is copy-paste from MATLAB app",
+    "reported_signal": "Medium"
+  }
+}

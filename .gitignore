@@ -3,6 +3,7 @@ notes/
 .conscience/
 __pycache__/
 reviews/
+tests/corpus/.targets/
 
 
 # Secrets and credentials

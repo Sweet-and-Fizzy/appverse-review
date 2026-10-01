@@ -1,0 +1,118 @@
+{
+  "groups": {
+    "rows": [
+      "tillicum-36732089153"
+    ],
+    "fixes": [
+      "tillicum-36773072756",
+      "tillicum-36778298320"
+    ]
+  },
+  "items": [
+    {
+      "defect": "no LICENSE file at the repo root",
+      "rule": "STR-01",
+      "candidate": true,
+      "keys": [
+        "LICENSE:missing-license"
+      ],
+      "note": "the structure skill's required-files check asks about it; confirmed by ls (review-of-run-36732089153-tillicum.md, Verified against source)"
+    },
+    {
+      "defect": "comment at script.sh.erb:91-97 claims --offline isolation but the flag is never passed",
+      "rule": "OODT-08",
+      "candidate": false,
+      "keys": [
+        "template/script.sh.erb:other:missing-offline-control"
+      ],
+      "lines": {
+        "template/script.sh.erb": [
+          91,
+          92,
+          93,
+          94,
+          95,
+          96,
+          97
+        ]
+      },
+      "note": "not a security.json candidate; found by the open-ended pass"
+    },
+    {
+      "defect": "the README paragraph at 125-128 is repeated at 130-133",
+      "rule": "QUA-06",
+      "candidate": false,
+      "keys": [
+        "README.md:readme-inconsistency:model-path-description",
+        "README.md:duplicated-block"
+      ],
+      "lines": {
+        "README.md": [
+          125,
+          126,
+          127,
+          128,
+          130,
+          131,
+          132,
+          133
+        ]
+      },
+      "note": "the run recorded it as QUA-06 README.md:readme-inconsistency:model-path-description at README.md:125,130 (report:178); the old set looked only for a QUA-09 README key and so missed that the run found it"
+    },
+    {
+      "defect": "Origin reflected into Access-Control-Allow-Origin with credentials at proxy.py:212-216",
+      "rule": "OODT-01",
+      "candidate": false,
+      "keys": [],
+      "lines": {
+        "template/proxy.py": [
+          212,
+          213,
+          214,
+          215,
+          216
+        ]
+      },
+      "note": "not a security.json candidate, no row, never recorded"
+    },
+    {
+      "defect": "API_ARGS=(--api-key \"$API_KEY\") at script.sh.erb:84 puts the key in a long-running process's argv",
+      "rule": "OODT-01",
+      "candidate": false,
+      "keys": [],
+      "lines": {
+        "template/script.sh.erb": [
+          84
+        ]
+      },
+      "note": "the review doc's top-priority item; missed"
+    },
+    {
+      "defect": "free-text mount source/dest values land in a comma-delimited --mount option at script.sh.erb:136,138",
+      "rule": "OODT-01",
+      "candidate": false,
+      "keys": [],
+      "lines": {
+        "template/script.sh.erb": [
+          136,
+          138
+        ]
+      },
+      "note": "the row at lines 34-42 answers credential scope, not option injection; missed"
+    },
+    {
+      "defect": "view.html.erb:6,25 interpolate csrftoken/host/port into a JS template literal and an href",
+      "rule": "OODT-01",
+      "candidate": false,
+      "keys": [],
+      "lines": {
+        "view.html.erb": [
+          6,
+          25
+        ]
+      },
+      "note": "view.html.erb was outside security.json's scope for this run; missed"
+    }
+  ]
+}

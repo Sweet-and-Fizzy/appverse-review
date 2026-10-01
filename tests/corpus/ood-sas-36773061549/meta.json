@@ -1,0 +1,43 @@
+{
+  "repo_url": "https://github.com/fasrc/ood-sas",
+  "sha": "462790a1fdd1616038ea3536454a4e508c668471",
+  "ref": "462790a1fdd1616038ea3536454a4e508c668471",
+  "repo_shape": "inferred_single",
+  "not_archived": "pass",
+  "public": "pass",
+  "model": "claude-sonnet-4-6",
+  "recommendation": {
+    "decision": "Accept with suggestions",
+    "note": "Accept with suggestions. All gate criteria pass: README.md is substantive, LICENSE.txt (MIT) is present, manifest.yml includes the required name/category/role/description fields, and the standard Batch Connect layout (form.yml, submit.yml.erb, template/script.sh.erb) is in place with all scripts syntactically valid. Documentation is Adequate and portability is Partially portable, both at or above the inclusion thresholds. Security findings are low severity and unintentional \u2014 unquoted text-field interpolations in submit.yml.erb and a select field used unquoted in `module load` are addressable without design changes. The primary improvement areas are: `set -e` is missing from script.sh.erb (code quality target); numeric fields `custom_memory_per_node` and `custom_num_cores` lack a `max` bound, and several text fields reaching the scheduler lack `pattern` constraints (code quality target); CHANGELOG.md carries content copied from OSC's MATLAB app with no SAS-specific history; and the `sas_version` help text incorrectly references \"Matlab.\" These are fixable suggestions. The app is conditional on the duplicate check, which found no existing SAS app (pages 1\u20132 of the catalog, ~116 apps)."
+  },
+  "apps": [
+    {
+      "app_id": "root",
+      "name": "SAS",
+      "decision": "Accept with suggestions",
+      "assessments": {
+        "documentation": "adequate",
+        "documentation_summary": "what it launches, prerequisites, installation, configuration, known limitations all present; troubleshooting placeholder",
+        "portability": "partially_portable",
+        "portability_summary": "/scratch/ hardcoded in script (undocumented); cluster name and module documented as site-specific"
+      },
+      "reported_signals": {
+        "portability": "Medium",
+        "documentation": "Medium"
+      }
+    }
+  ],
+  "maintenance_assessment": {
+    "active_within_12mo": true,
+    "waiver_brand_new": false,
+    "signals": {
+      "releases": false,
+      "changelog": false,
+      "ci": false,
+      "multiple_contributors": null,
+      "issues_responded": null
+    },
+    "summary": "active within 12 months; no confirmed good-practice signals (no releases, CI absent, CHANGELOG wrong app)",
+    "reported_signal": "Medium"
+  }
+}

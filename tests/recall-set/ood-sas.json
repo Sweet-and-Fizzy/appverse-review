@@ -1,0 +1,232 @@
+{
+  "groups": {
+    "pre-rows": [
+      "ood-sas-36477735864",
+      "ood-sas-36477767148"
+    ],
+    "rows": [
+      "ood-sas-36678163506"
+    ],
+    "fixes": [
+      "ood-sas-36773061549"
+    ]
+  },
+  "items": [
+    {
+      "defect": "/scratch working-directory path in script.sh.erb:21",
+      "rule": "QUA-02",
+      "candidate": true,
+      "keys": [
+        "template/script.sh.erb:hardcoded-path"
+      ],
+      "note": "template.json absolute_paths enumerates it; every run records it"
+    },
+    {
+      "defect": "commented-out Singularity code in script.sh.erb",
+      "rule": "QUA-04",
+      "candidate": true,
+      "keys": [
+        "template/script.sh.erb:commented-out-code"
+      ],
+      "note": "template.json commented_code enumerates it"
+    },
+    {
+      "defect": "duplicate help: key under custom_num_cores",
+      "rule": "QUA-06",
+      "candidate": true,
+      "keys": [
+        "form.yml:duplicate-yaml-key:custom_num_cores.help"
+      ],
+      "note": "form.yml:44-45"
+    },
+    {
+      "defect": "duplicate help: key under custom_num_gpus",
+      "rule": "QUA-06",
+      "candidate": true,
+      "keys": [
+        "form.yml:duplicate-yaml-key:custom_num_gpus.help"
+      ],
+      "note": "form.yml:54-55"
+    },
+    {
+      "defect": "Fedora panel icon on a non-Fedora target",
+      "rule": "QUA-06",
+      "candidate": true,
+      "keys": [
+        "template/config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml:icon-os-mismatch",
+        "template/config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml:incorrect-default",
+        "template/config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml:readme-inconsistency:icon-os"
+      ],
+      "note": "template.json icons enumerates it; the tag drifts across runs, so every tag a run used is a key"
+    },
+    {
+      "defect": "number fields with no max (custom_memory_per_node, custom_num_cores)",
+      "rule": "QUA-07",
+      "candidate": true,
+      "keys": [
+        "form.yml:missing-min-max"
+      ],
+      "note": "form.json attributes enumerates it"
+    },
+    {
+      "defect": "free-text fields with no pattern",
+      "rule": "QUA-07",
+      "candidate": true,
+      "keys": [
+        "form.yml:missing-pattern",
+        "form.yml:other:missing-pattern",
+        "form.yml:other:missing-pattern-constraint"
+      ],
+      "note": "form.json attributes enumerates it"
+    },
+    {
+      "defect": "CHANGELOG.md copied from OSC/bc_osc_matlab",
+      "rule": "QUA-05",
+      "candidate": true,
+      "keys": [
+        "CHANGELOG.md:wrong-app-changelog"
+      ],
+      "note": "every run records it"
+    },
+    {
+      "defect": "extra_slurm free text passed to native: (allows --wrap=)",
+      "rule": "OODT-01",
+      "candidate": true,
+      "keys": [
+        "submit.yml.erb:unsanitized-user-input"
+      ],
+      "note": "security.json interpolation enumerates it; the pre-rows Sonnet runs 735864 and 747753 did not record it"
+    },
+    {
+      "defect": "job script has no set -e",
+      "rule": "QUA-03",
+      "candidate": true,
+      "keys": [
+        "template/script.sh.erb:no-set-e"
+      ],
+      "note": "the error-handling check asks about it on every batch_connect app"
+    },
+    {
+      "defect": "no tagged releases",
+      "rule": "MNT-02",
+      "candidate": true,
+      "keys": [
+        "releases:no-releases",
+        "github/releases:no-releases",
+        "RELEASES:no-releases"
+      ],
+      "note": "the maintenance skill always checks releases"
+    },
+    {
+      "defect": "submit.yml.erb:6,7 interpolate reservation and email with no nil guard",
+      "rule": "QUA-10",
+      "candidate": true,
+      "keys": [
+        "submit.yml.erb:erb-missing-value-unhandled"
+      ],
+      "note": "the erb-missing-value check enumerates it, so candidate is true. It was listed false before because its result drifted across runs, which is stability, not the candidate list"
+    },
+    {
+      "defect": "README says cluster odyssey, form.yml sets odyssey3",
+      "rule": "QUA-06",
+      "candidate": false,
+      "keys": [
+        "README.md:readme-inconsistency:cluster",
+        "README.md:readme-inconsistency:cluster-name"
+      ],
+      "lines": {
+        "README.md": [
+          115
+        ]
+      },
+      "note": "README.md:115 against form.yml:3. form.yml:hardcoded-cluster (757960, run7) is not a key: it is the QUA-02 portability finding on form.yml:3 and counts under the form.yml site-values item, as the DA's table counts it"
+    },
+    {
+      "defect": "README typos at :125 (notificationl) and :234 (Univesity)",
+      "rule": "QUA-06",
+      "candidate": false,
+      "keys": [],
+      "lines": {
+        "README.md": [
+          125,
+          234
+        ]
+      },
+      "note": "recalled by line only: every run records README.md:readme-typo, most of them for the :136 forml.yml typo, so the key cannot tell the typos apart"
+    },
+    {
+      "defect": "unfilled Troubleshooting placeholder (module load software/1.0) recorded as a finding",
+      "rule": "QUA-05",
+      "candidate": false,
+      "keys": [
+        "README.md:template-placeholder"
+      ],
+      "lines": {
+        "README.md": [
+          165
+        ]
+      },
+      "note": "README.md:160-172"
+    },
+    {
+      "defect": "$WORKDIR unquoted and cd without exit (SC2086, SC2164) recorded as a finding",
+      "rule": "OODT-01",
+      "candidate": false,
+      "keys": [
+        "template/script.sh.erb:unquoted-variable"
+      ],
+      "note": "script.sh.erb:22,25. Off the candidate list for the nine runs; this branch adds sec-tool-finding candidates for SC2086 and SC2164, so a later run that records it is answering a candidate. Not recalled by line: the QUA-03 no-set-e records cite :25 too"
+    },
+    {
+      "defect": "form.yml site values: hard-coded cluster, module version, FASRC partition link",
+      "rule": "QUA-02",
+      "candidate": false,
+      "keys": [
+        "form.yml:hardcoded-cluster",
+        "form.yml:hardcoded-module-version",
+        "form.yml:site-specific-mixin",
+        "form.yml:hardcoded-path"
+      ],
+      "lines": {
+        "form.yml": [
+          26,
+          63
+        ]
+      },
+      "note": "form.yml:3, :26, :63. form.yml:3 is not in lines: the cluster-mismatch records cite it as the README's counterpart (README.md:113 (cf. form.yml:3)), which would count them here too"
+    },
+    {
+      "defect": "README :169 tells the deployer to update the modules attribute (the form uses sas_version)",
+      "rule": "QUA-06",
+      "candidate": false,
+      "keys": [
+        "README.md:wrong-help-text"
+      ],
+      "lines": {
+        "README.md": [
+          169
+        ]
+      },
+      "note": "form.yml:wrong-help-text (the rows runs) is a different defect: the MATLAB help text at form.yml:61"
+    },
+    {
+      "defect": "memory fallback literal 2 at submit.yml.erb:9 disagrees with min: 4 at form.yml:33",
+      "rule": "QUA-08",
+      "candidate": false,
+      "keys": [],
+      "lines": {
+        "submit.yml.erb": [
+          9
+        ]
+      },
+      "note": "Bill's magic-numbers item; no run recorded it (submit.yml.erb:9 appears only after reviewed OK:, which never counts)"
+    },
+    {
+      "defect": "orphaned template/config/ directory referenced at template/script.sh.erb:40",
+      "rule": "QUA-04",
+      "candidate": false,
+      "keys": [],
+      "note": "no run recorded it and no run used a key for it; line 40 is the commented-out XDG_CONFIG_HOME export naming template/config/, inside several runs' broader commented-out-code ranges (e.g. 767148's :33-42), so a hit here may credit that different, coarser defect rather than this one Keys only: its only citable line sits inside commented-out ranges other findings cite, so a lines match would overstate recall."
+    }
+  ]
+}

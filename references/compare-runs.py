@@ -32,12 +32,16 @@ FAIL/WARN/PASS rows of the candidate's check (`check: <id>` in the app's
 section) whose Evidence cites the candidate, by check-rows' citation test
 (repo_paths.parse_citations). A row of another check never counts, so a
 QUA-10 row citing submit.yml.erb:17 does not answer the OODT-01 candidate
-there. A NOT CHECKED row answers nothing. When the run has no report, or the
-report has no `check:` rows, the findings records stand in: records of the
-candidate's rule whose evidence cites it. In both, a `; reviewed OK:`
-segment of the Evidence is PASS for what it cites, and the rest takes the
-row's (record's) result. Several answers give the worst (FAIL > WARN >
-PASS) and, among those, the highest severity.
+there. A sec-tool-finding candidate additionally needs its own row's Summary
+to name the candidate's code as a whole token (check-rows' code-naming
+rule, shared here via check_rows.TOOL_FINDING_CODE_RE): a row that cites the
+same line but names a different tool code does not answer it. A NOT CHECKED
+row answers nothing. When the run has no report, or the report has no
+`check:` rows, the findings records stand in: records of the candidate's
+rule whose evidence (and, for sec-tool-finding, summary) cites/names it. In
+both, a `; reviewed OK:` segment of the Evidence is PASS for what it cites,
+and the rest takes the row's (record's) result. Several answers give the
+worst (FAIL > WARN > PASS) and, among those, the highest severity.
 
 The table prints, per run, F, W or P (with the severity for F and W) or -
 (no answer), then two columns: recorded, the runs that FAIL or WARN the
@@ -69,6 +73,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CHECKS_JSON = os.path.join(SCRIPT_DIR, "checks.json")
 sys.path.insert(0, SCRIPT_DIR)
 from repo_paths import split_reviewed_ok  # noqa: E402
+from report_parse import app_sections, rows_by_check, section_for  # noqa: E402
 
 _spec = importlib.util.spec_from_file_location("check_rows", os.path.join(SCRIPT_DIR, "check-rows.py"))
 check_rows = importlib.util.module_from_spec(_spec)
@@ -160,8 +165,16 @@ def load_candidates(pre_review, apps, checks):
             for lab, cites, rule in check_rows.candidates(check, app, pre_review):
                 key = (app["app_id"], check["id"], lab)
                 if key not in found:
-                    path, _, tail = lab.rpartition(":")
-                    file_, line = (path, int(tail)) if path and tail.isdigit() else (lab, None)
+                    if check["id"] == "sec-tool-finding" and cites:
+                        # The label ends in a code (SC2164, B602, a semgrep
+                        # check_id), not a line, so the trailing-":digit"
+                        # split below would misparse it (the whole label
+                        # would land in file_, line None). Take file/line
+                        # from the first cited site instead.
+                        file_, line = cites[0]
+                    else:
+                        path, _, tail = lab.rpartition(":")
+                        file_, line = (path, int(tail)) if path and tail.isdigit() else (lab, None)
                     found[key] = {"app_id": app["app_id"], "check": check["id"],
                                   "candidate": lab, "file": file_, "line": line,
                                   "rule": rule or check.get("rule"), "cites": cites}
@@ -174,36 +187,54 @@ def norm_severity(cell):
 
 
 def answers_from_report(text, apps):
-    """{(app_id, check_id): [(result, severity, evidence)]} from the report's
-    FAIL/WARN/PASS rows, or None when the report has no `check:` rows."""
+    """{(app_id, check_id): [(result, severity, evidence, summary)]} from the
+    report's FAIL/WARN/PASS rows, or None when the report has no `check:`
+    rows. summary is the row's Summary cell (needed for sec-tool-finding's
+    code-naming rule; harmless for every other check)."""
     if not text:
         return None
-    sections = check_rows.app_sections(text)
+    sections = app_sections(text)
     out, any_rows = {}, False
     for app in apps or []:
-        body = check_rows.section_for(app, sections, single=len(apps) == 1)
+        body = section_for(app, sections, single=len(apps) == 1)
         if body is None:
             continue
-        for cid, rows in check_rows.rows_by_check(body).items():
+        for cid, rows in rows_by_check(body).items():
             any_rows = True
             for r in rows:
                 if r["result"] in RANK:
                     out.setdefault((app["app_id"], cid), []).append(
-                        (r["result"], norm_severity(r["severity"]), r["evidence"]))
+                        (r["result"], norm_severity(r["severity"]), r["evidence"], r.get("summary", "")))
     return out if any_rows else None
 
 
-def cites_candidate(evidence, cand):
-    return any(check_rows.cited(evidence, p, n) for p, n in cand["cites"])
+def tool_finding_code(cand):
+    """The code a sec-tool-finding candidate's label ends with, else None."""
+    if cand.get("check") != "sec-tool-finding":
+        return None
+    return cand["candidate"].rsplit(":", 1)[-1]
+
+
+def cites_candidate(evidence, summary, cand):
+    """Whether evidence (and, for sec-tool-finding, summary) answers cand --
+    the same citation test check-rows.py uses, plus its code-naming rule: a
+    sec-tool-finding candidate is answered only when the row's Summary names
+    the code as a whole token, not merely by citing the same line."""
+    if not any(check_rows.cited(evidence, p, n) for p, n in cand["cites"]):
+        return False
+    code = tool_finding_code(cand)
+    if code is None:
+        return True
+    return check_rows.TOOL_FINDING_CODE_RE(code).search(summary or "") is not None
 
 
 def verdict(answers, cand):
     """(result or None, severity) for the candidate from its answers."""
     best = None
-    for result, severity, evidence in answers:
+    for result, severity, evidence, summary in answers:
         main, ok = split_reviewed_ok(evidence if isinstance(evidence, str) else "")
         for res, sev, text in ((result, severity, main), ("PASS", "", ok)):
-            if not text or not cites_candidate(text, cand):
+            if not text or not cites_candidate(text, summary, cand):
                 continue
             key = (RANK[res], SEVERITIES.index(sev) if sev in SEVERITIES else -1)
             if best is None or key > best[0]:
@@ -215,7 +246,8 @@ def run_verdict(run, cand):
     if run["report_answers"] is not None:
         answers = run["report_answers"].get((cand["app_id"], cand["check"]), [])
     else:
-        answers = [(r.get("result"), norm_severity(r.get("severity")), r.get("evidence"))
+        answers = [(r.get("result"), norm_severity(r.get("severity")), r.get("evidence"),
+                    r.get("summary", ""))
                    for r in run["records"]
                    if r.get("result") in RANK and r.get("rule") == cand["rule"]]
     return verdict(answers, cand)

@@ -13,10 +13,16 @@ a shared rubric.
   - `review-security/` — capability profile, pattern checks, OODT classification
   - `review-quality/` — documentation rating, portability, code quality
   - `review-maintenance/` — commit recency, releases, CI, CHANGELOG
-- `references/` — shared rubrics and setup procedures used by all skills
+- `references/` — shared rubrics and setup procedures used by all skills, the
+  pre-review scanner, and the report checkers (`check-all.py` runs them all)
 - `tests/fixtures/` — deliberately broken app repos for calibration
 - `tests/TESTING.md` — expected findings per fixture, coverage matrix
-- `.github/workflows/` — CI workflow for running reviews via GitHub Actions
+- `tests/corpus/` — committed real review runs; `tests/run-corpus.sh` runs
+  `check-all.py` over them against `tests/corpus/expected/`, with the
+  off-candidate recall table from `tests/recall-set/`
+- `tests/test-*.sh` — unit suites for the scripts and the docs spine
+- `.github/workflows/` — `appverse-review.yaml` runs reviews via GitHub
+  Actions; `tests.yaml` runs the suites and the corpus
 
 ## Testing Artifact Consistency
 

@@ -264,6 +264,90 @@ sed "/check: sec-interpolation.*template\/script.sh.erb:10-14/r $TMP/r12row" "$T
 check "backticked and bare pipes in Summary: exit 0" 0 "$(run "$TMP/r12c.md" "$TMP/findings.json" "$TMP/checks.json" "$O12")"
 check "no UNCITED" 0 "$(grep -c '^UNCITED' "$TMP/out")"
 
+echo "Test 12b: sec-tool-finding candidates -- one per (tool, code, file), answered only by a row citing the site and naming the code"
+cat > "$TMP/checks-tf.json" <<'EOF'
+{"checks": [
+ {"id": "sec-interpolation", "section": "Pattern checks (all app types)", "app_types": ["batch_connect"], "fact_source": "security.json", "rule": "OODT-01", "row_required": "when_candidates", "dimension": "security"},
+ {"id": "sec-tool-finding", "section": "Tier 2 — Tooling", "app_types": ["batch_connect"], "fact_source": "security.json", "rule": null, "tag": null, "row_required": "when_candidates", "dimension": "security"}
+]}
+EOF
+OTF="$TMP/out-tf"; mkdir -p "$OTF/root"
+echo '[{"app_id": "root", "path": ".", "app_type": "batch_connect"}]' > "$OTF/apps.json"
+cat > "$OTF/root/security.json" <<'EOF'
+{"counts": {"tool_finding": 2}, "candidates": [
+ {"kind": "interpolation", "check": "sec-interpolation", "rule": "OODT-01", "tag": "unsanitized-user-input", "file": "template/script.sh.erb", "line": 2, "text": "<%= x %>"},
+ {"kind": "tool_finding", "check": "sec-tool-finding", "rule": null, "tag": null, "tool": "shellcheck", "code": "SC2164", "file": "template/script.sh.erb", "lines": [2], "level": "warning", "text": "cd without exit"},
+ {"kind": "tool_finding", "check": "sec-tool-finding", "rule": null, "tag": null, "tool": "shellcheck", "code": "SC2148", "file": "template/before.sh.erb", "lines": [1], "level": "error", "text": "missing shebang"}
+]}
+EOF
+
+cat > "$TMP/tf-not-answered.md" <<'EOF'
+# Appverse Review: demo
+
+## App: Demo (root)
+
+### Security
+
+#### Findings
+
+| Rule | Check | Result | Severity | Tag | Summary | Evidence |
+|---|---|---|---|---|---|---|
+| OODT-01 | `check: sec-interpolation` | PASS | — | — | quoted | template/script.sh.erb:2 |
+| — | `check: sec-tool-finding` | PASS | — | — | SC2148: missing shebang; ERB artefact | template/before.sh.erb:1 |
+EOF
+check "a sec-interpolation PASS citing the same line does not answer the tool finding" 1 "$(run "$TMP/tf-not-answered.md" "$TMP/findings.json" "$TMP/checks-tf.json" "$OTF")"
+check "UNCITED names the file and code" 1 "$(count "UNCITED root sec-tool-finding template/script.sh.erb:SC2164")"
+
+cat > "$TMP/tf-no-code.md" <<'EOF'
+# Appverse Review: demo
+
+## App: Demo (root)
+
+### Security
+
+#### Findings
+
+| Rule | Check | Result | Severity | Tag | Summary | Evidence |
+|---|---|---|---|---|---|---|
+| OODT-01 | `check: sec-interpolation` | PASS | — | — | quoted | template/script.sh.erb:2 |
+| — | `check: sec-tool-finding` | PASS | — | — | SC2148: missing shebang; ERB artefact | template/before.sh.erb:1 |
+| QUA-03 | `check: sec-tool-finding` | PASS | — | — | cd without exit; before.sh sets -e | template/script.sh.erb:2 |
+EOF
+check "a row citing the line whose Summary omits the code does not answer it" 1 "$(run "$TMP/tf-no-code.md" "$TMP/findings.json" "$TMP/checks-tf.json" "$OTF")"
+check "UNCITED" 1 "$(count "UNCITED root sec-tool-finding template/script.sh.erb:SC2164")"
+
+cat > "$TMP/tf-answered.md" <<'EOF'
+# Appverse Review: demo
+
+## App: Demo (root)
+
+### Security
+
+#### Findings
+
+| Rule | Check | Result | Severity | Tag | Summary | Evidence |
+|---|---|---|---|---|---|---|
+| OODT-01 | `check: sec-interpolation` | PASS | — | — | quoted | template/script.sh.erb:2 |
+| — | `check: sec-tool-finding` | PASS | — | — | SC2148: missing shebang; ERB artefact | template/before.sh.erb:1 |
+| QUA-03 | `check: sec-tool-finding` | PASS | — | — | SC2164: cd without exit; before.sh sets -e | template/script.sh.erb:2 |
+EOF
+check "a row naming the code in its Summary and citing the line answers it: exit 0" 0 "$(run "$TMP/tf-answered.md" "$TMP/findings.json" "$TMP/checks-tf.json" "$OTF")"
+check "no UNCITED" 0 "$(grep -c '^UNCITED' "$TMP/out")"
+
+echo "Test 12c: a sec-tool-finding candidate's label is the per-candidate table key check-rows' candidates() shares with compare-runs.py"
+cat > "$TMP/tf_label.py" <<'PY'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("cr", sys.argv[1])
+cr = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(cr)
+app = {"app_id": "root", "path": ".", "app_type": "batch_connect"}
+check = {"id": "sec-tool-finding", "app_types": ["batch_connect"]}
+print("|".join(lab for lab, _, _ in cr.candidates(check, app, sys.argv[2])))
+PY
+check "candidates() labels a tool_finding by site:code, so compare-runs.py's per-candidate table (which keys rows on check_rows.candidates()'s label) carries one row per (tool, code, file)" \
+  "template/script.sh.erb:SC2164|template/before.sh.erb:SC2148" \
+  "$(python3 "$TMP/tf_label.py" "$SCRIPT_DIR/references/check-rows.py" "$OTF")"
+
 echo "Test 13: missing or unreadable inputs exit 2"
 check "no report" 2 "$(run "$TMP/nope.md" "$TMP/findings.json" "$TMP/checks.json" "$O")"
 check "no findings" 2 "$(run "$TMP/report.md" "$TMP/nope.json" "$TMP/checks.json" "$O")"
@@ -276,8 +360,13 @@ check "no App section" 2 "$(run "$TMP/noapp.md" "$TMP/findings.json" "$TMP/check
 check "wrong arg count" 2 "$(run "$TMP/report.md")"
 
 echo "Test 14: the real manifest loads; a report with every Batch Connect row passes, one fewer fails"
-R="$TMP/out-real"; mkdir -p "$R"
+R="$TMP/out-real"; mkdir -p "$R/root"
 echo '[{"app_id": "root", "path": ".", "app_type": "batch_connect", "readme": "README.md"}]' > "$R/apps.json"
+cat > "$R/root/security.json" <<'EOF'
+{"counts": {"tool_finding": 1}, "candidates": [
+ {"kind": "tool_finding", "check": "sec-tool-finding", "rule": null, "tag": null, "tool": "shellcheck", "code": "SC2164", "file": "template/script.sh.erb", "lines": [2], "level": "warning", "text": "cd without exit"}
+]}
+EOF
 python3 - "$SCRIPT_DIR/references/checks.json" > "$TMP/real.md" <<'PY'
 import json, sys
 checks = json.load(open(sys.argv[1]))["checks"]
@@ -285,10 +374,15 @@ print("## App: Real (root)\n\n| Check | Result | Evidence |\n|---|---|---|")
 for c in checks:
     if "batch_connect" in c["app_types"] and c["row_required"] == "always":
         print("| `check: %s` | PASS | none |" % c["id"])
+print("\n| Rule | Check | Result | Severity | Tag | Summary | Evidence |\n|---|---|---|---|---|---|---|")
+print("| QUA-03 | `check: sec-tool-finding` | PASS | — | — | SC2164: cd without exit; before.sh sets -e | template/script.sh.erb:2 |")
 PY
-check "exit 0" 0 "$(run "$TMP/real.md" "$TMP/findings.json" "$SCRIPT_DIR/references/checks.json" "$R")"
+check "exit 0 (the real manifest's sec-tool-finding row answers a real candidate)" 0 "$(run "$TMP/real.md" "$TMP/findings.json" "$SCRIPT_DIR/references/checks.json" "$R")"
 grep -vF 'check: dead-code' "$TMP/real.md" > "$TMP/real2.md"
 check "exit 1" 1 "$(run "$TMP/real2.md" "$TMP/findings.json" "$SCRIPT_DIR/references/checks.json" "$R")"
 check "message" 1 "$(count "MISSING root dead-code")"
+grep -vF 'check: sec-tool-finding' "$TMP/real.md" > "$TMP/real3.md"
+check "dropping the sec-tool-finding row is UNCITED, not silently accepted" 1 "$(run "$TMP/real3.md" "$TMP/findings.json" "$SCRIPT_DIR/references/checks.json" "$R")"
+check "message" 1 "$(count "MISSING root sec-tool-finding")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

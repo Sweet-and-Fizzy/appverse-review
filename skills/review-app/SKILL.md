@@ -101,6 +101,11 @@ string; if unavailable, write `unknown`.
 | Contributors | ... | ... |
 | CHANGELOG | ... | ... |
 | CI | ... | ... |
+<!-- A signal a source was tried for and failed to provide (e.g. `gh`
+     missing/unauthenticated) is NOT CHECKED, reason "unavailable". A signal
+     the maintenance skill deliberately does not compute is "Not assessed",
+     reason "not read by design" — never "unavailable" for a source that was
+     never tried. -->
 
 | Dimension | Level | Evidence |
 |---|---|---|
@@ -124,7 +129,7 @@ string; if unavailable, write `unknown`.
 
 <!-- DERIVE the level from the aspect ratings, do not invent it:
      Portability: Portable = Low; Partially portable = Medium; Not portable = High.
-     Documentation: Strong/Exemplary = Low; Adequate = Medium; Minimal = High.
+     Documentation: Strong/Exemplary = Low; Adequate = Medium; Minimal or Below minimal = High.
      Low = good/low-concern; High = most to read. Never invert; never style High as a hazard.
      Monorepo: one Signals block PER app. No repo-level signal aggregate.
      There is no Security signal: security is the findings table below, never a level.
@@ -161,7 +166,7 @@ string; if unavailable, write `unknown`.
 
 ### Security
 
-Findings are classified under OODT (Open OnDemand App Threats); codes are defined in the rubric's Security section.
+Findings are classified under OODT (Open OnDemand App Threats); codes are defined in the rubric's Security section at https://openondemand.connectci.org/appverse-review-rubric#security.
 
 <!-- Paste <pre-review>/tool-table.md here verbatim: the Check tiers line, the tier 3 line, and the Tool / Status / Result table. Never retype it. If the file is absent, write "**Check tiers:** Tier 1 only" and the table with all four rows (shellcheck, semgrep, bandit, trivy) as "Not run (pre-review facts not found)" with Result "—". -->
 
@@ -170,9 +175,15 @@ Findings are classified under OODT (Open OnDemand App Threats); codes are define
 <!-- One row per candidate in <pre-review>/<app_id>/security.json, grouped
      by check in manifest order (sec-interpolation, sec-eval-exec,
      sec-credential-string, sec-permissive-mode, sec-network-call,
-     sec-file-write-outside-job, sec-config-flag, sec-binary-in-template),
-     each citing its candidate's path:N. A check with no candidates has no
-     row. Tag is the intent tag on a FAIL/WARN row and "—" on a PASS row.
+     sec-file-write-outside-job, sec-config-flag, sec-binary-in-template,
+     sec-tool-finding), each citing its candidate's path:N. A check with no
+     candidates has no row. Tag is the intent tag on a FAIL/WARN row and "—"
+     on a PASS row. A sec-tool-finding row's Summary starts with its code;
+     it records under the rule security-tools.md's code table gives (OODT,
+     or QUA-xx/STR-xx for a hygiene code, kept in this table), its Rule
+     cell is "—" on a PASS row, and candidates marked artifact true share
+     one PASS row that says they are artefacts of linting OOD's job-script
+     files one at a time.
      When security.json is absent, write "Candidate enumeration not run:
      <reason>." in place of the rows. When it lists no candidates and the
      open-ended pass found nothing, write the single line "security.json
@@ -191,7 +202,7 @@ Findings are classified under OODT (Open OnDemand App Threats); codes are define
 |---|---|---|---|---|---|
 | OODT-XX | FAIL/WARN | critical/high/medium/low | unintentional / potentially malicious | <description>; not listed by security.json | path:N |
 
-<!-- When no row in either table is FAIL or WARN, write exactly "No tool-detectable issues in the checked tiers." here; the Check tiers lines above stay as they are. Never write "safe". There is no security rating. -->
+<!-- When no row in either table is FAIL or WARN, whatever its Rule cell, write exactly "No tool-detectable issues in the checked tiers." here; the Check tiers lines above stay as they are. Never write "safe". There is no security rating. -->
 
 <capability profile, a summary of the rows above: table for Batch Connect, narrative for Passenger>
 
@@ -204,7 +215,7 @@ Findings are classified under OODT (Open OnDemand App Threats); codes are define
 | QUA-02 | `check: portability-rating` | PASS/FAIL | ... | <rating; PASS at Partially portable or above; a FAIL cites the hardcoded-* records and adds no record> | ... |
 
 ### Documentation
-- Rating: <Minimal | Adequate | Strong | Exemplary> — <one-line justification>
+- Rating: <Below minimal | Minimal | Adequate | Strong | Exemplary> — <one-line justification>
 - Evidence per rung (from readme.json rungs; a placeholder heading counts as none):
   what it launches: <"Heading", README.md:N, or none>; prerequisites: <…>; installation: <…>;
   configuration: <…>; known limitations: <…>;
@@ -214,11 +225,16 @@ Findings are classified under OODT (Open OnDemand App Threats); codes are define
      or none when the rung is null. placeholder true forces
      "none (placeholder)". Screenshots and environment variables cite a
      screenshots image line or an env_vars assignment/phrase line; a rung
-     whose only evidence is its heading says "heading only". A line may say
-     none with a reason where the section does not deliver its rung; it may
-     never cite a section readme.json does not list. The rating is the
-     highest rung with every requirement satisfied above. Never claim a rung
-     whose evidence line says none. -->
+     whose only evidence is its heading says "heading only". A rung with no
+     readme.json heading may cite the one README line that delivers it as
+     content: README.md:N (a text line, which check-evidence.py verifies).
+     A line may say none with a reason where the section does not deliver
+     its rung; it may never claim a rung without a citation. The rating is
+     the highest rung with every requirement satisfied above; with none for
+     Minimal it is Below minimal. Never claim a rung whose evidence line
+     says none. Only when readme.json stub is true does the rating line
+     read "Minimal — not supported (stub README; see QUA-01)". In
+     meta.json assessments, Below minimal and a stub are "minimal". -->
 
 | Rule | Check | Result | Severity | Summary | Evidence |
 |---|---|---|---|---|---|
@@ -245,7 +261,7 @@ Findings are classified under OODT (Open OnDemand App Threats); codes are define
 | QUA-08 | `check: magic-numbers` | ... | ... | Magic numbers / undocumented literals | ... |
 | QUA-09 | `check: duplicated-blocks` | ... | ... | Duplicated code blocks | ... |
 | QUA-04 | `check: dead-code` | ... | ... | Commented-out dead code | ... |
-| QUA-10 | `check: erb-missing-value` | ... | ... | ERB handles missing/empty values | ... |
+| QUA-10 | `check: erb-missing-value` | ... | ... | ERB handles missing/nil values | ... |
 | QUA-06 | `check: icon-matches-target-os` | ... | ... | Desktop/panel icon matches target OS | ... |
 | QUA-05/QUA-06 | | FAIL/WARN | ... | <correctness & polish finding> | path:N |
 
@@ -266,10 +282,12 @@ not found" if absent>
 
 ## Catalog checks
 <!-- Query the public JSON:API — see the Reviewer Process's "Reading the catalog
-     without a login". These need no reviewer account; record what each
-     returned. List an item as not checked only if its query actually failed,
-     and say so. -->
-- Duplicate check against the existing catalog — <result>
+     without a login". These need no reviewer account; perform the reads when
+     the catalog is reachable and record what each returned. List an item as
+     not checked only if its query actually failed, and say so. -->
+- Duplicate check against the existing catalog — <result>. State the pages
+  read of the app list (e.g. "pages 1–N of the app list"); if only page 1 was
+  read, say so rather than implying full coverage.
   - **Duplicate-check rationale:** _<reviewer fills in — the outcome and why,
     per the Reviewer Process's Duplicate check; edit before pasting into the issue or
     email>_
@@ -303,7 +321,7 @@ Apply the decision rubric below (from the rubric's "Decision rubric" section):
 
 | Outcome | Criteria |
 |---------|----------|
-| **Accept** | Passes all gate criteria, adequate+ documentation, partially portable+ config. Always conditional on the duplicate/catalog checks the review cannot perform — word any Accept as pending those. |
+| **Accept** | Passes all gate criteria, adequate+ documentation, partially portable+ config. Always conditional on the duplicate check, which the review performs the catalog reads for but leaves the decision itself to the reviewer — word any Accept as pending that. |
 | **Accept with suggestions** | Passes gate criteria but has clear improvement areas. A below-target Documentation or Portability rating belongs here, not Request changes, when gate criteria are otherwise met. |
 | **Request changes** | Missing a required (gate) criterion but fixable. A fixable security misconfiguration, even High severity (e.g. CORS open to all origins), is Request changes, not Reject. |
 | **Reject** | Duplicate app, no license, abandoned/unmaintained, not an OOD app, or a security finding tagged potentially malicious or unfixable without redesigning the app. |
@@ -342,12 +360,33 @@ checksum of what you wrote, not a list to satisfy:
     <!-- feedback-covers: submit.yml.erb:unsanitized-input, template/script.sh.erb:no-error-handling -->
 
 `check-feedback-floor.py` (wrap-up, and CI) fails the review when a fix-item's
-key is absent from that line, its file is not named in the prose, or the
-paragraph that names the file gives neither a line number from the finding's
-evidence nor a word from its defect key. Write the defect in plain words for
-the contributor; the check is looking for the file and either the line or
-what is wrong, not jargon. (This complements the Derived-only rule: feedback
-⊆ findings, and fix-items ⊆ feedback.)
+key is absent from that line, its file is not named in the prose, or its
+defect is not described where the file is named. The description must sit
+in the sentence window that runs from the sentence naming the file up to
+the first later sentence naming a different file, as a line number from the
+finding's evidence, a word of its defect key other than the file's own
+name, or a value quoted from its evidence. A repo-wide item with no file is
+named by its subject word (release, commit, issue, CI) and still needs such
+a description in that window, unless its tag has nothing beyond the subject
+(`no-releases`, `no-ci`, `no-changelog`). Write the defect in plain words
+for the contributor; the check is looking for the file and either the line
+or what is wrong, not jargon. (This complements the Derived-only rule:
+feedback ⊆ findings, and fix-items ⊆ feedback.)
+
+**Required vs. recommended vs. suggested.** A fix-item is Required when it
+blocks listing or triggers Request changes: a gate criterion, or any OODT
+FAIL. It is Recommended when it is a target miss in any dimension —
+Documentation rated below Adequate, Portability rated Not portable, or a
+`code_quality` check whose manifest `weight` is `target`
+(`references/checks.yml`) recorded FAIL — needed to reach the target rating
+but not to block listing. It is Suggested when it is a `weight: suggestion`
+check, a maintenance signal MNT-02 to MNT-06, or polish (any other
+FAIL/WARN). Word the feedback accordingly rather than flattening every
+fix-item into the same register.
+
+**Never advise removing a real caveat.** Never advise removing a comment or
+help text that states a real constraint (a partition that requires a GPU, a
+limit); advise rewording it.
 
 - **Reviewer mode:** append a draft contributor feedback message using the
   Reviewer Process's Step 4 feedback guidance (specific, references files, links the README
@@ -438,40 +477,47 @@ externally by the API provider.
         && mv review-<owner>-<repo>.findings.json.tmp \
               review-<owner>-<repo>.findings.json
 
-- Then check the feedback floor and fix the feedback until it passes:
+- Then check the report and findings against every checker in one pass, and
+  fix the findings or the report until it passes:
 
-      python3 "${CLAUDE_PLUGIN_ROOT}/references/check-feedback-floor.py" \
-        review-<owner>-<repo>.findings.json review-<owner>-<repo>.md
-
-- Then validate finding keys and ratings, and fix the findings or the report
-  until both pass:
-
-      python3 "${CLAUDE_PLUGIN_ROOT}/references/check-keys.py" \
-        review-<owner>-<repo>.findings.json --target "$TMP/repo"
-      python3 "${CLAUDE_PLUGIN_ROOT}/references/check-rating.py" \
-        review-<owner>-<repo>.md review-<owner>-<repo>.findings.json
-
-  (`check-rating.py` checks Documentation only: the rating against its
-  evidence lines and the Documentation signal against the rating.
-  Reviewer mode's `$TMP/repo` is the clone from setup. When the repo was
-  already checked out for you (CI: `$GITHUB_WORKSPACE/target-repo`), pass that
-  path instead. In submitter mode use `.`.)
-
-- Then check rows and evidence, and fix the report or the findings until both
-  pass:
-
-      python3 "${CLAUDE_PLUGIN_ROOT}/references/check-rows.py" \
+      python3 "${CLAUDE_PLUGIN_ROOT}/references/check-all.py" \
         review-<owner>-<repo>.md review-<owner>-<repo>.findings.json \
-        "${CLAUDE_PLUGIN_ROOT}/references/checks.json" <pre-review-dir>
-      python3 "${CLAUDE_PLUGIN_ROOT}/references/check-evidence.py" \
-        review-<owner>-<repo>.findings.json --target "$TMP/repo"
+        "${CLAUDE_PLUGIN_ROOT}/references/checks.json" <pre-review-dir> \
+        --target "$TMP/repo"
 
-  (`check-rows.py` checks that every manifest check applicable to an app has
-  a row and that every pre-review candidate is cited; `check-evidence.py`
-  checks that every finding's `file:line` citation names a real file and
-  line. `<pre-review-dir>` is `$TMP/pre-review` in reviewer mode, the
+  (`check-all.py` runs, in order:
+  `check-feedback-floor.py`: every FAIL/WARN fix-item of Low or above has
+  its key in the `feedback-covers` line, its file (or, for a repo-wide
+  item, its subject word) named in the Draft Feedback, and its defect
+  described in the sentence window there (a line number, a word of its
+  defect key other than the file's own name, or a value quoted from its
+  evidence).
+  `check-keys.py`: every defect_key is a valid, stable `{anchor}:{tag}`
+  with a real or pseudo anchor and a vocabulary tag, and a FAIL/WARN
+  record's evidence cites its own anchor file when it cites any file.
+  `check-rating.py`: Documentation's rating is no higher than its evidence
+  lines support, its signal follows the rating, no `content:` line is
+  cited for two rungs, the stub line and Below minimal follow
+  `readme.json`'s `stub`; no suggestion-class check (any tag in its
+  checks.json `tags`) or MNT-02 to MNT-06 signal is FAIL; and
+  "No tool-detectable issues in the checked tiers." never sits under a
+  FAIL or WARN Security row of any rule code.
+  `check-rows.py`: every manifest check applicable to an app has a row, and
+  every pre-review candidate is cited.
+  `check-evidence.py`: every `file:line` citation names a real file and
+  line, every `content:` citation names a README content line, and a
+  literal value the summary asserts is on the cited line is there (within
+  two lines of a check-rows candidate line); a value that is not is a
+  `NOTE` line, which does not fail the run.
+  Its output groups each checker's problem lines under a `[floor]`/`[keys]`/
+  `[rating]`/`[rows]`/`[evidence]` prefix, followed by that checker's
+  summary line. It exits 1 if any checker failed, including a report
+  missing a section a checker needs (`MISSING section: ...`), and 2 if any
+  could not run, including a checker that crashed (`crashed: ...`).
+  `<pre-review-dir>` is `$TMP/pre-review` in reviewer mode, the
   run-supplied pre-review directory in CI, or `$PRE` in submitter mode.
-  `check-evidence.py`'s `--target` follows the same rule as `check-keys.py`
-  above.)
+  `--target` is `$TMP/repo` in reviewer mode (the clone from setup), the
+  already-checked-out repo in CI (`$GITHUB_WORKSPACE/target-repo`), or `.`
+  in submitter mode.)
 
 - Reviewer mode: remove the temp clone (`rm -rf "$TMP"`).

@@ -20,8 +20,17 @@ record is NOT CHECKED with the note "pre-review facts not found".
 - Repository is public and accessible: the clone in setup succeeded. If it did
   not, this is the failed gate to report (see target-setup.md) and no other
   check can run.
-- `README.md` exists and is substantive: not the unfilled template (placeholder
-  text like "Key feature 1"), not just a title and contact line.
+- `README.md` exists and is substantive. Substantive is a fact, not your
+  judgment: it is `stub` false in the pre-review `readme.json` whose `file`
+  is the root `README.md` (`<pre-review>/root/readme.json` for a single-app
+  repo). `stub` is true for fewer than 100 characters of content (the
+  summed length of its content lines, so hard-wrapping does not change it;
+  a title and a contact line have none) or when every section body is
+  template placeholder text and there is no real text above the first
+  heading.
+  Record STR-01 `readme-not-substantive` FAIL when `stub` is true and PASS
+  when it is false; with no such `readme.json`, NOT CHECKED with the
+  reason.
 - `LICENSE` exists and contains an open-source license.
 - Repo shape identifiable: `appverse.yml` or `manifest.yml` at root.
 - Repo is not archived on GitHub.

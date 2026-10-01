@@ -1,0 +1,43 @@
+{
+  "repo_url": "https://github.com/fasrc/ood-sas",
+  "sha": "462790a1fdd1616038ea3536454a4e508c668471",
+  "ref": "main",
+  "repo_shape": "inferred_single",
+  "not_archived": "pass",
+  "public": "pass",
+  "model": "claude-sonnet-4-6",
+  "recommendation": {
+    "decision": "Accept with suggestions",
+    "note": "Accept with suggestions (pending the duplicate-check confirmation noted above). All gate criteria pass: README.md is substantive, an MIT license is present, manifest.yml provides the four required fields, the standard Batch Connect layout is intact, and YAML/shell syntax is clean. Documentation is Adequate and portability is Partially portable, both meeting the target for inclusion. The most important items to address before or after listing are: (1) adding `set -e` to `template/script.sh.erb` so errors in module loading and window-manager startup do not silently continue; (2) adding `max` bounds to the `custom_memory_per_node` and `custom_num_cores` number fields in `form.yml`; (3) replacing the CHANGELOG.md content, which currently describes the OSC MATLAB app; (4) correcting the `sas_version` help text, which says \"Loading the Matlab module\"; and (5) documenting the `/scratch/` path in the README configuration table. The Fedora panel icon, duplicate YAML keys, dead commented-out Singularity code, and the `forml.yml` README typo are minor polish items. No CI is present, and no tagged releases have been cut; both are good-practice suggestions."
+  },
+  "apps": [
+    {
+      "app_id": "root",
+      "name": "SAS",
+      "decision": "Accept with suggestions",
+      "assessments": {
+        "documentation": "adequate",
+        "documentation_summary": "What it launches, prerequisites, installation, configuration, and known limitations present; troubleshooting has placeholder text; no env-var docs",
+        "portability": "partially_portable",
+        "portability_summary": "/scratch/ path hardcoded without documentation; cluster name and module version documented in README config table"
+      },
+      "reported_signals": {
+        "portability": "Medium",
+        "documentation": "Medium"
+      }
+    }
+  ],
+  "maintenance_assessment": {
+    "active_within_12mo": true,
+    "waiver_brand_new": false,
+    "signals": {
+      "releases": false,
+      "changelog": false,
+      "ci": false,
+      "multiple_contributors": true,
+      "issues_responded": null
+    },
+    "summary": "Active within 12 months (last commit 2026-07-08); 4 contributors; no releases, no CI, CHANGELOG is wrong-app content",
+    "reported_signal": "Medium"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "schema": "appverse-review/1",
+  "repo": "https://github.com/UWrc/tillicum-llama-chat",
+  "reviewed_commit": "f7c8d35004b824812d7c552c6dc17d9b7fd98653",
+  "reviewed_commit_date": "2026-09-09",
+  "review_date": "2026-09-30",
+  "plugin_version": "0.8.0",
+  "plugin_commit": "0987de4",
+  "model": "claude-sonnet-4-6",
+  "mode": "reviewer",
+  "repo_shape": "inferred",
+  "decision": "Reject",
+  "apps": [
+    {
+      "app_id": "root",
+      "path": ".",
+      "app_type": "batch_connect",
+      "name": "Llama.cpp WebUI",
+      "assessments": {
+        "portability": "partially_portable",
+        "documentation": "adequate",
+        "maintenance": "medium"
+      }
+    }
+  ]
+}

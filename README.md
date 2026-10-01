@@ -137,10 +137,19 @@ references/
   target-setup.md        Shared setup procedure (mode detection, schema load)
   appverse.yml           Cached schema reference (offline fallback)
   run-pre-review.sh / pre-review.py   Tools and syntax check before the model (summary.json, syntax.json, tool JSON)
+  checks.yml / checks.json            Check manifest (checks.json is generated from checks.yml)
+  check-all.py           Runs every report checker in one pass (floor, keys, rating, rows, evidence)
+  check-*.py             The report checkers check-all.py runs
 tests/
   fixtures/              6 deliberately broken app repos for calibration
   TESTING.md             Expected findings per fixture, coverage matrix
-.github/workflows/       CI workflow for running reviews via GitHub Actions
+  corpus/                Committed real review runs and their expected check-all output
+  run-corpus.sh          Runs check-all.py over tests/corpus and diffs against corpus/expected/
+  recall-set/            Known defects per corpus target, for the off-candidate recall table
+  test-*.sh              Unit suites for the scripts and the docs spine
+.github/workflows/
+  appverse-review.yaml   CI workflow for running reviews via GitHub Actions
+  tests.yaml             Runs the test suites and the corpus regression
 ```
 
 ## Test fixtures

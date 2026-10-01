@@ -1,0 +1,26 @@
+[
+  {
+    "path": "template/after.sh",
+    "stripped": false,
+    "ok": true,
+    "stderr": ""
+  },
+  {
+    "path": "template/before.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": ""
+  },
+  {
+    "path": "template/create_nginx_conf.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": ""
+  },
+  {
+    "path": "template/script.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": ""
+  }
+]

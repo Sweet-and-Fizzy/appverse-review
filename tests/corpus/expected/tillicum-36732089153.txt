@@ -1,0 +1,26 @@
+# recall-floor: 2/6 (off-candidate hits/items against tests/recall-set; the run's findings are fixed, so
+# this pins the recall matching, not the model)
+# expected: the [rating] stub MISMATCH is the false stub gate this branch fixes (readme.json now says stub: false); the report predates the fix.
+# note: [evidence] NOTE lines are the cited-value rule in informational mode (precision under 80% on this corpus); they never change the exit code.
+# expected: the [rows] MISSING sec-tool-finding line is the tool-finding check added after this report was produced.
+[floor] feedback floor: 16/16 fix-items covered
+[keys] finding keys: 39/39 valid
+[rating] MISMATCH root documentation: stub rating but readme.json says the README is not a stub
+[rating] MISMATCH root security: "No tool-detectable issues in the checked tiers." with 4 FAIL/WARN rows above it
+[rating] ratings: 2 mismatches
+[rows] MISSING root sec-tool-finding
+[rows]   candidate template/after.sh:SC2148
+[rows]   candidate template/after.sh:SC2154
+[rows]   candidate template/after.sh:SC2086
+[rows]   candidate template/before.sh.erb:SC2148
+[rows]   candidate template/proxy.py:B104
+[rows]   candidate template/proxy.py:B110
+[rows]   candidate template/script.sh.erb:SC2054
+[rows]   candidate template/script.sh.erb:SC2140
+[rows]   candidate template/script.sh.erb:SC2154
+[rows]   candidate template/script.sh.erb:SC2329
+[rows] check-rows: 1 app, 19 required rows, 1 problem
+[evidence] NOTE report:numeric-field-bounds numeric-field-bounds form.yml:19 (`--time=0:00` is not on form.yml:19)
+[evidence] NOTE report:erb-missing-value erb-missing-value submit.yml.erb:12 (`--time=0:00` is not on submit.yml.erb:12)
+[evidence] evidence: 39/39 valid; report rows: 58/58 valid
+exit: 1

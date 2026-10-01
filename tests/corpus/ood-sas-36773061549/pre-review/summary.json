@@ -1,0 +1,161 @@
+{
+  "schema": "pre-review/1",
+  "target": "/home/runner/work/appverse-review/appverse-review/target-repo",
+  "generated_at": "2026-09-30T20:30:34Z",
+  "checks": [
+    {
+      "name": "syntax",
+      "status": "ran",
+      "version": "GNU bash, version 5.2.21(1)-release (x86_64-pc-linux-gnu)",
+      "command": "bash -n <file> (per shell file; .sh.erb checked as its ERB-stripped copy)",
+      "exit_code": 0,
+      "output_file": "syntax.json",
+      "files_examined": 2,
+      "note": "",
+      "finding_count": null,
+      "top_codes": []
+    },
+    {
+      "name": "shellcheck",
+      "status": "ran",
+      "version": "version: 0.9.0",
+      "command": "shellcheck --norc -f json -S info <file> (per shell file; .sh.erb scanned as its ERB-stripped copy)",
+      "exit_code": 1,
+      "output_file": "shellcheck.json",
+      "files_examined": 2,
+      "note": "2 .sh.erb file(s) scanned ERB-stripped",
+      "finding_count": 5,
+      "top_codes": [
+        "SC2086",
+        "SC2148",
+        "SC2164"
+      ],
+      "artifact_count": 1
+    },
+    {
+      "name": "semgrep",
+      "status": "ran",
+      "version": "1.178.0",
+      "command": "semgrep --config=p/security-audit --config=p/secrets --metrics=off --exclude vendor --exclude node_modules --json .",
+      "exit_code": 0,
+      "output_file": "semgrep.json",
+      "files_examined": 12,
+      "note": "files_examined is semgrep's paths.scanned; rulesets p/security-audit, p/secrets",
+      "finding_count": 0,
+      "top_codes": []
+    },
+    {
+      "name": "bandit",
+      "status": "skipped",
+      "version": "bandit 1.9.4",
+      "command": "bandit -r . -f json",
+      "exit_code": null,
+      "output_file": null,
+      "files_examined": 0,
+      "note": "no applicable files",
+      "finding_count": null,
+      "top_codes": []
+    },
+    {
+      "name": "trivy",
+      "status": "skipped",
+      "version": "",
+      "command": "trivy fs --format json --scanners vuln,misconfig,secret --skip-dirs vendor --skip-dirs node_modules --config /home/runner/work/appverse-review/appverse-review/pre-review/trivy-empty.yaml --ignorefile /home/runner/work/appverse-review/appverse-review/pre-review/trivy-empty.ignore /home/runner/work/appverse-review/appverse-review/target-repo",
+      "exit_code": null,
+      "output_file": null,
+      "files_examined": 0,
+      "note": "no applicable files",
+      "finding_count": null,
+      "top_codes": []
+    },
+    {
+      "name": "catalog",
+      "status": "skipped",
+      "version": "",
+      "command": "",
+      "exit_code": null,
+      "output_file": null,
+      "files_examined": 0,
+      "note": "catalog reads land in a later PR",
+      "finding_count": null,
+      "top_codes": []
+    }
+  ],
+  "facts": [
+    {
+      "name": "readme",
+      "status": "ran",
+      "version": "",
+      "command": "README headings, placeholder lines (references/readme-placeholders.txt), screenshots, env vars, rungs",
+      "exit_code": null,
+      "output_file": "<app_id>/readme.json",
+      "files_examined": 1,
+      "note": "",
+      "finding_count": null,
+      "top_codes": [],
+      "per_app": {
+        "root": "ran"
+      }
+    },
+    {
+      "name": "form",
+      "status": "ran",
+      "version": "",
+      "command": "form.yml / form.yml.erb (ERB stripped) attributes, cross-referenced with submit.yml.erb",
+      "exit_code": null,
+      "output_file": "<app_id>/form.json",
+      "files_examined": 1,
+      "note": "YAML parser: PyYAML",
+      "finding_count": null,
+      "top_codes": [],
+      "per_app": {
+        "root": "ran"
+      }
+    },
+    {
+      "name": "template",
+      "status": "ran",
+      "version": "",
+      "command": "template/ scan: icons, site paths, numeric literals, commented-out code (bash -n)",
+      "exit_code": null,
+      "output_file": "<app_id>/template.json",
+      "files_examined": 5,
+      "note": "",
+      "finding_count": null,
+      "top_codes": [],
+      "per_app": {
+        "root": "ran"
+      }
+    },
+    {
+      "name": "entry_point",
+      "status": "not_applicable",
+      "version": "",
+      "command": "Passenger entry point: compile() / ruby -c / node --check, dependency manifest",
+      "exit_code": null,
+      "output_file": "<app_id>/entry_point.json",
+      "files_examined": 0,
+      "note": "",
+      "finding_count": null,
+      "top_codes": [],
+      "per_app": {
+        "root": "not_applicable"
+      }
+    },
+    {
+      "name": "security",
+      "status": "ran",
+      "version": "",
+      "command": "candidate sites per kind (references/security-tools.md, Candidate enumeration)",
+      "exit_code": null,
+      "output_file": "<app_id>/security.json",
+      "files_examined": 7,
+      "note": "root: interpolation 10, eval_exec 1, config_flag 3, tool_finding 3",
+      "finding_count": null,
+      "top_codes": [],
+      "per_app": {
+        "root": "ran"
+      }
+    }
+  ]
+}

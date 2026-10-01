@@ -1,0 +1,188 @@
+[
+  {
+    "file": "template/after.sh",
+    "line": 1,
+    "endLine": 1,
+    "column": 1,
+    "endColumn": 1,
+    "level": "error",
+    "code": 2148,
+    "message": "Tips depend on target shell and yours is unknown. Add a shebang or a 'shell' directive.",
+    "fix": null
+  },
+  {
+    "file": "template/after.sh",
+    "line": 4,
+    "endLine": 4,
+    "column": 55,
+    "endColumn": 62,
+    "level": "warning",
+    "code": 2154,
+    "message": "port is referenced but not assigned.",
+    "fix": null
+  },
+  {
+    "file": "template/after.sh",
+    "line": 35,
+    "endLine": 35,
+    "column": 14,
+    "endColumn": 27,
+    "level": "info",
+    "code": 2086,
+    "message": "Double quote to prevent globbing and word splitting.",
+    "fix": {
+      "replacements": [
+        {
+          "column": 14,
+          "endColumn": 14,
+          "endLine": 35,
+          "insertionPoint": "afterEnd",
+          "line": 35,
+          "precedence": 10,
+          "replacement": "\""
+        },
+        {
+          "column": 27,
+          "endColumn": 27,
+          "endLine": 35,
+          "insertionPoint": "beforeStart",
+          "line": 35,
+          "precedence": 10,
+          "replacement": "\""
+        }
+      ]
+    }
+  },
+  {
+    "file": "template/before.sh.erb",
+    "line": 1,
+    "endLine": 1,
+    "column": 1,
+    "endColumn": 1,
+    "level": "error",
+    "code": 2148,
+    "message": "Tips depend on target shell and yours is unknown. Add a shebang or a 'shell' directive.",
+    "fix": null
+  },
+  {
+    "file": "template/script.sh.erb",
+    "line": 112,
+    "endLine": 112,
+    "column": 12,
+    "endColumn": 63,
+    "level": "warning",
+    "code": 2054,
+    "message": "Use spaces, not commas, to separate array elements.",
+    "fix": null
+  },
+  {
+    "file": "template/script.sh.erb",
+    "line": 115,
+    "endLine": 115,
+    "column": 16,
+    "endColumn": 100,
+    "level": "warning",
+    "code": 2054,
+    "message": "Use spaces, not commas, to separate array elements.",
+    "fix": null
+  },
+  {
+    "file": "template/script.sh.erb",
+    "line": 117,
+    "endLine": 117,
+    "column": 20,
+    "endColumn": 116,
+    "level": "warning",
+    "code": 2054,
+    "message": "Use spaces, not commas, to separate array elements.",
+    "fix": null
+  },
+  {
+    "file": "template/script.sh.erb",
+    "line": 122,
+    "endLine": 122,
+    "column": 16,
+    "endColumn": 100,
+    "level": "warning",
+    "code": 2054,
+    "message": "Use spaces, not commas, to separate array elements.",
+    "fix": null
+  },
+  {
+    "file": "template/script.sh.erb",
+    "line": 124,
+    "endLine": 124,
+    "column": 20,
+    "endColumn": 116,
+    "level": "warning",
+    "code": 2054,
+    "message": "Use spaces, not commas, to separate array elements.",
+    "fix": null
+  },
+  {
+    "file": "template/script.sh.erb",
+    "line": 128,
+    "endLine": 128,
+    "column": 20,
+    "endColumn": 80,
+    "level": "warning",
+    "code": 2054,
+    "message": "Use spaces, not commas, to separate array elements.",
+    "fix": null
+  },
+  {
+    "file": "template/script.sh.erb",
+    "line": 128,
+    "endLine": 128,
+    "column": 61,
+    "endColumn": 66,
+    "level": "warning",
+    "code": 2140,
+    "message": "Word is of the form \"A\"B\"C\" (B indicated). Did you mean \"ABC\" or \"A\\\"B\\\"C\"?",
+    "fix": null
+  },
+  {
+    "file": "template/script.sh.erb",
+    "line": 136,
+    "endLine": 136,
+    "column": 24,
+    "endColumn": 66,
+    "level": "warning",
+    "code": 2054,
+    "message": "Use spaces, not commas, to separate array elements.",
+    "fix": null
+  },
+  {
+    "file": "template/script.sh.erb",
+    "line": 138,
+    "endLine": 138,
+    "column": 24,
+    "endColumn": 69,
+    "level": "warning",
+    "code": 2054,
+    "message": "Use spaces, not commas, to separate array elements.",
+    "fix": null
+  },
+  {
+    "file": "template/script.sh.erb",
+    "line": 152,
+    "endLine": 152,
+    "column": 23,
+    "endColumn": 28,
+    "level": "warning",
+    "code": 2154,
+    "message": "port is referenced but not assigned.",
+    "fix": null
+  },
+  {
+    "file": "template/script.sh.erb",
+    "line": 207,
+    "endLine": 216,
+    "column": 1,
+    "endColumn": 2,
+    "level": "info",
+    "code": 2329,
+    "message": "This function is never invoked. Check usage (or ignored if invoked indirectly).",
+    "fix": null
+  }
+]

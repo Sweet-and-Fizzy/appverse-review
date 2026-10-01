@@ -1,0 +1,143 @@
+[
+  {
+    "file": "template/after.sh",
+    "line": 3,
+    "endLine": 3,
+    "column": 34,
+    "endColumn": 45,
+    "level": "warning",
+    "code": 2154,
+    "message": "app_port is referenced but not assigned.",
+    "fix": null
+  },
+  {
+    "file": "template/after.sh",
+    "line": 4,
+    "endLine": 4,
+    "column": 23,
+    "endColumn": 30,
+    "level": "warning",
+    "code": 2154,
+    "message": "port is referenced but not assigned.",
+    "fix": null
+  },
+  {
+    "file": "template/before.sh.erb",
+    "line": 2,
+    "endLine": 2,
+    "column": 8,
+    "endColumn": 35,
+    "level": "info",
+    "code": 1091,
+    "message": "Not following: /appl/profile/zz-csc-env.sh was not specified as input (see shellcheck -x).",
+    "fix": null
+  },
+  {
+    "file": "template/before.sh.erb",
+    "line": 4,
+    "endLine": 4,
+    "column": 8,
+    "endColumn": 12,
+    "level": "warning",
+    "code": 2155,
+    "message": "Declare and assign separately to avoid masking return values.",
+    "fix": null
+  },
+  {
+    "file": "template/before.sh.erb",
+    "line": 5,
+    "endLine": 5,
+    "column": 8,
+    "endColumn": 16,
+    "level": "warning",
+    "code": 2155,
+    "message": "Declare and assign separately to avoid masking return values.",
+    "fix": null
+  },
+  {
+    "file": "template/before.sh.erb",
+    "line": 7,
+    "endLine": 7,
+    "column": 8,
+    "endColumn": 20,
+    "level": "warning",
+    "code": 2155,
+    "message": "Declare and assign separately to avoid masking return values.",
+    "fix": null
+  },
+  {
+    "file": "template/script.sh.erb",
+    "line": 6,
+    "endLine": 6,
+    "column": 1,
+    "endColumn": 10,
+    "level": "warning",
+    "code": 2034,
+    "message": "PATCH_BIN appears unused. Verify use (or export if used externally).",
+    "fix": null
+  },
+  {
+    "file": "template/script.sh.erb",
+    "line": 17,
+    "endLine": 17,
+    "column": 5,
+    "endColumn": 16,
+    "level": "info",
+    "code": 2086,
+    "message": "Double quote to prevent globbing and word splitting.",
+    "fix": {
+      "replacements": [
+        {
+          "column": 5,
+          "endColumn": 5,
+          "endLine": 17,
+          "insertionPoint": "afterEnd",
+          "line": 17,
+          "precedence": 8,
+          "replacement": "\""
+        },
+        {
+          "column": 16,
+          "endColumn": 16,
+          "endLine": 17,
+          "insertionPoint": "beforeStart",
+          "line": 17,
+          "precedence": 8,
+          "replacement": "\""
+        }
+      ]
+    }
+  },
+  {
+    "file": "template/script.sh.erb",
+    "line": 21,
+    "endLine": 21,
+    "column": 5,
+    "endColumn": 18,
+    "level": "info",
+    "code": 2086,
+    "message": "Double quote to prevent globbing and word splitting.",
+    "fix": {
+      "replacements": [
+        {
+          "column": 5,
+          "endColumn": 5,
+          "endLine": 21,
+          "insertionPoint": "afterEnd",
+          "line": 21,
+          "precedence": 8,
+          "replacement": "\""
+        },
+        {
+          "column": 18,
+          "endColumn": 18,
+          "endLine": 21,
+          "insertionPoint": "beforeStart",
+          "line": 21,
+          "precedence": 8,
+          "replacement": "\""
+        }
+      ]
+    }
+  }
+]

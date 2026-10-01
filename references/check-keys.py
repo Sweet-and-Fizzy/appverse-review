@@ -10,8 +10,14 @@ anchor, which must be "<app_id>/<anchor>" in a monorepo, and existence is not
 checked; missing-entry-point takes "root", or the app subpath itself in a
 monorepo. The tag must be in the rule's vocabulary (finding-codes.md), carrying
 its qualifier where the vocabulary shows one, or "other:<slug>" where the slug
-is neither a vocabulary tag in disguise nor one extended by a suffix. Exit 0 when every key is valid, 1 when any
-is not (one INVALID line each), 2 when the input cannot be read.
+is neither a vocabulary tag in disguise nor one extended by a suffix. A
+FAIL or WARN record whose evidence cites file:line groups, none of them in
+its anchor file (or under it, for a directory anchor; in a monorepo a
+citation relative to the app counts), is INVALID "(evidence does not cite
+the anchor file)": the key then names a different place than the evidence.
+Pseudo-anchors, absent-file tags and evidence with no citation are exempt.
+Exit 0 when every key is valid, 1 when any is not (one INVALID line each),
+2 when the input cannot be read.
 """
 import argparse
 import json
@@ -20,7 +26,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from repo_paths import PSEUDO_ANCHORS, exists_case_exact  # noqa: E402
+from repo_paths import PSEUDO_ANCHORS, exists_case_exact, parse_citations  # noqa: E402
 
 # Absent-file tags (STR-01, STR-07, MNT-03): the file does not exist by
 # definition, so the anchor is the fixed expected path, prefixed with the
@@ -99,6 +105,28 @@ def not_repo_relative(path):
     )
 
 
+def anchor_uncited(finding, anchor, tag, app_id):
+    """The INVALID reason for a FAIL/WARN record whose evidence cites a
+    file:line but none in its own anchor file (or under it, for a
+    directory anchor), else None. The key then names a different place
+    than the evidence, so its stable ID would follow the wrong file.
+    Pseudo-anchors, absent-file tags (the file does not exist) and
+    evidence with no citation at all are exempt; in a monorepo a citation
+    written relative to the app counts."""
+    if str(finding.get("result") or "").upper() not in ("FAIL", "WARN"):
+        return None
+    if anchor in PSEUDO_ANCHORS or tag in ABSENT_FILE_ANCHORS or tag in ("missing-readme",) or anchor == app_id:
+        return None
+    paths = [p for p, _ in parse_citations(finding.get("evidence"))]
+    if not paths:
+        return None
+    for p in paths:
+        for full in (p, app_id + "/" + p if app_id != "root" else p):
+            if full == anchor or full.startswith(anchor + "/"):
+                return None
+    return "evidence does not cite the anchor file"
+
+
 def validate(finding, vocab, target):
     rule = finding.get("rule") or "<missing>"
     key = finding.get("defect_key")
@@ -163,6 +191,9 @@ def validate(finding, vocab, target):
             return rule, key, "other:{} extends the vocabulary tag '{}'; use '{}' or a distinct slug".format(
                 slug, base, base)
         return rule, key, None
+    reason = anchor_uncited(finding, anchor, tag, app_id)
+    if reason:
+        return rule, key, reason
     base, _, qual = tag.partition(":")
     rule_vocab = vocab[rule]
     if base not in rule_vocab:

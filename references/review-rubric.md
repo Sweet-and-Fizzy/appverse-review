@@ -183,7 +183,8 @@ for what the enumeration cannot see (a missing CSRF defense, partial
 authentication, container isolation, an unusual way of phoning home) and
 records each under "Additional observations (review)", saying the
 enumeration missed it. "No tool-detectable issues in the checked tiers" is
-the claim when neither produces a FAIL or WARN, never "safe".
+the claim when no row in either table is FAIL or WARN; never write it when
+any row is FAIL or WARN, and never write "safe".
 
 Two complementary methods feed the same classification:
 
@@ -261,6 +262,7 @@ These catch capabilities used unsafely, across all app types.
 | Framework security features disabled (CSP, host checking) | Removes built-in protections | Insecure Configuration |
 | Debug output to world-readable locations | Leaks paths, usernames, system info | Insecure Configuration |
 | Missing `--cleanenv` with sensitive host environment | Host variables leak into the container | Container Security |
+| A static-analysis tool finding (shellcheck, semgrep, bandit) (`check: sec-tool-finding`) | Varies by code — a tool finding is answered on its own merits, with the rule and tag `security-tools.md`'s "Tool finding codes: rule and tag" table gives the code; a finding at a line another candidate covers still needs its row; name the covering row | Varies |
 
 ### OODT — Open OnDemand App Threats
 
@@ -361,13 +363,14 @@ should follow the [Appverse README Template](https://github.com/tamu-edu/appvers
 
 | Level | Description |
 |-------|-------------|
+| **Below minimal** | Not even what it launches + prerequisites (and not a stub) |
 | **Minimal** | What it launches + prerequisites only |
 | **Adequate** | Above + installation + configuration + known limitations |
 | **Strong** | Above + troubleshooting + screenshots + environment variable docs |
 | **Exemplary** | Above + user-facing info panel + architecture explanation |
 
 **Documentation signal:** Strong or Exemplary = Low; Adequate = Medium;
-Minimal = High.
+Minimal or Below minimal = High.
 
 **Evidence:** the rating rests on one evidence line per requirement in the
 table above (what it launches through architecture), each citing the
@@ -376,15 +379,26 @@ requirement, or `none`. A heading whose section is only the README
 template's placeholder text counts as `none`. A screenshots or
 environment-variables heading with no image or variable under it is
 "heading only", weaker evidence the reviewer checks. The reviewer may judge
-that a listed section does not satisfy its requirement; a requirement
-`readme.json` shows nothing for (no heading, and for screenshots and
-environment variables no image or variable either) is `none`. With no
+that a listed section does not satisfy its requirement. A requirement
+`readme.json` shows no heading for is met by a README line that delivers
+it, cited as `content: README.md:N` (the path is `readme.json`'s `file`,
+the app's own README in a monorepo); the line must be text, not a heading,
+code, placeholder, contact or badge line, one line meets one requirement,
+and without one the requirement is `none`. This content search applies even
+when the requirement's own heading exists but doesn't deliver it — check
+other headings' content (configuration met by a line under Environment
+Variables, say) before settling on `none`. With no
 Overview-type heading, a descriptive paragraph under the README's title
 satisfies "what it launches" (`readme.json` records it as the intro). The
 level is the highest one whose requirements, and every lower level's, all
-have evidence. A README without evidence even for Minimal is a stub: that
-is the Structure gate failure (QUA-01 `docs-stub`), not a rating, and the
-report says "Minimal — not supported (stub README; see QUA-01)".
+have evidence. A README that is not a stub but has no evidence even for
+Minimal is rated Below minimal, with a QUA-01 `docs-minimal` FAIL, as
+for Minimal (both miss the Adequate target). Whether
+a README is a stub is decided once, by the pre-review facts
+(`readme.json` `stub`: fewer than 100 characters of content, or every section body
+template placeholder text with no real text above the first heading), never by the rating: a stub is the Structure
+gate failure (QUA-01 `docs-stub`), not a rating, and the report says
+"Minimal — not supported (stub README; see QUA-01)".
 
 **Target for inclusion:** Adequate or above. Below the target is "accept with
 suggestions" when the gate criteria pass. A README that fails the Structure
@@ -412,13 +426,18 @@ target for the first two.
 | No undocumented magic numbers or hardcoded literals (resource limits, tunables, ports, hex colors, module versions) without comments (`check: magic-numbers`) | Suggestion |
 | No large blocks of duplicated code (`QUA-09`, `check: duplicated-blocks`) | Suggestion |
 | No commented-out dead code (`check: dead-code`) | Suggestion |
-| ERB templates handle missing/empty values gracefully (`QUA-10`, `check: erb-missing-value`) | Suggestion |
+| ERB templates handle missing/nil values gracefully (`QUA-10`, `check: erb-missing-value`) | Suggestion |
+| Desktop/panel icon exists on the README's target OS (`QUA-06`, `check: icon-matches-target-os`) | Suggestion |
 
 **Correctness and polish** defects are also Code Quality findings: copy-paste
 artifacts from the template an app was cloned from (a MATLAB reference in a
 SAS app, a CHANGELOG describing a different app), duplicate YAML keys (valid
 YAML, but last-wins, so the parser does not catch them and the author almost
 certainly did not intend it), wrong help text, and README typos.
+
+**Draft feedback guidance.** Never advise removing a comment or help text
+that states a real constraint (a partition that requires a GPU, a limit);
+advise rewording it.
 
 **Named checks:**
 
@@ -469,7 +488,7 @@ individual findings, never from the signal levels.
 
 | Outcome | Criteria |
 |---------|----------|
-| **Accept** | Passes all gate criteria, adequate+ documentation, partially portable+ config. Always conditional on the duplicate/catalog checks the review cannot perform — word any Accept as pending those. |
+| **Accept** | Passes all gate criteria, adequate+ documentation, partially portable+ config. Always conditional on the duplicate check, which the review performs the catalog reads for but leaves the decision itself to the reviewer — word any Accept as pending that. |
 | **Accept with suggestions** | Passes gate criteria but has clear improvement areas — include specific feedback. Below-target docs or portability belongs here, not Request changes, when the gate criteria are otherwise met. |
 | **Request changes** | Missing a gate criterion but fixable — provide specific list of what to address. A fixable security misconfiguration, even High severity (e.g. CORS open to all origins), is Request changes, not Reject. |
 | **Reject** | Duplicate app, no license, abandoned/unmaintained, not an OOD app, or a Critical-severity security finding (tagged potentially malicious or unfixable without redesigning the app — see the severity scale in `finding-codes.md`). "Not an OOD app" is a reviewer-only trigger — no automated check produces it. |

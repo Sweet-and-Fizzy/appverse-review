@@ -57,7 +57,16 @@ Candidate sets, per check id (fact files are <out>/<app_id>/<name>.json,
 syntax.json is <out>/syntax.json; a missing fact file means no candidates):
   str-06-syntax          syntax.json entries with ok false under the app path
   entry-point-parses     entry_point.json when parses is false
-  sec-*                  security.json candidates of the kinds in SECURITY_KINDS
+  sec-*                  security.json candidates of the kinds in SECURITY_KINDS.
+                         sec-tool-finding is one candidate per (tool, code,
+                         file) (lines carry every line that tool raised the
+                         code at); a row answers it only when its Evidence
+                         cites at least one of those lines AND its Summary
+                         names the code as a whole token (the code-naming
+                         rule) -- citing the line alone, from any check, is
+                         not enough. A collapsed candidate (more than 15
+                         tool-finding candidates in the app) has no single
+                         file; its lines are "file:line" strings instead.
   hardcoded-site-paths   template.json absolute_paths
   magic-numbers          template.json numeric_literals + hex_colors
                          (hex_colors: #rrggbb literals in any template file)
@@ -95,6 +104,10 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from repo_paths import parse_citations  # noqa: E402
+from report_parse import (  # noqa: E402
+    MARKER, app_sections, header_name, is_separator, normalize_result,
+    rows_by_check, section_for, split_row,
+)
 
 APP_TYPES = ("batch_connect", "passenger", "companion", "widget")
 SECURITY_KINDS = {
@@ -106,6 +119,7 @@ SECURITY_KINDS = {
     "sec-file-write-outside-job": ("file_write_outside_job",),
     "sec-config-flag": ("config_flag",),
     "sec-binary-in-template": ("binary_in_template",),
+    "sec-tool-finding": ("tool_finding",),
 }
 TEMPLATE_KEYS = {
     "hardcoded-site-paths": ("absolute_paths",),
@@ -114,9 +128,11 @@ TEMPLATE_KEYS = {
     "icon-matches-target-os": ("icons",),
 }
 CONSTRAINED_WIDGETS = {"select", "radio_button", "radio", "check_box", "checkbox", "hidden_field"}
-MARKER = re.compile(r"`check:\s*([A-Za-z0-9_.-]+)`")
-RESULTS = ("NOT CHECKED", "FAIL", "WARN", "PASS")
-RESULT_RE = re.compile(r"[^A-Z]*(" + "|".join(RESULTS).replace(" ", r"\s+") + r")(?![A-Z])")
+# sec-tool-finding: a candidate's label carries its code after the last ':',
+# so a row's Evidence-citing answer can be checked separately for naming the
+# code as a whole token in its Summary (the code-naming rule).
+TOOL_FINDING_LABEL = "{site}:{code}"
+TOOL_FINDING_CODE_RE = lambda code: re.compile(r"(?<![\w-])" + re.escape(code) + r"(?![\w-])")
 
 
 class InputError(Exception):
@@ -217,6 +233,24 @@ def candidates(check, app, out):
         if isinstance(ep, dict) and ep.get("parses") is False and ep.get("file"):
             p = ep["file"]
             found.append((p, [(x, None) for x in paths_for(prefix, p)], None))
+    elif cid == "sec-tool-finding":
+        sec = fact(out, app_id, "security.json")
+        for c in (sec.get("candidates") or []) if isinstance(sec, dict) else []:
+            if c.get("kind") != "tool_finding":
+                continue
+            code = c.get("code")
+            if c.get("file"):
+                cites = [(p, n) for p, _ in site(prefix, c["file"], None) for n in (c.get("lines") or [])]
+                site_label = label(paths_for(prefix, c["file"])[0], None)
+            else:
+                cites, sites_seen = [], []
+                for entry in c.get("lines") or []:
+                    path, _, tail = str(entry).rpartition(":")
+                    if path and tail.isdigit():
+                        cites.extend(site(prefix, path, int(tail)))
+                        sites_seen.append(path)
+                site_label = ",".join(sites_seen) or "?"
+            found.append((TOOL_FINDING_LABEL.format(site=site_label, code=code), cites, None))
     elif cid in SECURITY_KINDS:
         sec = fact(out, app_id, "security.json")
         for c in (sec.get("candidates") or []) if isinstance(sec, dict) else []:
@@ -250,121 +284,6 @@ def cited(evidence, path, line):
         pat = r"(?<![\w./-])(?:\./)?" + re.escape(path) + r"(?![\w/-]|\.\w)"
         return re.search(pat, evidence) is not None
     return any(p == path and int(line) in lines for p, lines in groups)
-
-
-def normalize_result(cell):
-    """FAIL, WARN, PASS or NOT CHECKED from the cell's leading token, else None."""
-    m = RESULT_RE.match(re.sub(r"[*_`]", "", cell).upper())
-    return re.sub(r"\s+", " ", m.group(1)) if m else None
-
-
-# ---- report parsing -------------------------------------------------------
-
-def split_row(line):
-    """Cells of a table row. A '|' escaped as '\\|' or inside a backtick code
-    span (`a | b`, closed by the same number of backticks) does not split."""
-    s = line.strip()
-    if s.startswith("|"):
-        s = s[1:]
-    if s.endswith("|") and not s.endswith("\\|"):
-        s = s[:-1]
-    cells, cur, i, fence = [], [], 0, 0
-    while i < len(s):
-        ch = s[i]
-        if ch == "\\" and i + 1 < len(s):
-            cur.append(s[i:i + 2])
-            i += 2
-            continue
-        if ch == "`":
-            j = i
-            while j < len(s) and s[j] == "`":
-                j += 1
-            run = j - i
-            if fence == 0:
-                if "`" * run in s[j:]:
-                    fence = run  # opens only when a closing run follows
-            elif run == fence:
-                fence = 0
-            cur.append(s[i:j])
-            i = j
-            continue
-        if ch == "|" and fence == 0:
-            cells.append("".join(cur).strip())
-            cur = []
-        else:
-            cur.append(ch)
-        i += 1
-    cells.append("".join(cur).strip())
-    return cells
-
-
-def is_separator(line):
-    cells = split_row(line)
-    return bool(cells) and all(re.fullmatch(r":?-{1,}:?", c) for c in cells)
-
-
-def header_name(cell):
-    return re.sub(r"[*_`]", "", cell).strip().lower()
-
-
-def rows_by_check(body):
-    """{check_id: [{"result", "severity", "evidence"}, ...]} from tables with a
-    Check column. Evidence runs from the Evidence column to the end of the
-    row when the row has more cells than the header."""
-    rows = {}
-    lines = body.splitlines()
-    i = 0
-    while i < len(lines):
-        if lines[i].lstrip().startswith("|") and i + 1 < len(lines) and is_separator(lines[i + 1]):
-            head = [header_name(c) for c in split_row(lines[i])]
-            i += 2
-            if "check" not in head:
-                while i < len(lines) and lines[i].lstrip().startswith("|"):
-                    i += 1
-                continue
-            ci = head.index("check")
-            ri = head.index("result") if "result" in head else None
-            ei = head.index("evidence") if "evidence" in head else None
-            si = head.index("severity") if "severity" in head else None
-            while i < len(lines) and lines[i].lstrip().startswith("|"):
-                cells = split_row(lines[i])
-                get = lambda k: cells[k] if k is not None and k < len(cells) else ""
-                result = normalize_result(get(ri))
-                if result is None:
-                    i += 1
-                    continue
-                evidence = get(ei)
-                if ei is not None and len(cells) > len(head):
-                    evidence = " | ".join(cells[ei:])
-                row = {"result": result, "severity": get(si), "evidence": evidence}
-                for cid in MARKER.findall(get(ci)):
-                    rows.setdefault(cid, []).append(row)
-                i += 1
-            continue
-        i += 1
-    return rows
-
-
-def app_sections(text):
-    """[(heading, paren_value, body)] for each '## App:' section."""
-    parts = re.split(r"^(## App:[^\n]*)$", text, flags=re.M)
-    out = []
-    for i in range(1, len(parts) - 1, 2):
-        body = re.split(r"^## ", parts[i + 1], maxsplit=1, flags=re.M)[0]
-        m = re.search(r"\(([^()]*)\)\s*$", parts[i].strip())
-        out.append((parts[i].strip(), m.group(1).strip() if m else None, body))
-    return out
-
-
-def section_for(app, sections, single):
-    keys = {app["app_id"], (app.get("path") or "").strip().strip("/"), app_prefix(app).rstrip("/")}
-    keys.discard("")
-    for _, key, body in sections:
-        if key is not None and key.strip("/") in keys:
-            return body
-    if single and len(sections) == 1:
-        return sections[0][2]
-    return None
 
 
 def main(argv):
@@ -414,9 +333,16 @@ def main(argv):
                 problems.append("MISSING {} {}".format(app["app_id"], cid) +
                                 "".join("\n  candidate {}".format(c[0]) for c in cands))
                 continue
-            answering = [r["evidence"] for r in found if r["result"] != "NOT CHECKED"]
+            answering = [r for r in found if r["result"] != "NOT CHECKED"]
             for lab, cites, _ in cands:
-                if not any(cited(ev, p, n) for ev in answering for p, n in cites):
+                if cid == "sec-tool-finding":
+                    code = lab.rsplit(":", 1)[-1]
+                    code_re = TOOL_FINDING_CODE_RE(code)
+                    answered = any(cited(r["evidence"], p, n) and code_re.search(r["summary"])
+                                   for r in answering for p, n in cites)
+                else:
+                    answered = any(cited(r["evidence"], p, n) for r in answering for p, n in cites)
+                if not answered:
                     problems.append("UNCITED {} {} {}".format(app["app_id"], cid, lab))
     for p in problems:
         print(p)

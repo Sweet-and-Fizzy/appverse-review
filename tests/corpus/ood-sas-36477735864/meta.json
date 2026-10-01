@@ -1,0 +1,44 @@
+{
+  "repo_url": "https://github.com/fasrc/ood-sas",
+  "sha": "462790a1fdd1616038ea3536454a4e508c668471",
+  "ref": "main",
+  "repo_shape": "inferred_single",
+  "not_archived": "pass",
+  "public": "pass",
+  "model": "claude-sonnet-4-6",
+  "recommendation": {
+    "decision": "Accept with suggestions",
+    "note": "Accept with suggestions (pending human confirmation of the duplicate check). All structural gate criteria pass: README.md is substantive, MIT license is present, manifest.yml is valid with all required fields, and the Batch Connect layout is correct. The security posture is clean — no OODT findings, no anomalous capabilities, and the module version comes from a locked dropdown. Documentation is Strong. Portability is Partially portable (meets the target for inclusion). The repo is active within 12 months with 4 contributors. The main improvement areas are: (1) missing `set -e` and missing `|| exit` after `cd` in the job script — targets for inclusion that prevent silent failures if the working directory cannot be created; (2) missing `max` bounds on the `custom_num_cores` and `custom_memory_per_node` number fields; (3) copy-paste artifacts carried over from an OSC MATLAB app — the CHANGELOG.md describes MATLAB releases and links to OSC/bc_osc_matlab, and the `sas_version` help text still reads \"Loading the Matlab module for requested version\"; and (4) two duplicate YAML `help:` keys (last-wins semantics silently discard one). None of these are gate-criterion failures, but they should be addressed before the app reaches a wide deployer audience."
+  },
+  "apps": [
+    {
+      "app_id": "root",
+      "name": "SAS",
+      "decision": "Accept with suggestions",
+      "assessments": {
+        "documentation": "strong",
+        "documentation_summary": "Overview, prerequisites, installation, configuration table, troubleshooting, screenshots, and known limitations all present; no info panel or architecture explanation",
+        "portability": "partially_portable",
+        "portability_summary": "Cluster name and module version documented in README config table; /scratch working-directory path in script.sh.erb hardcoded and not documented"
+      },
+      "reported_signals": {
+        "security": "Low",
+        "portability": "Medium",
+        "documentation": "Low"
+      }
+    }
+  ],
+  "maintenance_assessment": {
+    "active_within_12mo": true,
+    "waiver_brand_new": false,
+    "signals": {
+      "releases": false,
+      "changelog": false,
+      "ci": false,
+      "multiple_contributors": true,
+      "issues_responded": null
+    },
+    "summary": "Active within 12 months (last push 2026-07-08); 4 contributors; no releases, no valid CHANGELOG (bc_osc_matlab copy), no CI",
+    "reported_signal": "Medium"
+  }
+}

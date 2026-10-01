@@ -6,7 +6,8 @@ than when the model chooses to run them, and write the results as JSON.
     references/run-pre-review.sh <target-dir> <out-dir> [--catalog URL] [--no-catalog]
 
 Exit 0 whenever the script ran to completion, whatever the tools found; exit 2
-only when <target-dir> is missing (or the arguments do not parse). A tool that
+only when <target-dir> is missing, references/readme-placeholders.txt cannot
+be read, or the arguments do not parse. A tool that
 is absent, crashes, or times out is data in the output, never a script failure.
 
 Files written to <out-dir> (any previous *.json, tool-table.md, stripped/ and
@@ -21,7 +22,10 @@ the per-app dirs named in the previous apps.json are removed first):
                  finding_count (int, or null when the tool did not run) and
                  top_codes (up to five most frequent codes, most frequent
                  first, ties by code): shellcheck SC<n>, semgrep check_id,
-                 bandit test_id, trivy VulnerabilityID / ID.
+                 bandit test_id, trivy VulnerabilityID / ID. The shellcheck
+                 record adds artifact_count: its findings that tool_artifact
+                 calls artefacts of linting OOD's job-script files one at a
+                 time.
   syntax.json    one entry per shell file (*.sh, *.bash, *.sh.erb): path
                  (repo-relative), stripped (ERB tags removed first), ok
                  (bash -n passed), stderr (first 500 chars). Written even
@@ -36,7 +40,9 @@ the per-app dirs named in the previous apps.json are removed first):
   trivy-empty.yaml, trivy-empty.ignore  empty files passed to trivy as its
                  --config and --ignorefile.
   tool-table.md  the Check tiers line and the Tool / Status / Result table,
-                 rendered from summary.json for the security skill to paste.
+                 rendered from summary.json for the security skill to paste
+                 (shellcheck with artefacts: "N findings (codes), M of them
+                 linted in isolation from the job-script family").
   apps.json      [{app_id, path, app_type, readme}]: the app shape, resolved
                  as target-setup.md section 3 does. A root appverse.yml with
                  an apps: list is a monorepo, one app per apps[].path (app_id
@@ -63,7 +69,9 @@ the per-app dirs named in the previous apps.json are removed first):
                  prerequisites, installation, configuration, known
                  limitations, troubleshooting, screenshots, environment
                  variables, info panel, architecture: {heading, line,
-                 placeholder, match} or null}}. A rung is the first heading whose
+                 placeholder, match} or null}, stub, content_line_count,
+                 content_chars}.
+                 A rung is the first heading whose
                  words contain one of its synonyms (RUNGS); one heading can
                  satisfy several rungs; placeholder is true when
                  the heading or every content line of its section (to the
@@ -76,6 +84,20 @@ the per-app dirs named in the previous apps.json are removed first):
                  placeholder line) between the H1 and the next heading
                  fills "what it launches" as {heading: the H1, line: the
                  paragraph's, placeholder: false, match: "intro"}.
+                 content_line_count counts content lines: not blank, a
+                 heading, in a fence or HTML comment, a placeholder line, a
+                 contact line (contains '@' or starts with Contact), a
+                 badge/image line (starts with '![' or '[!['), or a table's
+                 header or |---| row (readme_line_kinds). content_chars
+                 sums those lines' stripped lengths. stub is true when
+                 content_chars is under STUB_CONTENT_CHARS (100: broken-app
+                 has 0, every other fixture README 176 or more; characters,
+                 so re-wrapping a paragraph moves it only by the spaces at
+                 its line breaks), or when every heading whose own body (to
+                 the next heading) holds a content or placeholder line is placeholder text and
+                 no content line precedes the first heading. It is the
+                 one stub decision: STR-01 reads it, and check-rating.py
+                 accepts the stub rating line only against it.
   <app_id>/form.json  {file (form.yml, else form.yml.erb, ERB stripped),
                  submit_file, erb_sentinel ("ERBVALUE": a min, max or
                  pattern computed by a <%= %> tag is recorded as that
@@ -165,9 +187,17 @@ the per-app dirs named in the previous apps.json are removed first):
                  unless its magic bytes say image or font AND its extension
                  agrees (then skipped); elsewhere it is skipped. One
                  candidate per (file, line,
-                 kind, tag). The record's note gives each app's non-zero
-                 counts ("root: interpolation 7, config_flag 2", or "no
-                 candidates").
+                 kind, tag). tool_finding candidates (one per tool, code and
+                 file, from shellcheck.json / semgrep.json / bandit.json;
+                 _tool_finding_candidates) add tool, code, lines (at most
+                 TOOL_LINES_CAP; lines_total when cut), level and artifact;
+                 over TOOL_FINDING_CEILING of them collapse to one per tool
+                 and code (file null, lines "file:line", and counts
+                 tool_finding_collapsed true). tool_notes lists a tool file
+                 that could not be read or items that were skipped. The
+                 record's note gives each app's non-zero counts ("root:
+                 interpolation 7, config_flag 2", or "no candidates"), then
+                 the collapse as a sentence and the tool_notes.
 
 summary.json also carries "facts": one record per fact scanner (readme,
 form, template, entry_point, security), with the record fields above plus
@@ -214,6 +244,7 @@ tree size; semgrep applies its own ignore list (tests/, vendored dirs).
 import argparse
 import json
 import os
+import posixpath
 import re
 import shutil
 import stat
@@ -402,25 +433,46 @@ def most_frequent(codes, n=5):
 
 
 def _findings(name, data):
-    """(finding_count, codes) from a tool's parsed JSON."""
+    """(finding_count, codes, note) from a tool's parsed JSON. A wrong-shape
+    JSON document (a tool version change, a mock, or a corrupted run) gets
+    a note instead of a crash: a shellcheck item with no `code` is skipped
+    rather than counted as the literal string 'SCNone'; a `results` object
+    that is not a list (semgrep/bandit) or a `data` that is not a dict
+    (semgrep/bandit's own .get call) is treated as empty."""
     if name == "shellcheck":
-        return len(data), ["SC%s" % i.get("code") for i in data]
+        if not isinstance(data, list):
+            return 0, [], "shellcheck JSON was not a list"
+        codes = [i.get("code") for i in data if isinstance(i, dict) and i.get("code") is not None]
+        return len(data), ["SC%s" % c for c in codes], ""
     if name in ("semgrep", "bandit"):
         key = "check_id" if name == "semgrep" else "test_id"
-        results = data.get("results") or []
-        return len(results), [str(r.get(key)) for r in results]
+        if not isinstance(data, dict):
+            return 0, [], "%s JSON was not an object" % name
+        results = data.get("results")
+        if results is None:
+            results = []
+        elif not isinstance(results, list):
+            return 0, [], "%s results was not a list" % name
+        results = [r for r in results if isinstance(r, dict)]
+        return len(results), [str(r.get(key)) for r in results], ""
     codes = []  # trivy
+    if not isinstance(data, dict):
+        return 0, [], "trivy JSON was not an object"
     for res in data.get("Results") or []:
+        if not isinstance(res, dict):
+            continue
         for kind, key in (("Vulnerabilities", "VulnerabilityID"),
                           ("Misconfigurations", "ID"), ("Secrets", "ID")):
             codes.extend(str(i.get(key) or i.get("ID") or i.get("RuleID") or "")
-                         for i in res.get(kind) or [])
-    return len(codes), codes
+                         for i in res.get(kind) or [] if isinstance(i, dict))
+    return len(codes), codes, ""
 
 
 def _with_findings(rec, data):
-    count, codes = _findings(rec["name"], data)
+    count, codes, note = _findings(rec["name"], data)
     rec["finding_count"], rec["top_codes"] = count, most_frequent(codes)
+    if note:
+        rec["note"] = "; ".join(x for x in (rec["note"], note) if x)
     return rec
 
 
@@ -558,7 +610,7 @@ def _shellcheck(target, out, syntax_entries):
     files = [f for f in files if f not in large]
     scans = {e["path"]: e["_scan"] for e in syntax_entries}
     version = tool_version("shellcheck")
-    results, worst, unread = [], 0, []
+    results, worst, unread, malformed = [], 0, [], 0
     for rel in files:
         try:
             if rel.endswith(".sh.erb"):
@@ -581,9 +633,15 @@ def _shellcheck(target, out, syntax_entries):
             return record("shellcheck", "failed_to_run", version=version, command=command,
                           exit_code=rc, files_examined=len(files),
                           note=("%s: output was not JSON: %s" % (rel, _failure(err, stdout)))[:STDERR_CHARS])
+        if not isinstance(items, list):
+            malformed += 1
+            continue
         for item in items:
+            if not isinstance(item, dict):
+                malformed += 1
+                continue
             item["file"] = rel
-        results.extend(items)
+            results.append(item)
     _write_json(out, "shellcheck.json", results)
     n_stripped = sum(1 for f in files if f.endswith(".sh.erb") and f not in unread)
     notes = []
@@ -593,10 +651,16 @@ def _shellcheck(target, out, syntax_entries):
         notes.append("not scanned (unreadable): " + ", ".join(unread))
     if large:
         notes.append("not scanned (larger than 1 MB): " + ", ".join(large))
+    if malformed:
+        notes.append("%d shellcheck finding(s) skipped (malformed JSON shape)" % malformed)
     rec = record("shellcheck", "ran", version=version, command=command, exit_code=worst,
                  output_file="shellcheck.json", files_examined=len(files) - len(unread),
                  note="; ".join(notes))
-    return _with_findings(rec, results)
+    cache = {}
+    rec = _with_findings(rec, results)
+    rec["artifact_count"] = sum(1 for it in results if tool_artifact(
+        target, it.get("file"), "SC%s" % it.get("code"), it.get("message"), cache))
+    return rec
 
 
 def _run_json_tool(name, cmd, target, out, files_examined, crashed, note="", cwd=None,
@@ -690,7 +754,8 @@ def check_trivy(target, out):
 PLACEHOLDERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "readme-placeholders.txt")
 RUNGS = (
     ("what it launches", ("overview", "about", "description")),
-    ("prerequisites", ("requirements", "requirement", "prerequisites", "prerequisite", "dependencies")),
+    ("prerequisites", ("requirements", "requirement", "prerequisites", "prerequisite", "dependencies",
+                       "defaults", "getting started")),
     ("installation", ("install", "installation", "installing", "setup", "set up", "deploy",
                       "deployment", "deploying")),
     ("configuration", ("configuration", "configure", "configuring", "customize", "customization",
@@ -702,6 +767,14 @@ RUNGS = (
     ("info panel", ("info panel",)),
     ("architecture", ("architecture", "how it works")),
 )
+# readme.json "stub": fewer content characters than this (the sum of the
+# stripped lengths of the lines readme_line_kinds calls "content"), or every
+# section body placeholder text. Characters, not lines, so the verdict does
+# not change when a paragraph is hard-wrapped or joined onto one line.
+# broken-app (a title and a contact line) has 0 and must be a stub; every
+# other fixture README has 176 or more and must not.
+STUB_CONTENT_CHARS = 100
+CONTACT_LINE = re.compile(r"^[\s>*_+-]*contact\b", re.I)
 APP_TYPES = {"batch-connect-basic": "batch_connect", "batch-connect-vnc": "batch_connect",
              "batch_connect": "batch_connect", "batch-connect": "batch_connect",
              "passenger_app": "passenger", "passenger": "passenger",
@@ -1187,11 +1260,19 @@ def _public(app):
     return {k: v for k, v in app.items() if not k.startswith("_")}
 
 
+class PlaceholdersMissing(Exception):
+    pass
+
+
 def load_placeholders(path=PLACEHOLDERS_FILE):
+    """The placeholder phrases. Raises PlaceholdersMissing when the file
+    cannot be read: without it every template README would read as real
+    content, so the stub fact would be wrong, not merely incomplete."""
     try:
         lines = _read(path).splitlines()
-    except OSError:
-        return []
+    except (OSError, ValueError) as e:
+        reason = getattr(e, "strerror", None) or e
+        raise PlaceholdersMissing("cannot read placeholder list %s (%s)" % (path, reason))
     return [l.strip() for l in lines if l.strip() and not l.startswith("# ")]
 
 
@@ -1240,8 +1321,10 @@ def _markdown_lines(lines):
     return out
 
 
-def scan_readme(text, placeholders):
-    """readme.json for one README's text (file set by the caller)."""
+def _readme_parse(text, placeholders):
+    """The parse scan_readme and readme_line_kinds share: (lines, flags,
+    headings, heading_lines, underlines, table_rules, placeholder_rows,
+    phrase_of)."""
     lines = text.splitlines()
     flags = _markdown_lines(lines)
     low_phrases = [(p, p.lower()) for p in placeholders]
@@ -1294,10 +1377,81 @@ def scan_readme(text, placeholders):
             continue
         continues = i and not _unit_start(i) and not _unit_start(i - 1)
         p = phrase_of(line) if not continues else (phrase_of(line) or paragraph_phrase)
-        paragraph_phrase = p if not _unit_start(i) else None
+        # a phrase ending in ':' introduces what follows (the author's own
+        # text in a filled-in README), so it marks only its own line
+        paragraph_phrase = p if not _unit_start(i) and not (p or "").endswith(":") else None
         if p:
             placeholder_rows.append({"line": i + 1, "text": line.strip(), "phrase": p})
+    return lines, flags, headings, heading_lines, underlines, table_rules, placeholder_rows, phrase_of
+
+
+def readme_line_kinds(text, placeholders, parsed=None):
+    """One kind per README line (index 0 is line 1): heading (ATX, setext
+    text or underline), fence (inside a code fence, markers included),
+    comment (an HTML comment line), blank, placeholder (a readme.json
+    placeholder line), contact (contains '@' or starts with Contact), badge
+    (starts with '![' or '[!['), table-header and table-rule (a table's
+    header row and its |---| row), else content. check-evidence.py reads this for a `content: README.md:N`
+    citation, so the stub count and that check use one definition."""
+    lines, flags, _h, heading_lines, underlines, table_rules, placeholder_rows, _p = \
+        parsed or _readme_parse(text, placeholders)
     placeholder_lines = {r["line"] for r in placeholder_rows}
+    kinds = []
+    for i, line in enumerate(lines):
+        n, s = i + 1, line.strip()
+        if flags[i][0]:
+            kinds.append("fence")
+        elif n in heading_lines or n in underlines:
+            kinds.append("heading")
+        elif flags[i][1]:
+            kinds.append("comment")
+        elif not s:
+            kinds.append("blank")
+        elif n in placeholder_lines:
+            kinds.append("placeholder")
+        elif "@" in s or CONTACT_LINE.match(s):
+            kinds.append("contact")
+        elif s.startswith("![") or s.startswith("[!["):
+            kinds.append("badge")
+        elif n in table_rules:
+            kinds.append("table-rule" if n + 1 not in table_rules else "table-header")
+        else:
+            kinds.append("content")
+    return kinds
+
+
+def _stub(headings, kinds, lines, phrase_of):
+    """(stub, content_line_count, content_chars): stub when the content
+    lines hold fewer than STUB_CONTENT_CHARS characters (each line's
+    stripped length, summed), or when every heading whose own body (to the
+    next heading of any level) holds a content or placeholder line is
+    placeholder text (its heading text carries a phrase, or its body lines
+    are all placeholder lines) and the preamble (the lines before the first
+    heading) holds no content line either: real prose above the first
+    heading counts, so a README with real text there and placeholder
+    sections is not a stub."""
+    count = kinds.count("content")
+    chars = sum(len(lines[i].strip()) for i, k in enumerate(kinds) if k == "content")
+    short = chars < STUB_CONTENT_CHARS
+    first = headings[0]["line"] if headings else len(kinds) + 1
+    if "content" in kinds[:first - 1]:
+        return short, count, chars
+    bodies = []
+    for idx, h in enumerate(headings):
+        end = headings[idx + 1]["line"] if idx + 1 < len(headings) else len(kinds) + 1
+        body = [kinds[n - 1] for n in range(h["line"] + 1, end) if kinds[n - 1] in ("content", "placeholder")]
+        if body:
+            bodies.append(bool(phrase_of(h["text"])) or "content" not in body)
+    return short or (bool(bodies) and all(bodies)), count, chars
+
+
+def scan_readme(text, placeholders):
+    """readme.json for one README's text (file set by the caller)."""
+    parsed = _readme_parse(text, placeholders)
+    lines, flags, headings, heading_lines, underlines, table_rules, placeholder_rows, phrase_of = parsed
+    placeholder_lines = {r["line"] for r in placeholder_rows}
+    stub, content_line_count, content_chars = _stub(headings, readme_line_kinds(text, placeholders, parsed),
+                                                    lines, phrase_of)
 
     rungs = dict((r, None) for r, _ in RUNGS)
     for idx, h in enumerate(headings):
@@ -1354,7 +1508,8 @@ def scan_readme(text, placeholders):
             env_vars.append({"line": i + 1, "text": line.strip(), "match": "phrase"})
 
     return {"headings": headings, "placeholders": placeholder_rows, "screenshots": screenshots,
-            "env_vars": env_vars, "rungs": rungs}
+            "env_vars": env_vars, "rungs": rungs, "stub": stub,
+            "content_line_count": content_line_count, "content_chars": content_chars}
 
 
 def _attr_lines(text):
@@ -2044,7 +2199,7 @@ def check_entry_point(target, apps, out):
 # security.json: the candidate sites the security skill must answer (R4).
 SEC_KINDS = ("interpolation", "unquoted_expansion", "eval_exec", "network_call",
              "file_write_outside_job", "permission_change", "credential_string", "config_flag",
-             "binary_in_template")
+             "binary_in_template", "tool_finding")
 # kind -> (manifest check id, rule, default mechanism tag)
 SEC_KIND = {
     "interpolation": ("sec-interpolation", "OODT-01", "unsanitized-user-input"),
@@ -2056,7 +2211,27 @@ SEC_KIND = {
     "credential_string": ("sec-credential-string", "OODT-02", "hardcoded-credential"),
     "config_flag": ("sec-config-flag", "OODT-08", None),
     "binary_in_template": ("sec-binary-in-template", "OODT-04", "binary-in-template"),
+    "tool_finding": ("sec-tool-finding", None, None),
 }
+# tool_finding: shellcheck levels below this are excluded (style); semgrep
+# severities below this are excluded (INFO). bandit has no excluded level.
+SHELLCHECK_EXCLUDED_LEVELS = ("style",)
+SEMGREP_EXCLUDED_SEVERITIES = ("INFO",)
+TOOL_FINDING_CEILING = 15
+# a tool_finding candidate's lines list is cut to this many entries
+# (lines_total then gives the full count)
+TOOL_LINES_CAP = 20
+# shellcheck codes that are artefacts of linting OOD's job-script files one
+# at a time: OOD sources before.sh, then runs script.sh, then after.sh, in
+# one shell, so a fragment has no shebang (SC2148), reads variables the
+# others set (SC2154), and sources files shellcheck was not given (SC1090,
+# SC1091). A finding is an artefact only in an OOD job-script file
+# (OOD_JOB_SCRIPT), and SC2154 only for a variable a sibling before.sh*
+# assigns or one of OOD's contract names (OOD_CONTRACT_VARS).
+ARTIFACT_CODES = ("SC2148", "SC2154", "SC1090", "SC1091")
+OOD_JOB_SCRIPT = re.compile(r"\.sh\.erb$|(?:^|/)template/(?:before|script|after)\.sh[^/]*$")
+OOD_CONTRACT_VARS = ("port", "host", "display", "password", "app_port", "csrftoken")
+SC2154_VAR = re.compile(r"^(\w+) is referenced but not assigned")
 TEXT_CAP = 200
 NO_SCOPE = "no in-scope files"
 BC_FILES = ("submit.yml.erb", "submit.yml", "form.yml", "form.yml.erb", "connection.yml",
@@ -2664,11 +2839,194 @@ def _binary_kind(path):
     return kind if ext in MAGIC_EXTS.get(kind, ()) else "binary"
 
 
+def _tool_path(path):
+    """A tool's reported path as a repo-relative path: bandit writes
+    ./template/proxy.py when run on ".", semgrep and shellcheck may too."""
+    if not isinstance(path, str) or not path:
+        return None
+    path = posixpath.normpath(path.replace(os.sep, "/"))
+    while path.startswith("./"):
+        path = path[2:]
+    return path
+
+
+def _before_assigned(target, rel, cache):
+    """Names assigned (NAME=..., with export/local/readonly/declare) in the
+    before.sh* files beside rel (the same directory); read under the
+    shell-file rule, so a refused file assigns nothing."""
+    d = posixpath.dirname(rel)
+    if d not in cache:
+        names = set()
+        full_dir = os.path.join(target, d) if target else None
+        try:
+            entries = sorted(os.listdir(full_dir)) if full_dir and _inside(target, full_dir) else []
+        except OSError:
+            entries = []
+        for name in entries:
+            if not re.match(r"^before\.sh", name):
+                continue
+            full = os.path.join(full_dir, name)
+            if _refusal(target, full):
+                continue
+            try:
+                text = _read(full)
+            except (OSError, ValueError):
+                continue
+            for line in text.splitlines():
+                m = SH_ASSIGN.match(line)
+                if m:
+                    names.add(m.group(1))
+        cache[d] = names
+    return cache[d]
+
+
+def tool_artifact(target, rel, code, message, cache=None):
+    """Whether a shellcheck finding is an artefact of linting OOD's job-script
+    files one at a time (ARTIFACT_CODES, OOD_JOB_SCRIPT, OOD_CONTRACT_VARS)."""
+    if code not in ARTIFACT_CODES or not isinstance(rel, str) or not OOD_JOB_SCRIPT.search(rel):
+        return False
+    if code == "SC2154":
+        m = SC2154_VAR.match(message or "")
+        if not m:
+            return False
+        name = m.group(1)
+        return name in OOD_CONTRACT_VARS or name in _before_assigned(target, rel, {} if cache is None else cache)
+    return True
+
+
+def _load_tool_json(out, name, shape, notes):
+    """The parsed <out>/<name>.json, or None when absent; when unreadable,
+    not JSON, or not of shape (list or dict), None plus a note."""
+    path = os.path.join(out, name + ".json")
+    if not os.path.isfile(path):
+        return None
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError) as e:
+        notes.append("%s.json not read (%s)" % (name, type(e).__name__))
+        return None
+    if not isinstance(data, shape):
+        notes.append("%s.json not read (expected a JSON %s)" % (name, "list" if shape is list else "object"))
+        return None
+    return data
+
+
+def _int_line(value):
+    return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else None
+
+
+def _tool_finding_candidates(files, out, target=None, notes=None):
+    """tool_finding candidates from shellcheck.json / semgrep.json /
+    bandit.json in out (pre-review's out-dir), one per (tool, code, file),
+    filtered to files (the app's security scope, {repo-relative: absolute});
+    a tool's path is normalised first (a leading ./ dropped). shellcheck
+    style level and semgrep INFO severity are excluded; bandit has no
+    severity floor. A candidate is artifact true when every one of its
+    findings is a tool_artifact. A tool file that cannot be read, or is not
+    the JSON shape its tool writes, gives no candidates and a note in notes;
+    an item that is not an object or has no positive integer line is
+    skipped. lines holds at most TOOL_LINES_CAP entries (lines_total the
+    full count when cut). out may be None (no tool-finding candidates then)."""
+    notes = [] if notes is None else notes
+    if not out:
+        return []
+    groups = {}  # (tool, code, file) -> {"lines": set, "level", "text", "artifact"}
+    cache = {}
+    skipped = {}
+
+    def add(tool, code, path, line, level, text, artifact=False):
+        rel, line = _tool_path(path), _int_line(line)
+        if line is None or rel is None:
+            skipped[tool] = skipped.get(tool, 0) + 1
+            return
+        if rel not in files:
+            return
+        g = groups.setdefault((tool, code, rel), {"lines": set(), "level": level, "text": text,
+                                                  "artifact": True})
+        g["lines"].add(line)
+        g["artifact"] = g["artifact"] and artifact
+
+    def text_of(value):
+        return value if isinstance(value, str) else ""
+
+    for item in _load_tool_json(out, "shellcheck", list, notes) or []:
+        if not isinstance(item, dict):
+            skipped["shellcheck"] = skipped.get("shellcheck", 0) + 1
+            continue
+        level = item.get("level")
+        if level in SHELLCHECK_EXCLUDED_LEVELS:
+            continue
+        code, message = "SC%s" % item.get("code"), text_of(item.get("message"))
+        rel = _tool_path(item.get("file"))
+        add("shellcheck", code, rel, item.get("line"), level, message,
+            tool_artifact(target, rel, code, message, cache))
+
+    data = _load_tool_json(out, "semgrep", dict, notes)
+    results = (data or {}).get("results") or []
+    for r in results if isinstance(results, list) else []:
+        if not isinstance(r, dict):
+            skipped["semgrep"] = skipped.get("semgrep", 0) + 1
+            continue
+        extra = r.get("extra") if isinstance(r.get("extra"), dict) else {}
+        if extra.get("severity") in SEMGREP_EXCLUDED_SEVERITIES:
+            continue
+        start = r.get("start") if isinstance(r.get("start"), dict) else {}
+        add("semgrep", str(r.get("check_id")), r.get("path"), start.get("line"), extra.get("severity"),
+            text_of(extra.get("message")))
+
+    data = _load_tool_json(out, "bandit", dict, notes)
+    results = (data or {}).get("results") or []
+    for r in results if isinstance(results, list) else []:
+        if not isinstance(r, dict):
+            skipped["bandit"] = skipped.get("bandit", 0) + 1
+            continue
+        add("bandit", str(r.get("test_id")), r.get("filename"), r.get("line_number"),
+            r.get("issue_severity"), text_of(r.get("issue_text")))
+
+    for tool in ("shellcheck", "semgrep", "bandit"):
+        if skipped.get(tool):
+            notes.append("%s.json: %d item(s) with no file or line skipped" % (tool, skipped[tool]))
+
+    def capped(cand):
+        if len(cand["lines"]) > TOOL_LINES_CAP:
+            cand["lines_total"] = len(cand["lines"])
+            cand["lines"] = cand["lines"][:TOOL_LINES_CAP]
+        return cand
+
+    cands = []
+    for (tool, code, rel), g in groups.items():
+        lines = sorted(g["lines"])
+        cands.append({"kind": "tool_finding", "check": "sec-tool-finding", "rule": None, "tag": None,
+                      "tool": tool, "code": code, "file": rel, "lines": lines, "line": lines[0],
+                      "level": g["level"], "text": g["text"].strip()[:TEXT_CAP], "note": "",
+                      "artifact": g["artifact"]})
+    cands.sort(key=lambda c: (c["file"], c["lines"][0], c["tool"], c["code"]))
+
+    if len(cands) > TOOL_FINDING_CEILING:
+        collapsed = {}
+        for c in cands:
+            key = (c["tool"], c["code"])
+            if key not in collapsed:
+                collapsed[key] = {"kind": "tool_finding", "check": "sec-tool-finding", "rule": None,
+                                  "tag": None, "tool": c["tool"], "code": c["code"], "file": None,
+                                  "lines": ["%s:%d" % (c["file"], n) for n in c["lines"]],
+                                  "line": None, "level": c["level"], "text": c["text"], "note": "",
+                                  "artifact": c["artifact"]}
+            else:
+                collapsed[key]["lines"].extend("%s:%d" % (c["file"], n) for n in c["lines"])
+                collapsed[key]["artifact"] = collapsed[key]["artifact"] and c["artifact"]
+        cands = sorted(collapsed.values(), key=lambda c: (c["tool"], c["code"]))
+    return [capped(c) for c in cands]
+
+
 def scan_security(app_dir, target, app_type, exclude=None):
     """security.json for one app directory, or None when nothing is in scope.
     Every in-scope file is read under the shell-file rule (refused files are
     listed in skipped_files); a binary under template/ is a
-    binary_in_template candidate, elsewhere it is skipped."""
+    binary_in_template candidate, elsewhere it is skipped. exclude doubles as
+    the pre-review out-dir: when given, tool_finding candidates are read from
+    its shellcheck.json / semgrep.json / bandit.json."""
     scope, files, skipped = _security_scope(app_dir, target, app_type, exclude)
     prefix = _app_rel(app_dir, target)
     attrs = _form_attrs(target, app_dir)
@@ -2760,11 +3118,17 @@ def scan_security(app_dir, target, app_type, exclude=None):
                     break
     order = {k: n for n, k in enumerate(SEC_KINDS)}
     cands.sort(key=lambda c: (c["file"], c["line"], order[c["kind"]]))
+    tool_notes = []
+    tool_cands = _tool_finding_candidates(files, exclude, target, tool_notes)
+    collapsed = any(c.get("line") is None for c in tool_cands)
+    cands = cands + tool_cands
     if not scanned and not cands and not skipped:
         return None
     counts = {k: sum(1 for c in cands if c["kind"] == k) for k in SEC_KINDS}
+    if collapsed:
+        counts["tool_finding_collapsed"] = True
     return {"counts": counts, "scope": scope, "files": scanned, "attributes": list(attrs),
-            "candidates": cands,
+            "candidates": cands, "tool_notes": tool_notes,
             "skipped_files": [{"file": f, "reason": r} for f, r in sorted(set(skipped))]}
 
 
@@ -2782,8 +3146,15 @@ def check_security(target, apps, out):
     for app in apps:
         app_id = app["app_id"]
         if per_app.get(app_id) == "ran":
-            nz = ["%s %d" % (k, v) for k, v in results[app_id]["counts"].items() if v]
-            notes.append("%s: %s" % (app_id, ", ".join(nz) or "no candidates"))
+            data = results[app_id]
+            nz = ["%s %d" % (k, v) for k, v in data["counts"].items() if k in SEC_KINDS and v]
+            text = ", ".join(nz) or "no candidates"
+            if data["counts"].get("tool_finding_collapsed"):
+                text += ("; more than %d tool-finding candidates, so they are collapsed to one per tool "
+                         "and code" % TOOL_FINDING_CEILING)
+            if data.get("tool_notes"):
+                text += "; " + "; ".join(data["tool_notes"])
+            notes.append("%s: %s" % (app_id, text))
         else:
             notes += [x for x in skip_notes if x.startswith(app_id + ": ")]
     return _fact_record("security", "candidate sites per kind (references/security-tools.md, "
@@ -2812,7 +3183,11 @@ def _tool_result(rec):
         return "\u2014"
     if n == 0:
         return "0 findings"
-    return "%d finding%s (%s)" % (n, "" if n == 1 else "s", ", ".join(rec.get("top_codes") or []))
+    artefacts = rec.get("artifact_count") or 0
+    return "%d finding%s (%s)%s" % (n, "" if n == 1 else "s",
+                                   ", ".join(rec.get("top_codes") or []),
+                                   ", %d of them linted in isolation from the job-script family" % artefacts
+                                   if artefacts else "")
 
 
 def tool_table(checks):
@@ -2857,6 +3232,11 @@ def main(argv):
 
     if not args.target or not os.path.isdir(args.target):
         print("error: target directory not found: %s" % args.target, file=sys.stderr)
+        return 2
+    try:
+        load_placeholders()
+    except PlaceholdersMissing as e:
+        print("error: %s" % e, file=sys.stderr)
         return 2
     target = os.path.abspath(args.target)
     out = os.path.abspath(args.out)

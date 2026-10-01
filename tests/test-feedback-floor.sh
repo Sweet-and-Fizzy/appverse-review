@@ -346,4 +346,232 @@ check "reason" 1 "$(grep -c 'MISSING QUA-08 template/script.sh.erb:magic-number 
 sed 's/line 9\./line 22./' "$TMP/rok.md" > "$TMP/rok2.md"
 check "FAIL line named: exit 0" 0 "$(run "$TMP/rok.json" "$TMP/rok2.md")"
 
+echo "Test 25: a line number in a sentence about another file does not describe this file's defect"
+cat > "$TMP/t25.json" <<'EOF'
+[{"app_id":"root","rule":"OODT-08","defect_key":"template/script.sh.erb:debug-tracing-enabled","result":"WARN","severity":"low","evidence":"template/script.sh.erb:19,44,54"},
+ {"app_id":"root","rule":"QUA-06","defect_key":"form.yml:duplicate-yaml-key:custom_num_cores.help","result":"WARN","severity":"low","evidence":"form.yml:44,45"}]
+EOF
+cat > "$TMP/t25.md" <<'EOF'
+## Draft feedback
+<!-- feedback-covers: template/script.sh.erb:debug-tracing-enabled, form.yml:duplicate-yaml-key:custom_num_cores.help -->
+The script template/script.sh.erb needs a shebang. In form.yml the duplicate help keys on lines 44/45 should be merged.
+EOF
+check "exit 1" 1 "$(run "$TMP/t25.json" "$TMP/t25.md")"
+check "OODT-08 missing" 1 "$(grep -cF 'MISSING OODT-08 template/script.sh.erb:debug-tracing-enabled (defect not described in feedback)' "$TMP/out")"
+check "QUA-06 covered" 0 "$(grep -cF 'MISSING QUA-06' "$TMP/out")"
+
+echo "Test 26: file in one sentence, line in the next: still covered"
+cat > "$TMP/t26.md" <<'EOF'
+## Draft feedback
+<!-- feedback-covers: template/script.sh.erb:debug-tracing-enabled, form.yml:duplicate-yaml-key:custom_num_cores.help -->
+template/script.sh.erb turns on tracing. Lines 19, 44 and 54 each run set -x; drop them before release. form.yml has duplicate help keys at lines 44/45.
+EOF
+check "exit 0" 0 "$(run "$TMP/t25.json" "$TMP/t26.md")"
+
+echo "Test 27: a pseudo-anchor fix-item needs its subject in the prose, not only its covers key"
+cat > "$TMP/t27.json" <<'EOF'
+[{"app_id":"root","rule":"MNT-02","defect_key":"releases:no-releases","result":"WARN","severity":"low","evidence":"releases"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: releases:no-releases -->\nThe README is fine.\n' > "$TMP/t27a.md"
+check "exit 1" 1 "$(run "$TMP/t27.json" "$TMP/t27a.md")"
+check "reason" 1 "$(grep -cF 'MISSING MNT-02 releases:no-releases (subject not named in feedback)' "$TMP/out")"
+printf '## Draft feedback\n<!-- feedback-covers: releases:no-releases -->\nThere are no tagged releases yet; tag one when the next change lands.\n' > "$TMP/t27b.md"
+check "subject named: exit 0" 0 "$(run "$TMP/t27.json" "$TMP/t27b.md")"
+
+echo "Test 28: a file named once in a lead-in, with several of its defects described over the following sentences, still passes (the window runs until a different file is named, not just one sentence)"
+cat > "$TMP/t28.json" <<'EOF'
+[{"app_id":"root","rule":"OODT-08","defect_key":"template/script.sh.erb:debug-tracing-enabled","result":"WARN","severity":"low","evidence":"template/script.sh.erb:19,44,54"},
+ {"app_id":"root","rule":"QUA-02","defect_key":"form.yml:hardcoded-module-version","result":"FAIL","severity":"low","evidence":"form.yml:63"}]
+EOF
+cat > "$TMP/t28.md" <<'EOF'
+## Draft feedback
+<!-- feedback-covers: template/script.sh.erb:debug-tracing-enabled, form.yml:hardcoded-module-version -->
+template/script.sh.erb enables debug tracing. This shows up at lines 19, 44 and 54, and should be removed. It also lacks a shebang line, e.g. the standard interpreter directive. See the OOD packaging guidance for v2.0. form.yml separately hardcodes a module version at line 63.
+EOF
+check "exit 0" 0 "$(run "$TMP/t28.json" "$TMP/t28.md")"
+check "reports 2/2" "feedback floor: 2/2 fix-items covered" "$(tail -1 "$TMP/out")"
+
+echo "Test 29: Must-not — a pseudo-anchor item whose prose says the singular form, with no line number, passes (plural tolerance is symmetric)"
+cat > "$TMP/t29.json" <<'EOF'
+[{"app_id":"root","rule":"MNT-02","defect_key":"releases:no-releases","result":"WARN","severity":"low","evidence":"releases"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: releases:no-releases -->\nThere is no tagged release yet.\n' > "$TMP/t29.md"
+check "singular release passes: exit 0" 0 "$(run "$TMP/t29.json" "$TMP/t29.md")"
+check "reports 1/1" "feedback floor: 1/1 fix-items covered" "$(tail -1 "$TMP/out")"
+
+echo "Test 30: a pseudo-anchor whose defect_key anchor is 'root' falls back to its mechanism-tag words as the subject"
+cat > "$TMP/t30.json" <<'EOF'
+[{"app_id":"root","rule":"MNT-02","defect_key":"root:no-releases","result":"WARN","severity":"low","evidence":"GitHub releases API: 0"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: root:no-releases -->\nThe README looks fine.\n' > "$TMP/t30a.md"
+check "no subject named: exit 1" 1 "$(run "$TMP/t30.json" "$TMP/t30a.md")"
+check "reason" 1 "$(grep -cF 'MISSING MNT-02 root:no-releases (subject not named in feedback)' "$TMP/out")"
+printf '## Draft feedback\n<!-- feedback-covers: root:no-releases -->\nConsider tagging a release.\n' > "$TMP/t30b.md"
+check "mechanism word as subject: exit 0" 0 "$(run "$TMP/t30.json" "$TMP/t30b.md")"
+
+echo "Test 31: the '.github/workflows' pseudo-anchor's subject words are 'ci' and 'workflow'"
+cat > "$TMP/t31.json" <<'EOF'
+[{"app_id":"root","rule":"MNT-04","defect_key":".github/workflows:no-ci","result":"FAIL","severity":"low","evidence":".github/workflows: absent"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: .github/workflows:no-ci -->\nThere is no test suite mentioned.\n' > "$TMP/t31a.md"
+check "no subject named: exit 1" 1 "$(run "$TMP/t31.json" "$TMP/t31a.md")"
+check "reason" 1 "$(grep -cF 'MISSING MNT-04 .github/workflows:no-ci (subject not named in feedback)' "$TMP/out")"
+printf '## Draft feedback\n<!-- feedback-covers: .github/workflows:no-ci -->\nPlease add a CI configuration.\n' > "$TMP/t31b.md"
+check "ci word passes: exit 0" 0 "$(run "$TMP/t31.json" "$TMP/t31b.md")"
+
+echo "Test 32: a monorepo app's short-form filename in a later sentence (matching the evidence path's basename) is not mistaken for a different file, so the window still runs through it"
+cat > "$TMP/t32.json" <<'EOF'
+[{"app_id":"apps/x","rule":"OODT-08","defect_key":"apps/x/template/script.sh.erb:debug-tracing-enabled","result":"WARN","severity":"low","evidence":"apps/x/template/script.sh.erb:19,44,54"}]
+EOF
+cat > "$TMP/t32.md" <<'EOF'
+## Draft feedback
+<!-- feedback-covers: apps/x/template/script.sh.erb:debug-tracing-enabled -->
+apps/x/template/script.sh.erb enables debug tracing at lines 19, 44 and 54. script.sh.erb should have this removed before release.
+EOF
+check "exit 0" 0 "$(run "$TMP/t32.json" "$TMP/t32.md")"
+check "reports 1/1" "feedback floor: 1/1 fix-items covered" "$(tail -1 "$TMP/out")"
+
+echo "Test 33: subject_words is total over every entry of repo_paths.PSEUDO_ANCHORS — each yields a non-empty subject for an ordinary (non-'root') tag"
+anchors_empty="$(python3 -c "
+import importlib.util
+spec = importlib.util.spec_from_file_location('cff', '$CHECK')
+cff = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(cff)
+empty = [a for a in sorted(cff.PSEUDO_ANCHORS) if a != 'root' and not cff.subject_words(a + ':some-tag')]
+print(','.join(empty))
+")"
+check "no pseudo-anchor (other than root) yields an empty subject" "" "$anchors_empty"
+
+echo "Test 34: a pseudo-anchor fix-item outside the four originally-tabled anchors (commits, issues) is MISSING, not a silent pass, when only the covers key names it"
+cat > "$TMP/t34.json" <<'EOF'
+[{"app_id":"root","rule":"MNT-01","defect_key":"commits:stale-repo","result":"FAIL","severity":"high","evidence":"last commit 400 days ago"},
+ {"app_id":"root","rule":"MNT-05","defect_key":"issues:unresponsive-issues","result":"WARN","severity":"low","evidence":"3 open issues, no response"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: commits:stale-repo, issues:unresponsive-issues -->\nThe README is fine.\n' > "$TMP/t34a.md"
+check "exit 1" 1 "$(run "$TMP/t34.json" "$TMP/t34a.md")"
+check "reports 0/2" "feedback floor: 0/2 fix-items covered" "$(tail -1 "$TMP/out")"
+check "commits reason" 1 "$(grep -cF 'MISSING MNT-01 commits:stale-repo (subject not named in feedback)' "$TMP/out")"
+check "issues reason" 1 "$(grep -cF 'MISSING MNT-05 issues:unresponsive-issues (subject not named in feedback)' "$TMP/out")"
+printf '## Draft feedback\n<!-- feedback-covers: commits:stale-repo, issues:unresponsive-issues -->\nThe repo is stale: the last commit was over a year ago. There are open issues with no maintainer response, so they look unresponsive.\n' > "$TMP/t34b.md"
+check "subjects named, a ':' lead-in in one sentence: exit 0" 0 "$(run "$TMP/t34.json" "$TMP/t34b.md")"
+
+echo "Test 35: a 'root' pseudo-anchor whose mechanism tag has no distinctive word is MISSING with 'no subject for pseudo-anchor root', not a silent pass"
+cat > "$TMP/t35.json" <<'EOF'
+[{"app_id":"root","rule":"MNT-04","defect_key":"root:no-ci","result":"FAIL","severity":"low","evidence":"n/a"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: root:no-ci -->\nEverything else looks fine.\n' > "$TMP/t35.md"
+check "exit 1" 1 "$(run "$TMP/t35.json" "$TMP/t35.md")"
+check "reason" 1 "$(grep -cF 'MISSING MNT-04 root:no-ci (no subject for pseudo-anchor root)' "$TMP/out")"
+
+echo "Test 36: a mechanism word that is only a file-extension fragment (erb) does not trivially satisfy rule 3 via the file name itself"
+cat > "$TMP/t36.json" <<'EOF'
+[{"app_id":"root","rule":"QUA-10","defect_key":"submit.yml.erb:erb-missing-value-unhandled","result":"WARN","severity":"low","evidence":"submit.yml.erb:6,7"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: submit.yml.erb:erb-missing-value-unhandled -->\nPlease tidy submit.yml.erb.\n' > "$TMP/t36.md"
+check "exit 1" 1 "$(run "$TMP/t36.json" "$TMP/t36.md")"
+check "reason" 1 "$(grep -cF 'MISSING QUA-10 submit.yml.erb:erb-missing-value-unhandled (defect not described in feedback)' "$TMP/out")"
+
+echo "Test 37: a mechanism word that is only a bare verb (set, from no-set-e) does not trivially satisfy rule 3 via an unrelated command"
+cat > "$TMP/t37.json" <<'EOF'
+[{"app_id":"root","rule":"QUA-03","defect_key":"template/script.sh.erb:no-set-e","result":"FAIL","severity":"low","evidence":"template/script.sh.erb:1"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: template/script.sh.erb:no-set-e -->\nIn template/script.sh.erb, remove set -x on line 19.\n' > "$TMP/t37.md"
+check "exit 1" 1 "$(run "$TMP/t37.json" "$TMP/t37.md")"
+check "reason" 1 "$(grep -cF 'MISSING QUA-03 template/script.sh.erb:no-set-e (defect not described in feedback)' "$TMP/out")"
+
+echo "Test 38: rule 3's phrase fallback — a negation-stripped mechanism-tag phrase ('set -e', from tag 'no-set-e') found consecutively in the window describes the defect, even though 'set' alone is a stopword"
+printf '## Draft feedback\n<!-- feedback-covers: template/script.sh.erb:no-set-e -->\ntemplate/script.sh.erb does not have set -e.\n' > "$TMP/t38.md"
+check "phrase in window: exit 0" 0 "$(run "$TMP/t37.json" "$TMP/t38.md")"
+check "reports 1/1" "feedback floor: 1/1 fix-items covered" "$(tail -1 "$TMP/out")"
+
+echo "Test 39: the phrase fallback also matches a leading prefix of a longer tag's word sequence ('commented-out', from tag 'commented-out-code', matched by prose that never says 'code')"
+cat > "$TMP/t39.json" <<'EOF'
+[{"app_id":"root","rule":"QUA-09","defect_key":"template/script.sh.erb:commented-out-code","result":"WARN","severity":"low","evidence":"template/script.sh.erb:34-95"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: template/script.sh.erb:commented-out-code -->\ntemplate/script.sh.erb has a commented-out block that should be removed.\n' > "$TMP/t39.md"
+check "prefix phrase in window: exit 0" 0 "$(run "$TMP/t39.json" "$TMP/t39.md")"
+check "reports 1/1" "feedback floor: 1/1 fix-items covered" "$(tail -1 "$TMP/out")"
+
+echo "Test 40: a one-character phrase word is a shell flag and matches only in flag form ('set e' in 'users can set e (environment) variables' does not satisfy no-set-e)"
+printf '## Draft feedback\n<!-- feedback-covers: template/script.sh.erb:no-set-e -->\nIn template/script.sh.erb, users can set e (environment) variables.\n' > "$TMP/t40.md"
+check "exit 1" 1 "$(run "$TMP/t37.json" "$TMP/t40.md")"
+check "reason" 1 "$(grep -cF 'MISSING QUA-03 template/script.sh.erb:no-set-e (defect not described in feedback)' "$TMP/out")"
+
+echo "Test 41: the flag form with a hyphen joined directly to the word ('no set-e') still satisfies no-set-e"
+printf '## Draft feedback\n<!-- feedback-covers: template/script.sh.erb:no-set-e -->\ntemplate/script.sh.erb has no set-e.\n' > "$TMP/t41.md"
+check "flag form set-e: exit 0" 0 "$(run "$TMP/t37.json" "$TMP/t41.md")"
+check "reports 1/1" "feedback floor: 1/1 fix-items covered" "$(tail -1 "$TMP/out")"
+
+echo "Test 42: a pseudo-anchor's subject names it but does not describe it: rule 3 needs a mechanism word or an evidence number"
+cat > "$TMP/t42.json" <<'EOF'
+[{"app_id":"root","rule":"MNT-01","defect_key":"commits:stale-repo","result":"FAIL","severity":"high","evidence":"last commit 2023-04-11 (536 days)"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: commits:stale-repo -->\nPlease commit a LICENSE file before resubmitting.\n' > "$TMP/t42a.md"
+check "subject only: exit 1" 1 "$(run "$TMP/t42.json" "$TMP/t42a.md")"
+check "subject only: reason" "MISSING MNT-01 commits:stale-repo (defect not described in feedback)" "$(head -1 "$TMP/out")"
+printf '## Draft feedback\n<!-- feedback-covers: commits:stale-repo -->\nNo commit has landed in a long time, so the repo looks stale.\n' > "$TMP/t42b.md"
+check "mechanism word in the subject window: exit 0" 0 "$(run "$TMP/t42.json" "$TMP/t42b.md")"
+printf '## Draft feedback\n<!-- feedback-covers: commits:stale-repo -->\nThe last commit was on 2023-04-11.\n' > "$TMP/t42c.md"
+check "an evidence date in the subject window: exit 0" 0 "$(run "$TMP/t42.json" "$TMP/t42c.md")"
+cat > "$TMP/t42d.json" <<'EOF'
+[{"app_id":"root","rule":"MNT-02","defect_key":"releases:no-releases","result":"WARN","severity":"low","evidence":"GitHub releases API: 0"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: releases:no-releases -->\nConsider tagging a release.\n' > "$TMP/t42d.md"
+check "a tag with nothing beyond its subject (no-releases) stays subject-only: exit 0" 0 "$(run "$TMP/t42d.json" "$TMP/t42d.md")"
+
+echo "Test 43: a tag word that names the anchor (changelog for CHANGELOG.md) does not describe the defect"
+cat > "$TMP/t43.json" <<'EOF'
+[{"app_id":"root","rule":"QUA-05","defect_key":"CHANGELOG.md:wrong-app-changelog","result":"WARN","severity":"low","evidence":"CHANGELOG.md:9-62"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: CHANGELOG.md:wrong-app-changelog -->\nThanks for adding CHANGELOG.md. The README.md looks good.\n' > "$TMP/t43a.md"
+check "file named, only the anchor word: exit 1" 1 "$(run "$TMP/t43.json" "$TMP/t43a.md")"
+check "reason" "MISSING QUA-05 CHANGELOG.md:wrong-app-changelog (defect not described in feedback)" "$(head -1 "$TMP/out")"
+printf '## Draft feedback\n<!-- feedback-covers: CHANGELOG.md:wrong-app-changelog -->\nCHANGELOG.md describes the wrong app (MATLAB).\n' > "$TMP/t43b.md"
+check "the tag's other words describe it: exit 0" 0 "$(run "$TMP/t43.json" "$TMP/t43b.md")"
+
+echo "Test 44: a one-character flag word matches inside a flag cluster (set -euo pipefail covers no-set-e)"
+printf '## Draft feedback\n<!-- feedback-covers: template/script.sh.erb:no-set-e -->\nAdd set -euo pipefail near the top of template/script.sh.erb.\n' > "$TMP/t44.md"
+check "flag cluster: exit 0" 0 "$(run "$TMP/t37.json" "$TMP/t44.md")"
+printf '## Draft feedback\n<!-- feedback-covers: template/script.sh.erb:no-set-e -->\nIn template/script.sh.erb, remove set -xv on line 19.\n' > "$TMP/t44b.md"
+check "a cluster without the flag letter first (set -xv): exit 1" 1 "$(run "$TMP/t37.json" "$TMP/t44b.md")"
+
+echo "Test 45: an all-capitals stem names its file (the README names README.md); a lowercase stem does not"
+cat > "$TMP/t45.json" <<'EOF'
+[{"app_id":"root","rule":"QUA-06","defect_key":"README.md:readme-typo","result":"WARN","severity":"low","evidence":"README.md:125"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: README.md:readme-typo -->\nThe README also has minor typos.\n' > "$TMP/t45.md"
+check "the README: exit 0" 0 "$(run "$TMP/t45.json" "$TMP/t45.md")"
+printf '## Draft feedback\n<!-- feedback-covers: README.md:readme-typo -->\nThe readme has minor typos.\n' > "$TMP/t45b.md"
+check "lowercase readme: exit 1" 1 "$(run "$TMP/t45.json" "$TMP/t45b.md")"
+check "lowercase readme: reason" "MISSING QUA-06 README.md:readme-typo (file not named in feedback)" "$(head -1 "$TMP/out")"
+
+echo "Test 46: a concrete value quoted from the evidence describes the defect; the file name alone still does not"
+cat > "$TMP/t46.json" <<'EOF'
+[{"app_id":"root","rule":"QUA-05","defect_key":"CHANGELOG.md:wrong-app-changelog","result":"WARN","severity":"low","evidence":"CHANGELOG.md:55-62 (all diff links reference OSC/bc_osc_matlab)"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: CHANGELOG.md:wrong-app-changelog -->\nThe CHANGELOG is copied from the `bc_osc_matlab` repository; please replace it.\n' > "$TMP/t46.md"
+check "evidence value in the window: exit 0" 0 "$(run "$TMP/t46.json" "$TMP/t46.md")"
+printf '## Draft feedback\n<!-- feedback-covers: CHANGELOG.md:wrong-app-changelog -->\nThanks for adding CHANGELOG.md; the diff links all reference upstream.\n' > "$TMP/t46b.md"
+check "file named, plain words from the evidence only: exit 1" 1 "$(run "$TMP/t46.json" "$TMP/t46b.md")"
+
+echo "Test 47: a negation prefix in a tag (undocumented) is not a distinctive word; a ':' does not end a sentence"
+cat > "$TMP/t47.json" <<'EOF'
+[{"app_id":"root","rule":"QUA-08","defect_key":"template/script.sh.erb:undocumented-hex-color","result":"WARN","severity":"low","evidence":"template/script.sh.erb:46"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: template/script.sh.erb:undocumented-hex-color -->\nTwo undocumented values remain: the path in template/script.sh.erb is site-specific.\n' > "$TMP/t47a.md"
+check "only 'undocumented' in the window: exit 1" 1 "$(run "$TMP/t47.json" "$TMP/t47a.md")"
+check "reason" "MISSING QUA-08 template/script.sh.erb:undocumented-hex-color (defect not described in feedback)" "$(head -1 "$TMP/out")"
+printf '## Draft feedback\n<!-- feedback-covers: template/script.sh.erb:undocumented-hex-color -->\nPolish in template/script.sh.erb: the hex color needs a comment.\n' > "$TMP/t47b.md"
+check "the defect after a ':' lead-in, same sentence: exit 0" 0 "$(run "$TMP/t47.json" "$TMP/t47b.md")"
+
+echo "Test 48: a CamelCase word or acronym incidental to the evidence source ('GitHub' in 'GitHub API') is not a literal; unrelated prose that happens to say it stays MISSING"
+cat > "$TMP/t48.json" <<'EOF'
+[{"app_id":"root","rule":"MNT-01","defect_key":"commits:stale-repo","result":"FAIL","severity":"high","evidence":"GitHub API: pushed_at=2023-01-01"}]
+EOF
+printf '## Draft feedback\n<!-- feedback-covers: commits:stale-repo -->\nPlease commit a LICENSE file on GitHub.\n' > "$TMP/t48a.md"
+check "GitHub alone from the evidence source does not describe the defect: exit 1" 1 "$(run "$TMP/t48.json" "$TMP/t48a.md")"
+check "reason" "MISSING MNT-01 commits:stale-repo (defect not described in feedback)" "$(head -1 "$TMP/out")"
+printf '## Draft feedback\n<!-- feedback-covers: commits:stale-repo -->\nThe repo looks stale: no commit has landed in a long time.\n' > "$TMP/t48b.md"
+check "a mechanism word still describes it: exit 0" 0 "$(run "$TMP/t48.json" "$TMP/t48b.md")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
