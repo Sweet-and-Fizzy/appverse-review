@@ -468,7 +468,8 @@ jobs:
             rc=0; python3 "$WS/appverse-review/references/check-all.py" \
               "$WS/review-${SLUG}.md" "$WS/review-${SLUG}.findings.json" \
               "$WS/appverse-review/references/checks.json" "$WS/pre-review" \
-              --target "$WS/target-repo" 2>&1 | tee "$WS/check-output.txt" || rc=${PIPESTATUS[0]}
+              --target "$WS/target-repo" > "$WS/check-output.txt" 2>&1 || rc=$?
+            cat "$WS/check-output.txt"
             if [ "$rc" -ne 0 ]; then
               if [ "$rc" -eq 2 ]; then
                 echo "::error::One or more checkers could not run (see [checker] error lines above)"
@@ -665,7 +666,10 @@ jobs:
         env:
           REVIEW_ASPECTS: ${{ inputs.review_aspects }}
           PREFIX: ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}
-          CHECKS_OUTCOME: ${{ steps.checks.outcome }}\n          RECHECK_OUTCOME: ${{ steps.recheck.outcome }}\n        run: |\n          # A failed check stays red, but the steps above still assembled and
+          CHECKS_OUTCOME: ${{ steps.checks.outcome }}
+          RECHECK_OUTCOME: ${{ steps.recheck.outcome }}
+        run: |
+          # A failed check stays red, but the steps above still assembled and
           # uploaded the artifact so the reviewer can see what the check saw.
           check_failed=0
           final="$CHECKS_OUTCOME"
