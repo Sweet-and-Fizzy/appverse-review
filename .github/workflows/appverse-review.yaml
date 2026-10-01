@@ -266,7 +266,9 @@ jobs:
                   "WebFetch(domain:raw.githubusercontent.com)",
                   "Read",
                   "Write",
-                  "Edit"
+                  "Edit",
+                  "Agent",
+                  "Task"
                 ],
                 "deny": [
                   "Task(run_in_background:true)",
