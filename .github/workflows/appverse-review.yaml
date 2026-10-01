@@ -328,6 +328,12 @@ jobs:
               appverse-review @ ${{ steps.params.outputs.plugin_version }} (`${{ steps.params.outputs.plugin_sha }}`, https://github.com/Sweet-and-Fizzy/appverse-review))
             - Model: ${{ steps.params.outputs.model_id }}
 
+            The review-app skill runs the four aspects as subagents, and the
+            Agent tool is available here: dispatch them, one message with four
+            Agent calls, rather than doing the aspects yourself. The gateway
+            models have a smaller context than Claude, and a review done in
+            one context runs out before the files are written.
+
             This is a non-interactive run: the session ends the moment your
             turn ends, and any sub-agent still running is abandoned with its
             work lost. Launch sub-agents in the foreground
