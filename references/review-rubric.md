@@ -323,16 +323,17 @@ How much a deployer at another site has to change before the app runs.
 
 | Level | Description |
 |-------|-------------|
-| **Not portable** | Hardcoded paths, cluster names, module versions throughout |
+| **Not portable** | Hardcoded paths, cluster names, module versions throughout, or a form that only renders with Ruby or files from the author's site |
 | **Partially portable** | Some hardcoding, but main config is in form.yml attributes |
-| **Portable** | All site-specific values centralized and clearly marked |
+| **Portable** | Every site-specific value is a form attribute, so a site sets it in its own config without editing the repo |
 
 **Portability signal:** Portable = Low; Partially portable = Medium; Not
 portable = High.
 
 **Target for inclusion:** Partially portable or above. Below the target is
-"accept with suggestions" when the gate criteria pass; ask the contributor to
-centralize configuration.
+"accept with suggestions" when the gate criteria pass; suggest the contributor
+move site-specific values into form attributes so a site can set them in its
+own config.
 
 Where to look: `submit.yml.erb`, `form.yml`, `form.yml.erb`, and `template/`
 scripts, for cluster names, partitions, accounts, absolute site paths, and
