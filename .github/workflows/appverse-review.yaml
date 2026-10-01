@@ -124,8 +124,16 @@ jobs:
           MODEL: ${{ inputs.model }}
           GATEWAY_URL: ${{ inputs.gateway_base_url }}
           GATEWAY_MODEL: ${{ inputs.model_id }}
-          DEFAULT_GATEWAY_URL: https://jump-external.ccs.uky.edu
           DEFAULT_GATEWAY_MODEL: ccs/Qwen/Qwen3.6-35B-A3B-FP8
+          # The gateway key goes to whichever URL a run names, and a token that
+          # can only dispatch (the portal's) can name any URL. So a gateway URL's
+          # host must be the default gateway's or on the extra-hosts list. Both
+          # are secrets, not variables, so the hosts stay out of the public
+          # source and are masked in the public run logs.
+          DEFAULT_GATEWAY_URL: ${{ secrets.LLM_GATEWAY_URL }}
+          EXTRA_GATEWAY_HOSTS: ${{ secrets.LLM_GATEWAY_ALLOWED_HOSTS }}
+          HAS_GATEWAY_KEY: ${{ secrets.LLM_GATEWAY_KEY != '' }}
+          HAS_ANTHROPIC_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' }}
         run: |
           if [ "$REVIEW_ASPECTS" = "all" ]; then
             echo "skill=review-app" >> "$GITHUB_OUTPUT"
@@ -146,38 +154,76 @@ jobs:
           # and no other gateway was given. The stamp step records the model
           # id actually requested, so a gateway run is never labelled Claude.
           if [ "$MODEL" = "qwen" ] || [ -n "$GATEWAY_URL" ]; then
-            {
-              echo "backend=gateway"
-              echo "gateway_url=${GATEWAY_URL:-$DEFAULT_GATEWAY_URL}"
-              echo "model_id=${GATEWAY_MODEL:-$DEFAULT_GATEWAY_MODEL}"
-            } >> "$GITHUB_OUTPUT"
+            backend=gateway
+            model_id="${GATEWAY_MODEL:-$DEFAULT_GATEWAY_MODEL}"
           else
-            {
-              echo "backend=anthropic"
-              echo "gateway_url="
-              echo "model_id=claude-${MODEL}-4-6"
-            } >> "$GITHUB_OUTPUT"
+            backend=anthropic
+            model_id="claude-${MODEL}-4-6"
           fi
-
-      - name: Point Claude Code at the gateway
-        if: inputs.review_aspects != 'dry-run' && steps.params.outputs.backend == 'gateway'
-        env:
-          GATEWAY_URL: ${{ steps.params.outputs.gateway_url }}
-          GATEWAY_MODEL: ${{ steps.params.outputs.model_id }}
-        run: |
-          echo "ANTHROPIC_BASE_URL=$GATEWAY_URL" >> "$GITHUB_ENV"
-          # Cap the per-request output so a 32k default cannot overflow a
-          # small-context model; the pre-review facts keep prompts short.
-          echo "CLAUDE_CODE_MAX_OUTPUT_TOKENS=8192" >> "$GITHUB_ENV"
-          echo "Gateway: $GATEWAY_URL  model: $GATEWAY_MODEL"
+          # Checked before it reaches $GITHUB_OUTPUT (a newline would inject
+          # other outputs) or claude_args (a space would add flags).
+          model_re='^[A-Za-z0-9._/:-]+$'
+          if ! [[ "$model_id" =~ $model_re ]]; then
+            echo "::error::model_id may contain only letters, digits and . _ / : -"
+            exit 1
+          fi
+          # A dry-run calls no model, so it needs no key and no gateway.
+          if [ "$REVIEW_ASPECTS" != "dry-run" ]; then
+            if [ "$backend" = anthropic ] && [ "$HAS_ANTHROPIC_KEY" != true ]; then
+              echo "::error::ANTHROPIC_API_KEY secret is not set"
+              exit 1
+            fi
+            if [ "$backend" = gateway ]; then
+              if [ "$HAS_GATEWAY_KEY" != true ]; then
+                echo "::error::LLM_GATEWAY_KEY secret is not set"
+                exit 1
+              fi
+              url_re='^https://([A-Za-z0-9.-]+)(:[0-9]+)?(/[A-Za-z0-9._~/-]*)?$'
+              allowed=" $EXTRA_GATEWAY_HOSTS "
+              if [ -n "$DEFAULT_GATEWAY_URL" ]; then
+                if ! [[ "$DEFAULT_GATEWAY_URL" =~ $url_re ]]; then
+                  echo "::error::LLM_GATEWAY_URL secret is not an https:// URL"
+                  exit 1
+                fi
+                allowed="$allowed${BASH_REMATCH[1]} "
+              fi
+              gateway_url="${GATEWAY_URL:-$DEFAULT_GATEWAY_URL}"
+              if [ -z "$gateway_url" ]; then
+                echo "::error::LLM_GATEWAY_URL secret is not set"
+                exit 1
+              fi
+              if ! [[ "$gateway_url" =~ $url_re ]]; then
+                echo "::error::gateway_base_url must be an https:// URL with no query or credentials"
+                exit 1
+              fi
+              if [[ "$allowed" != *" ${BASH_REMATCH[1]} "* ]]; then
+                echo "::error::gateway host is not allowed; add it to the LLM_GATEWAY_ALLOWED_HOSTS secret"
+                exit 1
+              fi
+              # Straight to GITHUB_ENV, never through a step output: Actions
+              # drops any output that contains a secret, which would leave the
+              # base URL empty and send the gateway key to the Anthropic API.
+              echo "ANTHROPIC_BASE_URL=$gateway_url" >> "$GITHUB_ENV"
+              # Cap the per-request output so a 32k default cannot overflow a
+              # small-context model; the pre-review facts keep prompts short.
+              echo "CLAUDE_CODE_MAX_OUTPUT_TOKENS=8192" >> "$GITHUB_ENV"
+              echo "Gateway run, model: $model_id"
+            fi
+          fi
+          {
+            echo "backend=$backend"
+            echo "model_id=$model_id"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Run AppVerse review
         if: inputs.review_aspects != 'dry-run'
         uses: anthropics/claude-code-action@v1
         with:
           # On a gateway run the gateway key replaces the Anthropic key and
-          # ANTHROPIC_BASE_URL (set above) points Claude Code at it.
-          anthropic_api_key: ${{ steps.params.outputs.backend == 'gateway' && secrets.LLM_GATEWAY_KEY || secrets.ANTHROPIC_API_KEY }}
+          # ANTHROPIC_BASE_URL (set above) points Claude Code at it. Each key is
+          # gated on its own backend: a plain `a && x || y` would hand the
+          # Anthropic key to the gateway whenever the gateway key is empty.
+          anthropic_api_key: ${{ (steps.params.outputs.backend == 'gateway' && secrets.LLM_GATEWAY_KEY) || (steps.params.outputs.backend == 'anthropic' && secrets.ANTHROPIC_API_KEY) || '' }}
           # With a token supplied the action skips its OIDC app-token exchange.
           # That exchange refuses any workflow file that differs from the
           # default branch and the action then exits "success" without running,
