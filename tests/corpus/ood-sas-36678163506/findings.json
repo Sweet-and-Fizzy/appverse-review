@@ -401,7 +401,7 @@
     "aspect": "maintenance",
     "severity": "info",
     "result": "PASS",
-    "summary": "4 contributors: whorka, elawrence42, paulasanematsu, pontiggi",
+    "summary": "4 contributors: contributor-1, contributor-2, contributor-3, contributor-4",
     "evidence": "contributors",
     "id": "75ba3978259d1ec0"
   },
