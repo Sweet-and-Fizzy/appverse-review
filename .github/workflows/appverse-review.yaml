@@ -483,6 +483,16 @@ jobs:
                 echo "::warning::Report or findings failed a checker; a repair pass follows (see [checker] INVALID/MISSING/MISMATCH/UNCITED/BAD lines above)"
                 echo "needs_repair=true" >> "$GITHUB_OUTPUT"
               fi
+              if [ ! -s "$WS/review-${SLUG}.meta.json" ]; then
+                echo "[meta] MISSING review-${SLUG}.meta.json (write it from the report, review-app SKILL.md section 5)" >> "$WS/check-output.txt"
+              fi
+              exit 1
+            fi
+            # Checks pass but the session ran out before writing the metadata:
+            # the repair writes it from the report.
+            if [ ! -s "$WS/review-${SLUG}.meta.json" ]; then
+              echo "[meta] MISSING review-${SLUG}.meta.json (write it from the report, review-app SKILL.md section 5)" | tee -a "$WS/check-output.txt"
+              echo "needs_repair=true" >> "$GITHUB_OUTPUT"
               exit 1
             fi
           else
@@ -539,10 +549,11 @@ jobs:
             Files:
             - report:   ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.md
             - findings: ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.findings.json
+            - metadata: ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.meta.json
             - checker output to fix: ${{ github.workspace }}/check-output.txt
-              (the lines starting [floor], [keys], [rating], [rows] or
-              [evidence] and containing MISSING, INVALID, MISMATCH, UNCITED
-              or BAD; everything else there is context)
+              (the lines starting [floor], [keys], [rating], [rows],
+              [evidence] or [meta] and containing MISSING, INVALID,
+              MISMATCH, UNCITED or BAD; everything else there is context)
             - pre-review facts: ${{ github.workspace }}/pre-review/
             - the rules the checkers apply: ${{ github.workspace }}/appverse-review/skills/review-app/SKILL.md
               (sections 4 and 6) and ${{ github.workspace }}/appverse-review/references/finding-codes.md
@@ -560,6 +571,13 @@ jobs:
               comment.
             - A rating MISMATCH: change the rating or the record, whichever
               the line says is unsupported.
+            - A [meta] MISSING line: write the metadata file in the format
+              of review-app SKILL.md section 5, taking every value from the
+              report (decision, ratings, signals, maintenance) and the
+              resolved values below; do not re-assess anything.
+              Reviewed commit: ${{ steps.params.outputs.target_sha }};
+              repo: https://github.com/${{ inputs.target_repo }};
+              model: ${{ steps.params.outputs.model_id }}.
             - Never add an `id` field to a finding; IDs are computed later.
             - Do not reword anything the checker did not list.
 
