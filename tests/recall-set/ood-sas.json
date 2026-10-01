@@ -2,16 +2,10 @@
   "groups": {
     "pre-rows": [
       "ood-sas-36477735864",
-      "ood-sas-36477747753",
-      "ood-sas-36477757960",
-      "ood-sas-36477767148",
-      "ood-sas-run6",
-      "ood-sas-run7"
+      "ood-sas-36477767148"
     ],
     "rows": [
-      "ood-sas-36678163506",
-      "ood-sas-36678169915",
-      "ood-sas-36678176175"
+      "ood-sas-36678163506"
     ],
     "fixes": [
       "ood-sas-36773061549"
