@@ -30,19 +30,20 @@ on:
           - dry-run
         default: "all"
       model:
-        description: "Claude model to use"
+        description: "Model: qwen runs on the on-prem gateway (default); sonnet or opus run on the Anthropic API"
         required: false
         type: choice
         options:
+          - qwen
           - sonnet
           - opus
-        default: "sonnet"
+        default: "qwen"
       gateway_base_url:
-        description: "Anthropic-format LLM gateway base URL (e.g. a LiteLLM proxy). Empty = Anthropic API."
+        description: "Another Anthropic-format gateway (e.g. a LiteLLM proxy) instead of the default on-prem one; implies a gateway run"
         required: false
         default: ""
       model_id:
-        description: "Model id passed verbatim to --model when gateway_base_url is set (e.g. ccs/Qwen/Qwen3.6-35B-A3B-FP8)"
+        description: "Gateway model id passed verbatim to --model (default for qwen: ccs/Qwen/Qwen3.6-35B-A3B-FP8)"
         required: false
         default: ""
       debug:
@@ -121,7 +122,10 @@ jobs:
           TARGET_REPO: ${{ inputs.target_repo }}
           REVIEW_ASPECTS: ${{ inputs.review_aspects }}
           MODEL: ${{ inputs.model }}
+          GATEWAY_URL: ${{ inputs.gateway_base_url }}
           GATEWAY_MODEL: ${{ inputs.model_id }}
+          DEFAULT_GATEWAY_URL: https://jump-external.ccs.uky.edu
+          DEFAULT_GATEWAY_MODEL: ccs/Qwen/Qwen3.6-35B-A3B-FP8
         run: |
           if [ "$REVIEW_ASPECTS" = "all" ]; then
             echo "skill=review-app" >> "$GITHUB_OUTPUT"
@@ -137,20 +141,30 @@ jobs:
             echo "target_commit_date=$(git -C target-repo log -1 --format=%cs)"
             echo "plugin_sha=$(git -C appverse-review rev-parse --short HEAD)"
             echo "plugin_version=$(python3 -c "import json; print(json.load(open('appverse-review/.claude-plugin/plugin.json'))['version'])")"
-            # A gateway run passes its model id verbatim; the stamp step then
-            # records the model actually requested, not a Claude name.
-            echo "model_id=${GATEWAY_MODEL:-claude-${MODEL}-4-6}"
           } >> "$GITHUB_OUTPUT"
+          # Backend: the on-prem gateway unless an Anthropic model was chosen
+          # and no other gateway was given. The stamp step records the model
+          # id actually requested, so a gateway run is never labelled Claude.
+          if [ "$MODEL" = "qwen" ] || [ -n "$GATEWAY_URL" ]; then
+            {
+              echo "backend=gateway"
+              echo "gateway_url=${GATEWAY_URL:-$DEFAULT_GATEWAY_URL}"
+              echo "model_id=${GATEWAY_MODEL:-$DEFAULT_GATEWAY_MODEL}"
+            } >> "$GITHUB_OUTPUT"
+          else
+            {
+              echo "backend=anthropic"
+              echo "gateway_url="
+              echo "model_id=claude-${MODEL}-4-6"
+            } >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Point Claude Code at the gateway
-        if: inputs.review_aspects != 'dry-run' && inputs.gateway_base_url != ''
+        if: inputs.review_aspects != 'dry-run' && steps.params.outputs.backend == 'gateway'
         env:
-          GATEWAY_URL: ${{ inputs.gateway_base_url }}
-          GATEWAY_MODEL: ${{ inputs.model_id }}
+          GATEWAY_URL: ${{ steps.params.outputs.gateway_url }}
+          GATEWAY_MODEL: ${{ steps.params.outputs.model_id }}
         run: |
-          if [ -z "$GATEWAY_MODEL" ]; then
-            echo "::error::model_id is required when gateway_base_url is set"; exit 1
-          fi
           echo "ANTHROPIC_BASE_URL=$GATEWAY_URL" >> "$GITHUB_ENV"
           # Cap the per-request output so a 32k default cannot overflow a
           # small-context model; the pre-review facts keep prompts short.
@@ -161,9 +175,9 @@ jobs:
         if: inputs.review_aspects != 'dry-run'
         uses: anthropics/claude-code-action@v1
         with:
-          # When a gateway is given, the gateway key replaces the Anthropic key
-          # and ANTHROPIC_BASE_URL (set above) points Claude Code at it.
-          anthropic_api_key: ${{ inputs.gateway_base_url != '' && secrets.LLM_GATEWAY_KEY || secrets.ANTHROPIC_API_KEY }}
+          # On a gateway run the gateway key replaces the Anthropic key and
+          # ANTHROPIC_BASE_URL (set above) points Claude Code at it.
+          anthropic_api_key: ${{ steps.params.outputs.backend == 'gateway' && secrets.LLM_GATEWAY_KEY || secrets.ANTHROPIC_API_KEY }}
           # With a token supplied the action skips its OIDC app-token exchange.
           # That exchange refuses any workflow file that differs from the
           # default branch and the action then exits "success" without running,
