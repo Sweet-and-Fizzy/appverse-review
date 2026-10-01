@@ -22,7 +22,7 @@
 | Last commit | 2026-07-08 | Within 12 months |
 | Releases | None | No tagged releases |
 | Issues responsiveness | 0 open issues | Neutral (no evidence either way) |
-| Contributors | 4 (whorka, elawrence42, paulasanematsu, pontiggi) | Multiple contributors |
+| Contributors | 4 (contributor-1, contributor-2, contributor-3, contributor-4) | Multiple contributors |
 | CHANGELOG | Present (CHANGELOG.md) | Content describes a MATLAB app, not SAS — see QUA-05 |
 | CI | None | No `.github/workflows` directory |
 

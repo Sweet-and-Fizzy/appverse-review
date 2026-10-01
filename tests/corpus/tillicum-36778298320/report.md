@@ -22,7 +22,7 @@
 | Last commit | 2026-09-09 (21 days before review) | Active |
 | Releases | None | No tagged releases |
 | Issues responsiveness | 0 open issues | Not assessed (no open issues) |
-| Contributors | 2 (npho: 12 commits, jfrulla: 1 commit) | Multiple contributors |
+| Contributors | 2 (contributor-1: 12 commits, contributor-2: 1 commit) | Multiple contributors |
 | CHANGELOG | Not present | Missing |
 | CI | Not present (no `.github/` directory) | Missing |
 

@@ -531,7 +531,7 @@
     "aspect": "maintenance",
     "severity": "info",
     "result": "PASS",
-    "summary": "2 contributors (npho: 12 commits, jfrulla: 1 commit)",
+    "summary": "2 contributors (contributor-1: 12 commits, contributor-2: 1 commit)",
     "evidence": "contributors",
     "id": "75ba3978259d1ec0"
   },

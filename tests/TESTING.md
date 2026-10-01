@@ -268,3 +268,11 @@ categories.
 When tuning against real previously-reviewed repos (see the design spec's
 calibration section), use these fixtures as regression tests to make sure
 calibration changes don't cause the skill to miss known planted defects.
+
+## Corpus runs on third-party repos
+
+`tests/corpus/` may hold review runs of public third-party repos; everything
+in a run comes from the public repo or GitHub's public metadata. Before
+committing a run, replace contributor handles and any other personal data in
+`report.md` and `findings.json` with placeholders (`contributor-1`, ...), and
+do not commit a run whose decision the rubric would no longer give.
