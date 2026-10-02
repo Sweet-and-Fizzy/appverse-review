@@ -71,7 +71,9 @@ The review reads the catalog before the model runs, and its Catalog checks
 section reports the results: whether the app's `software` value matches a
 Software entry, whether its `app_type` and `implementation_tags` are in the
 catalog's vocabularies, and which published apps implement the same
-software. These are exact lookups, so you can rely on them. The duplicate
+software, grouped by repository, with the submitted repo marked. They come
+from the catalog's public data; if something looks off (a value you expect
+to match, a vocabulary term you know exists), check it by hand. The duplicate
 decision is still yours: read the apps the report lists, decide whether this
 one is distinct, and write the rationale. If the report says the catalog was
 not read, run the checks by hand (see the appendix, "Reading the catalog by
@@ -267,10 +269,13 @@ curl -sL -H 'Accept: application/vnd.api+json' \
 curl -sL -H 'Accept: application/vnd.api+json' \
   'https://openondemand.connectci.org/jsonapi/taxonomy_term/appverse_implementation_tags?fields%5Btaxonomy_term--appverse_implementation_tags%5D=name&page%5Blimit%5D=50'
 
-# Published apps, for the duplicate check
+# Published apps, for the duplicate check (50 per page at most)
 curl -sL -H 'Accept: application/vnd.api+json' \
-  'https://openondemand.connectci.org/jsonapi/node/appverse_app?fields%5Bnode--appverse_app%5D=title&page%5Blimit%5D=100'
+  'https://openondemand.connectci.org/jsonapi/node/appverse_app?fields%5Bnode--appverse_app%5D=title&page%5Blimit%5D=50'
 ```
+
+A list longer than one page carries a `links.next` URL in the response; keep
+following it until there is none. Reading only the first page misses apps.
 
 Sibling resources on the same API: `taxonomy_term--appverse_app_type`,
 `taxonomy_term--appverse_license`, `node--appverse_repo`. `GET /jsonapi` lists

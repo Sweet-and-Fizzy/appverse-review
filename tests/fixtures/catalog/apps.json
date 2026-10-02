@@ -1,1 +1,16 @@
-[{"title": "Jupyter at Example U", "github_url": "https://github.com/example/jupyter", "subpath": null, "software_id": "s-jupyter"}, {"title": "RStudio Server", "github_url": "https://github.com/example/rstudio", "subpath": null, "software_id": "s-rstudio"}]
+[
+ {
+  "title": "Jupyter at Example U",
+  "github_url": "https://github.com/example/jupyter",
+  "subpath": null,
+  "software_id": "s-jupyter",
+  "id": "a1"
+ },
+ {
+  "title": "RStudio Server",
+  "github_url": "https://github.com/example/rstudio",
+  "subpath": null,
+  "software_id": "s-rstudio",
+  "id": "a2"
+ }
+]

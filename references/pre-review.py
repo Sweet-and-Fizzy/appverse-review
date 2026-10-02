@@ -3164,6 +3164,16 @@ def check_security(target, apps, out):
                         "Candidate enumeration)", per_app, notes, n, "<app_id>/security.json")
 
 
+def _origin_repo(target):
+    """The reviewed repo's owner/repo from its git origin remote, or None."""
+    try:
+        r = subprocess.run(["git", "-C", target, "config", "--get", "remote.origin.url"],
+                           stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=10)
+    except Exception:
+        return None
+    return catalog_facts.repo_key(r.stdout.strip()) if r.returncode == 0 else None
+
+
 def _catalog_source(args):
     return args.catalog or os.environ.get("APPVERSE_CATALOG") or catalog_facts.DEFAULT_CATALOG
 
@@ -3189,14 +3199,20 @@ def check_catalog(args, target, apps, out):
         write_block(catalog_facts.not_read_block("the catalog could not be read"))
         return record("catalog", "failed_to_run", command=source, output_file="catalog-checks.md",
                       note=reason)
-    root_meta = _load_file(target, os.path.join(target, "appverse.yml"), "appverse.yml")
-    inferred = root_meta is None
-    root_meta = root_meta or {}
+    root_path = os.path.join(target, "appverse.yml")
+    root_meta = _load_file(target, root_path, "appverse.yml")
     entries = {}
-    for e in root_meta.get("apps") or []:
-        if isinstance(e, dict) and isinstance(e.get("path"), str):
-            entries[os.path.normpath(e["path"].strip()).replace(os.sep, "/")] = e
-    monorepo = bool(entries)
+    if root_meta is None:
+        shape = "unparsed" if os.path.lexists(root_path) else "inferred"
+        root_meta = {}
+    else:
+        decl_apps = root_meta.get("apps")
+        for e in decl_apps if isinstance(decl_apps, list) else []:
+            if isinstance(e, dict) and isinstance(e.get("path"), str) and e["path"].strip():
+                entries[os.path.normpath(e["path"].strip()).replace(os.sep, "/")] = e
+        shape = "monorepo" if entries else "single"
+    monorepo = shape == "monorepo"
+    this_repo = _origin_repo(target)
     per_app, facts = [], []
     for app in apps:
         if app.get("_skip"):
@@ -3204,12 +3220,12 @@ def check_catalog(args, target, apps, out):
         entry = entries.get(app["path"]) if monorepo else None
         sub = _load_file(target, os.path.join(app["_dir"], "appverse.yml"),
                          app["path"] + "/appverse.yml") if monorepo else None
-        decl = catalog_facts.declared_values(root_meta, entry, sub, inferred)
-        res = catalog_facts.compare(cat, decl)
+        decl = catalog_facts.declared_values(root_meta, entry, sub, shape)
+        res = catalog_facts.compare(cat, decl, this_repo)
         per_app.append((app["app_id"], res))
         facts.append({"app_id": app["app_id"], "declared": decl, "checks": res})
     _write_json(out, "catalog.json", {
-        "schema": "catalog/1", "source": source, "pages": cat["pages"],
+        "schema": "catalog/1", "source": source, "pages": cat["pages"], "this_repo": this_repo,
         "counts": {k: len(cat[k]) for k in ("software", "app_types", "implementation_tags", "apps")},
         "app_types": cat["app_types"], "implementation_tags": cat["implementation_tags"],
         "apps": facts})

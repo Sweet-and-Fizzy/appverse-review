@@ -59,8 +59,10 @@ its own finding with the vocabulary tag that fits or `other:`.
 - `app_type` and `implementation_tags` are known values. Read the result from
   `<pre-review>/catalog.json` (per app, `checks.app_type` and
   `checks.implementation_tags`, compared with the live vocabularies, ignoring
-  case); do not query the catalog yourself. An unknown `app_type` is an STR-02
-  FAIL; an unknown implementation tag is a WARN. If `catalog.json` is absent
+  case); do not query the catalog yourself. An `app_type` outside the
+  published vocabulary is an STR-02 FAIL, worded as "not in the published
+  vocabulary" (an unpublished term is invisible here); an unknown
+  implementation tag is a WARN. If `catalog.json` is absent
   (the catalog was not read), record the check as NOT CHECKED with that reason.
 - Every `manifest.yml`, `appverse.yml`, and `form.yml` parses; report parse
   errors verbatim. A `form.yml.erb` cannot be YAML-parsed directly (unrendered

@@ -489,9 +489,12 @@ externally by the API provider.
         && mv review-<owner>-<repo>.findings.json.tmp \
               review-<owner>-<repo>.findings.json
 
-- Then check the report and findings against every checker in one pass, and
-  fix the findings or the report until it passes:
+- Then write the Catalog checks section from the catalog read, and check the
+  report and findings against every checker in one pass, fixing the findings
+  or the report until it passes:
 
+      python3 "${CLAUDE_PLUGIN_ROOT}/references/insert-catalog.py" \
+        review-<owner>-<repo>.md <pre-review-dir>
       python3 "${CLAUDE_PLUGIN_ROOT}/references/check-all.py" \
         review-<owner>-<repo>.md review-<owner>-<repo>.findings.json \
         "${CLAUDE_PLUGIN_ROOT}/references/checks.json" <pre-review-dir> \
@@ -521,8 +524,9 @@ externally by the API provider.
   literal value the summary asserts is on the cited line is there (within
   two lines of a check-rows candidate line); a value that is not is a
   `NOTE` line, which does not fail the run.
-  `check-catalog.py`: the Catalog checks section carries every line of the
-  pre-review step's `catalog-checks.md`, the rationale placeholder included.
+  `check-catalog.py`: the Catalog checks section is exactly the pre-review
+  step's `catalog-checks.md`, which `insert-catalog.py` writes there; never
+  edit that section by hand.
   Its output groups each checker's problem lines under a `[floor]`/`[keys]`/
   `[rating]`/`[rows]`/`[evidence]`/`[catalog]` prefix, followed by that checker's
   summary line. It exits 1 if any checker failed, including a report

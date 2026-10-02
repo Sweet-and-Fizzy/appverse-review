@@ -267,7 +267,6 @@ jobs:
                   "Bash(cd:*)",
                   "Bash(for:*)",
                   "Bash(touch:*)",
-                  "WebFetch(domain:openondemand.connectci.org)",
                   "WebFetch(domain:raw.githubusercontent.com)",
                   "Read",
                   "Write",
@@ -467,6 +466,10 @@ jobs:
         run: |
           WS="${{ github.workspace }}"; SLUG="${{ steps.params.outputs.repo_slug }}"
           echo "needs_repair=false" >> "$GITHUB_OUTPUT"
+          # The Catalog checks section is written by script from the pre-review
+          # step's catalog read, never retyped by the model.
+          [ -s "$WS/review-${SLUG}.md" ] && python3 "$WS/appverse-review/references/insert-catalog.py" \
+            "$WS/review-${SLUG}.md" "$WS/pre-review"
           if [ -s "$WS/review-${SLUG}.md" ] && [ -s "$WS/review-${SLUG}.findings.json" ]; then
             if [ ! -d "$WS/pre-review" ]; then
               echo "::warning::pre-review dir missing; the checkers that read it will report that they could not run"
@@ -561,7 +564,7 @@ jobs:
             - metadata: ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.meta.json
             - checker output to fix: ${{ github.workspace }}/check-output.txt
               (the lines starting [floor], [keys], [rating], [rows],
-              [evidence], [catalog], [findings] or [meta] and containing MISSING, INVALID,
+              [evidence], [findings] or [meta] and containing MISSING, INVALID,
               MISMATCH, UNCITED or BAD; everything else there is context)
             - pre-review facts: ${{ github.workspace }}/pre-review/
             - the rules the checkers apply: ${{ github.workspace }}/appverse-review/skills/review-app/SKILL.md
@@ -590,9 +593,8 @@ jobs:
               taking rule, result, severity, file:line evidence and summary
               from the row, and a defect_key in the vocabulary of
               finding-codes.md. Then run the checkers and fix what they list.
-            - A [catalog] MISSING line: replace the report's "## Catalog
-              checks" section body with the contents of
-              ${{ github.workspace }}/pre-review/catalog-checks.md, verbatim.
+            - Never edit the report's "## Catalog checks" section; a script
+              writes it from the catalog after you finish.
             - A [meta] MISSING line: write the metadata file in the format
               of review-app SKILL.md section 5, taking every value from the
               report (decision, ratings, signals, maintenance) and the
@@ -628,6 +630,8 @@ jobs:
           WS="${{ github.workspace }}"; SLUG="${{ steps.params.outputs.repo_slug }}"
           echo "needs_repair=false" >> "$GITHUB_OUTPUT"
           rc=0
+          [ -s "$WS/review-${SLUG}.md" ] && python3 "$WS/appverse-review/references/insert-catalog.py" \
+            "$WS/review-${SLUG}.md" "$WS/pre-review"
           if [ -s "$WS/review-${SLUG}.md" ] && [ -s "$WS/review-${SLUG}.findings.json" ]; then
             python3 "$WS/appverse-review/references/check-all.py" \
               "$WS/review-${SLUG}.md" "$WS/review-${SLUG}.findings.json" \
@@ -697,7 +701,7 @@ jobs:
             - metadata: ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.meta.json
             - checker output to fix: ${{ github.workspace }}/check-output.txt
               (the lines starting [floor], [keys], [rating], [rows],
-              [evidence], [catalog], [findings] or [meta] and containing MISSING, INVALID,
+              [evidence], [findings] or [meta] and containing MISSING, INVALID,
               MISMATCH, UNCITED or BAD; everything else there is context)
             - pre-review facts: ${{ github.workspace }}/pre-review/
             - the rules the checkers apply: ${{ github.workspace }}/appverse-review/skills/review-app/SKILL.md
@@ -726,9 +730,8 @@ jobs:
               taking rule, result, severity, file:line evidence and summary
               from the row, and a defect_key in the vocabulary of
               finding-codes.md. Then run the checkers and fix what they list.
-            - A [catalog] MISSING line: replace the report's "## Catalog
-              checks" section body with the contents of
-              ${{ github.workspace }}/pre-review/catalog-checks.md, verbatim.
+            - Never edit the report's "## Catalog checks" section; a script
+              writes it from the catalog after you finish.
             - A [meta] MISSING line: write the metadata file in the format
               of review-app SKILL.md section 5, taking every value from the
               report (decision, ratings, signals, maintenance) and the
@@ -764,6 +767,8 @@ jobs:
           WS="${{ github.workspace }}"; SLUG="${{ steps.params.outputs.repo_slug }}"
           echo "needs_repair=false" >> "$GITHUB_OUTPUT"
           rc=0
+          [ -s "$WS/review-${SLUG}.md" ] && python3 "$WS/appverse-review/references/insert-catalog.py" \
+            "$WS/review-${SLUG}.md" "$WS/pre-review"
           if [ -s "$WS/review-${SLUG}.md" ] && [ -s "$WS/review-${SLUG}.findings.json" ]; then
             python3 "$WS/appverse-review/references/check-all.py" \
               "$WS/review-${SLUG}.md" "$WS/review-${SLUG}.findings.json" \
