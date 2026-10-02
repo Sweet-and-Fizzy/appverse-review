@@ -521,7 +521,7 @@ jobs:
         with:
           anthropic_api_key: ${{ (steps.params.outputs.backend == 'gateway' && secrets.LLM_GATEWAY_KEY) || (steps.params.outputs.backend == 'anthropic' && secrets.ANTHROPIC_API_KEY) || '' }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_args: "--max-turns 40 --model ${{ steps.params.outputs.model_id }}"
+          claude_args: "--max-turns 60 --model ${{ steps.params.outputs.model_id }}"
           show_full_output: ${{ inputs.debug }}
           settings: |
             {
@@ -654,7 +654,7 @@ jobs:
         with:
           anthropic_api_key: ${{ (steps.params.outputs.backend == 'gateway' && secrets.LLM_GATEWAY_KEY) || (steps.params.outputs.backend == 'anthropic' && secrets.ANTHROPIC_API_KEY) || '' }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_args: "--max-turns 40 --model ${{ steps.params.outputs.model_id }}"
+          claude_args: "--max-turns 60 --model ${{ steps.params.outputs.model_id }}"
           show_full_output: ${{ inputs.debug }}
           settings: |
             {
