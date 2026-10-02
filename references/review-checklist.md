@@ -121,6 +121,7 @@ The report is organized the way the rubric is:
   `software` value has a Software entry, whether the `app_type` and
   `implementation_tags` are known terms, and which published apps implement
   the same software. The duplicate decision itself is still yours.
+- The tool's **recommendation** and rationale, and a **draft feedback** note.
 
 Low is the good end of every signal. A High signal means "read this section
 before deploying", not "reject".
