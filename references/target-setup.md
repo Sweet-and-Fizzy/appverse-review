@@ -18,7 +18,7 @@ own runs it itself.
       SHA=$(gh api "repos/<owner>/<repo>/commits/$REF" --jq '.sha')
       TMP=$(mktemp -d) && git clone --depth 1 <url> "$TMP/repo"
       git -C "$TMP/repo" checkout "$SHA"
-      bash "${CLAUDE_PLUGIN_ROOT}/references/run-pre-review.sh" "$TMP/repo" "$TMP/pre-review" --no-catalog
+      bash "${CLAUDE_PLUGIN_ROOT}/references/run-pre-review.sh" "$TMP/repo" "$TMP/pre-review"
 
   This writes the tool and syntax facts the security and structure skills
   read; a local machine has whatever tools it has, and summary.json says so.
@@ -40,7 +40,7 @@ own runs it itself.
   neither `appverse.yml` nor `manifest.yml` at its root, warn that this will fail
   gate criteria and confirm the directory is the app repo before continuing.
 
-      PRE=$(mktemp -d) && bash "${CLAUDE_PLUGIN_ROOT}/references/run-pre-review.sh" . "$PRE" --no-catalog
+      PRE=$(mktemp -d) && bash "${CLAUDE_PLUGIN_ROOT}/references/run-pre-review.sh" . "$PRE"
 
   Pass `$PRE` as the pre-review directory.
 

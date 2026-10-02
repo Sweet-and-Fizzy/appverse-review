@@ -108,7 +108,7 @@ several:
 |-------|------------------|
 | `description` | Present |
 | `software` | Present (checked here). It must also match a catalog Software entry to be listed — see the Reviewer Process, Software entry check, for what to do when it doesn't |
-| `app_type` | A known value in the catalog's app-type vocabulary; likewise every `implementation_tags` entry must be a known value (see the [appverse.yml reference](https://github.com/Sweet-and-Fizzy/ood-appverse/blob/main/docs/appverse.yml) and the Reviewer Process, "Reading the catalog without a login"). The tool reports the vocabulary terms it found, not just a pass/fail |
+| `app_type` | A known value in the catalog's app-type vocabulary; likewise every `implementation_tags` entry must be a known value (see the [appverse.yml reference](https://github.com/Sweet-and-Fizzy/ood-appverse/blob/main/docs/appverse.yml)). The review's pre-review step reads the vocabularies from the catalog and reports each declared term as known or not |
 | `maintainer.name` + `maintainer.support_url` | Both required and present. An app without a support URL gives deployers no one to contact — a missing one fails this gate |
 | `manifest.yml` at the app's subpath | Required for the app to actually run inside OOD |
 

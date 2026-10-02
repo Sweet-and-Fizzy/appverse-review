@@ -4,6 +4,8 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 RUN="$SCRIPT_DIR/references/run-pre-review.sh"
 FIX="$SCRIPT_DIR/tests/fixtures"
+# Every run reads the fixture catalog, never the live one (the step reads the network by default).
+export APPVERSE_CATALOG="$FIX/catalog"
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 pass=0; fail=0
 check() { local name="$1" expected="$2" actual="$3"
@@ -48,8 +50,8 @@ check "every status allowed" "True" "$(j "$O/summary.json" "all(c['status'] in (
 check "every record has the contract fields" "True" "$(j "$O/summary.json" "all(set(c)>=set(['name','status','version','command','exit_code','output_file','files_examined','note']) for c in d['checks'])")"
 check "target absolute" "True" "$(j "$O/summary.json" "d['target'].startswith('/')")"
 check "generated_at UTC" "True" "$(j "$O/summary.json" "d['generated_at'].endswith('Z')")"
-check "catalog skipped" "skipped" "$(chk "$O" catalog status)"
-check "catalog note" "catalog reads land in a later PR" "$(chk "$O" catalog note)"
+check "catalog ran (fixture catalog)" "ran" "$(chk "$O" catalog status)"
+check "catalog note" "2 apps, 3 Software entries, 3 app types, 3 implementation tags" "$(chk "$O" catalog note)"
 
 echo "Test 3: containerized-server syntax.json"
 check "paths" "template/after.sh,template/before.sh.erb,template/create_nginx_conf.sh.erb,template/script.sh.erb" "$(j "$O/syntax.json" "','.join(sorted(e['path'] for e in d))")"
@@ -140,8 +142,8 @@ else skip "semgrep not installed"; skip "semgrep not installed"; skip "semgrep n
 
 echo "Test 9: flags"
 T="$TMP/t9"; mkdir -p "$T"; printf 'echo hi\n' > "$T/a.sh"
-check "--catalog accepted" 0 "$(run "$T" "$TMP/o9a" --catalog https://example.org)"
-check "catalog still skipped" "skipped" "$(chk "$TMP/o9a" catalog status)"
+check "--catalog accepted" 0 "$(run "$T" "$TMP/o9a" --catalog "$FIX/catalog")"
+check "--catalog is the source read" "ran" "$(chk "$TMP/o9a" catalog status)"
 check "--no-catalog accepted" 0 "$(run "$T" "$TMP/o9b" --no-catalog)"
 check "unknown flag exit 2" 2 "$(run "$T" "$TMP/o9c" --bogus)"
 check "usage on stderr" 1 "$(grep -c '^usage:' "$TMP/stderr")"
@@ -1445,7 +1447,7 @@ try:
     pr.load_placeholders(A[0]); r='returned'
 except pr.PlaceholdersMissing as e:
     r=type(e).__name__" "$TMP/no-such-placeholders.txt")"
-mkdir -p "$TMP/t57"; cp "$PR" "$TMP/t57/pre-review.py"
+mkdir -p "$TMP/t57"; cp "$PR" "$TMP/t57/pre-review.py"; cp "$(dirname "$PR")/catalog_facts.py" "$TMP/t57/"
 check "pre-review exits 2 without readme-placeholders.txt beside it" "2" "$(python3 "$TMP/t57/pre-review.py" "$FIX/broken-app" "$TMP/o57" > "$TMP/stdout" 2> "$TMP/stderr"; echo $?)"
 check "the error names the file" "True" "$(grep -q '^error: cannot read placeholder list .*readme-placeholders.txt (No such file or directory)$' "$TMP/stderr" && echo True || echo False)"
 
@@ -1481,5 +1483,53 @@ SH
   check "the non-dict item is skipped, the dict one (no file key) still counts" "1" "$(chk "$O" shellcheck finding_count)"
   check "a note records the skip" 1 "$(chk "$O" shellcheck note | grep -c malformed)"
 else skip "shellcheck not installed"; skip "shellcheck not installed"; skip "shellcheck not installed"; fi
+
+
+# cat <out> <python expression over d>: one value from catalog.json
+cat_j() { j "$1/catalog.json" "$2"; }
+
+echo "Test C1: catalog facts for a declared monorepo (fixture catalog)"
+O="$TMP/cat-mono"
+check "exit 0" 0 "$(run "$FIX/monorepo" "$O")"
+check "catalog ran" "ran" "$(chk "$O" catalog status)"
+check "source is the fixture" "$FIX/catalog" "$(chk "$O" catalog command)"
+check "good-app software matches" "match" "$(cat_j "$O" "[a for a in d['apps'] if a['app_id']=='apps/good-app'][0]['checks']['software']['status']")"
+check "good-app app_type known" "known" "$(cat_j "$O" "[a for a in d['apps'] if a['app_id']=='apps/good-app'][0]['checks']['app_type']['status']")"
+check "good-app: one published app with the same software" "1" "$(cat_j "$O" "len([a for a in d['apps'] if a['app_id']=='apps/good-app'][0]['checks']['same_software_apps'])")"
+check "bad-app software not declared" "not_declared" "$(cat_j "$O" "[a for a in d['apps'] if a['app_id']=='apps/bad-app'][0]['checks']['software']['status']")"
+check "block names the app" 1 "$(grep -c '^- \*\*apps/good-app\*\* — `software` — matches the Software entry "JupyterLab".$' "$O/catalog-checks.md")"
+check "block lists the same-software app" 1 "$(grep -c 'Jupyter at Example U (https://github.com/example/jupyter)' "$O/catalog-checks.md")"
+check "block keeps the rationale placeholder per app" 2 "$(grep -c 'reviewer fills in' "$O/catalog-checks.md")"
+
+echo "Test C2: a single-app repo with a misspelt software, an unknown type and an unknown tag"
+R="$TMP/cat-single"; mkdir -p "$R"
+printf 'description: x\nsoftware: "Jupyter Lab"\napp_type: "Batch-Connect-Bogus"\nimplementation_tags:\n  - "GPU-Enabled"\n  - "quantum"\n' > "$R/appverse.yml"
+O="$TMP/cat-single-o"
+check "exit 0" 0 "$(run "$R" "$O")"
+check "software no match" "no_match" "$(cat_j "$O" "d['apps'][0]['checks']['software']['status']")"
+check "closest suggestion" "JupyterLab" "$(cat_j "$O" "d['apps'][0]['checks']['software']['closest']")"
+check "app_type unknown" "unknown" "$(cat_j "$O" "d['apps'][0]['checks']['app_type']['status']")"
+check "tag case ignored, unknown tag listed" "['quantum']" "$(cat_j "$O" "d['apps'][0]['checks']['implementation_tags']['unknown']")"
+check "single app has no app prefix" 0 "$(grep -c '\*\*root\*\*' "$O/catalog-checks.md")"
+check "block says no entry, with the closest" 1 "$(grep -c '"Jupyter Lab" has no Software entry; closest is "JupyterLab"' "$O/catalog-checks.md")"
+
+echo "Test C3: an inferred repo declares nothing to match"
+O="$TMP/cat-inferred"; R="$TMP/cat-inf"; mkdir -p "$R"; printf 'name: x\nrole: batch_connect\n' > "$R/manifest.yml"
+check "exit 0" 0 "$(run "$R" "$O")"
+check "software not applicable" "not_applicable" "$(cat_j "$O" "d['apps'][0]['checks']['software']['status']")"
+check "block says not applicable" 1 "$(grep -c 'not applicable (inferred repo, no `software` value)' "$O/catalog-checks.md")"
+
+echo "Test C4: --no-catalog skips the step and the block says so"
+O="$TMP/cat-skip"
+check "exit 0" 0 "$(run "$FIX/monorepo" "$O" --no-catalog)"
+check "skipped" "skipped" "$(chk "$O" catalog status)"
+check "no catalog.json" "False" "$(yn test -e "$O/catalog.json")"
+check "block says not read" 1 "$(grep -c 'The catalog was not read (--no-catalog)' "$O/catalog-checks.md")"
+
+echo "Test C5: an unreadable catalog is failed_to_run, never a script failure"
+O="$TMP/cat-bad"
+check "exit 0" 0 "$(run "$FIX/monorepo" "$O" --catalog "$TMP/no-such-catalog")"
+check "failed_to_run" "failed_to_run" "$(chk "$O" catalog status)"
+check "block says it could not be read" 1 "$(grep -c 'could not be read' "$O/catalog-checks.md")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

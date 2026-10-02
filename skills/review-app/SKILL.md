@@ -299,24 +299,13 @@ environment)">
 not found" if absent>
 
 ## Catalog checks
-<!-- Query the public JSON:API — see the Reviewer Process's "Reading the catalog
-     without a login". These need no reviewer account; perform the reads when
-     the catalog is reachable and record what each returned. List an item as
-     not checked only if its query actually failed, and say so. -->
-- Duplicate check against the existing catalog — <result>. State the pages
-  read of the app list (e.g. "pages 1–N of the app list"); if only page 1 was
-  read, say so rather than implying full coverage.
-  - **Duplicate-check rationale:** _<reviewer fills in — the outcome and why,
-    per the Reviewer Process's Duplicate check; edit before pasting into the issue or
-    email>_ (write this placeholder exactly as shown; the rationale is the
-    reviewer's to write, not yours)
-- `software` value matches a catalog Software entry — <result>. If it has no
-  match, the reviewer creates the Software entry (should it exist), corrects
-  the value, or requests changes; see the Reviewer Process's Software entry check.
-  An inferred repo declares no `software` value: write "Not applicable (inferred
-  repo, no `software` value)" and do not ask for a Software entry
-- `app_type` and `implementation_tags` are in the catalog vocabularies —
-  <result>
+<!-- Write only this heading and the marker line below. A script
+     (references/insert-catalog.py) replaces the marker with the block the
+     pre-review step wrote from the catalog: the Software entry, vocabulary
+     and same-software results, and the duplicate-rationale placeholder for
+     the reviewer. Do not query the catalog and do not write catalog results
+     yourself. -->
+<!-- catalog-checks -->
 
 ## Overall recommendation
 
@@ -532,8 +521,10 @@ externally by the API provider.
   literal value the summary asserts is on the cited line is there (within
   two lines of a check-rows candidate line); a value that is not is a
   `NOTE` line, which does not fail the run.
+  `check-catalog.py`: the Catalog checks section carries every line of the
+  pre-review step's `catalog-checks.md`, the rationale placeholder included.
   Its output groups each checker's problem lines under a `[floor]`/`[keys]`/
-  `[rating]`/`[rows]`/`[evidence]` prefix, followed by that checker's
+  `[rating]`/`[rows]`/`[evidence]`/`[catalog]` prefix, followed by that checker's
   summary line. It exits 1 if any checker failed, including a report
   missing a section a checker needs (`MISSING section: ...`), and 2 if any
   could not run, including a checker that crashed (`crashed: ...`).

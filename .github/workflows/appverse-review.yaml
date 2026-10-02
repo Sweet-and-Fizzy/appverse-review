@@ -101,7 +101,7 @@ jobs:
           # Tools and the shell syntax check run here, before the model, so the
           # review reads facts instead of running anything.
           bash "${{ github.workspace }}/appverse-review/references/run-pre-review.sh" \
-            "${{ github.workspace }}/target-repo" "${{ github.workspace }}/pre-review" --no-catalog
+            "${{ github.workspace }}/target-repo" "${{ github.workspace }}/pre-review"
           python3 -c "import json; [print(c['name'], c['status'], c.get('files_examined', ''), c.get('note', '')) for c in json.load(open('${{ github.workspace }}/pre-review/summary.json'))['checks']]"
 
       - name: Install PDF tools (pandoc + typst)
@@ -561,7 +561,7 @@ jobs:
             - metadata: ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.meta.json
             - checker output to fix: ${{ github.workspace }}/check-output.txt
               (the lines starting [floor], [keys], [rating], [rows],
-              [evidence], [findings] or [meta] and containing MISSING, INVALID,
+              [evidence], [catalog], [findings] or [meta] and containing MISSING, INVALID,
               MISMATCH, UNCITED or BAD; everything else there is context)
             - pre-review facts: ${{ github.workspace }}/pre-review/
             - the rules the checkers apply: ${{ github.workspace }}/appverse-review/skills/review-app/SKILL.md
@@ -590,6 +590,9 @@ jobs:
               taking rule, result, severity, file:line evidence and summary
               from the row, and a defect_key in the vocabulary of
               finding-codes.md. Then run the checkers and fix what they list.
+            - A [catalog] MISSING line: replace the report's "## Catalog
+              checks" section body with the contents of
+              ${{ github.workspace }}/pre-review/catalog-checks.md, verbatim.
             - A [meta] MISSING line: write the metadata file in the format
               of review-app SKILL.md section 5, taking every value from the
               report (decision, ratings, signals, maintenance) and the
@@ -694,7 +697,7 @@ jobs:
             - metadata: ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.meta.json
             - checker output to fix: ${{ github.workspace }}/check-output.txt
               (the lines starting [floor], [keys], [rating], [rows],
-              [evidence], [findings] or [meta] and containing MISSING, INVALID,
+              [evidence], [catalog], [findings] or [meta] and containing MISSING, INVALID,
               MISMATCH, UNCITED or BAD; everything else there is context)
             - pre-review facts: ${{ github.workspace }}/pre-review/
             - the rules the checkers apply: ${{ github.workspace }}/appverse-review/skills/review-app/SKILL.md
@@ -723,6 +726,9 @@ jobs:
               taking rule, result, severity, file:line evidence and summary
               from the row, and a defect_key in the vocabulary of
               finding-codes.md. Then run the checkers and fix what they list.
+            - A [catalog] MISSING line: replace the report's "## Catalog
+              checks" section body with the contents of
+              ${{ github.workspace }}/pre-review/catalog-checks.md, verbatim.
             - A [meta] MISSING line: write the metadata file in the format
               of review-app SKILL.md section 5, taking every value from the
               report (decision, ratings, signals, maintenance) and the
@@ -872,7 +878,7 @@ jobs:
             echo "A second repair pass ran; its re-check decides: $final"
           fi
           if [ "$final" = "failure" ]; then
-            echo "::error::Review produced its outputs but check-all.py failed after repair; see the re-check step's [floor]/[keys]/[rating]/[rows]/[evidence] INVALID/MISSING/MISMATCH/UNCITED/BAD lines"
+            echo "::error::Review produced its outputs but check-all.py failed after repair; see the re-check step's [floor]/[keys]/[rating]/[rows]/[evidence]/[catalog] INVALID/MISSING/MISMATCH/UNCITED/BAD lines"
             check_failed=1
           fi
           required="md"

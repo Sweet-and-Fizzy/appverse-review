@@ -65,37 +65,17 @@ Document the rationale either way — the review report has a duplicate-check
 rationale field under "Catalog checks" for this; fill it in before pasting the
 feedback into the issue or email.
 
-### Reading the catalog without a login
+### What the review reads from the catalog
 
-The catalog is a Drupal site with JSON:API enabled and readable anonymously, so
-the Software entry, the vocabularies and the published app list can all be
-checked from the command line — no reviewer account needed.
-
-Two things will make these look like an unreachable host if you get them wrong.
-Follow redirects (`-L`), or the request returns `000`. And percent-encode the
-query brackets as `%5B`/`%5D` — a URL with literal `[` is dropped before it
-reaches Drupal and yields an empty response with no status code at all.
-
-```bash
-# Does a Software entry exist for this app's `software` value?
-curl -sL -H 'Accept: application/vnd.api+json' \
-  'https://openondemand.connectci.org/jsonapi/node/appverse_software?filter%5Btitle%5D=API%20Access&fields%5Bnode--appverse_software%5D=title'
-
-# The implementation-tags vocabulary (matching is case-insensitive)
-curl -sL -H 'Accept: application/vnd.api+json' \
-  'https://openondemand.connectci.org/jsonapi/taxonomy_term/appverse_implementation_tags?fields%5Btaxonomy_term--appverse_implementation_tags%5D=name&page%5Blimit%5D=50'
-
-# Published apps, for the duplicate check
-curl -sL -H 'Accept: application/vnd.api+json' \
-  'https://openondemand.connectci.org/jsonapi/node/appverse_app?fields%5Bnode--appverse_app%5D=title&page%5Blimit%5D=100'
-```
-
-Sibling resources on the same API: `taxonomy_term--appverse_app_type`,
-`taxonomy_term--appverse_license`, `node--appverse_repo`. `GET /jsonapi` lists
-everything available.
-
-Writing still needs a login — creating a Software entry, moderating an app.
-Reading does not, so report these checks as performed rather than deferred.
+The review reads the catalog before the model runs, and its Catalog checks
+section reports the results: whether the app's `software` value matches a
+Software entry, whether its `app_type` and `implementation_tags` are in the
+catalog's vocabularies, and which published apps implement the same
+software. These are exact lookups, so you can rely on them. The duplicate
+decision is still yours: read the apps the report lists, decide whether this
+one is distinct, and write the rationale. If the report says the catalog was
+not read, run the checks by hand (see the appendix, "Reading the catalog by
+hand").
 
 ### Software entry check
 
@@ -135,10 +115,10 @@ The report is organized the way the rubric is:
   whatever the reviewer's own open-ended reading found beyond the
   enumeration.
 - **Review scope**: which security tiers ran and what was not checked.
-- **Catalog checks**, performed when the catalog is reachable and stating the
-  pages of the app list read; the duplicate decision itself is still yours
-  to settle.
-- The tool's **recommendation** and rationale, and a **draft feedback** note.
+- **Catalog checks**, read from the catalog before the model runs: whether the
+  `software` value has a Software entry, whether the `app_type` and
+  `implementation_tags` are known terms, and which published apps implement
+  the same software. The duplicate decision itself is still yours.
 
 Low is the good end of every signal. A High signal means "read this section
 before deploying", not "reject".
@@ -253,9 +233,9 @@ For Monorepos: repeat the per-app criteria and decision for each entry in `apps[
 - [ ] `software` value matches a catalog Software entry (create the entry if the software should exist)
 - [ ] `app_type` and `implementation_tags` are in the catalog vocabularies
 
-Query these against the public JSON:API — see "Reading the catalog without a
-login". Record what each returned. If one could not be run, say which and why,
-rather than leaving it unmarked.
+The review's Catalog checks section gives these results. If it says the
+catalog was not read, run them by hand (see the appendix) and record what each
+returned.
 
 ### Decision: [Accept / Accept with suggestions / Request changes / Reject]
 - If any catalog check above could not be run, Accept is conditional on it
@@ -263,3 +243,38 @@ rather than leaving it unmarked.
 ### Feedback
 [Specific items to address or improve — every item must already appear above]
 ```
+
+## Appendix: Reading the catalog by hand
+
+The review reads the catalog for you; these are for when it could not, or
+when you want to look further.
+
+The catalog is a Drupal site with JSON:API enabled and readable anonymously, so
+the Software entry, the vocabularies and the published app list can all be
+checked from the command line — no reviewer account needed.
+
+Two things will make these look like an unreachable host if you get them wrong.
+Follow redirects (`-L`), or the request returns `000`. And percent-encode the
+query brackets as `%5B`/`%5D` — a URL with literal `[` is dropped before it
+reaches Drupal and yields an empty response with no status code at all.
+
+```bash
+# Does a Software entry exist for this app's `software` value?
+curl -sL -H 'Accept: application/vnd.api+json' \
+  'https://openondemand.connectci.org/jsonapi/node/appverse_software?filter%5Btitle%5D=API%20Access&fields%5Bnode--appverse_software%5D=title'
+
+# The implementation-tags vocabulary (matching is case-insensitive)
+curl -sL -H 'Accept: application/vnd.api+json' \
+  'https://openondemand.connectci.org/jsonapi/taxonomy_term/appverse_implementation_tags?fields%5Btaxonomy_term--appverse_implementation_tags%5D=name&page%5Blimit%5D=50'
+
+# Published apps, for the duplicate check
+curl -sL -H 'Accept: application/vnd.api+json' \
+  'https://openondemand.connectci.org/jsonapi/node/appverse_app?fields%5Bnode--appverse_app%5D=title&page%5Blimit%5D=100'
+```
+
+Sibling resources on the same API: `taxonomy_term--appverse_app_type`,
+`taxonomy_term--appverse_license`, `node--appverse_repo`. `GET /jsonapi` lists
+everything available.
+
+Writing still needs a login — creating a Software entry, moderating an app.
+Reading does not.

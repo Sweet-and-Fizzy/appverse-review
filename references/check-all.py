@@ -11,13 +11,14 @@ Runs, in order:
   4. check-rows.py <report.md> <findings.json> <checks.json> <pre-review-out-dir>
   5. check-evidence.py <findings.json> --target <target-dir> --report <report.md>
          --pre-review <pre-review-out-dir>   (only when that directory exists)
+  6. check-catalog.py <report.md> <pre-review-out-dir>
 
 Each checker's problem lines (MISSING, INVALID, MISMATCH, UNCITED, BAD) are
 printed as-is, prefixed with the checker's short name in brackets
-([floor], [keys], [rating], [rows], [evidence]) so a mixed failure is easy
+([floor], [keys], [rating], [rows], [evidence], [catalog]) so a mixed failure is easy
 to scan. Each checker's own summary line follows its block, also prefixed.
 
-Exit code is the worst of the five: 0 if every checker exited 0, 1 if any
+Exit code is the worst of the six: 0 if every checker exited 0, 1 if any
 exited 1 (a real problem was found) and none exited 2, 2 if any checker
 could not run at all (exit 2 — bad input, not a finding). Two results are
 reclassified so the code stays an honest split between "the report is
@@ -59,6 +60,8 @@ CHECKERS = [
     ("evidence", "check-evidence.py",
      lambda a: [a.findings, "--target", a.target, "--report", a.report]
      + (["--pre-review", a.pre_review_dir] if os.path.isdir(a.pre_review_dir) else [])),
+    ("catalog", "check-catalog.py",
+     lambda a: [a.report, a.pre_review_dir]),
 ]
 TRACEBACK = "Traceback (most recent call last):"
 MISSING_SECTION_RE = re.compile(

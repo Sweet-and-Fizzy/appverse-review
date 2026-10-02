@@ -44,7 +44,8 @@ expected_process="# Appverse Reviewer Process
 ## Step 3: Verify the findings
 ## Step 4: Curate the feedback
 ## Step 5: Decide
-## Appendix: Review template"
+## Appendix: Review template
+## Appendix: Reading the catalog by hand"
 actual_process=$(headings "$PROCESS")
 [ "$actual_process" = "$expected_process" ] && ok "H1/H2 sequence" || { bad "H1/H2 sequence"; diff <(echo "$expected_process") <(echo "$actual_process"); }
 

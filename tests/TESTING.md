@@ -38,6 +38,11 @@ fixtures since they have no remote origin. That is expected.
 | [containerized-server](#5-containerized-server) | Batch Connect basic (inferred) | Portability failures + container security | Request changes |
 | [curl-pipe-installer](#6-curl-pipe-installer) | Batch Connect basic (inferred) | Critical security behind polished documentation | Reject |
 
+`tests/fixtures/catalog/` is not an app. It is a small offline catalog (three
+Software entries, three app types, three implementation tags, two published
+apps) that `tests/test-pre-review.sh` reads through `APPVERSE_CATALOG`, so the
+catalog step is tested without the network.
+
 ---
 
 ## 1. broken-app

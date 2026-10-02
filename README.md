@@ -138,7 +138,7 @@ references/
   appverse.yml           Cached schema reference (offline fallback)
   run-pre-review.sh / pre-review.py   Tools and syntax check before the model (summary.json, syntax.json, tool JSON)
   checks.yml / checks.json            Check manifest (checks.json is generated from checks.yml)
-  check-all.py           Runs every report checker in one pass (floor, keys, rating, rows, evidence)
+  check-all.py           Runs every report checker in one pass (floor, keys, rating, rows, evidence, catalog)
   check-*.py             The report checkers check-all.py runs
 tests/
   fixtures/              6 deliberately broken app repos for calibration
