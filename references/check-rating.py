@@ -134,7 +134,7 @@ DOC_SIGNAL = {BELOW_MINIMAL: "High", "Minimal": "High", "Adequate": "Medium", "S
 RATING_RE = re.compile(r"Rating:\s*\**\s*((?i:below\s+minimal)|Minimal|Adequate|Strong|Exemplary)")
 STUB_NOT_STUB = "stub rating but readme.json says the README is not a stub"
 STUB_NO_RECORD = "stub rating but no STR-01 readme-not-substantive FAIL record and no readme.json stub fact"
-BELOW_NO_RECORD = "Below minimal rating but no QUA-01 docs-minimal WARN or FAIL record"
+BELOW_NO_RECORD = "Below minimal rating but no QUA-01 docs-minimal FAIL record"
 BELOW_BUT_STUB = "Below minimal rating but readme.json says the README is a stub (the stub line applies)"
 CONTENT_CITE_RE = re.compile(r"(?<![\w-])content:\s*[`*]*([^\s`*:]+):(\d+)")
 NONE_WORDS = {"none", "n/a", "na", "absent", "missing", "not", "no"}
@@ -542,7 +542,7 @@ def main(argv):
                 problems += 1
                 print("MISMATCH {} documentation: {}".format(fact_app_id(app_id), reason))
         elif rating == BELOW_MINIMAL:
-            if not has_record(findings, "QUA-01", "docs-minimal", ("WARN", "FAIL"), {app_id or ""}, single):
+            if not has_record(findings, "QUA-01", "docs-minimal", ("FAIL",), {app_id or ""}, single):
                 problems += 1
                 print("MISMATCH {} documentation: {}".format(fact_app_id(app_id), BELOW_NO_RECORD))
             try:

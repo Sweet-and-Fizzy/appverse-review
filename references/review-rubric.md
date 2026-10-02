@@ -490,12 +490,13 @@ individual findings, never from the signal levels.
 |---------|----------|
 | **Accept** | Passes all gate criteria, adequate+ documentation, partially portable+ config. Always conditional on the duplicate check, which the review performs the catalog reads for but leaves the decision itself to the reviewer — word any Accept as pending that. |
 | **Accept with suggestions** | Passes gate criteria but has clear improvement areas — include specific feedback. Below-target docs or portability belongs here, not Request changes, when the gate criteria are otherwise met. |
-| **Request changes** | Missing a gate criterion but fixable — provide specific list of what to address. A fixable security misconfiguration, even High severity (e.g. CORS open to all origins), is Request changes, not Reject. |
-| **Reject** | Duplicate app, no license, abandoned/unmaintained, not an OOD app, or a Critical-severity security finding (tagged potentially malicious or unfixable without redesigning the app — see the severity scale in `finding-codes.md`). "Not an OOD app" is a reviewer-only trigger — no automated check produces it. |
+| **Request changes** | Missing a gate criterion but fixable — provide specific list of what to address. A missing LICENSE is Request changes: the contributor adds one file. A fixable security misconfiguration, even High severity (e.g. CORS open to all origins), is Request changes, not Reject. |
+| **Reject** | Duplicate app, abandoned/unmaintained, not an OOD app, or a Critical-severity security finding (tagged potentially malicious or unfixable without redesigning the app — see the severity scale in `finding-codes.md`). "Not an OOD app" is a reviewer-only trigger — no automated check produces it. |
 
-Any Accept is conditional on the catalog checks the automated review cannot
-perform (duplicate check, Software entry, vocabulary terms); the Reviewer
-Process says how to run them.
+Any Accept is conditional on the catalog checks (duplicate check, Software
+entry, vocabulary terms). The automated review performs the catalog reads and
+records what they returned; the duplicate decision and any Software entry
+creation stay with the reviewer, as the Reviewer Process describes.
 
 ## Appendix: common issues in real apps
 

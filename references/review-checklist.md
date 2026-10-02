@@ -62,7 +62,7 @@ If the software already has apps in the catalog:
 - **Same software, meaningfully different approach** → Accept. Examples: containerized vs. module-based, GPU vs. CPU, different execution model (e.g., AlphaFold 2 vs. AlphaFold 3 support).
 
 Document the rationale either way — the review report has a duplicate-check
-rationale field under "Not checked" for this; fill it in before pasting the
+rationale field under "Catalog checks" for this; fill it in before pasting the
 feedback into the issue or email.
 
 ### Reading the catalog without a login
@@ -100,7 +100,9 @@ Reading does not, so report these checks as performed rather than deferred.
 ### Software entry check
 
 The app's `software` value must match a Software entry in the catalog or the app
-won't be listed. Software is its own catalog node type, created separately from
+won't be listed. An inferred repo (no `appverse.yml`) declares no `software`
+value, so there is nothing to match: the check does not apply, and the report
+says so. Software is its own catalog node type, created separately from
 the app — the app form only references an existing Software entry, it cannot
 create one. Query for it with the command above. If there is no matching entry,
 it is the reviewer's decision, not an automatic failure:
