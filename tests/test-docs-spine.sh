@@ -38,13 +38,13 @@ actual_rubric=$(headings "$RUBRIC")
 
 echo "Test 3: process doc headings (in order)"
 expected_process="# Appverse Reviewer Process
+## What a review is, and what we ask of you
 ## Before you start
 ## Step 1: Gate the app
 ## Step 2: Open the review report
-## Step 3: Verify the findings
+## Step 3: Check the findings
 ## Step 4: Curate the feedback
 ## Step 5: Decide
-## Appendix: Review template
 ## Appendix: Reading the catalog by hand"
 actual_process=$(headings "$PROCESS")
 [ "$actual_process" = "$expected_process" ] && ok "H1/H2 sequence" || { bad "H1/H2 sequence"; diff <(echo "$expected_process") <(echo "$actual_process"); }
