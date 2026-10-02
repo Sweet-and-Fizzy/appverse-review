@@ -24,4 +24,5 @@
 [evidence] NOTE report:erb-missing-value erb-missing-value submit.yml.erb:12 (`--time=0:00` is not on submit.yml.erb:12)
 [evidence] evidence: 39/39 valid; report rows: 58/58 valid
 [catalog] catalog: not checked (no catalog-checks.md in the pre-review output)
+[meta] meta: not checked (no meta.json beside the report)
 exit: 1

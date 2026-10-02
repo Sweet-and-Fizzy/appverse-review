@@ -527,8 +527,11 @@ externally by the API provider.
   `check-catalog.py`: the Catalog checks section is exactly the pre-review
   step's `catalog-checks.md`, which `insert-catalog.py` writes there; never
   edit that section by hand.
+  `check-meta.py` (when `review-<owner>-<repo>.meta.json` exists): the
+  metadata has the recommendation and its note, `not_archived`, `public`, and
+  an app list (section 5).
   Its output groups each checker's problem lines under a `[floor]`/`[keys]`/
-  `[rating]`/`[rows]`/`[evidence]`/`[catalog]` prefix, followed by that checker's
+  `[rating]`/`[rows]`/`[evidence]`/`[catalog]`/`[meta]` prefix, followed by that checker's
   summary line. It exits 1 if any checker failed, including a report
   missing a section a checker needs (`MISSING section: ...`), and 2 if any
   could not run, including a checker that crashed (`crashed: ...`).
