@@ -9,15 +9,17 @@ argument-hint: "[github-url]"
 Produce an evidence-backed review with a recommended decision. You recommend; a
 human decides.
 
-Read first:
-- `${CLAUDE_PLUGIN_ROOT}/references/review-rubric.md` (canonical criteria,
-  including the decision rules in its "Decision rubric" section)
-- `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` (the Reviewer
-  Process: catalog checks, feedback curation)
-- `${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` (setup procedure and
-  findings format)
-- `${CLAUDE_PLUGIN_ROOT}/references/finding-codes.md` (rule codes, defect-key
-  vocabularies, and stable ID computation)
+You are the orchestrator. Your job is setup, dispatch and synthesis; the
+four aspect reviews are done by subagents, each in its own context. Keep your
+own context small: it has to hold the four results and the whole report at
+the end.
+
+Read now only `${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` (setup
+procedure and findings format). Read the rest when §3 says to, not before:
+`references/review-rubric.md` (canonical criteria and the "Decision rubric"),
+`references/review-checklist.md` (the Reviewer Process: catalog checks,
+feedback curation) and `references/finding-codes.md` (rule codes,
+vocabularies, stable IDs).
 
 ## 1. Set up the target
 
@@ -25,10 +27,19 @@ Follow target-setup.md sections 1–3 once. You now have: mode (reviewer or
 submitter), repo path, `<owner>/<repo>` if known, the reviewed commit (SHA +
 date), repo shape, the app list with resolved fields, and `shared_paths`.
 
+Do not read the pre-review fact files (`readme.json`, `form.json`,
+`template.json`, `security.json` and the rest), the aspect skill files, or the
+target repo's code yourself. `apps.json` and `summary.json` are enough for
+setup. The subagents read everything else.
+
 ## 2. Run the four aspects in parallel
 
-Dispatch four subagents concurrently — one per aspect: review-structure,
-review-security, review-quality, review-maintenance. Each subagent's prompt:
+Your next action after setup is a single message containing four Agent tool
+calls, one per aspect, in this order: review-structure, review-security,
+review-quality, review-maintenance. Run them in the foreground. Do not start
+any aspect's work yourself first, and do not read anything between setup and
+this message. Each call's description is "Review <aspect> aspect" and its
+prompt is:
 
 > Read `${CLAUDE_PLUGIN_ROOT}/skills/<aspect>/SKILL.md` and follow it exactly.
 > Read `${CLAUDE_PLUGIN_ROOT}/references/finding-codes.md` for rule codes and
@@ -63,10 +74,14 @@ review-security, review-quality, review-maintenance. Each subagent's prompt:
 > assessments block, the maintenance aspect's maintenance assessment block).
 > Do not make accept or reject judgments.
 
-If subagent dispatch is unavailable, run the four aspect skill files yourself,
-one at a time, in the order above.
+Only if your tool list has no Agent (or Task) tool at all, run the four
+aspect skill files yourself, one at a time, in the order above. When the tool
+is present, always dispatch, whatever the size of the repo.
 
 ## 3. Synthesize the report
+
+Now read `references/review-rubric.md`, `references/review-checklist.md` and
+`references/finding-codes.md`, then build the report from the four results.
 
 Capture the appverse-review plugin's own HEAD short-SHA at run time (e.g.
 `git -C ${CLAUDE_PLUGIN_ROOT} rev-parse --short HEAD`) for the provenance
