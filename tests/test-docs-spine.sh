@@ -247,7 +247,8 @@ has "$APP_SKILL" "\"$CLAIM\"" "review-app writes check-rating's security sentenc
 has "$RUBRIC" "\"${CLAIM%.}\"" "rubric writes check-rating's security sentence"
 VERDICT=$(checker references/check-evidence.py 'VALUE_VERDICT')
 has "$APP_SKILL" "\`$VERDICT\` line" "review-app names check-evidence's cited-value verdict"
-has references/review-checklist.md "\`$VERDICT\`" "reviewer checklist names check-evidence's cited-value verdict"
+# The reviewer checklist no longer names checker internals; it tells the
+# reviewer to read cited lines themselves. The skill's line above is the spine.
 TOOLS=references/security-tools.md
 for code in $(checker references/pre-review.py '" ".join(ARTIFACT_CODES)'); do
   grep -qE "^\| $code \|.*\| (in|on) [^|]*\|\$" "$TOOLS" && ok "security-tools code table marks $code as an artefact" \

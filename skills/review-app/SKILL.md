@@ -142,6 +142,9 @@ string; if unavailable, write `unknown`.
 | Portability | Low / Medium / High | <one-line phrase> |
 | Documentation | Low / Medium / High | <one-line phrase> |
 
+Low means little for a deployer to look at; High means the most to read. A
+signal is not a grade and does not gate listing.
+
 <!-- DERIVE the level from the aspect ratings, do not invent it:
      Portability: Portable = Low; Partially portable = Medium; Not portable = High.
      Documentation: Strong/Exemplary = Low; Adequate = Medium; Minimal or Below minimal = High.
@@ -305,10 +308,13 @@ not found" if absent>
   read, say so rather than implying full coverage.
   - **Duplicate-check rationale:** _<reviewer fills in — the outcome and why,
     per the Reviewer Process's Duplicate check; edit before pasting into the issue or
-    email>_
+    email>_ (write this placeholder exactly as shown; the rationale is the
+    reviewer's to write, not yours)
 - `software` value matches a catalog Software entry — <result>. If it has no
   match, the reviewer creates the Software entry (should it exist), corrects
-  the value, or requests changes; see the Reviewer Process's Software entry check
+  the value, or requests changes; see the Reviewer Process's Software entry check.
+  An inferred repo declares no `software` value: write "Not applicable (inferred
+  repo, no `software` value)" and do not ask for a Software entry
 - `app_type` and `implementation_tags` are in the catalog vocabularies —
   <result>
 
@@ -321,7 +327,9 @@ forces a reject.
 
 <one paragraph. Single-app repos: the decision and its rationale. Monorepos:
 roll up the per-app decisions above. Draw only on findings already recorded in
-the tables — do not introduce new problems here.>
+the tables — do not introduce new problems here. Never describe a below-target
+Documentation or Portability rating as blocking listing or as needed before
+listing: it moves the decision to Accept with suggestions, nothing more.>
 ```
 
 The repo-level sections come first: gate criteria, then Upkeep; the per-app
@@ -338,8 +346,8 @@ Apply the decision rubric below (from the rubric's "Decision rubric" section):
 |---------|----------|
 | **Accept** | Passes all gate criteria, adequate+ documentation, partially portable+ config. Always conditional on the duplicate check, which the review performs the catalog reads for but leaves the decision itself to the reviewer — word any Accept as pending that. |
 | **Accept with suggestions** | Passes gate criteria but has clear improvement areas. A below-target Documentation or Portability rating belongs here, not Request changes, when gate criteria are otherwise met. |
-| **Request changes** | Missing a required (gate) criterion but fixable. A fixable security misconfiguration, even High severity (e.g. CORS open to all origins), is Request changes, not Reject. |
-| **Reject** | Duplicate app, no license, abandoned/unmaintained, not an OOD app, or a security finding tagged potentially malicious or unfixable without redesigning the app. |
+| **Request changes** | Missing a required (gate) criterion but fixable. A missing LICENSE is Request changes: the contributor adds one file. A fixable security misconfiguration, even High severity (e.g. CORS open to all origins), is Request changes, not Reject. |
+| **Reject** | Duplicate app, abandoned/unmaintained, not an OOD app, or a security finding tagged potentially malicious or unfixable without redesigning the app. |
 
 Follow the rubric's framing rather than a separate copy here.
 

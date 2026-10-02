@@ -62,7 +62,7 @@ If the software already has apps in the catalog:
 - **Same software, meaningfully different approach** → Accept. Examples: containerized vs. module-based, GPU vs. CPU, different execution model (e.g., AlphaFold 2 vs. AlphaFold 3 support).
 
 Document the rationale either way — the review report has a duplicate-check
-rationale field under "Not checked" for this; fill it in before pasting the
+rationale field under "Catalog checks" for this; fill it in before pasting the
 feedback into the issue or email.
 
 ### Reading the catalog without a login
@@ -100,7 +100,9 @@ Reading does not, so report these checks as performed rather than deferred.
 ### Software entry check
 
 The app's `software` value must match a Software entry in the catalog or the app
-won't be listed. Software is its own catalog node type, created separately from
+won't be listed. An inferred repo (no `appverse.yml`) declares no `software`
+value, so there is nothing to match: the check does not apply, and the report
+says so. Software is its own catalog node type, created separately from
 the app — the app form only references an existing Software entry, it cannot
 create one. Query for it with the command above. If there is no matching entry,
 it is the reviewer's decision, not an automatic failure:
@@ -152,16 +154,20 @@ taking them on trust. Spot-check that:
    cited `file:line` actually shows the flagged pattern. Remember the
    "Additional observations (review)" table is the reviewer's own open-ended
    pass, distinct from the per-candidate rows above it: read it as free-form
-   findings, not as answers to the enumeration. `check-evidence.py` (with
-   `--report`) automates part of this: it confirms every cited `file:line`
-   exists and is in range. It also looks for a literal value quoted in
-   backticks in a finding's or row's summary on the line(s) cited for it, but
-   only reports a miss as a `NOTE` (the rule is not yet precise enough to
-   fail a run), so read those lines yourself.
+   findings, not as answers to the enumeration. The review's checkers confirm
+   that every cited line exists, but not that the line says what the finding
+   claims, so read the cited lines yourself.
+   When the app runs its own server code (a proxy, a Passenger app, anything
+   that listens on a port or handles requests), read that code yourself
+   rather than spot-checking: the report can miss the real issue there, such
+   as a proxy that accepts requests from any origin.
 3. Portability and Documentation ratings and any correctness-&-polish findings match what you see —
    documentation level, portability, and any copy-paste artifacts or typos.
 4. Upkeep signals are current — last commit, releases, CI, CHANGELOG.
-5. The duplicate check is settled — the report performs the catalog reads
+5. The draft feedback's advice is right for this repo. Before passing on a
+   suggested change, check it would work: advice that is sound in general
+   (add `set -e`, say) can break a particular script.
+6. The duplicate check is settled — the report performs the catalog reads
    when it can reach the catalog, but the duplicate decision itself is the
    reviewer's to confirm (see Duplicate check above).
 
@@ -205,6 +211,10 @@ should read, not a reason to reject.
 
 Any Accept is conditional on the catalog checks in Step 1. If one could not be
 run, say which and why in the feedback rather than leaving it unmarked.
+
+For Accept with suggestions, ask the contributor whether they want the app
+published now or would rather make the changes first. For Request changes,
+list what must change before it can be published.
 
 Record the decision in the catalog (moderation state on the app) and send the
 feedback to the contributor by the channel the submission came in on.
