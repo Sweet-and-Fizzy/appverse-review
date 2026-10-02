@@ -64,4 +64,5 @@
 [evidence] NOTE report:numeric-field-bounds numeric-field-bounds form.yml:34, form.yml:39 (`custom_num_cores` is not on form.yml:34)
 [evidence] evidence: 20/22 valid; report rows: 2/2 valid
 [catalog] catalog: not checked (no catalog-checks.md in the pre-review output)
+[meta] meta: not checked (no meta.json beside the report)
 exit: 1

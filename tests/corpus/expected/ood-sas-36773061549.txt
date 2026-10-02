@@ -4,4 +4,5 @@
 [rows] check-rows: 1 app, 19 required rows, 0 problems
 [evidence] evidence: 39/39 valid; report rows: 24/24 valid
 [catalog] catalog: not checked (no catalog-checks.md in the pre-review output)
+[meta] meta: not checked (no meta.json beside the report)
 exit: 0

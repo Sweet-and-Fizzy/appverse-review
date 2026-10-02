@@ -399,19 +399,19 @@ jobs:
           WS: ${{ github.workspace }}
           SLUG: ${{ steps.params.outputs.repo_slug }}
           MODEL_ID: ${{ steps.params.outputs.model_id }}
+          TARGET_REPO: ${{ inputs.target_repo }}
           PLUGIN_VERSION: ${{ steps.params.outputs.plugin_version }}
           PLUGIN_SHA: ${{ steps.params.outputs.plugin_sha }}
         run: |
           # The model cannot know what it is running as (a gateway run reported
           # itself as Claude). The workflow knows, so it writes these values.
           META="$WS/review-${SLUG}.meta.json"; MD="$WS/review-${SLUG}.md"
+          # The commit, ref, repo URL and shape are facts of the run, written
+          # here so a meta.json the model got wrong still imports.
           if [ -s "$META" ]; then
-            python3 - "$META" "$MODEL_ID" <<'EOF'
-          import json, sys
-          p, model = sys.argv[1], sys.argv[2]
-          m = json.load(open(p)); m["model"] = model
-          json.dump(m, open(p, "w"), indent=2); print("meta.json model =", model)
-          EOF
+            python3 "$WS/appverse-review/references/stamp-meta.py" "$META" "$WS/target-repo" \
+              "$TARGET_REPO" "$MODEL_ID" || true
+            echo "meta.json model = $MODEL_ID"
           fi
           if [ -s "$MD" ]; then
             python3 - "$MD" "$MODEL_ID" "$PLUGIN_VERSION" "$PLUGIN_SHA" <<'EOF'
@@ -595,7 +595,8 @@ jobs:
               finding-codes.md. Then run the checkers and fix what they list.
             - Never edit the report's "## Catalog checks" section; a script
               writes it from the catalog after you finish.
-            - A [meta] MISSING line: write the metadata file in the format
+            - A [meta] MISSING or INVALID line: write or complete the
+              metadata file (a missing field is added, the rest kept) in the format
               of review-app SKILL.md section 5, taking every value from the
               report (decision, ratings, signals, maintenance) and the
               resolved values below; do not re-assess anything.
@@ -632,6 +633,9 @@ jobs:
           rc=0
           [ -s "$WS/review-${SLUG}.md" ] && python3 "$WS/appverse-review/references/insert-catalog.py" \
             "$WS/review-${SLUG}.md" "$WS/pre-review"
+          [ -s "$WS/review-${SLUG}.meta.json" ] && python3 "$WS/appverse-review/references/stamp-meta.py" \
+            "$WS/review-${SLUG}.meta.json" "$WS/target-repo" "${{ inputs.target_repo }}" \
+            "${{ steps.params.outputs.model_id }}" || true
           if [ -s "$WS/review-${SLUG}.md" ] && [ -s "$WS/review-${SLUG}.findings.json" ]; then
             python3 "$WS/appverse-review/references/check-all.py" \
               "$WS/review-${SLUG}.md" "$WS/review-${SLUG}.findings.json" \
@@ -732,7 +736,8 @@ jobs:
               finding-codes.md. Then run the checkers and fix what they list.
             - Never edit the report's "## Catalog checks" section; a script
               writes it from the catalog after you finish.
-            - A [meta] MISSING line: write the metadata file in the format
+            - A [meta] MISSING or INVALID line: write or complete the
+              metadata file (a missing field is added, the rest kept) in the format
               of review-app SKILL.md section 5, taking every value from the
               report (decision, ratings, signals, maintenance) and the
               resolved values below; do not re-assess anything.
@@ -769,6 +774,9 @@ jobs:
           rc=0
           [ -s "$WS/review-${SLUG}.md" ] && python3 "$WS/appverse-review/references/insert-catalog.py" \
             "$WS/review-${SLUG}.md" "$WS/pre-review"
+          [ -s "$WS/review-${SLUG}.meta.json" ] && python3 "$WS/appverse-review/references/stamp-meta.py" \
+            "$WS/review-${SLUG}.meta.json" "$WS/target-repo" "${{ inputs.target_repo }}" \
+            "${{ steps.params.outputs.model_id }}" || true
           if [ -s "$WS/review-${SLUG}.md" ] && [ -s "$WS/review-${SLUG}.findings.json" ]; then
             python3 "$WS/appverse-review/references/check-all.py" \
               "$WS/review-${SLUG}.md" "$WS/review-${SLUG}.findings.json" \

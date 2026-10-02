@@ -12,13 +12,15 @@ Runs, in order:
   5. check-evidence.py <findings.json> --target <target-dir> --report <report.md>
          --pre-review <pre-review-out-dir>   (only when that directory exists)
   6. check-catalog.py <report.md> <pre-review-out-dir>
+  7. check-meta.py <report minus .md>.meta.json   (only when that file exists;
+         the workflow reports a missing one itself)
 
 Each checker's problem lines (MISSING, INVALID, MISMATCH, UNCITED, BAD) are
 printed as-is, prefixed with the checker's short name in brackets
-([floor], [keys], [rating], [rows], [evidence], [catalog]) so a mixed failure is easy
+([floor], [keys], [rating], [rows], [evidence], [catalog], [meta]) so a mixed failure is easy
 to scan. Each checker's own summary line follows its block, also prefixed.
 
-Exit code is the worst of the six: 0 if every checker exited 0, 1 if any
+Exit code is the worst of them: 0 if every checker exited 0, 1 if any
 exited 1 (a real problem was found) and none exited 2, 2 if any checker
 could not run at all (exit 2 — bad input, not a finding). Two results are
 reclassified so the code stays an honest split between "the report is
@@ -62,6 +64,8 @@ CHECKERS = [
      + (["--pre-review", a.pre_review_dir] if os.path.isdir(a.pre_review_dir) else [])),
     ("catalog", "check-catalog.py",
      lambda a: [a.report, a.pre_review_dir]),
+    ("meta", "check-meta.py",
+     lambda a: [os.path.splitext(a.report)[0] + ".meta.json"]),
 ]
 TRACEBACK = "Traceback (most recent call last):"
 MISSING_SECTION_RE = re.compile(
@@ -91,7 +95,11 @@ def main(argv):
 
     worst = 0
     for name, script, build_argv in CHECKERS:
-        rc, lines = run_one(name, script, build_argv(args))
+        argv_ = build_argv(args)
+        if name == "meta" and not os.path.exists(argv_[0]):
+            print("[meta] meta: not checked (no meta.json beside the report)")
+            continue
+        rc, lines = run_one(name, script, argv_)
         if any(line.startswith(TRACEBACK) for line in lines) or rc not in (0, 1, 2):
             for line in lines:
                 print("[{}] {}".format(name, line))

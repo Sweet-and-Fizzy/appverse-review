@@ -67,4 +67,5 @@
 [rows] check-rows: 1 app, 19 required rows, 19 problems
 [evidence] evidence: 27/27 valid; report rows: 0/0 valid
 [catalog] catalog: not checked (no catalog-checks.md in the pre-review output)
+[meta] meta: not checked (no meta.json beside the report)
 exit: 1
