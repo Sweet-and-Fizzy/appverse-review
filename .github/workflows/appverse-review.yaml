@@ -101,7 +101,7 @@ jobs:
           # Tools and the shell syntax check run here, before the model, so the
           # review reads facts instead of running anything.
           bash "${{ github.workspace }}/appverse-review/references/run-pre-review.sh" \
-            "${{ github.workspace }}/target-repo" "${{ github.workspace }}/pre-review" --no-catalog
+            "${{ github.workspace }}/target-repo" "${{ github.workspace }}/pre-review"
           python3 -c "import json; [print(c['name'], c['status'], c.get('files_examined', ''), c.get('note', '')) for c in json.load(open('${{ github.workspace }}/pre-review/summary.json'))['checks']]"
 
       - name: Install PDF tools (pandoc + typst)
@@ -267,7 +267,6 @@ jobs:
                   "Bash(cd:*)",
                   "Bash(for:*)",
                   "Bash(touch:*)",
-                  "WebFetch(domain:openondemand.connectci.org)",
                   "WebFetch(domain:raw.githubusercontent.com)",
                   "Read",
                   "Write",
@@ -467,6 +466,10 @@ jobs:
         run: |
           WS="${{ github.workspace }}"; SLUG="${{ steps.params.outputs.repo_slug }}"
           echo "needs_repair=false" >> "$GITHUB_OUTPUT"
+          # The Catalog checks section is written by script from the pre-review
+          # step's catalog read, never retyped by the model.
+          [ -s "$WS/review-${SLUG}.md" ] && python3 "$WS/appverse-review/references/insert-catalog.py" \
+            "$WS/review-${SLUG}.md" "$WS/pre-review"
           if [ -s "$WS/review-${SLUG}.md" ] && [ -s "$WS/review-${SLUG}.findings.json" ]; then
             if [ ! -d "$WS/pre-review" ]; then
               echo "::warning::pre-review dir missing; the checkers that read it will report that they could not run"
@@ -590,6 +593,8 @@ jobs:
               taking rule, result, severity, file:line evidence and summary
               from the row, and a defect_key in the vocabulary of
               finding-codes.md. Then run the checkers and fix what they list.
+            - Never edit the report's "## Catalog checks" section; a script
+              writes it from the catalog after you finish.
             - A [meta] MISSING line: write the metadata file in the format
               of review-app SKILL.md section 5, taking every value from the
               report (decision, ratings, signals, maintenance) and the
@@ -625,6 +630,8 @@ jobs:
           WS="${{ github.workspace }}"; SLUG="${{ steps.params.outputs.repo_slug }}"
           echo "needs_repair=false" >> "$GITHUB_OUTPUT"
           rc=0
+          [ -s "$WS/review-${SLUG}.md" ] && python3 "$WS/appverse-review/references/insert-catalog.py" \
+            "$WS/review-${SLUG}.md" "$WS/pre-review"
           if [ -s "$WS/review-${SLUG}.md" ] && [ -s "$WS/review-${SLUG}.findings.json" ]; then
             python3 "$WS/appverse-review/references/check-all.py" \
               "$WS/review-${SLUG}.md" "$WS/review-${SLUG}.findings.json" \
@@ -723,6 +730,8 @@ jobs:
               taking rule, result, severity, file:line evidence and summary
               from the row, and a defect_key in the vocabulary of
               finding-codes.md. Then run the checkers and fix what they list.
+            - Never edit the report's "## Catalog checks" section; a script
+              writes it from the catalog after you finish.
             - A [meta] MISSING line: write the metadata file in the format
               of review-app SKILL.md section 5, taking every value from the
               report (decision, ratings, signals, maintenance) and the
@@ -758,6 +767,8 @@ jobs:
           WS="${{ github.workspace }}"; SLUG="${{ steps.params.outputs.repo_slug }}"
           echo "needs_repair=false" >> "$GITHUB_OUTPUT"
           rc=0
+          [ -s "$WS/review-${SLUG}.md" ] && python3 "$WS/appverse-review/references/insert-catalog.py" \
+            "$WS/review-${SLUG}.md" "$WS/pre-review"
           if [ -s "$WS/review-${SLUG}.md" ] && [ -s "$WS/review-${SLUG}.findings.json" ]; then
             python3 "$WS/appverse-review/references/check-all.py" \
               "$WS/review-${SLUG}.md" "$WS/review-${SLUG}.findings.json" \
@@ -872,7 +883,7 @@ jobs:
             echo "A second repair pass ran; its re-check decides: $final"
           fi
           if [ "$final" = "failure" ]; then
-            echo "::error::Review produced its outputs but check-all.py failed after repair; see the re-check step's [floor]/[keys]/[rating]/[rows]/[evidence] INVALID/MISSING/MISMATCH/UNCITED/BAD lines"
+            echo "::error::Review produced its outputs but check-all.py failed after repair; see the re-check step's [floor]/[keys]/[rating]/[rows]/[evidence]/[catalog] INVALID/MISSING/MISMATCH/UNCITED/BAD lines"
             check_failed=1
           fi
           required="md"

@@ -23,4 +23,5 @@
 [evidence] NOTE report:magic-numbers magic-numbers template/script.sh.erb:59 (`script.sh.erb:59` is not on template/script.sh.erb:59)
 [evidence] NOTE report:erb-missing-value erb-missing-value submit.yml.erb:5,9,12 (`"normal"` is not on submit.yml.erb:5)
 [evidence] evidence: 47/47 valid; report rows: 37/37 valid
+[catalog] catalog: not checked (no catalog-checks.md in the pre-review output)
 exit: 1

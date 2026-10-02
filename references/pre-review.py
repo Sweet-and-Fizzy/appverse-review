@@ -252,6 +252,9 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import catalog_facts  # noqa: E402
+
 SCHEMA = "pre-review/1"
 SKIP_DIRS = {".git", "vendor", "node_modules"}
 SHELL_SUFFIXES = (".sh", ".bash", ".sh.erb")
@@ -3161,9 +3164,77 @@ def check_security(target, apps, out):
                         "Candidate enumeration)", per_app, notes, n, "<app_id>/security.json")
 
 
-def check_catalog(args):
-    # Placeholder: catalog reads land in a later PR; --catalog is accepted and ignored.
-    return record("catalog", "skipped", note="catalog reads land in a later PR")
+def _origin_repo(target):
+    """The reviewed repo's owner/repo from its git origin remote, or None."""
+    try:
+        r = subprocess.run(["git", "-C", target, "config", "--get", "remote.origin.url"],
+                           stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=10)
+    except Exception:
+        return None
+    return catalog_facts.repo_key(r.stdout.strip()) if r.returncode == 0 else None
+
+
+def _catalog_source(args):
+    return args.catalog or os.environ.get("APPVERSE_CATALOG") or catalog_facts.DEFAULT_CATALOG
+
+
+def check_catalog(args, target, apps, out):
+    """Read the catalog and compare each app's declared software, app_type and
+    implementation_tags with it (references/catalog_facts.py). Writes
+    catalog.json (the comparison per app) and catalog-checks.md (the report's
+    Catalog checks block, which the orchestrator pastes). Skipped with
+    --no-catalog; a catalog that cannot be read in full is failed_to_run, and
+    catalog-checks.md then says the checks were not run."""
+    def write_block(lines):
+        with open(os.path.join(out, "catalog-checks.md"), "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+    if args.no_catalog:
+        write_block(catalog_facts.not_read_block("--no-catalog"))
+        return record("catalog", "skipped", note="--no-catalog", output_file="catalog-checks.md")
+    source = _catalog_source(args)
+    try:
+        cat = catalog_facts.read_catalog(source)
+    except Exception as e:
+        reason = ("%s: %s" % (type(e).__name__, e))[:STDERR_CHARS]
+        write_block(catalog_facts.not_read_block("the catalog could not be read"))
+        return record("catalog", "failed_to_run", command=source, output_file="catalog-checks.md",
+                      note=reason)
+    root_path = os.path.join(target, "appverse.yml")
+    root_meta = _load_file(target, root_path, "appverse.yml")
+    entries = {}
+    if root_meta is None:
+        shape = "unparsed" if os.path.lexists(root_path) else "inferred"
+        root_meta = {}
+    else:
+        decl_apps = root_meta.get("apps")
+        for e in decl_apps if isinstance(decl_apps, list) else []:
+            if isinstance(e, dict) and isinstance(e.get("path"), str) and e["path"].strip():
+                entries[os.path.normpath(e["path"].strip()).replace(os.sep, "/")] = e
+        shape = "monorepo" if entries else "single"
+    monorepo = shape == "monorepo"
+    this_repo = _origin_repo(target)
+    per_app, facts = [], []
+    for app in apps:
+        if app.get("_skip"):
+            continue
+        entry = entries.get(app["path"]) if monorepo else None
+        sub = _load_file(target, os.path.join(app["_dir"], "appverse.yml"),
+                         app["path"] + "/appverse.yml") if monorepo else None
+        decl = catalog_facts.declared_values(root_meta, entry, sub, shape)
+        res = catalog_facts.compare(cat, decl, this_repo)
+        per_app.append((app["app_id"], res))
+        facts.append({"app_id": app["app_id"], "declared": decl, "checks": res})
+    _write_json(out, "catalog.json", {
+        "schema": "catalog/1", "source": source, "pages": cat["pages"], "this_repo": this_repo,
+        "counts": {k: len(cat[k]) for k in ("software", "app_types", "implementation_tags", "apps")},
+        "app_types": cat["app_types"], "implementation_tags": cat["implementation_tags"],
+        "apps": facts})
+    write_block(catalog_facts.render(cat, per_app, monorepo))
+    return record("catalog", "ran", command=source, output_file="catalog.json",
+                  files_examined=sum(cat["pages"].values()),
+                  note="%d apps, %d Software entries, %d app types, %d implementation tags" % (
+                      len(cat["apps"]), len(cat["software"]), len(cat["app_types"]),
+                      len(cat["implementation_tags"])))
 
 
 def _tool_status(rec):
@@ -3215,7 +3286,7 @@ def _prepare_out(out):
                 and app_id != "stripped":
             shutil.rmtree(os.path.join(out, app_id), ignore_errors=True)
     for name in os.listdir(out):
-        if name.endswith(".json") or name == "tool-table.md":
+        if name.endswith(".json") or name in ("tool-table.md", "catalog-checks.md"):
             os.remove(os.path.join(out, name))
     shutil.rmtree(os.path.join(out, "stripped"), ignore_errors=True)
 
@@ -3226,7 +3297,9 @@ def main(argv):
         description="Run the static-analysis tools and the shell syntax check before the model.")
     ap.add_argument("target", help="app repo to check")
     ap.add_argument("out", help="directory for summary.json, syntax.json and the tool JSON")
-    ap.add_argument("--catalog", metavar="URL", help="Appverse catalog base URL (not read yet)")
+    ap.add_argument("--catalog", metavar="URL",
+                    help="Appverse catalog base URL, or a directory of catalog fixture JSON "
+                         "(default: $APPVERSE_CATALOG, else %s)" % catalog_facts.DEFAULT_CATALOG)
     ap.add_argument("--no-catalog", action="store_true", help="skip catalog reads")
     args = ap.parse_args(argv)
 
@@ -3263,13 +3336,13 @@ def main(argv):
     checks.append(guarded("semgrep", check_semgrep, target, out))
     checks.append(guarded("bandit", check_bandit, target, out))
     checks.append(guarded("trivy", check_trivy, target, out))
-    checks.append(guarded("catalog", check_catalog, args))
 
     try:
         apps = resolve_apps(target)
     except Exception as e:  # never fail the run: one unread root app
         apps = [{"app_id": "root", "path": ".", "app_type": "unknown", "readme": None, "_dir": None,
                  "_skip": ("app shape not resolved: %s: %s" % (type(e).__name__, e))[:STDERR_CHARS]}]
+    checks.append(guarded("catalog", check_catalog, args, target, apps, out))
     _write_json(out, "apps.json", [_public(a) for a in apps])
     facts = [guarded("readme", check_readme, target, apps, out),
              guarded("form", check_form, target, apps, out),

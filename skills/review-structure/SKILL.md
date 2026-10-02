@@ -56,12 +56,14 @@ its own finding with the vocabulary tag that fits or `other:`.
   structure" section. For declared repos that includes `description`,
   `software`, `app_type`, `maintainer.name`, and `maintainer.support_url`; a
   missing field is a gate failure (STR-02, `missing-field:<name>`).
-- `app_type` and `implementation_tags` are known values. The schema names the
-  vocabularies but does not enumerate them; query the catalog's public JSON:API
-  for the current terms (see the Reviewer Process doc,
-  `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`, "Reading the catalog without a
-  login"). Matching is case-insensitive. Report the terms you found, not just a
-  pass — a stale vocabulary is why this check silently drifts.
+- `app_type` and `implementation_tags` are known values. Read the result from
+  `<pre-review>/catalog.json` (per app, `checks.app_type` and
+  `checks.implementation_tags`, compared with the live vocabularies, ignoring
+  case); do not query the catalog yourself. An `app_type` outside the
+  published vocabulary is an STR-02 FAIL, worded as "not in the published
+  vocabulary" (an unpublished term is invisible here); an unknown
+  implementation tag is a WARN. If `catalog.json` is absent
+  (the catalog was not read), record the check as NOT CHECKED with that reason.
 - Every `manifest.yml`, `appverse.yml`, and `form.yml` parses; report parse
   errors verbatim. A `form.yml.erb` cannot be YAML-parsed directly (unrendered
   ERB is not valid YAML) — check that it exists and has balanced ERB tags
