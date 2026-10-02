@@ -25,7 +25,9 @@ recommends; a human decides.
 
 ## Before you start
 
-Apps awaiting review appear in the Manage Appverse Apps view in Drupal: [openondemand.connectci.org/appverse/manage-apps](https://openondemand.connectci.org/appverse/manage-apps). The view shows the submitter's name and email so you can follow up with questions, the moderation state, and a link to edit the app node.
+During the pilot, review assignments and the link to each app's review
+report are in the Appverse Review Tracker; check it for what is assigned to
+you. Apps awaiting review also appear in the Manage Appverse Apps view in Drupal: [openondemand.connectci.org/appverse/manage-apps](https://openondemand.connectci.org/appverse/manage-apps). The view shows the submitter's name and email so you can follow up with questions, the moderation state, and a link to edit the app node.
 
 The report is generated against a specific commit. If the repo has moved on
 since the report was run, get a fresh report before doing anything else. A
@@ -154,16 +156,20 @@ taking them on trust. Spot-check that:
    cited `file:line` actually shows the flagged pattern. Remember the
    "Additional observations (review)" table is the reviewer's own open-ended
    pass, distinct from the per-candidate rows above it: read it as free-form
-   findings, not as answers to the enumeration. `check-evidence.py` (with
-   `--report`) automates part of this: it confirms every cited `file:line`
-   exists and is in range. It also looks for a literal value quoted in
-   backticks in a finding's or row's summary on the line(s) cited for it, but
-   only reports a miss as a `NOTE` (the rule is not yet precise enough to
-   fail a run), so read those lines yourself.
+   findings, not as answers to the enumeration. The review's checkers confirm
+   that every cited line exists, but not that the line says what the finding
+   claims, so read the cited lines yourself.
+   When the app runs its own server code (a proxy, a Passenger app, anything
+   that listens on a port or handles requests), read that code yourself
+   rather than spot-checking: the report can miss the real issue there, such
+   as a proxy that accepts requests from any origin.
 3. Portability and Documentation ratings and any correctness-&-polish findings match what you see —
    documentation level, portability, and any copy-paste artifacts or typos.
 4. Upkeep signals are current — last commit, releases, CI, CHANGELOG.
-5. The duplicate check is settled — the report performs the catalog reads
+5. The draft feedback's advice is right for this repo. Before passing on a
+   suggested change, check it would work: advice that is sound in general
+   (add `set -e`, say) can break a particular script.
+6. The duplicate check is settled — the report performs the catalog reads
    when it can reach the catalog, but the duplicate decision itself is the
    reviewer's to confirm (see Duplicate check above).
 
@@ -208,8 +214,14 @@ should read, not a reason to reject.
 Any Accept is conditional on the catalog checks in Step 1. If one could not be
 run, say which and why in the feedback rather than leaving it unmarked.
 
+For Accept with suggestions, ask the contributor whether they want the app
+published now or would rather make the changes first. For Request changes,
+list what must change before it can be published.
+
 Record the decision in the catalog (moderation state on the app) and send the
-feedback to the contributor by the channel the submission came in on.
+feedback to the contributor by the channel the submission came in on. During
+the pilot, also add a note in the Appverse Review Tracker saying what you did
+(a link to the issue, or a summary of the email) and update its status.
 
 ## Appendix: Review template
 
