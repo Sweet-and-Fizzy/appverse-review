@@ -23,6 +23,32 @@ documentation, and upkeep, and a recommended decision. The reviewer receives
 that report, verifies it, curates the feedback, and makes the call. The review
 recommends; a human decides.
 
+## What a review is, and what we ask of you
+
+A review is a best-effort look at an app by a volunteer, supported by an
+automated report. It is not a security audit or a certification, and a
+listing is not an endorsement. We publish what the review found, and
+deployers make their own decisions with it.
+
+As a reviewer, the minimum we ask is:
+
+1. Check every finding that will reach the contributor or the public page:
+   each failure and warning of Low severity or above, the gate results, and
+   every security finding. Look at the cited lines and decide whether the
+   finding holds. For the rest, a sample is enough.
+2. Where you disagree with a finding, say so in a note on it. Explain what
+   you saw instead; don't delete it.
+3. Add any problem you find that the report missed, as a new finding.
+4. Record what you did in your reviewer assessment: what you checked, what
+   you sampled, and anything you did not check.
+5. If you come across something you don't know how to check, ask the other
+   reviewers for help before you decide. Leave an internal note on the
+   review so whoever picks it up knows what is still open.
+
+Your notes and your assessment are published with the review. You are not
+expected to find everything. A clear record of what you checked is what
+makes the review useful to the people who rely on it.
+
 ## Before you start
 
 Apps awaiting review appear in the Manage Appverse Apps view in Drupal: [openondemand.connectci.org/appverse/manage-apps](https://openondemand.connectci.org/appverse/manage-apps). The view shows the submitter's name and email so you can follow up with questions, the moderation state, and a link to edit the app node.
@@ -52,6 +78,9 @@ Ask these questions first, before evaluating quality:
 | Is the repository public and accessible? | Cannot be included — public repo required |
 | Does it have an open source license? | Cannot be included — license required |
 | Is there a maintainer who will respond to issues? | Flag as a risk — orphaned apps hurt the catalog |
+
+A repo whose `appverse.yml` lists several apps is gated once and decided per
+app: each app gets its own findings and its own decision.
 
 ### Duplicate check
 
@@ -86,8 +115,8 @@ won't be listed. An inferred repo (no `appverse.yml`) declares no `software`
 value, so there is nothing to match: the check does not apply, and the report
 says so. Software is its own catalog node type, created separately from
 the app — the app form only references an existing Software entry, it cannot
-create one. Query for it with the command above. If there is no matching entry,
-it is the reviewer's decision, not an automatic failure:
+create one. The report's Catalog checks section says whether one matches. If
+none does, it is the reviewer's decision, not an automatic failure:
 
 - **Software should exist in the catalog** → create the Software entry first
   using the [Add Appverse Software form](https://openondemand.connectci.org/node/add/appverse_software)
@@ -95,10 +124,6 @@ it is the reviewer's decision, not an automatic failure:
 - **Typo, or maps to an existing entry under a different name** → ask the
   contributor to correct the `software` value.
 - **Not appropriate for the catalog** → Request changes, with the reason.
-
-Monorepos: a declared repo with an `apps:` list is reviewed as one app per
-entry, each with its own findings and its own decision (see the rubric's Repo
-shapes section). Gate the repo once; decide per app.
 
 ## Step 2: Open the review report
 
@@ -111,11 +136,9 @@ The report is organized the way the rubric is:
   High with an evidence phrase), then the app's **Structure** gate
   results, then **Security**, **Portability**, **Documentation**, and **Code
   Quality** findings, each with a rule code, severity, and `file:line`.
-  Security shows one row per candidate the pre-review facts enumerated,
-  including PASS rows — a candidate cleared as safe is still a row, not a
-  silent pass — followed by an "Additional observations (review)" table for
-  whatever the reviewer's own open-ended reading found beyond the
-  enumeration.
+  Security lists every place in the code the tool was told to check,
+  including the ones it cleared (PASS), then an "Additional observations"
+  table for anything else it found on its own reading.
 - **Review scope**: which security tiers ran and what was not checked.
 - **Catalog checks**, read from the catalog before the model runs: whether the
   `software` value has a Software entry, whether the `app_type` and
@@ -126,31 +149,29 @@ The report is organized the way the rubric is:
 Low is the good end of every signal. A High signal means "read this section
 before deploying", not "reject".
 
-## Step 3: Verify the findings
+## Step 3: Check the findings
 
-Read the report against the repo and confirm its findings hold, rather than
-taking them on trust. Spot-check that:
+Read the report against the repo and check its findings, rather than taking
+them on trust (see "What we ask of you" above for which ones). As you go,
+check that:
 
 1. Required files and metadata are as the report states — `appverse.yml` or
    `manifest.yml`, `README.md`, `LICENSE`, standard OOD structure.
-2. Security findings are real and correctly classified — open a few and check the
-   cited `file:line` actually shows the flagged pattern. Remember the
-   "Additional observations (review)" table is the reviewer's own open-ended
-   pass, distinct from the per-candidate rows above it: read it as free-form
-   findings, not as answers to the enumeration. The review's checkers confirm
-   that every cited line exists, but not that the line says what the finding
-   claims, so read the cited lines yourself.
-   When the app runs its own server code (a proxy, a Passenger app, anything
+2. Security findings are real and correctly classified. For each one, look at
+   the cited line and check it shows what the finding says. The review
+   confirms that every cited line exists, not that it says what the finding
+   claims.
+3. When the app runs its own server code (a proxy, a Passenger app, anything
    that listens on a port or handles requests), read that code yourself
-   rather than spot-checking: the report can miss the real issue there, such
+   rather than spot-checking. The report can miss the real issue there, such
    as a proxy that accepts requests from any origin.
-3. Portability and Documentation ratings and any correctness-&-polish findings match what you see —
-   documentation level, portability, and any copy-paste artifacts or typos.
-4. Upkeep signals are current — last commit, releases, CI, CHANGELOG.
-5. The draft feedback's advice is right for this repo. Before passing on a
+4. The Portability and Documentation ratings and the smaller code findings
+   (typos, copy-paste leftovers) match what you see.
+5. Upkeep is current: last commit, releases, CI, CHANGELOG.
+6. The draft feedback's advice is right for this repo. Before passing on a
    suggested change, check it would work: advice that is sound in general
    (add `set -e`, say) can break a particular script.
-6. The duplicate check is settled — the report performs the catalog reads
+7. The duplicate check is settled — the report performs the catalog reads
    when it can reach the catalog, but the duplicate decision itself is the
    reviewer's to confirm (see Duplicate check above).
 
@@ -168,12 +189,8 @@ The draft feedback in the report is the tool's first pass. Make it yours:
   belong in the feedback. Info-level polish can be summarized or left out.
 - Be specific: name the file and line, say what to change, and link an example
   where one exists.
-- The draft ends with an HTML comment `<!-- feedback-covers: … -->` listing
-  the finding keys it addresses. `check-feedback-floor.py` verifies that the
-  file (or, for a repo-level finding, its pseudo-anchor subject) and a line
-  number or the mechanism word appear near each other in the feedback prose —
-  not that the advice itself is right. If you add a fix-item to the
-  feedback, add its key; if you remove one, remove the key.
+- The draft ends with a hidden `<!-- feedback-covers: … -->` line that the
+  review uses to check itself. Delete it before you send the feedback.
 
 **Good feedback:**
 > The README lists prerequisites but doesn't include installation steps. Please add a section showing how to clone and deploy the app (see [ProteinStructure-OOD](https://github.com/EpiGenomicsCode/ProteinStructure-OOD) for an example).
@@ -185,7 +202,7 @@ Reference the [Best Practices Guide](https://openondemand.connectci.org/appverse
 
 ## Step 5: Decide
 
-Apply the [Decision rubric](https://openondemand.connectci.org/appverse-review-rubric):
+Apply the [Decision rubric](https://openondemand.connectci.org/appverse-review-rubric#decision-rubric):
 accept, accept with suggestions, request changes, or reject. The decision comes
 from the gate criteria and from properties of individual findings (a
 potentially-malicious security finding, an unmaintained repo, a duplicate).
@@ -201,51 +218,6 @@ list what must change before it can be published.
 
 Record the decision in the catalog (moderation state on the app) and send the
 feedback to the contributor by the channel the submission came in on.
-
-## Appendix: Review template
-
-Copy this template when recording a review by hand:
-
-```markdown
-## App Review: [App Name]
-
-**Repository:** [URL]
-**Reviewed commit:** [SHA] ([date])
-**Reviewer:** [Name]
-**Date:** [Date]
-
-### Gate criteria
-- [ ] Repo shape identifiable and required metadata present (see the rubric's Structure section)
-- [ ] README.md (substantive)
-- [ ] LICENSE (open source)
-- [ ] Standard OOD app structure and valid YAML / templates
-
-For Monorepos: repeat the per-app criteria and decision for each entry in `apps[]`.
-
-### Signals
-- Security: findings classified under OODT, with severity and file:line evidence (no level)
-- Portability: [Low / Medium / High] — [Not portable / Partially portable / Portable]
-- Documentation: [Low / Medium / High] — [Below minimal / Minimal / Adequate / Strong / Exemplary]
-- Upkeep (repo): [Low / Medium / High] — last commit, releases, CI, CHANGELOG
-
-### Code quality
-- Findings with file:line evidence
-
-### Catalog checks
-- [ ] Duplicate check against the existing catalog — [outcome and rationale]
-- [ ] `software` value matches a catalog Software entry (create the entry if the software should exist)
-- [ ] `app_type` and `implementation_tags` are in the catalog vocabularies
-
-The review's Catalog checks section gives these results. If it says the
-catalog was not read, run them by hand (see the appendix) and record what each
-returned.
-
-### Decision: [Accept / Accept with suggestions / Request changes / Reject]
-- If any catalog check above could not be run, Accept is conditional on it
-
-### Feedback
-[Specific items to address or improve — every item must already appear above]
-```
 
 ## Appendix: Reading the catalog by hand
 
