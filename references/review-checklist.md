@@ -25,9 +25,7 @@ recommends; a human decides.
 
 ## Before you start
 
-During the pilot, review assignments and the link to each app's review
-report are in the Appverse Review Tracker; check it for what is assigned to
-you. Apps awaiting review also appear in the Manage Appverse Apps view in Drupal: [openondemand.connectci.org/appverse/manage-apps](https://openondemand.connectci.org/appverse/manage-apps). The view shows the submitter's name and email so you can follow up with questions, the moderation state, and a link to edit the app node.
+Apps awaiting review appear in the Manage Appverse Apps view in Drupal: [openondemand.connectci.org/appverse/manage-apps](https://openondemand.connectci.org/appverse/manage-apps). The view shows the submitter's name and email so you can follow up with questions, the moderation state, and a link to edit the app node.
 
 The report is generated against a specific commit. If the repo has moved on
 since the report was run, get a fresh report before doing anything else. A
@@ -219,9 +217,7 @@ published now or would rather make the changes first. For Request changes,
 list what must change before it can be published.
 
 Record the decision in the catalog (moderation state on the app) and send the
-feedback to the contributor by the channel the submission came in on. During
-the pilot, also add a note in the Appverse Review Tracker saying what you did
-(a link to the issue, or a summary of the email) and update its status.
+feedback to the contributor by the channel the submission came in on.
 
 ## Appendix: Review template
 
