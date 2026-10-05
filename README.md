@@ -138,13 +138,15 @@ references/
   appverse.yml           Cached schema reference (offline fallback)
   run-pre-review.sh / pre-review.py   Tools and syntax check before the model (summary.json, syntax.json, tool JSON)
   checks.yml / checks.json            Check manifest (checks.json is generated from checks.yml)
-  check-all.py           Runs every report checker in one pass (floor, keys, rating, rows, evidence, catalog, meta)
+  check-all.py           Runs every report checker in one pass (floor, keys, rating, rows, evidence, catalog, meta, decisions, sections)
   insert-catalog.py      Writes the report's Catalog checks section from the pre-review catalog read
   stamp-meta.py          Writes the run's commit, ref, repo URL, shape and model into meta.json
   check-meta.py          Fails a meta.json without the recommendation, gate values or apps the artifact needs
+  check-decisions.py     Fails a decision below the floor its High/Critical findings set (security applies repo-wide)
+  check-sections.py      Fails a report missing Upkeep, Review scope or a stated decision, or disagreeing with meta.json
   check-*.py             The report checkers check-all.py runs
 tests/
-  fixtures/              6 deliberately broken app repos for calibration
+  fixtures/              7 deliberately broken app repos for calibration
   TESTING.md             Expected findings per fixture, coverage matrix
   corpus/                Committed real review runs and their expected check-all output
   run-corpus.sh          Runs check-all.py over tests/corpus and diffs against corpus/expected/
@@ -157,7 +159,7 @@ tests/
 
 ## Test fixtures
 
-Six fixture repos with planted defects for calibrating review accuracy:
+Seven fixture repos with planted defects for calibrating review accuracy:
 
 | Fixture | Primary defect area | Defect count |
 |---------|-------------------|--------------|
@@ -167,6 +169,7 @@ Six fixture repos with planted defects for calibrating review accuracy:
 | `passenger-flask-app` | Command injection, shell injection, /tmp token storage | 10 |
 | `containerized-server` | CORS wildcard, 0.0.0.0 bind, portability failures | 10 |
 | `curl-pipe-installer` | Polished exterior hiding curl\|bash, eval injection | 9 |
+| `monorepo-shared-risk` | A committed secret in one app of a monorepo decides every app | 1 |
 
 See [tests/TESTING.md](tests/TESTING.md) for the full defect matrix and
 calibration procedure.

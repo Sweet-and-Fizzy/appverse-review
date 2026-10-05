@@ -564,7 +564,7 @@ jobs:
             - metadata: ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.meta.json
             - checker output to fix: ${{ github.workspace }}/check-output.txt
               (the lines starting [floor], [keys], [rating], [rows],
-              [evidence], [findings] or [meta] and containing MISSING, INVALID,
+              [evidence], [findings], [meta], [decisions] or [sections] and containing MISSING, INVALID,
               MISMATCH, UNCITED or BAD; everything else there is context)
             - pre-review facts: ${{ github.workspace }}/pre-review/
             - the rules the checkers apply: ${{ github.workspace }}/appverse-review/skills/review-app/SKILL.md
@@ -603,6 +603,21 @@ jobs:
               Reviewed commit: ${{ steps.params.outputs.target_sha }};
               repo: https://github.com/${{ inputs.target_repo }};
               model: ${{ steps.params.outputs.model_id }}.
+            - A [decisions] MISMATCH line: raise the named decision to at
+              least the one the line gives, in the report (the app's
+              Per-app decision line, or the Overall recommendation) and in
+              the metadata file, and make the Overall recommendation
+              paragraph and the draft feedback agree with it. Never lower a
+              finding's severity or result to clear the line.
+            - A [sections] MISSING section line: add that section in the
+              place and format review-app SKILL.md section 3 gives it,
+              written from the findings and pre-review facts already there.
+              A MISSING decision line: state the decision there, the
+              Overall recommendation opening with it in bold. A MISMATCH
+              line: make the report and the metadata file both say the
+              stricter of the two decisions (or the one a [decisions] line
+              requires, if stricter still), stated in bold where the report
+              gives it. Never lower a decision to resolve a mismatch.
             - Never add an `id` field to a finding; IDs are computed later.
             - Do not reword anything the checker did not list.
 
@@ -705,7 +720,7 @@ jobs:
             - metadata: ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.meta.json
             - checker output to fix: ${{ github.workspace }}/check-output.txt
               (the lines starting [floor], [keys], [rating], [rows],
-              [evidence], [findings] or [meta] and containing MISSING, INVALID,
+              [evidence], [findings], [meta], [decisions] or [sections] and containing MISSING, INVALID,
               MISMATCH, UNCITED or BAD; everything else there is context)
             - pre-review facts: ${{ github.workspace }}/pre-review/
             - the rules the checkers apply: ${{ github.workspace }}/appverse-review/skills/review-app/SKILL.md
@@ -744,6 +759,21 @@ jobs:
               Reviewed commit: ${{ steps.params.outputs.target_sha }};
               repo: https://github.com/${{ inputs.target_repo }};
               model: ${{ steps.params.outputs.model_id }}.
+            - A [decisions] MISMATCH line: raise the named decision to at
+              least the one the line gives, in the report (the app's
+              Per-app decision line, or the Overall recommendation) and in
+              the metadata file, and make the Overall recommendation
+              paragraph and the draft feedback agree with it. Never lower a
+              finding's severity or result to clear the line.
+            - A [sections] MISSING section line: add that section in the
+              place and format review-app SKILL.md section 3 gives it,
+              written from the findings and pre-review facts already there.
+              A MISSING decision line: state the decision there, the
+              Overall recommendation opening with it in bold. A MISMATCH
+              line: make the report and the metadata file both say the
+              stricter of the two decisions (or the one a [decisions] line
+              requires, if stricter still), stated in bold where the report
+              gives it. Never lower a decision to resolve a mismatch.
             - Never add an `id` field to a finding; IDs are computed later.
             - Do not reword anything the checker did not list.
 

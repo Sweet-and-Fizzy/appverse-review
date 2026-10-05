@@ -8,7 +8,8 @@ The assembler builds the artifact from meta.json, and the portal refuses an
 artifact without a reviewed commit. This checks the fields the model writes
 (review-app SKILL.md section 5): recommendation.decision is one of the four
 outcomes and recommendation.note is not empty; not_archived and public are
-pass, fail or not checked (as the assembler reads them); apps is a non-empty list whose entries have an app_id; and,
+pass, fail or not checked (as the assembler reads them); apps is a non-empty list whose entries have an app_id
+and a decision (one of the four outcomes; check-decisions.py reads them); and,
 after stamp-meta.py, sha and repo_url are present.
 
 Output: one MISSING or INVALID line per problem, then a summary line.
@@ -18,8 +19,7 @@ cannot be read or is not a JSON object.
 import json
 import sys
 
-DECISIONS = {"accept", "accept with suggestions", "request changes", "reject",
-             "accept_with_suggestions", "request_changes"}
+from report_parse import normalize_decision
 
 
 def main(argv):
@@ -43,7 +43,7 @@ def main(argv):
         d = rec.get("decision")
         if not isinstance(d, str) or not d.strip():
             problems.append("MISSING meta field: recommendation.decision")
-        elif d.strip().lower() not in DECISIONS:
+        elif normalize_decision(d) is None:
             problems.append("INVALID meta field: recommendation.decision %r is not Accept, Accept with "
                             "suggestions, Request changes or Reject" % d)
         if not isinstance(rec.get("note"), str) or not rec["note"].strip():
@@ -61,6 +61,14 @@ def main(argv):
         for i, a in enumerate(apps):
             if not isinstance(a, dict) or not a.get("app_id"):
                 problems.append("INVALID meta field: apps[%d] has no app_id" % i)
+                continue
+            d = a.get("decision")
+            if not isinstance(d, str) or not d.strip():
+                problems.append("MISSING meta field: apps[%d].decision (%s's Per-app decision, or the "
+                                "recommendation for a single-app repo)" % (i, a["app_id"]))
+            elif normalize_decision(d) is None:
+                problems.append("INVALID meta field: apps[%d].decision %r is not Accept, Accept with "
+                                "suggestions, Request changes or Reject" % (i, d))
     for key in ("sha", "repo_url"):
         if not meta.get(key):
             problems.append("MISSING meta field: %s (stamp-meta.py writes it)" % key)
