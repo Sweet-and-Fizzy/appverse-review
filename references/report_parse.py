@@ -13,7 +13,14 @@ Each script's own directory is already on sys.path when it runs by path
 (python's default for a script argument), so `from report_parse import ...`
 resolves the same way `from repo_paths import ...` does.
 """
+import argparse
+import os
 import re
+
+# Exit code for "the report lacks a section this checker needs": a malformed
+# report the repair can fix, not a tooling failure (exit 2). check-all.py
+# reads the code, never the wording of the error line.
+MALFORMED = 3
 
 MARKER = re.compile(r"`check:\s*([A-Za-z0-9_.-]+)`")
 RESULTS = ("NOT CHECKED", "FAIL", "WARN", "PASS")
@@ -174,3 +181,23 @@ def section(text, title, level=2):
     m = re.search(r"^" + hashes + " " + re.escape(title) + r"\b[^\n]*$(.*?)(?=^" + hashes + r" |\Z)",
                   text, re.M | re.S | re.I)
     return m.group(1) if m else None
+
+
+def positional_args(argv, required, optional=(), description=None):
+    """Parse a checker's positional arguments with argparse, so every checker
+    takes --help and reports a bad call the same way. Returns argv with the
+    given values ([prog, *required, *optional present]), or an exit code:
+    0 after --help, 2 for a bad call (argparse prints the usage)."""
+    ap = argparse.ArgumentParser(prog=os.path.basename(argv[0]), description=description)
+    for name in required:
+        ap.add_argument(name)
+    for name in optional:
+        ap.add_argument(name, nargs="?")
+    try:
+        ns = ap.parse_args(argv[1:])
+    except SystemExit as e:
+        return int(e.code or 0)
+    values = [getattr(ns, n) for n in list(required) + list(optional)]
+    while values and values[-1] is None:
+        values.pop()
+    return [argv[0]] + values

@@ -188,4 +188,11 @@ print(section_for(app, sections, single=False))
 )
 check "no match, not single, is None" "None" "$out"
 
+echo "Test: positional_args parses like argparse and returns argv or an exit code"
+pa() { python3 -c "import sys; sys.path.insert(0, sys.argv[1]); from report_parse import positional_args as p; r = p(sys.argv[2:], ['a', 'b'], ['c']); print(r if isinstance(r, int) else '|'.join(r))" "$SCRIPT_DIR/references" "$@" 2>/dev/null; }
+check "two required" "prog|x|y" "$(pa prog x y)"
+check "with the optional" "prog|x|y|z" "$(pa prog x y z)"
+check "too few: exit 2" "2" "$(pa prog x)"
+check "--help: exit 0" "0" "$(pa prog --help | tail -1)"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

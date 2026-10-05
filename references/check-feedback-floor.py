@@ -147,12 +147,16 @@ fix-item and must be represented in the feedback section of the report:
     python3 references/check-feedback-floor.py review-<slug>.findings.json review-<slug>.md
 
 Exit 0 when every fix-item is covered, 1 when any is missing, 2 when an
-input cannot be read or the report has no feedback section.
+input cannot be read, 3 (a malformed report) when the report has no
+feedback section.
 """
 import json
 import os
 import re
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from report_parse import MALFORMED, positional_args  # noqa: E402
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from repo_paths import CITATION_RE, PSEUDO_ANCHORS, split_reviewed_ok  # noqa: E402
@@ -682,9 +686,9 @@ def defect_named(candidates, evidence, defect_key, named_paragraphs, words=None,
 
 
 def main(argv):
-    if len(argv) != 3:
-        print("usage: check-feedback-floor.py <findings.json> <report.md>", file=sys.stderr)
-        return 2
+    argv = positional_args(argv, ["findings.json", "report.md"], description=(__doc__ or "").split("\n\n")[0])
+    if isinstance(argv, int):
+        return argv
     try:
         with open(argv[1]) as f:
             findings = json.load(f)
@@ -696,7 +700,7 @@ def main(argv):
     parsed = feedback_section(report)
     if parsed is None:
         print("error: no '## Draft feedback' or '## Fix before submitting' section", file=sys.stderr)
-        return 2
+        return MALFORMED
     preheading, section = parsed
     # A covers comment may sit just above the heading (preheading) or inside
     # the section; if both are present, or either has more than one, the

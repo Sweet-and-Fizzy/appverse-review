@@ -59,9 +59,9 @@ echo "Test 6: a rewritten result fails"
 sed 's/matches the Software entry "Dashboards"./NOT CHECKED: network fetch denied./' "$TMP/r1.md" > "$TMP/r6.md"
 check "exit 1" 1 "$(run "$TMP/r6.md" "$PRE")"
 
-echo "Test 7: no Catalog checks section is a missing section (exit 2, as check-all reads it)"
+echo "Test 7: no Catalog checks section is a missing section (exit 3, which check-all reads as a malformed report)"
 printf '# x\n\n## Overall recommendation\n\nAccept.\n' > "$TMP/r7.md"
-check "exit 2" 2 "$(run "$TMP/r7.md" "$PRE")"
+check "exit 3 (malformed report)" 3 "$(run "$TMP/r7.md" "$PRE")"
 check "error names the section" 1 "$(grep -c "^error: report has no '## Catalog checks' section" "$TMP/out")"
 
 echo "Test 8: no catalog-checks.md (an older pre-review run) is not checked, and insert leaves the report alone"

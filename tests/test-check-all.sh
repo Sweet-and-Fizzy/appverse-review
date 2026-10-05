@@ -111,9 +111,9 @@ python3 "$TMP/refs/check-all.py" "$TMP/report.md" "$TMP/findings.json" "$TMP/che
 check "exit 2" 2 "$?"
 check "crash line" 1 "$(count '[keys] crashed: TypeError: unhashable type: list')"
 check "the other checkers still ran" 4 "$(grep -Ec '^\[(floor|rating|rows|evidence)\] check-' "$TMP/out")"
-printf 'import sys\nprint("rows: odd")\nsys.exit(3)\n' > "$TMP/refs/check-rows.py"
+printf 'import sys\nprint("rows: odd")\nsys.exit(4)\n' > "$TMP/refs/check-rows.py"
 python3 "$TMP/refs/check-all.py" "$TMP/report.md" "$TMP/findings.json" "$TMP/checks.json" "$TMP/pre-review" --target "$TMP/target" > "$TMP/out" 2>&1
-check "an exit code outside 0-2 is exit 2" 2 "$?"
+check "an exit code outside 0-3 is exit 2" 2 "$?"
 check "its crash line" 1 "$(count '[rows] crashed: rows: odd')"
 
 echo "Test 6: with a meta.json beside the report, a decision below its security floor is a [decisions] MISMATCH"

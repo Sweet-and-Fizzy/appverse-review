@@ -33,6 +33,7 @@ import re
 import sys
 
 from report_parse import (DECISION_NAMES as NAMES, app_sections, normalize_decision as norm,
+    positional_args,
                           section, section_for)
 
 REQUIRED = ("Upkeep", "Review scope", "Overall recommendation")
@@ -73,9 +74,9 @@ def per_app_decision(body):
 
 
 def main(argv):
-    if len(argv) not in (2, 3):
-        print("usage: check-sections.py <report.md> [<meta.json>]", file=sys.stderr)
-        return 2
+    argv = positional_args(argv, ["report.md"], ["meta.json"], description=(__doc__ or "").split("\n\n")[0])
+    if isinstance(argv, int):
+        return argv
     try:
         with open(argv[1], encoding="utf-8") as f:
             text = f.read()

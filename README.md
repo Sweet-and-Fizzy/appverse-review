@@ -145,6 +145,7 @@ references/
   check-decisions.py     Fails a decision below the floor its High/Critical findings set (security applies repo-wide)
   check-sections.py      Fails a report missing Upkeep, Review scope or a stated decision, or disagreeing with meta.json
   check-*.py             The report checkers check-all.py runs
+  report_parse.py, repo_paths.py, readme_lines.py, row_candidates.py   Shared code the checkers and pre-review import
 tests/
   fixtures/              7 deliberately broken app repos for calibration
   TESTING.md             Expected findings per fixture, coverage matrix

@@ -55,6 +55,10 @@ RULE_HEADING = re.compile(r"^\*\*([A-Z]{3,4}-\d{2}):\*\*\s*$")
 TAG_TOKEN = re.compile(r"`([^`]+)`")
 
 
+class VocabularyError(Exception):
+    """finding-codes.md could not be read; main() reports it and exits 2."""
+
+
 def load_vocabulary(path=FINDING_CODES):
     """Return {rule: {tag_base: requires_qualifier}} from the mechanism-tag sections."""
     vocab = {}
@@ -80,8 +84,7 @@ def load_vocabulary(path=FINDING_CODES):
                     # un-require it.
                     vocab[current][base] = vocab[current].get(base, False) or qual.startswith("{")
     except OSError as e:
-        print("error: cannot read {}: {}".format(path, e), file=sys.stderr)
-        sys.exit(2)
+        raise VocabularyError("cannot read {}: {}".format(path, e))
     return vocab
 
 
@@ -222,7 +225,11 @@ def main(argv):
     if not isinstance(findings, list) or not all(isinstance(x, dict) for x in findings):
         print("error: findings must be a JSON list of objects", file=sys.stderr)
         return 2
-    vocab = load_vocabulary(args.vocabulary)
+    try:
+        vocab = load_vocabulary(args.vocabulary)
+    except VocabularyError as e:
+        print("error: {}".format(e), file=sys.stderr)
+        return 2
     bad = 0
     for f in findings:
         rule, key, reason = validate(f, vocab, args.target)

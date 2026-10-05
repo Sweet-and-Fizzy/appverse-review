@@ -56,7 +56,7 @@ check "exit 0" 0 "$(run "$TMP/findings.json" "$TMP/submitter.md")"
 
 echo "Test 6: no feedback section is exit 2"
 grep -v -e '^## Draft feedback' -e 'feedback-covers' "$TMP/ok.md" > "$TMP/nosection.md"
-check "exit 2" 2 "$(run "$TMP/findings.json" "$TMP/nosection.md")"
+check "exit 3 (malformed report)" 3 "$(run "$TMP/findings.json" "$TMP/nosection.md")"
 
 echo "Test 7: no coverage line is exit 1 with every fix-item missing"
 grep -v 'feedback-covers' "$TMP/ok.md" > "$TMP/nocover.md"

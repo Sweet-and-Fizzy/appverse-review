@@ -102,8 +102,9 @@ exceptions above, and for rule 3, which scans every record regardless of
 app section.
 
 Exit 0 when consistent, 1 with one MISMATCH line per problem, 2 when the
-report, findings or checks.json cannot be read, a needed section is
-missing, or a readme.json the stub check reads is not valid JSON.
+report, findings or checks.json cannot be read or a readme.json the stub
+check reads is not valid JSON, 3 (a malformed report) when a needed section
+or row is missing.
 """
 import json
 import os
@@ -114,6 +115,8 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CHECKS_JSON = os.path.join(SCRIPT_DIR, "checks.json")
 sys.path.insert(0, SCRIPT_DIR)
 from report_parse import (  # noqa: E402
+    positional_args,
+    MALFORMED,
     app_sections as _app_sections, header_name, is_separator, normalize_result, split_row,
 )
 
@@ -479,9 +482,9 @@ def signal(body, dim):
 
 
 def main(argv):
-    if len(argv) not in (3, 4):
-        print("usage: check-rating.py <report.md> <findings.json> [<pre-review-dir>]", file=sys.stderr)
-        return 2
+    argv = positional_args(argv, ["report.md", "findings.json"], ["pre-review-dir"], description=(__doc__ or "").split("\n\n")[0])
+    if isinstance(argv, int):
+        return argv
     pre_review_dir = argv[3] if len(argv) == 4 else None
     try:
         report = open(argv[1]).read()
@@ -508,11 +511,11 @@ def main(argv):
         doc = subsection(body, "Documentation")
         if doc is None:
             print("error: {} has no '### Documentation' section".format(heading), file=sys.stderr)
-            return 2
+            return MALFORMED
         rm = RATING_RE.search(doc)
         if not rm:
             print("error: {} has no Documentation rating".format(heading), file=sys.stderr)
-            return 2
+            return MALFORMED
         rating = rm.group(1)
         if rating.lower().split() == ["below", "minimal"]:
             rating = BELOW_MINIMAL
@@ -522,11 +525,11 @@ def main(argv):
         signals = subsection(body, "Signals")
         if signals is None:
             print("error: {} has no '### Signals' section".format(heading), file=sys.stderr)
-            return 2
+            return MALFORMED
         doc_sig = signal(signals, "Documentation")
         if doc_sig is None:
             print("error: {} has no Signals row for Documentation".format(heading), file=sys.stderr)
-            return 2
+            return MALFORMED
 
         app_id = app_id_of(heading)
         single = len(sections) == 1
@@ -581,7 +584,7 @@ def main(argv):
                 print(claim_problem)
     if seen == 0:
         print("error: no '## App:' section in report", file=sys.stderr)
-        return 2
+        return MALFORMED
 
     for line in never_fail_mismatches(findings, checks):
         problems += 1
