@@ -255,7 +255,8 @@ for run_dir in "$CORPUS_DIR"/*/; do
 
   pre_review_dir="$run_dir/pre-review"
 
-  out=$(python3 "$CHECK_ALL" "$run_dir/report.md" "$run_dir/findings.json" "$CHECKS_JSON" "$pre_review_dir" --target "$target")
+  meta_arg=(); [ -f "$run_dir/meta.json" ] && meta_arg=(--meta "$run_dir/meta.json")
+  out=$(python3 "$CHECK_ALL" "$run_dir/report.md" "$run_dir/findings.json" "$CHECKS_JSON" "$pre_review_dir" --target "$target" ${meta_arg[@]+"${meta_arg[@]}"})
   rc=$?
   actual=$(printf '%s\nexit: %s' "$out" "$rc")
 

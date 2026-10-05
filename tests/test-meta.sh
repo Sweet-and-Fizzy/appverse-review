@@ -13,7 +13,7 @@ chk() { python3 "$CHK" "$@" > "$TMP/out" 2>&1; echo $?; }
 
 T="$TMP/target"; mkdir -p "$T"; git -C "$T" init -q -b appverse; echo x > "$T/f"; git -C "$T" add f
 git -C "$T" -c user.email=t@t -c user.name=t commit -q -m one; SHA=$(git -C "$T" rev-parse HEAD)
-GOOD='{"recommendation":{"decision":"Accept with suggestions","note":"Fine."},"not_archived":"pass","public":"pass","apps":[{"app_id":"root"}],"repo_shape":"declared_single"}'
+GOOD='{"recommendation":{"decision":"Accept with suggestions","note":"Fine."},"not_archived":"pass","public":"pass","apps":[{"app_id":"root","decision":"Accept with suggestions"}],"repo_shape":"declared_single"}'
 
 echo "Test 1: a meta.json the model got wrong is stamped with the run's facts"
 printf '{"apps":[{"app_id":"root"}],"maintenance_assessment":{},"run_meta":{}}' > "$TMP/m1.json"
@@ -63,6 +63,14 @@ check "a blank note: exit 1" 1 "$(chk "$TMP/c4.json")"
 check "NOT CHECKED is an accepted gate value" 0 "$(grep -c 'public' "$TMP/out")"
 python3 -c "import json,sys; d=json.loads(sys.argv[1]); d.update(sha='a',repo_url='u',apps=[{'name':'x'}]); json.dump(d,open(sys.argv[2],'w'))" "$GOOD" "$TMP/c5.json"
 check "an app without app_id: exit 1" 1 "$(chk "$TMP/c5.json")"
+python3 -c "import json,sys; d=json.loads(sys.argv[1]); d.update(sha='a',repo_url='u',apps=[{'app_id':'apps/a','decision':'Request changes'},{'app_id':'apps/b','security':'fail'}]); json.dump(d,open(sys.argv[2],'w'))" "$GOOD" "$TMP/c7.json"
+check "an app without a decision: exit 1" 1 "$(chk "$TMP/c7.json")"
+check "names that app" 1 "$(grep -c "^MISSING meta field: apps\[1\].decision (apps/b's Per-app decision" "$TMP/out")"
+python3 -c "import json,sys; d=json.loads(sys.argv[1]); d.update(sha='a',repo_url='u',apps=[{'app_id':'root','decision':'Approve'}]); json.dump(d,open(sys.argv[2],'w'))" "$GOOD" "$TMP/c8.json"
+check "an unknown app decision: exit 1" 1 "$(chk "$TMP/c8.json")"
+check "names it" 1 "$(grep -c "^INVALID meta field: apps\[0\].decision 'Approve'" "$TMP/out")"
+python3 -c "import json,sys; d=json.loads(sys.argv[1]); d.update(sha='a',repo_url='u',apps=[{'app_id':'root','decision':'REQUEST_CHANGES'}]); json.dump(d,open(sys.argv[2],'w'))" "$GOOD" "$TMP/c9.json"
+check "a snake_case upper-case decision is accepted, as check-decisions reads it" 0 "$(chk "$TMP/c9.json")"
 check "unreadable: exit 2" 2 "$(chk "$TMP/none.json")"
 printf '[]' > "$TMP/c6.json"; check "not an object: exit 2" 2 "$(chk "$TMP/c6.json")"
 

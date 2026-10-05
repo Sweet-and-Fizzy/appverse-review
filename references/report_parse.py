@@ -140,3 +140,37 @@ def _app_prefix(app):
     p = (app.get("path") or ".").strip().strip("/")
     p = p[2:] if p.startswith("./") else p
     return "" if p in ("", ".") else p + "/"
+
+
+# The four review outcomes, mildest first. Every checker that reads a decision
+# (check-meta, check-decisions, check-sections) normalizes it here, so they
+# cannot disagree about whether "request_changes" or "Request  changes" is valid.
+DECISIONS = ("accept", "accept with suggestions", "request changes", "reject")
+DECISION_NAMES = {"accept": "Accept", "accept with suggestions": "Accept with suggestions",
+                  "request changes": "Request changes", "reject": "Reject"}
+
+
+def normalize_decision(value):
+    """The canonical lower-case decision for a string such as "Request changes"
+    or "request_changes", or None when it is not one of the four."""
+    if not isinstance(value, str):
+        return None
+    key = re.sub(r"[\s_-]+", " ", value.strip().strip("*_.:").lower())
+    return key if key in DECISION_NAMES else None
+
+
+def decision_rank(value):
+    """0 (Accept) to 3 (Reject), or None for anything normalize_decision rejects."""
+    key = normalize_decision(value)
+    return DECISIONS.index(key) if key else None
+
+
+def section(text, title, level=2):
+    """Body of the '#'*level + ' <title>' heading up to the next heading of the
+    same level, or None when the report has no such heading. Case-insensitive;
+    the heading may carry more words after the title ("## Overall
+    recommendation (pending the duplicate check)")."""
+    hashes = "#" * level
+    m = re.search(r"^" + hashes + " " + re.escape(title) + r"\b[^\n]*$(.*?)(?=^" + hashes + r" |\Z)",
+                  text, re.M | re.S | re.I)
+    return m.group(1) if m else None

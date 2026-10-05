@@ -1,3 +1,4 @@
+# expected: [sections] a hand-made sample from before the report template had Upkeep, Review scope and Overall recommendation; the three MISSING lines are expected.
 # expected: the hand-made sample report has no Draft feedback section by construction; a missing section is a malformed report, exit 1.
 [floor] MISSING section: no '## Draft feedback' or '## Fix before submitting' section
 [keys] finding keys: 17/17 valid
@@ -12,4 +13,9 @@
 [evidence] evidence: 17/17 valid; report rows: 29/29 valid
 [catalog] catalog: not checked (no catalog-checks.md in the pre-review output)
 [meta] meta: not checked (no meta.json beside the report)
+[decisions] decisions: not checked (no meta.json beside the report)
+[sections] MISSING section: ## Upkeep
+[sections] MISSING section: ## Review scope
+[sections] MISSING section: ## Overall recommendation
+[sections] sections: 3 problems
 exit: 1

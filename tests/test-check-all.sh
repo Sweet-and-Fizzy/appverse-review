@@ -67,12 +67,19 @@ Evidence per rung:
 | Dimension | Level |
 |---|---|
 | Documentation | High |
+## Upkeep
+| Signal | Value | Assessment |
+## Review scope
+**Examined:** all
+## Overall recommendation
+**Accept with suggestions.** One fix-item.
 ## Draft feedback — edit before sending
 No set -e in template/script.sh.erb; please add it.
 <!-- feedback-covers: template/script.sh.erb:no-set-e -->
 EOF
 check "exit 0" 0 "$(run)"
-check "no problem-line prefixes at all" 0 "$(grep -Ec '^\[(floor|keys|rating|rows|evidence)\] (MISSING|INVALID|MISMATCH|UNCITED|BAD)' "$TMP/out")"
+check "no problem-line prefixes at all" 0 "$(grep -Ec '^\[[a-z]+\] (MISSING|INVALID|MISMATCH|UNCITED|BAD)' "$TMP/out")"
+check "sections passes, prefixed summary" 1 "$(count '[sections] sections: complete')"
 check "all five summaries present" 5 "$(grep -Ec '^\[(floor|keys|rating|rows|evidence)\] ' "$TMP/out")"
 
 echo "Test 3: a run neither checker can even open (missing pre-review dir) exits 2"
@@ -108,6 +115,19 @@ printf 'import sys\nprint("rows: odd")\nsys.exit(3)\n' > "$TMP/refs/check-rows.p
 python3 "$TMP/refs/check-all.py" "$TMP/report.md" "$TMP/findings.json" "$TMP/checks.json" "$TMP/pre-review" --target "$TMP/target" > "$TMP/out" 2>&1
 check "an exit code outside 0-2 is exit 2" 2 "$?"
 check "its crash line" 1 "$(count '[rows] crashed: rows: odd')"
+
+echo "Test 6: with a meta.json beside the report, a decision below its security floor is a [decisions] MISMATCH"
+cat > "$TMP/findings.json" <<'EOF'
+[
+ {"app_id":"root","rule":"OODT-02","defect_key":"template/script.sh.erb:hardcoded-credential","aspect":"security","severity":"high","result":"FAIL","summary":"x","evidence":"template/script.sh.erb:1"}
+]
+EOF
+echo '{"recommendation":{"decision":"Accept","note":"x"},"not_archived":"pass","public":"pass","apps":[{"app_id":"root","decision":"Accept"}]}' > "$TMP/report.meta.json"
+check "exit 1" 1 "$(run)"
+check "decisions block: MISMATCH prefixed" 1 "$(grep -c '^\[decisions\] MISMATCH decision root: Accept, but OODT-02 high FAIL at template/script.sh.erb:1 needs at least Request changes$' "$TMP/out")"
+rm -f "$TMP/report.meta.json"
+run >/dev/null
+check "no meta.json: decisions not checked" 1 "$(count '[decisions] decisions: not checked (no meta.json beside the report)')"
 
 echo
 echo "Results: $pass passed, $fail failed"

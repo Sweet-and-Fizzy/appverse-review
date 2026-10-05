@@ -64,8 +64,22 @@ quality assessment, and its own decision. Per-app fields resolve with this prece
 3. `<subpath>/manifest.yml` (name/description fallback only)
 
 Directories listed in `shared_paths` are shared code: review them once at repo level
-and include them in the security review. Decisions can differ per app — e.g., accept
-three apps and request changes on a fourth.
+and include them in the security review.
+
+Installing any one app clones the whole repo, so a monorepo is gated as a whole
+before its apps are decided. Two kinds of problem decide every app the same way:
+
+- A repo-level problem: a failed repo-level gate criterion (Request changes
+  when it is fixable) or an unmaintained repo (Reject), as the Decision rubric
+  below says for any repo.
+- A High or Critical security finding, wherever it is: in `shared_paths`, at
+  the repo root, or inside one app's directory. High sets at least Request
+  changes and Critical sets Reject for every app (see the severity scale in
+  `finding-codes.md`).
+
+Past that gate, decisions can differ per app. For example, three apps can be
+accepted while a fourth gets Request changes for missing metadata. The Overall
+recommendation rolls the apps up: it is the strictest Per-app decision.
 
 `shared_paths` is scope input for the security review; it is not a pass/fail
 criterion.
@@ -492,6 +506,13 @@ individual findings, never from the signal levels.
 | **Accept with suggestions** | Passes gate criteria but has clear improvement areas — include specific feedback. Below-target docs or portability belongs here, not Request changes, when the gate criteria are otherwise met. |
 | **Request changes** | Missing a gate criterion but fixable — provide specific list of what to address. A missing LICENSE is Request changes: the contributor adds one file. A fixable security misconfiguration, even High severity (e.g. CORS open to all origins), is Request changes, not Reject. |
 | **Reject** | Duplicate app, abandoned/unmaintained, not an OOD app, or a Critical-severity security finding (tagged potentially malicious or unfixable without redesigning the app — see the severity scale in `finding-codes.md`). "Not an OOD app" is a reviewer-only trigger — no automated check produces it. |
+
+In a monorepo, apply the repo-level criteria and every High or Critical
+security finding to the whole repo first, then decide each app (see Repo
+shapes). `check-decisions.py` fails a review whose decisions fall below the
+floors those findings set, or whose recommendation is milder than its
+strictest Per-app decision. Documentation, portability and code-quality
+findings never set a floor.
 
 Any Accept is conditional on the catalog checks (duplicate check, Software
 entry, vocabulary terms). The automated review performs the catalog reads and

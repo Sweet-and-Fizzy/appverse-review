@@ -286,8 +286,11 @@ Findings are classified under OODT (Open OnDemand App Threats); codes are define
 **Per-app decision:** <Accept | Accept with suggestions | Request changes | Reject>
 <!-- This is a decision, derived from the gate criteria and finding
      properties above — not from the Signals block. Monorepos only: one line
-     per app, rolled up by the Overall recommendation below. Single-app repos:
-     omit this line — the Overall recommendation is the decision. -->
+     per app, rolled up by the Overall recommendation below. A High security
+     FAIL sets at least Request changes, and a Critical one Reject, for every
+     app, wherever in the repo it was found: installing one app clones the
+     whole repo. Single-app repos: omit this line — the Overall
+     recommendation is the decision. -->
 
 ## Review scope
 
@@ -314,8 +317,9 @@ The recommendation is the reviewer's decision, derived from the required
 describe the app for a deployer; they do not gate listing. A High signal never
 forces a reject.
 
-<one paragraph. Single-app repos: the decision and its rationale. Monorepos:
-roll up the per-app decisions above. Draw only on findings already recorded in
+<one paragraph, opening with the decision in bold, e.g. **Request changes.**
+Single-app repos: the decision and its rationale. Monorepos:
+roll up the per-app decisions above: the recommendation is the strictest of them. Draw only on findings already recorded in
 the tables — do not introduce new problems here. Never describe a below-target
 Documentation or Portability rating as blocking listing or as needed before
 listing: it moves the decision to Accept with suggestions, nothing more.>
@@ -530,8 +534,15 @@ externally by the API provider.
   `check-meta.py` (when `review-<owner>-<repo>.meta.json` exists): the
   metadata has the recommendation and its note, `not_archived`, `public`, and
   an app list (section 5).
+  `check-decisions.py` (when the meta.json exists): every decision is at
+  least the floor its findings set. A High FAIL needs Request changes and a
+  Critical FAIL needs Reject. A security or repo-level one sets that floor
+  for every app and the recommendation; any other sets it for its own app.
+  `check-sections.py`: the report has Upkeep, Review scope and an Overall
+  recommendation that states its decision, every app of a monorepo has a
+  Per-app decision line, and those decisions match the meta.json.
   Its output groups each checker's problem lines under a `[floor]`/`[keys]`/
-  `[rating]`/`[rows]`/`[evidence]`/`[catalog]`/`[meta]` prefix, followed by that checker's
+  `[rating]`/`[rows]`/`[evidence]`/`[catalog]`/`[meta]`/`[decisions]`/`[sections]` prefix, followed by that checker's
   summary line. It exits 1 if any checker failed, including a report
   missing a section a checker needs (`MISSING section: ...`), and 2 if any
   could not run, including a checker that crashed (`crashed: ...`).

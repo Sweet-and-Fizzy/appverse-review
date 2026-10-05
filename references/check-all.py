@@ -2,7 +2,11 @@
 """Run every report/findings checker in one pass and summarize the result.
 
     python3 references/check-all.py <report.md> <findings.json> <checks.json> \
-        <pre-review-out-dir> --target <target-dir>
+        <pre-review-out-dir> --target <target-dir> [--meta <meta.json>]
+
+--meta names the review metadata; without it, <report minus .md>.meta.json
+beside the report (the name the review writes). The corpus keeps it as
+meta.json, so tests/run-corpus.sh passes it.
 
 Runs, in order:
   1. check-feedback-floor.py <findings.json> <report.md>
@@ -14,10 +18,15 @@ Runs, in order:
   6. check-catalog.py <report.md> <pre-review-out-dir>
   7. check-meta.py <report minus .md>.meta.json   (only when that file exists;
          the workflow reports a missing one itself)
+  8. check-decisions.py <report minus .md>.meta.json <findings.json>
+         (only when that file exists)
+  9. check-sections.py <report.md> [<report minus .md>.meta.json]
+         (the meta.json only when that file exists)
 
 Each checker's problem lines (MISSING, INVALID, MISMATCH, UNCITED, BAD) are
 printed as-is, prefixed with the checker's short name in brackets
-([floor], [keys], [rating], [rows], [evidence], [catalog], [meta]) so a mixed failure is easy
+([floor], [keys], [rating], [rows], [evidence], [catalog], [meta],
+[decisions], [sections]) so a mixed failure is easy
 to scan. Each checker's own summary line follows its block, also prefixed.
 
 Exit code is the worst of them: 0 if every checker exited 0, 1 if any
@@ -65,7 +74,11 @@ CHECKERS = [
     ("catalog", "check-catalog.py",
      lambda a: [a.report, a.pre_review_dir]),
     ("meta", "check-meta.py",
-     lambda a: [os.path.splitext(a.report)[0] + ".meta.json"]),
+     lambda a: [a.meta]),
+    ("decisions", "check-decisions.py",
+     lambda a: [a.meta, a.findings]),
+    ("sections", "check-sections.py",
+     lambda a: [a.report] + [m for m in [a.meta] if os.path.exists(m)]),
 ]
 TRACEBACK = "Traceback (most recent call last):"
 MISSING_SECTION_RE = re.compile(
@@ -91,13 +104,16 @@ def main(argv):
     ap.add_argument("pre_review_dir")
     ap.add_argument("--target", required=True,
                      help="reviewed repo checkout, passed to check-keys.py and check-evidence.py")
+    ap.add_argument("--meta", help="review metadata (default: <report minus .md>.meta.json)")
     args = ap.parse_args(argv[1:])
+    if not args.meta:
+        args.meta = os.path.splitext(args.report)[0] + ".meta.json"
 
     worst = 0
     for name, script, build_argv in CHECKERS:
         argv_ = build_argv(args)
-        if name == "meta" and not os.path.exists(argv_[0]):
-            print("[meta] meta: not checked (no meta.json beside the report)")
+        if name in ("meta", "decisions") and not os.path.exists(argv_[0]):
+            print("[{0}] {0}: not checked (no meta.json beside the report)".format(name))
             continue
         rc, lines = run_one(name, script, argv_)
         if any(line.startswith(TRACEBACK) for line in lines) or rc not in (0, 1, 2):

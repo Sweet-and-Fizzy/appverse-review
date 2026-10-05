@@ -19,5 +19,7 @@
 [evidence] NOTE report:dead-code dead-code template/script.sh.erb:33,39,78 (`SINGULARITYENV_MATLAB_PREFDIR` is not on template/script.sh.erb:33)
 [evidence] evidence: 36/36 valid; report rows: 20/20 valid
 [catalog] catalog: not checked (no catalog-checks.md in the pre-review output)
-[meta] meta: not checked (no meta.json beside the report)
+[meta] meta: complete
+[decisions] decisions: 1 app against 0 High/Critical floors, 0 problems
+[sections] sections: complete
 exit: 1

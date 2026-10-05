@@ -37,6 +37,7 @@ fixtures since they have no remote origin. That is expected.
 | [passenger-flask-app](#4-passenger-flask-app) | Passenger/Flask (inferred) | Command injection in a non-Batch-Connect app | Reject or Request changes |
 | [containerized-server](#5-containerized-server) | Batch Connect basic (inferred) | Portability failures + container security | Request changes |
 | [curl-pipe-installer](#6-curl-pipe-installer) | Batch Connect basic (inferred) | Critical security behind polished documentation | Reject |
+| [monorepo-shared-risk](#7-monorepo-shared-risk) | Declared monorepo (2 apps) | A security finding in one app decides every app | Request changes (both apps) |
 
 `tests/fixtures/catalog/` is not an app. It is a small offline catalog (three
 Software entries, three app types, three implementation tags, two published
@@ -232,23 +233,56 @@ exterior.
 
 ---
 
+## 7. monorepo-shared-risk
+
+**What it is:** A declared monorepo with two complete Batch Connect apps. The
+viewer app has no security findings. The notebook app commits an API token.
+Both apps share a short README, so expect a Minimal documentation rating on
+each; that is not what this fixture tests. Installing
+either app clones the whole repo, so the token reaches every installer, and
+the review rubric (Repo shapes) has a High security finding decide every app.
+The `monorepo` fixture covers the other half of the rule: per-app decisions
+that differ when the defects are not security.
+
+**Planted defects:**
+
+| # | Defect | File | Expected aspect | Expected finding |
+|---|--------|------|-----------------|-----------------|
+| 1 | Committed API token | `apps/notebook/template/script.sh.erb:2` | Security | FAIL — OODT-02 `hardcoded-credential`, High |
+
+**Key behavior to verify:**
+
+- Repo shape reported as "declared monorepo (2 apps)"
+- The token is a finding on the notebook app only; the viewer app's
+  security table has no FAIL
+- The Minimal documentation sets no floor: below-target docs are Accept with
+  suggestions, so only the token makes the viewer Request changes
+- Both Per-app decision lines are **Request changes**, the viewer's
+  included, and the Overall recommendation is Request changes
+- The draft feedback says the token blocks the whole repo, not only the
+  notebook app
+- `check-decisions.py` fails the run if the viewer app is Accept or Accept
+  with suggestions
+
+---
+
 ## Coverage matrix
 
 Each fixture targets a different combination of aspects and severity levels.
 Together they ensure the skill exercises all four aspects and all major OODT
 categories.
 
-| Aspect | broken-app | monorepo | vnc-stale | passenger | container | curl-pipe |
-|--------|-----------|----------|-----------|-----------|-----------|-----------|
-| **Structure** | FAIL (LICENSE, YAML) | FAIL (metadata) | PASS | FAIL (no form) | WARN (ext attrs) | PASS |
-| **Security (top severity)** | High (secret, 0.0.0.0) | PASS | PASS | Critical (injection) | High (CORS, 0.0.0.0) | Critical (curl\|bash, eval) |
-| **Quality** | Minimal docs, Not portable | PASS / mixed | Adequate docs, Not portable, copy-paste artifacts | Below-minimal docs, Not portable | Minimal docs, Not portable | Strong docs, meh quality |
-| **Maintenance** | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED |
+| Aspect | broken-app | monorepo | vnc-stale | passenger | container | curl-pipe | shared-risk |
+|--------|-----------|----------|-----------|-----------|-----------|-----------|-------------|
+| **Structure** | FAIL (LICENSE, YAML) | FAIL (metadata) | PASS | FAIL (no form) | WARN (ext attrs) | PASS | PASS |
+| **Security (top severity)** | High (secret, 0.0.0.0) | PASS | PASS | Critical (injection) | High (CORS, 0.0.0.0) | Critical (curl\|bash, eval) | High (secret in one app, decides both) |
+| **Quality** | Minimal docs, Not portable | PASS / mixed | Adequate docs, Not portable, copy-paste artifacts | Below-minimal docs, Not portable | Minimal docs, Not portable | Strong docs, meh quality | PASS |
+| **Maintenance** | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED |
 
 | OODT Category | Covered by |
 |-------------|-----------|
 | OODT-01 Arbitrary Code Execution | curl-pipe-installer (curl\|bash, eval), passenger-flask-app (subprocess injection) |
-| OODT-02 Credential Exposure | broken-app (committed API key), passenger-flask-app (/tmp tokens) |
+| OODT-02 Credential Exposure | broken-app (committed API key), passenger-flask-app (/tmp tokens), monorepo-shared-risk (committed token in one app of two) |
 | OODT-03 Unauthorized Persistence | (not explicitly planted — stretch goal for future fixtures) |
 | OODT-04 Data Exfiltration | (not explicitly planted) |
 | OODT-05 Network Exposure | broken-app (0.0.0.0), containerized-server (CORS, 0.0.0.0), curl-pipe-installer (CORS, disabled auth, 0.0.0.0) |
