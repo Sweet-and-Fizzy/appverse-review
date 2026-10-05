@@ -80,7 +80,10 @@ Ask these questions first, before evaluating quality:
 | Is there a maintainer who will respond to issues? | Flag as a risk — orphaned apps hurt the catalog |
 
 A repo whose `appverse.yml` lists several apps is gated once and decided per
-app: each app gets its own findings and its own decision.
+app: each app gets its own findings and its own decision. Installing any app
+clones the whole repo, so a High security finding sets Request changes, and a
+Critical one sets Reject, for every app, wherever in the repo it was found.
+The overall decision is the strictest of the per-app ones.
 
 ### Duplicate check
 
