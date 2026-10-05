@@ -47,7 +47,7 @@ on:
         required: false
         default: ""
       debug:
-        description: "Show full Claude output in logs (exposes review content)"
+        description: "No longer used: the run log never shows the model session (this repo's logs are public). The full session is always in the artifact as claude-execution-output.json."
         required: false
         type: boolean
         default: false
@@ -75,12 +75,12 @@ jobs:
           fi
 
       - name: Checkout appverse-review plugin
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           path: appverse-review
 
       - name: Checkout target repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           repository: ${{ inputs.target_repo }}
           ref: ${{ inputs.target_branch || '' }}
@@ -217,12 +217,15 @@ jobs:
 
       - name: Run AppVerse review
         id: review
+        # A hung session must not hold the runner for GitHub's six-hour
+        # default; the longest reviews so far took under half an hour.
+        timeout-minutes: 60
         if: inputs.review_aspects != 'dry-run'
         # A session that ends in an API error (a gateway refusing an oversized
         # last request, say) must not decide the job: the files it wrote are
         # checked, repaired if needed, and "Verify review outputs" decides.
         continue-on-error: true
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@cab360f6565aa35a51d6ce9e43f1f4287c0a32ea # v1
         with:
           # On a gateway run the gateway key replaces the Anthropic key and
           # ANTHROPIC_BASE_URL (set above) points Claude Code at it. Each key is
@@ -239,7 +242,6 @@ jobs:
           plugin_marketplaces: "./appverse-review/"
           plugins: "appverse-review"
           claude_args: "--max-turns 100 --model ${{ steps.params.outputs.model_id }}"
-          show_full_output: ${{ inputs.debug }}
           settings: |
             {
               "permissions": {
@@ -252,7 +254,8 @@ jobs:
                   "Bash(head:*)",
                   "Bash(tail:*)",
                   "Bash(python3:*)",
-                  "Bash(gh:*)",
+                  "Bash(gh api repos/:*)",
+                  "Bash(gh api 'repos/:*)",
                   "Bash(git log:*)",
                   "Bash(git diff:*)",
                   "Bash(git show:*)",
@@ -513,6 +516,7 @@ jobs:
 
       - name: Repair review outputs
         id: repair
+        timeout-minutes: 25
         if: "!cancelled() && steps.checks.outputs.needs_repair == 'true'"
         # A fresh session with a small context: the two files, the checker's
         # lines, and the rules those lines come from. It fixes what was listed
@@ -520,12 +524,11 @@ jobs:
         # the whole review, and the main session may have run out of context
         # exactly here.
         continue-on-error: true
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@cab360f6565aa35a51d6ce9e43f1f4287c0a32ea # v1
         with:
           anthropic_api_key: ${{ (steps.params.outputs.backend == 'gateway' && secrets.LLM_GATEWAY_KEY) || (steps.params.outputs.backend == 'anthropic' && secrets.ANTHROPIC_API_KEY) || '' }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: "--max-turns 60 --model ${{ steps.params.outputs.model_id }}"
-          show_full_output: ${{ inputs.debug }}
           settings: |
             {
               "permissions": {
@@ -654,6 +657,7 @@ jobs:
           fi
       - name: Repair review outputs (second round)
         id: repair2
+        timeout-minutes: 25
         if: "!cancelled() && steps.recheck.outputs.needs_repair == 'true'"
         # A fresh session with a small context: the two files, the checker's
         # lines, and the rules those lines come from. It fixes what was listed
@@ -661,12 +665,11 @@ jobs:
         # the whole review, and the main session may have run out of context
         # exactly here.
         continue-on-error: true
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@cab360f6565aa35a51d6ce9e43f1f4287c0a32ea # v1
         with:
           anthropic_api_key: ${{ (steps.params.outputs.backend == 'gateway' && secrets.LLM_GATEWAY_KEY) || (steps.params.outputs.backend == 'anthropic' && secrets.ANTHROPIC_API_KEY) || '' }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: "--max-turns 60 --model ${{ steps.params.outputs.model_id }}"
-          show_full_output: ${{ inputs.debug }}
           settings: |
             {
               "permissions": {
@@ -852,7 +855,7 @@ jobs:
 
       - name: Upload review report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: review-${{ steps.params.outputs.repo_slug }}
           path: |
