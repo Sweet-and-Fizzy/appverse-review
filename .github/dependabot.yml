@@ -1,0 +1,13 @@
+# Actions in the workflows are pinned to commit SHAs (the claude-code-action
+# step receives the API keys, so a moved tag must not change what runs).
+# Dependabot proposes each new release as a PR that updates the SHA and its
+# version comment, so pinning does not mean falling behind.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
