@@ -1,3 +1,4 @@
+# expected: [meta] the portal-run meta.json from before stamp-meta.py and check-meta.py (#68); the MISSING meta lines are expected.
 # expected: the [rating] STR-01 README gate MISMATCH is real — the report's gate row says FAIL while its own text and readme.json say the README is substantive; rule 5 exists because of this run.
 [floor] feedback floor: 16/16 fix-items covered
 [keys] finding keys: 47/47 valid
@@ -24,5 +25,12 @@
 [evidence] NOTE report:erb-missing-value erb-missing-value submit.yml.erb:5,9,12 (`"normal"` is not on submit.yml.erb:5)
 [evidence] evidence: 47/47 valid; report rows: 37/37 valid
 [catalog] catalog: not checked (no catalog-checks.md in the pre-review output)
-[meta] meta: not checked (no meta.json beside the report)
+[meta] MISSING meta field: recommendation (an object with decision and note)
+[meta] MISSING meta field: not_archived (pass, fail or not checked)
+[meta] MISSING meta field: public (pass, fail or not checked)
+[meta] MISSING meta field: sha (stamp-meta.py writes it)
+[meta] MISSING meta field: repo_url (stamp-meta.py writes it)
+[meta] meta: 5 problems
+[decisions] decisions: 1 app against 1 High/Critical floor, 0 problems
+[sections] sections: complete
 exit: 1
