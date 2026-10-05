@@ -1,0 +1,15 @@
+description: Fixture monorepo whose second app commits a secret.
+maintainer:
+  name: Fixture Team
+  support_url: https://github.com/example/fixture-shared-risk/issues
+apps:
+  - path: apps/viewer
+    name: Viewer
+    description: A complete fixture app with no defects.
+    software: JupyterLab
+    app_type: batch-connect-basic
+  - path: apps/notebook
+    name: Notebook
+    description: A complete fixture app that commits an API token.
+    software: JupyterLab
+    app_type: batch-connect-basic
