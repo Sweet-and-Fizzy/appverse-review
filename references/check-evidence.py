@@ -110,7 +110,6 @@ its groups are, and (with --report) all its report rows are too.
 that cannot be read.
 """
 import argparse
-import importlib.util
 import json
 import os
 import re
@@ -118,6 +117,8 @@ import sys
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SCRIPT_DIR)
+from readme_lines import PlaceholdersMissing, load_placeholders, readme_line_kinds  # noqa: E402
+from row_candidates import candidates  # noqa: E402
 from repo_paths import CITATION_RE, PSEUDO_ANCHORS, exists_case_exact, parse_citations  # noqa: E402
 from report_parse import rows_by_check  # noqa: E402
 
@@ -131,19 +132,15 @@ KIND_PHRASE = {
     "badge": "a badge or image line", "table-header": "a table header row",
     "table-rule": "a table rule row",
 }
-_PRE_REVIEW = []
+_PLACEHOLDERS = []
 _KINDS = {}  # full path -> readme_line_kinds, per run
 
 
-def pre_review():
-    """pre-review.py, imported once, for readme_line_kinds and the
-    placeholder phrases (the file name has a hyphen, so by path)."""
-    if not _PRE_REVIEW:
-        spec = importlib.util.spec_from_file_location("pre_review", os.path.join(SCRIPT_DIR, "pre-review.py"))
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        _PRE_REVIEW.append((mod, mod.load_placeholders()))
-    return _PRE_REVIEW[0]
+def placeholders():
+    """The README placeholder phrases, read once per run."""
+    if not _PLACEHOLDERS:
+        _PLACEHOLDERS.append(load_placeholders())
+    return _PLACEHOLDERS[0]
 
 
 def content_citations(text):
@@ -170,13 +167,12 @@ def content_reason(path, full, lines, kinds_cache=_KINDS):
     """None when every cited line of full is a content line, else the
     reason naming the first line that is not."""
     if full not in kinds_cache:
-        mod, placeholders = pre_review()
         try:
             with open(full, "rb") as f:
                 text = f.read().decode("utf-8", "replace")
         except OSError:
             text = None
-        kinds_cache[full] = None if text is None else mod.readme_line_kinds(text, placeholders)
+        kinds_cache[full] = None if text is None else readme_line_kinds(text, placeholders())
     kinds = kinds_cache[full]
     if kinds is None:
         return None
@@ -490,9 +486,6 @@ def candidate_lines(pre_review_dir):
         return frozenset()
     if not isinstance(apps, list) or not isinstance(checks, list):
         return frozenset()
-    spec = importlib.util.spec_from_file_location("check_rows", os.path.join(SCRIPT_DIR, "check-rows.py"))
-    rows_mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(rows_mod)
     out = set()
     for app in apps:
         if not isinstance(app, dict) or not app.get("app_id"):
@@ -500,7 +493,7 @@ def candidate_lines(pre_review_dir):
         for check in checks:
             if not isinstance(check, dict) or not check.get("id"):
                 continue
-            for _, cites, _ in rows_mod.candidates(check, app, pre_review_dir):
+            for _, cites, _ in candidates(check, app, pre_review_dir):
                 out.update((p, n) for p, n in cites if isinstance(n, int))
     return frozenset(out)
 
@@ -522,13 +515,11 @@ def main(argv):
         return 2
     if args.target is not None:
         # content: citations (checked whenever --target is given) need
-        # pre-review.py's placeholder list; fail loudly here rather than
+        # the README placeholder list; fail loudly here rather than
         # letting PlaceholdersMissing surface later as a traceback.
         try:
-            pre_review()
-        except Exception as e:
-            if type(e).__name__ != "PlaceholdersMissing":
-                raise
+            placeholders()
+        except PlaceholdersMissing as e:
             print("error: {}".format(e), file=sys.stderr)
             return 2
     try:

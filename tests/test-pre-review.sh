@@ -442,8 +442,9 @@ PR="$SCRIPT_DIR/references/pre-review.py"
 # px <python code setting r> [args...]: pre-review.py imported as pr, args as A
 px() { python3 -c 'import importlib.util,sys; s=importlib.util.spec_from_file_location("pr",sys.argv[1]); pr=importlib.util.module_from_spec(s); s.loader.exec_module(pr); g={"pr":pr,"A":sys.argv[3:]}; exec(sys.argv[2],g); print(g["r"])' "$PR" "$@" 2>&1; }
 # YVENV_PY: a venv python with PyYAML installed, for exercising PyYAML-only
-# paths (this host's python3 has no PyYAML); empty when no such venv exists.
-YVENV_PY="/private/tmp/claude-501/-Users-drew-Sites-connectci-appverse-review/bf22b63a-7c35-4488-89f2-b3f69429d5d2/scratchpad/yvenv/bin/python3"
+# paths. Set YVENV_PY to choose one; it defaults to python3 and is empty when
+# that python has no PyYAML (those cases are then skipped).
+YVENV_PY="${YVENV_PY:-$(command -v python3)}"
 if [ ! -x "$YVENV_PY" ] || ! "$YVENV_PY" -c 'import yaml' 2>/dev/null; then YVENV_PY=""; fi
 # pxv <python code setting r> [args...]: like px, but run under $YVENV_PY
 pxv() { "$YVENV_PY" -c 'import importlib.util,sys; s=importlib.util.spec_from_file_location("pr",sys.argv[1]); pr=importlib.util.module_from_spec(s); s.loader.exec_module(pr); g={"pr":pr,"A":sys.argv[3:]}; exec(sys.argv[2],g); print(g["r"])' "$PR" "$@" 2>&1; }
@@ -1447,7 +1448,7 @@ try:
     pr.load_placeholders(A[0]); r='returned'
 except pr.PlaceholdersMissing as e:
     r=type(e).__name__" "$TMP/no-such-placeholders.txt")"
-mkdir -p "$TMP/t57"; cp "$PR" "$TMP/t57/pre-review.py"; cp "$(dirname "$PR")/catalog_facts.py" "$TMP/t57/"
+mkdir -p "$TMP/t57"; cp "$PR" "$TMP/t57/pre-review.py"; cp "$(dirname "$PR")/catalog_facts.py" "$(dirname "$PR")/readme_lines.py" "$TMP/t57/"
 check "pre-review exits 2 without readme-placeholders.txt beside it" "2" "$(python3 "$TMP/t57/pre-review.py" "$FIX/broken-app" "$TMP/o57" > "$TMP/stdout" 2> "$TMP/stderr"; echo $?)"
 check "the error names the file" "True" "$(grep -q '^error: cannot read placeholder list .*readme-placeholders.txt (No such file or directory)$' "$TMP/stderr" && echo True || echo False)"
 
