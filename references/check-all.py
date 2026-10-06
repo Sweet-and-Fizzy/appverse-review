@@ -34,13 +34,13 @@ exited 1 (a real problem was found) and none exited 2, 2 if any checker
 could not run at all (exit 2 — bad input, not a finding). Two results are
 reclassified so the code stays an honest split between "the report is
 wrong" and "the tooling could not run":
-  - A checker that exits 2 because the report lacks a section it needs
-    (its error line names a missing '## ...'/'### ...' section, the
-    Documentation rating or the Signals row) is a malformed report, not a
-    tooling failure: its block is printed as `[<name>] MISSING section:
-    <error>` and counts as exit 1.
+  - A checker that exits 3 (report_parse.MALFORMED) found the report lacks
+    a section it needs. That is a malformed report the repair can fix, not
+    a tooling failure: its lines are printed as `[<name>] MISSING section:
+    <error>` and count as exit 1. check-all reads the exit code, never the
+    wording of the error.
   - A checker that crashes (a Python traceback in its output, or an exit
-    code other than 0, 1 or 2) could not run: its block is printed as
+    code other than 0, 1, 2 or 3) could not run: its block is printed as
     `[<name>] crashed: <last output line>` after the traceback and counts
     as exit 2, never as a finding.
 
@@ -51,7 +51,6 @@ itself rather than silently downgrading both checks.
 """
 import argparse
 import os
-import re
 import subprocess
 import sys
 
@@ -80,9 +79,15 @@ CHECKERS = [
     ("sections", "check-sections.py",
      lambda a: [a.report] + [m for m in [a.meta] if os.path.exists(m)]),
 ]
+# A checker named here is skipped, as "not checked", when the file the
+# function returns does not exist. The workflow reports a missing meta.json
+# itself.
+NEEDS = {
+    "meta": lambda a: a.meta,
+    "decisions": lambda a: a.meta,
+}
 TRACEBACK = "Traceback (most recent call last):"
-MISSING_SECTION_RE = re.compile(
-    r"^error: (?:.* has no |no )(?:'#{2,3} [^']*'|Documentation rating|Signals row)")
+MALFORMED = 3  # report_parse.MALFORMED: the report lacks a section a checker needs
 
 
 def run_one(name, script, argv):
@@ -112,20 +117,21 @@ def main(argv):
     worst = 0
     for name, script, build_argv in CHECKERS:
         argv_ = build_argv(args)
-        if name in ("meta", "decisions") and not os.path.exists(argv_[0]):
+        need = NEEDS.get(name)
+        if need and not os.path.exists(need(args)):
             print("[{0}] {0}: not checked (no meta.json beside the report)".format(name))
             continue
         rc, lines = run_one(name, script, argv_)
-        if any(line.startswith(TRACEBACK) for line in lines) or rc not in (0, 1, 2):
+        if any(line.startswith(TRACEBACK) for line in lines) or rc not in (0, 1, 2, MALFORMED):
             for line in lines:
                 print("[{}] {}".format(name, line))
             print("[{}] crashed: {}".format(name, lines[-1] if lines else "exit {}".format(rc)))
             worst = max(worst, 2)
             continue
-        missing = [line for line in lines if MISSING_SECTION_RE.match(line)] if rc == 2 else []
-        if missing:
-            for line in missing:
-                print("[{}] MISSING section: {}".format(name, line[len("error: "):]))
+        if rc == MALFORMED:
+            for line in lines:
+                print("[{}] MISSING section: {}".format(
+                    name, line[len("error: "):] if line.startswith("error: ") else line))
             worst = max(worst, 1)
             continue
         if not lines:

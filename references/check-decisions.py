@@ -33,7 +33,7 @@ input cannot be read.
 import json
 import sys
 
-from report_parse import DECISIONS, DECISION_NAMES, decision_rank as rank
+from report_parse import positional_args, DECISIONS, DECISION_NAMES, decision_rank as rank
 
 NAME = {i: DECISION_NAMES[d] for i, d in enumerate(DECISIONS)}
 FLOOR = {"high": DECISIONS.index("request changes"), "critical": DECISIONS.index("reject")}
@@ -49,9 +49,9 @@ def load(path, what):
 
 
 def main(argv):
-    if len(argv) != 3:
-        print("usage: check-decisions.py <meta.json> <findings.json>", file=sys.stderr)
-        return 2
+    argv = positional_args(argv, ["meta.json", "findings.json"], description=(__doc__ or "").split("\n\n")[0])
+    if isinstance(argv, int):
+        return argv
     meta = load(argv[1], "meta.json")
     findings = load(argv[2], "findings.json")
     if meta is None or findings is None:

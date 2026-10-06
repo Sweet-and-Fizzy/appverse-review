@@ -112,7 +112,7 @@ check "reason" 1 "$(grep -c "MISMATCH Documentation signal (report says Low; rat
 
 echo "Test 9: no Documentation section is exit 2"
 grep -v "^### Documentation" "$TMP/r1.md" | grep -v "Rating: \*\*Strong" > "$TMP/r9.md"
-check "exit 2" 2 "$(run "$TMP/r9.md" "$TMP/f1.json")"
+check "exit 3 (malformed report)" 3 "$(run "$TMP/r9.md" "$TMP/f1.json")"
 
 echo "Test 10: signal() must not read a findings-table row whose first cell is Documentation"
 # Signals table has no Documentation row; a findings table below it has a row starting
@@ -121,17 +121,17 @@ sed -e '/^| Documentation | Low | e |$/d' \
     -e 's/^|---|---|---|---|---|---|$/|---|---|---|---|---|---|\n| Documentation | Low | medium | DOC-01 | s | e |/' \
     "$TMP/r1.md" > "$TMP/r10.md"
 check "findings-table decoy row present" 1 "$(grep -c '^| Documentation | Low | medium | DOC-01 | s | e |$' "$TMP/r10.md")"
-check "exit 2 (missing Signals row, not misread)" 2 "$(run "$TMP/r10.md" "$TMP/f1.json")"
+check "exit 3 (missing Signals row, not misread)" 3 "$(run "$TMP/r10.md" "$TMP/f1.json")"
 check "error names Documentation" 1 "$(grep -c "has no Signals row for Documentation" "$TMP/out")"
 
 echo "Test 11: missing '### Signals' section entirely is exit 2"
 grep -v "^### Signals$" "$TMP/r1.md" | sed '/^| Dimension | Level | Evidence |$/d; /^|---|---|---|$/d; /^| Portability | Medium | e |$/d; /^| Documentation | Low | e |$/d' > "$TMP/r11.md"
-check "exit 2" 2 "$(run "$TMP/r11.md" "$TMP/f1.json")"
+check "exit 3 (malformed report)" 3 "$(run "$TMP/r11.md" "$TMP/f1.json")"
 check "error names Signals section" 1 "$(grep -c "has no '### Signals' section" "$TMP/out")"
 
 echo "Test 12: Signals table present but missing the Documentation row is exit 2"
 grep -v "^| Documentation | Low | e |$" "$TMP/r1.md" > "$TMP/r12.md"
-check "exit 2" 2 "$(run "$TMP/r12.md" "$TMP/f1.json")"
+check "exit 3 (malformed report)" 3 "$(run "$TMP/r12.md" "$TMP/f1.json")"
 check "error names Documentation" 1 "$(grep -c "has no Signals row for Documentation" "$TMP/out")"
 
 # FULL with one line replaced: $1 = requirement, $2 = new value

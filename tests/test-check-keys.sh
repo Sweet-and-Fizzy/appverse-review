@@ -214,4 +214,9 @@ mkdir -p "$TMP/t/apps/x"; touch "$TMP/t/apps/x/form.yml"
 check "anchor cited, a PASS, a pseudo-anchor, a directory anchor, an app-relative citation and no citation: exit 0" 0 "$(run "$TMP/m2.json" --target "$TMP/t")"
 check "summary" "finding keys: 6/6 valid" "$(tail -1 "$TMP/out")"
 
+echo "Test: an unreadable vocabulary file is exit 2 with an error line, not a crash"
+echo '[]' > "$TMP/empty.json"
+check "exit 2" 2 "$(run "$TMP/empty.json" --vocabulary "$TMP/no-such-codes.md")"
+check "names the file" 1 "$(grep -c "^error: cannot read $TMP/no-such-codes.md" "$TMP/out")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

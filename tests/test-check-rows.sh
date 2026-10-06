@@ -356,7 +356,7 @@ check "bad manifest" 2 "$(run "$TMP/report.md" "$TMP/findings.json" "$TMP/bad.js
 mkdir -p "$TMP/empty-out"
 check "no apps.json" 2 "$(run "$TMP/report.md" "$TMP/findings.json" "$TMP/checks.json" "$TMP/empty-out")"
 echo '# no app sections' > "$TMP/noapp.md"
-check "no App section" 2 "$(run "$TMP/noapp.md" "$TMP/findings.json" "$TMP/checks.json" "$O")"
+check "no App section: exit 3 (malformed report)" 3 "$(run "$TMP/noapp.md" "$TMP/findings.json" "$TMP/checks.json" "$O")"
 check "wrong arg count" 2 "$(run "$TMP/report.md")"
 
 echo "Test 14: the real manifest loads; a report with every Batch Connect row passes, one fewer fails"

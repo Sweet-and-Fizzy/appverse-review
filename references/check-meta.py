@@ -19,13 +19,13 @@ cannot be read or is not a JSON object.
 import json
 import sys
 
-from report_parse import normalize_decision
+from report_parse import positional_args, normalize_decision
 
 
 def main(argv):
-    if len(argv) != 2:
-        print("usage: check-meta.py <meta.json>", file=sys.stderr)
-        return 2
+    argv = positional_args(argv, ["meta.json"], description=(__doc__ or "").split("\n\n")[0])
+    if isinstance(argv, int):
+        return argv
     try:
         with open(argv[1], encoding="utf-8") as f:
             meta = json.load(f)

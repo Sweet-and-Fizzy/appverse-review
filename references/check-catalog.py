@@ -17,12 +17,16 @@ not a problem.
 
 Output: MISSING and EXTRA lines, then a summary line. Exit 0 when the
 section matches or the check does not apply, 1 when it does not match, 2
-when the report cannot be read or has no Catalog checks section.
+when the report cannot be read, 3 (a malformed report) when it has no
+Catalog checks section.
 """
 import difflib
 import os
 import re
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from report_parse import MALFORMED, positional_args  # noqa: E402
 
 SECTION = "## Catalog checks"
 HEADING_RE = re.compile(r"^##[ \t]+catalog checks[ \t]*$", re.I | re.M)
@@ -45,9 +49,9 @@ def section(text):
 
 
 def main(argv):
-    if len(argv) != 3:
-        print("usage: check-catalog.py <report.md> <pre-review-out-dir>", file=sys.stderr)
-        return 2
+    argv = positional_args(argv, ["report.md", "pre-review-out-dir"], description=(__doc__ or "").split("\n\n")[0])
+    if isinstance(argv, int):
+        return argv
     report, pre = argv[1], argv[2]
     try:
         with open(report, encoding="utf-8") as f:
@@ -64,7 +68,7 @@ def main(argv):
     sec = section(text)
     if sec is None:
         print("error: report has no '%s' section" % SECTION)
-        return 2
+        return MALFORMED
     have = [norm(l) for l in sec.splitlines() if l.strip()]
     problems = 0
     for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(a=expected, b=have, autojunk=False).get_opcodes():
