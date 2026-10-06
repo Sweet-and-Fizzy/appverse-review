@@ -322,9 +322,9 @@ def _classify(target, exclude=None):
     """Walk target (skipping SKIP_DIRS and the exclude dir, not following
     symlinked dirs). Return (files, rejected): files are sorted repo-relative
     paths of regular files, or symlinks that resolve to a regular file inside
-    target; rejected maps every other entry (a symlink leading outside or
-    nowhere, a FIFO, a device) to the reason it was not read."""
-    root_real = os.path.realpath(target)
+    target (not into its .git, see _inside); rejected maps every other entry
+    (a symlink leading outside or nowhere, a FIFO, a device) to the reason it
+    was not read."""
     exclude_real = os.path.realpath(exclude) if exclude else None
     files, rejected = [], {}
     for root, dirs, names in os.walk(target):
@@ -338,7 +338,7 @@ def _classify(target, exclude=None):
                 real = os.path.realpath(full)
                 if not os.path.exists(real):
                     rejected[rel] = DANGLING
-                elif os.path.commonpath([real, root_real]) != root_real:
+                elif not _inside(target, real):
                     rejected[rel] = OUTSIDE
                 elif not os.path.isfile(real):
                     rejected[rel] = NOT_REGULAR
@@ -1141,9 +1141,15 @@ def _read_fact(target, path, rel):
 
 
 def _inside(target, path):
+    """Whether path resolves inside target and not into its .git, which is
+    never part of what is reviewed and holds the clone's config (a symlink
+    to .git/config would otherwise put the config, and any credential in
+    it, into the stripped copies). Such a path is refused as OUTSIDE."""
     root_real = os.path.realpath(target)
     real = os.path.realpath(path)
-    return os.path.commonpath([real, root_real]) == root_real
+    git_real = os.path.join(root_real, ".git")
+    return (os.path.commonpath([real, root_real]) == root_real
+            and os.path.commonpath([real, git_real]) != git_real)
 
 
 def _load_file(target, path, rel):

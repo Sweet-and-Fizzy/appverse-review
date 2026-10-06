@@ -206,6 +206,19 @@ if [ "$(chk "$O" semgrep status)" = ran ]; then
   check "semgrep scanned neither leak nor fifo" "0" "$(j "$O/semgrep.json" "len([p for p in d['paths']['scanned'] if p in ('leak.sh.erb','fifo.sh.erb')])")"
 else skip "semgrep did not run"; fi
 
+echo "Test 12b: a symlink into the target's .git is never read (it holds the clone's config)"
+T="$TMP/t12b"; mkdir -p "$T/.git" "$T/template"
+printf '[http]\n\textraheader = AUTHORIZATION: basic GIT-CONFIG-SECRET\n' > "$T/.git/config"
+ln -s .git/config "$T/leak.sh.erb"
+ln -s ../.git/config "$T/template/script.sh.erb"
+ln -s .git/config "$T/README.md"
+O="$TMP/o12b"
+check "exit 0" 0 "$(run "$T" "$O")"
+check "root symlink refused as outside" "symlink outside target, not checked" "$(syn "$O" leak.sh.erb stderr)"
+check "template symlink refused as outside" "symlink outside target, not checked" "$(syn "$O" template/script.sh.erb stderr)"
+check "no stripped copy of either" "False|False" "$(yn test -e "$O/stripped/leak.sh.erb.sh")|$(yn test -e "$O/stripped/template/script.sh.erb.sh")"
+check "nothing from .git/config anywhere in the output" "0" "$(grep -rl 'GIT-CONFIG-SECRET' "$O" 2>/dev/null | wc -l | tr -d ' ')"
+
 echo "Test 13: a file named like an option is passed as a path"
 T="$TMP/t13"; mkdir -p "$T"; printf '#!/bin/bash\ncd "$1"\n' > "$T/-x.sh"
 O="$TMP/o13"
