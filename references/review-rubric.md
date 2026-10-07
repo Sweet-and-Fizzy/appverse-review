@@ -517,9 +517,11 @@ individual findings, never from the signal levels.
 
 In a monorepo, apply the repo-level criteria and every High or Critical
 security finding to the whole repo first, then decide each app (see Repo
-shapes). `check-decisions.py` fails a review whose decisions fall below the
-floors those findings set, or whose recommendation is milder than its
-strictest Per-app decision. Documentation, portability and code-quality
+shapes). A failed Structure gate sets at least Request changes whatever
+severity the finding carries, since every Structure row is a gate.
+`check-decisions.py` fails a review whose decisions fall below the floors
+those findings set, or whose recommendation is milder than its strictest
+Per-app decision. Documentation, portability and code-quality
 findings never set a floor.
 
 Any Accept is conditional on the catalog checks (duplicate check, Software

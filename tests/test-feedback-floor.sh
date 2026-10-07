@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Test check-feedback-floor.py: the Draft Feedback must name every Low+ FAIL/WARN finding.
+# Test check-feedback-floor.py: the Draft Feedback must name every Low+ FAIL/WARN finding and every gate FAIL.
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 CHECK="$SCRIPT_DIR/references/check-feedback-floor.py"
@@ -573,5 +573,24 @@ check "GitHub alone from the evidence source does not describe the defect: exit 
 check "reason" "MISSING MNT-01 commits:stale-repo (defect not described in feedback)" "$(head -1 "$TMP/out")"
 printf '## Draft feedback\n<!-- feedback-covers: commits:stale-repo -->\nThe repo looks stale: no commit has landed in a long time.\n' > "$TMP/t48b.md"
 check "a mechanism word still describes it: exit 0" 0 "$(run "$TMP/t48.json" "$TMP/t48b.md")"
+
+echo "Test 49: a gate FAIL is a fix-item at any severity; an other: note at Info is not"
+cat > "$TMP/f49.json" <<'EOF'
+[
+ {"app_id":"root","rule":"STR-01","defect_key":"LICENSE:missing-license","aspect":"structure","severity":"info","result":"FAIL","summary":"No LICENSE","evidence":"LICENSE"},
+ {"app_id":"root","rule":"STR-07","defect_key":"form.yml:other:both-form-variants","aspect":"structure","severity":"info","result":"FAIL","summary":"both variants","evidence":"form.yml"}
+]
+EOF
+cat > "$TMP/r49.md" <<'EOF'
+# Appverse Review: x
+## Overall recommendation
+Request changes.
+## Draft feedback — edit before sending
+Nothing else to add.
+<!-- feedback-covers: -->
+EOF
+check "exit 1" 1 "$(run "$TMP/f49.json" "$TMP/r49.md")"
+check "the gate FAIL is missing" 1 "$(grep -c 'MISSING STR-01 LICENSE:missing-license' "$TMP/out")"
+check "the other: note is not a fix-item" 0 "$(grep -c 'both-form-variants' "$TMP/out")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

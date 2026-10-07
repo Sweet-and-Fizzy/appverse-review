@@ -158,7 +158,8 @@ stderr and still assemble.
         "metadata":   "pass | fail | warn | not_checked",
         "yaml_valid": "pass | fail | warn | not_checked",
         "structure":  "pass | fail | warn | not_checked",
-        "references": "pass | fail | warn | not_checked"
+        "references": "pass | fail | warn | not_checked",
+        "template_syntax": "pass | fail | warn | not_checked"
       },
       "indicators": {
         "portability":   { "level": "solid", "summary": "All site values in form.yml", "anchor": "#portability" },
@@ -201,7 +202,10 @@ stderr and still assemble.
   artifact; the directory they were written to during the run is dropped.
 - **`apps[].criteria`** is derived from findings by `assemble-artifact.py` —
   an STR-03 FAIL sets `yaml_valid: "fail"`, etc. The orchestrator does not
-  produce criteria directly. Values follow the record's result: FAIL → fail,
+  produce criteria directly. `structure` is the layout gate (STR-07).
+  `template_syntax` (1.4) is the "template scripts are syntactically correct"
+  gate, from STR-05 (ERB balance) and STR-06 (`bash -n`) rows; it is present
+  only when the app has such rows, so an app with no templates has none. Values follow the record's result: FAIL → fail,
   WARN → warn (the tool could not confirm the gate; the reviewer settles it),
   NOT CHECKED → not_checked, PASS → pass. The worst result wins when several
   records map to one criterion.
@@ -317,3 +321,4 @@ tolerate a missing indicator key (see Indicators), so 1.2's removal of
 | 1.1 | Adds the optional `indicators` on `repo_level` and each `apps[]` entry. |
 | 1.2 | Removes `indicators.security`. Security is the app's OODT- findings in `apps[].findings`; there is no computed security level. |
 | 1.3 | Adds the optional `apps[].indicators.maintenance`: in a declared monorepo, each app's own upkeep from its folder's activity. `repo_level.indicators.maintenance` stays. |
+| 1.4 | Adds the optional `apps[].criteria.template_syntax`, from STR-05 and STR-06 rows. Before 1.4 an STR-06 result counted under `structure`, so a shell syntax error read as a layout failure. |

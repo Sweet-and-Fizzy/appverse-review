@@ -13,10 +13,14 @@ with suggestions:
     sets the floor for every app, wherever in the repo it was found.
     Installing any one app clones the whole repo (review-rubric.md, Repo
     shapes).
-  - A structure gate FAIL (an STR rule) or the upkeep gate (MNT-01) at High
-    or Critical sets the floor for its own app, or for every app when the
-    finding is repo-level (its app_id is not one of meta.json's apps, as
-    "root" is in a monorepo).
+  - A structure gate FAIL (an STR rule, whichever aspect filed it) sets at
+    least Request changes at any severity, since every Structure row is a
+    gate and a missing gate criterion is Request changes (review-rubric.md);
+    Critical sets Reject. An STR note tagged `other:` is not a gate row and
+    floors only at High or Critical.
+    The upkeep gate (MNT-01) sets a floor at High or Critical. Both apply to
+    their own app, or to every app when the finding is repo-level (its
+    app_id is not one of meta.json's apps, as "root" is in a monorepo).
   - A failed repo gate in meta.json (not_archived or public is "fail") sets
     Request changes for every app.
   - The recommendation is held to every repo-wide floor, and in a monorepo to
@@ -33,10 +37,12 @@ input cannot be read.
 import json
 import sys
 
-from report_parse import positional_args, DECISIONS, DECISION_NAMES, decision_rank as rank
+from report_parse import positional_args, is_gate_finding, DECISIONS, DECISION_NAMES, decision_rank as rank
 
 NAME = {i: DECISION_NAMES[d] for i, d in enumerate(DECISIONS)}
 FLOOR = {"high": DECISIONS.index("request changes"), "critical": DECISIONS.index("reject")}
+# A failed gate is Request changes whatever severity the finding carries.
+GATE_FLOOR = DECISIONS.index("request changes")
 
 
 def load(path, what):
@@ -75,12 +81,18 @@ def main(argv):
     for f in findings:
         if not isinstance(f, dict) or str(f.get("result", "")).strip().upper() != "FAIL":
             continue
-        floor = FLOOR.get(str(f.get("severity", "")).strip().lower())
-        if floor is None:
-            continue
         rule = str(f.get("rule", "")).strip().upper()
-        security = str(f.get("aspect", "")).strip().lower() == "security" or rule.startswith("OODT")
+        gate = is_gate_finding(f)
+        # A gate row the security aspect filed (a shellcheck code that maps to
+        # STR-04, say) is still a gate, so it floors like one and its pill and
+        # floor agree.
+        security = not gate and (str(f.get("aspect", "")).strip().lower() == "security" or rule.startswith("OODT"))
         if not (security or rule.startswith("STR") or rule == "MNT-01"):
+            continue
+        floor = FLOOR.get(str(f.get("severity", "")).strip().lower())
+        if gate:
+            floor = max(floor if floor is not None else 0, GATE_FLOOR)
+        if floor is None:
             continue
         repo_wide = security or f.get("app_id") not in app_ids
         reason = "%s %s FAIL at %s%s" % (
@@ -121,7 +133,7 @@ def main(argv):
 
     for p in problems:
         print(p)
-    print("decisions: %d app%s against %d High/Critical floor%s, %d problem%s" % (
+    print("decisions: %d app%s against %d floor%s, %d problem%s" % (
         len(apps), "" if len(apps) == 1 else "s", len(floors), "" if len(floors) == 1 else "s",
         len(problems), "" if len(problems) == 1 else "s"))
     return 1 if problems else 0

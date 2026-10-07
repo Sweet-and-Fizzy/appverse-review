@@ -25,6 +25,6 @@
 [evidence] evidence: 39/39 valid; report rows: 58/58 valid
 [catalog] catalog: not checked (no catalog-checks.md in the pre-review output)
 [meta] meta: complete
-[decisions] decisions: 1 app against 1 High/Critical floor, 0 problems
+[decisions] decisions: 1 app against 1 floor, 0 problems
 [sections] sections: complete
 exit: 1
