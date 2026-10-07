@@ -29,8 +29,8 @@
 #                tag (without its qualifier) the check owns under its rule,
 #                so check-rating.py treats a FAIL on any of them as a
 #                suggestion recorded as FAIL, whichever tag was chosen
-#   weight       code_quality checks only: target (a decision-rubric target
-#                for inclusion) or suggestion (never a failure) — from the
+#   weight       code_quality checks only: target (a strong suggestion,
+#                worded as recommended) or suggestion (never a failure) — from the
 #                rubric's Code Quality table
 #
 # Passenger apps: str-06-syntax and the Batch Connect facts (form.json,
