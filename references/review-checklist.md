@@ -194,6 +194,11 @@ The draft feedback in the report is the tool's first pass. Make it yours:
   where one exists.
 - The draft ends with a hidden `<!-- feedback-covers: … -->` line that the
   review uses to check itself. Delete it before you send the feedback.
+- On the portal, your response becomes the body of the decision email. The
+  email already greets the contributor, gives each app's decision, says how
+  to re-submit and tells them a reply reaches you, so write only the review
+  itself: what to change and why. Leave out a greeting, a thank-you opening,
+  a restated decision and a sign-off.
 
 **Good feedback:**
 > The README lists prerequisites but doesn't include installation steps. Please add a section showing how to clone and deploy the app (see [ProteinStructure-OOD](https://github.com/EpiGenomicsCode/ProteinStructure-OOD) for an example).

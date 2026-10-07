@@ -406,9 +406,14 @@ limit); advise rewording it.
 
 - **Reviewer mode:** append a draft contributor feedback message using the
   Reviewer Process's Step 4 feedback guidance (specific, references files, links the README
-  template or best-practices guide where relevant). Plain prose paragraphs,
-  ready to paste into a Drupal moderation comment or GitHub issue. Label it
-  "Draft feedback — edit before sending."
+  template or best-practices guide where relevant). Plain prose paragraphs.
+  The portal pre-fills the reviewer's response with it, and the response
+  becomes the body of the decision email. That email already greets the
+  contributor, states each app's decision, says how to re-submit and says a
+  reply reaches the reviewer, so open with the first finding: no greeting or
+  thank-you, no restating the decision, no re-submit or "reply to me"
+  instructions, and no sign-off. Label it "Draft feedback — edit before
+  sending."
 - **Submitter mode:** append a prioritized "Fix before submitting" list instead —
   gate-criteria failures first (security findings at the top), then quality
   improvements, each with the file to change.
