@@ -795,6 +795,12 @@ jobs:
             /home/runner/work/_temp/claude-execution-output.json
             ${{ github.workspace }}/pre-review/
           if-no-files-found: warn
+          # The portal pulls these on its next cron and never needs them
+          # again, so the 90-day default keeps every run's report downloadable
+          # by any signed-in GitHub user for three months, this being a public
+          # repo. A day is far more than the import needs
+          # (appverse-planning#23).
+          retention-days: 1
 
       # Last, so the diagnostics above are uploaded either way. Every earlier
       # step tolerates a missing file with a warning, which let a run that did
