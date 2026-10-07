@@ -31,7 +31,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 
 
-SCHEMA_VERSION = "1.4"
+SCHEMA_VERSION = "1.5"
 
 SOLID = "solid"
 SOME_NOTES = "some_notes"
@@ -303,7 +303,28 @@ def normalize_decision(decision_text):
     return mapping.get(decision_text.lower().strip(), decision_text.lower().strip().replace(" ", "_"))
 
 
-def assemble(meta, findings, md_path, pdf_path, html_path, plugin_version):
+def attach_catalog(repo_level, apps, catalog):
+    # The pre-review's catalog comparison (catalog.json, schema catalog/1),
+    # carried so a consumer can show each check's status rather than parse
+    # the report's Catalog checks prose (schema 1.5). Each app gets its own
+    # checks by app_id; the repo level gets where and how much was read.
+    if not isinstance(catalog, dict) or catalog.get("schema") != "catalog/1":
+        _warn("catalog is not a catalog/1 comparison; catalog checks omitted")
+        return
+    by_app = {a.get("app_id"): a.get("checks") for a in catalog.get("apps") or []
+              if isinstance(a, dict) and isinstance(a.get("checks"), dict)}
+    for app in apps:
+        checks = by_app.get(app["app_id"])
+        if checks is not None:
+            app["catalog"] = checks
+    repo_level["catalog"] = {
+        "source": catalog.get("source", ""),
+        "counts": catalog.get("counts", {}),
+        "this_repo": catalog.get("this_repo"),
+    }
+
+
+def assemble(meta, findings, md_path, pdf_path, html_path, plugin_version, catalog=None):
     repo_findings, app_findings_map = split_findings_by_app(findings)
     repo_criteria = derive_repo_criteria(findings, meta)
 
@@ -397,6 +418,9 @@ def assemble(meta, findings, md_path, pdf_path, html_path, plugin_version):
     else:
         _warn("no maintenance_assessment in meta; repo-level indicators omitted")
 
+    if catalog is not None:
+        attach_catalog(repo_level, apps, catalog)
+
     if not apps and app_findings_map:
         for app_id, app_f in app_findings_map.items():
             apps.append({
@@ -442,6 +466,7 @@ def main():
     parser.add_argument("--pdf", help="Path to PDF report")
     parser.add_argument("--html", help="Path to HTML report (stable anchors)")
     parser.add_argument("--plugin-version", default="unknown")
+    parser.add_argument("--catalog", help="Path to the pre-review's catalog.json (optional)")
     args = parser.parse_args()
 
     with open(args.meta) as f:
@@ -458,8 +483,17 @@ def main():
             print("error: could not load findings {}: {}".format(args.findings, e), file=sys.stderr)
             sys.exit(1)
 
+    # The catalog checks are optional: without them the report's prose stands.
+    catalog = None
+    if args.catalog:
+        try:
+            with open(args.catalog) as f:
+                catalog = json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            _warn("could not load catalog {}: {}; catalog checks omitted".format(args.catalog, e))
+
     try:
-        artifact = assemble(meta, findings, args.md, args.pdf, args.html, args.plugin_version)
+        artifact = assemble(meta, findings, args.md, args.pdf, args.html, args.plugin_version, catalog)
     except AssembleError as e:
         print("error: {}".format(e), file=sys.stderr)
         sys.exit(1)

@@ -200,6 +200,19 @@ stderr and still assemble.
   reads security from these records directly (see Indicators below).
 - **`artifacts`** holds filenames, not paths. The reports travel beside the
   artifact; the directory they were written to during the run is dropped.
+- **`apps[].catalog`** (1.5, optional) is the app's catalog comparison from
+  the pre-review (`catalog.json`, `catalog_facts.compare()`), passed with
+  `--catalog`: `software` (`status` `match` with the `entry`, `no_match`
+  with the `closest` entry name or null, `not_declared`, `inferred`,
+  `unparsed`), `app_type` (`known`, `unknown`, `not_declared`, `inferred`,
+  `unparsed`, with the `value`), `implementation_tags` (`declared`, `known`,
+  `unknown`, `note`), and `same_software_apps` (each published app with the
+  same Software entry: `title`, `github_url`, `subpath`, `this_repo`).
+  **`repo_level.catalog`** is where it was read from: `source`, `counts`
+  (`software`, `app_types`, `implementation_tags`, `apps`) and `this_repo`.
+  Both are absent when the catalog was not read; the report's Catalog checks
+  section then says so. The duplicate decision is never in the artifact: it
+  is the reviewer's.
 - **`apps[].criteria`** is derived from findings by `assemble-artifact.py` —
   an STR-03 FAIL sets `yaml_valid: "fail"`, etc. The orchestrator does not
   produce criteria directly. `structure` is the layout gate (STR-07).
@@ -322,3 +335,4 @@ tolerate a missing indicator key (see Indicators), so 1.2's removal of
 | 1.2 | Removes `indicators.security`. Security is the app's OODT- findings in `apps[].findings`; there is no computed security level. |
 | 1.3 | Adds the optional `apps[].indicators.maintenance`: in a declared monorepo, each app's own upkeep from its folder's activity. `repo_level.indicators.maintenance` stays. |
 | 1.4 | Adds the optional `apps[].criteria.template_syntax`, from STR-05 and STR-06 rows. Before 1.4 an STR-06 result counted under `structure`, so a shell syntax error read as a layout failure. |
+| 1.5 | Adds the optional `apps[].catalog` and `repo_level.catalog`: the pre-review's catalog comparison, so a consumer can show each check's status rather than parse the report's Catalog checks prose. |
