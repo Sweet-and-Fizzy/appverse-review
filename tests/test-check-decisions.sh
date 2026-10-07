@@ -19,8 +19,8 @@ json.dump({"recommendation": {"decision": rec, "note": "x"},
           open(out, "w"))
 PY
 }
-# finding <app_id> <aspect> <severity> <result> <rule> <evidence>
-finding() { printf '{"app_id":"%s","aspect":"%s","severity":"%s","result":"%s","rule":"%s","evidence":"%s","defect_key":"k","summary":"s"}' "$@"; }
+# finding <app_id> <aspect> <severity> <result> <rule> <evidence> [defect_key]
+finding() { printf '{"app_id":"%s","aspect":"%s","severity":"%s","result":"%s","rule":"%s","evidence":"%s","defect_key":"%s","summary":"s"}' "$1" "$2" "$3" "$4" "$5" "$6" "${7:-x:k}"; }
 
 echo "Test 1: a High security FAIL in one monorepo app sets Request changes for every app"
 meta "$TMP/m1.json" "Request changes" "apps/a:Accept" "apps/b:Request changes"
@@ -134,5 +134,19 @@ check "critical gate: needs Reject" 1 "$(grep -c 'needs at least Reject$' "$TMP/
 meta "$TMP/m17b.json" "Accept" "root:Accept"
 echo "[$(finding root structure medium WARN STR-01 LICENSE),$(finding root security low FAIL OODT-05 a:1),$(finding root maintenance low FAIL MNT-01 repo)]" > "$TMP/f17b.json"
 check "WARN gate, Low security, Low MNT-01: exit 0" 0 "$(run "$TMP/m17b.json" "$TMP/f17b.json")"
+
+echo "Test 18: an STR note tagged other: is not a gate row: below High it sets no floor"
+meta "$TMP/m18.json" "Accept" "root:Accept"
+echo "[$(finding root structure low FAIL STR-07 form.yml form.yml:other:both-form-variants)]" > "$TMP/f18.json"
+check "Low other: exit 0" 0 "$(run "$TMP/m18.json" "$TMP/f18.json")"
+echo "[$(finding root structure high FAIL STR-07 form.yml form.yml:other:both-form-variants)]" > "$TMP/f18b.json"
+check "High other: still Request changes" 1 "$(run "$TMP/m18.json" "$TMP/f18b.json")"
+
+echo "Test 19: a gate row the security aspect filed is still a gate, for its own app at any severity"
+meta "$TMP/m19.json" "Request changes" "apps/a:Accept" "apps/b:Accept"
+echo "[$(finding apps/b security low FAIL STR-04 apps/b/template/script.sh.erb:4 apps/b/template/script.sh.erb:undefined-variable)]" > "$TMP/f19.json"
+check "exit 1" 1 "$(run "$TMP/m19.json" "$TMP/f19.json")"
+check "floors its own app" 1 "$(grep -c '^MISMATCH decision apps/b: Accept, but STR-04 low FAIL' "$TMP/out")"
+check "not every app" 0 "$(grep -c 'decision apps/a' "$TMP/out")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

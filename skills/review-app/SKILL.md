@@ -372,7 +372,9 @@ recommendation or the feedback message.
 
 **Inclusion floor — derive, don't recall.** Before writing the feedback, list
 every finding whose `result` is FAIL or WARN and whose `severity` is Low or
-above. Each of these is a fix-item and must be named in the feedback with the
+above, plus every Structure gate FAIL (an STR rule not tagged `other:`) at any
+severity, since a failed gate is why the decision is at least Request
+changes. Each of these is a fix-item and must be named in the feedback with the
 file it lives in; group related items in one paragraph where that reads
 better. Info-level polish may be summarized in one line or omitted. Write the
 feedback first. Then end the section with a single HTML comment that lists
@@ -532,7 +534,8 @@ externally by the API provider.
         --target "$TMP/repo"
 
   (`check-all.py` runs, in order:
-  `check-feedback-floor.py`: every FAIL/WARN fix-item of Low or above has
+  `check-feedback-floor.py`: every FAIL/WARN fix-item of Low or above, and
+  every gate FAIL at any severity, has
   its key in the `feedback-covers` line, its file (or, for a repo-wide
   item, its subject word) named in the Draft Feedback, and its defect
   described in the sentence window there (a line number, a word of its
@@ -563,8 +566,9 @@ externally by the API provider.
   an app list (section 5).
   `check-decisions.py` (when the meta.json exists): every decision is at
   least the floor its findings set. A High FAIL needs Request changes and a
-  Critical FAIL needs Reject; a structure gate FAIL (STR) needs at least
-  Request changes whatever its severity. A security or repo-level one sets
+  Critical FAIL needs Reject; a structure gate FAIL (an STR rule not tagged
+  `other:`, whichever aspect filed it) needs at least Request changes
+  whatever its severity. A security or repo-level one sets
   that floor for every app and the recommendation; any other sets it for its
   own app.
   `check-sections.py`: the report has Upkeep, Review scope and an Overall

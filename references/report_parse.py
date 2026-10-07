@@ -152,6 +152,22 @@ def _app_prefix(app):
 # The four review outcomes, mildest first. Every checker that reads a decision
 # (check-meta, check-decisions, check-sections) normalizes it here, so they
 # cannot disagree about whether "request_changes" or "Request  changes" is valid.
+def defect_tag(defect_key):
+    """The mechanism tag out of a defect_key: the part after the first ':'
+    (the anchor), truncated before any further ':' qualifier."""
+    key = str(defect_key or "")
+    tag = key.split(":", 1)[1] if ":" in key else key
+    return tag.split(":", 1)[0]
+
+
+def is_gate_finding(finding):
+    """A Structure gate row: an STR rule, whichever aspect filed it, unless it
+    is an `other:` note, which the structure skill adds after the checks for
+    anything else worth a look (review-structure SKILL.md) and is not a gate."""
+    rule = str(finding.get("rule", "")).strip().upper()
+    return rule.startswith("STR") and defect_tag(finding.get("defect_key")) != "other"
+
+
 DECISIONS = ("accept", "accept with suggestions", "request changes", "reject")
 DECISION_NAMES = {"accept": "Accept", "accept with suggestions": "Accept with suggestions",
                   "request changes": "Request changes", "reject": "Reject"}

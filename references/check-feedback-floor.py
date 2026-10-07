@@ -2,7 +2,9 @@
 """Check the Draft Feedback against the inclusion floor.
 
 Every finding with result FAIL or WARN and severity low or above is a
-fix-item and must be represented in the feedback section of the report:
+fix-item, and so is a Structure gate FAIL at any severity, since it sets at
+least Request changes (check-decisions.py) and the feedback must say why.
+Each must be represented in the feedback section of the report:
 
   1. its defect_key is listed in an HTML comment
        <!-- feedback-covers: key1, key2, ... -->
@@ -156,7 +158,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from report_parse import MALFORMED, positional_args  # noqa: E402
+from report_parse import MALFORMED, is_gate_finding, positional_args  # noqa: E402
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from repo_paths import CITATION_RE, PSEUDO_ANCHORS, split_reviewed_ok  # noqa: E402
@@ -714,7 +716,8 @@ def main(argv):
     fix_items = [
         f for f in findings
         if str(f.get("result", "")).upper() in FIX_RESULTS
-        and str(f.get("severity", "")).lower() in FIX_SEVERITIES
+        and (str(f.get("severity", "")).lower() in FIX_SEVERITIES
+             or (str(f.get("result", "")).upper() == "FAIL" and is_gate_finding(f)))
     ]
     missing = []
     for f in fix_items:
