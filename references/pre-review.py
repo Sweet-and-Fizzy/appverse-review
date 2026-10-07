@@ -328,7 +328,8 @@ def _classify(target, exclude=None):
     exclude_real = os.path.realpath(exclude) if exclude else None
     files, rejected = [], {}
     for root, dirs, names in os.walk(target):
-        dirs[:] = [d for d in dirs if d not in SKIP_DIRS
+        # .git in any case: a case-insensitive filesystem lists .GIT as is.
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS and d.casefold() != ".git"
                    and os.path.realpath(os.path.join(root, d)) != exclude_real]
         for name in names:
             full = os.path.join(root, name)
@@ -1141,15 +1142,20 @@ def _read_fact(target, path, rel):
 
 
 def _inside(target, path):
-    """Whether path resolves inside target and not into its .git, which is
-    never part of what is reviewed and holds the clone's config (a symlink
-    to .git/config would otherwise put the config, and any credential in
-    it, into the stripped copies). Such a path is refused as OUTSIDE."""
+    """Whether path resolves inside target and not into a .git directory,
+    which is never part of what is reviewed and holds a clone's config (a
+    symlink to .git/config would otherwise put the config, and any
+    credential in it, into the stripped copies). Any component of the
+    resolved path that casefolds to .git counts: the target's own .git, a
+    nested or submodule one, and one spelt .GIT, which a case-insensitive
+    filesystem (macOS) resolves to the same directory. Such a path is
+    refused as OUTSIDE."""
     root_real = os.path.realpath(target)
     real = os.path.realpath(path)
-    git_real = os.path.join(root_real, ".git")
-    return (os.path.commonpath([real, root_real]) == root_real
-            and os.path.commonpath([real, git_real]) != git_real)
+    if os.path.commonpath([real, root_real]) != root_real:
+        return False
+    rel = os.path.relpath(real, root_real)
+    return not any(part.casefold() == ".git" for part in rel.split(os.sep))
 
 
 def _load_file(target, path, rel):
