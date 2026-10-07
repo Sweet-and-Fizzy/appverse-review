@@ -31,7 +31,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 
 
-SCHEMA_VERSION = "1.3"
+SCHEMA_VERSION = "1.4"
 
 SOLID = "solid"
 SOME_NOTES = "some_notes"
@@ -75,9 +75,14 @@ PER_APP_CRITERIA_RULES = {
     "STR-02": "metadata",
     "STR-03": "yaml_valid",
     "STR-04": "references",
-    "STR-06": "structure",
     "STR-07": "structure",
 }
+
+# The rubric's "Template scripts are syntactically correct" gate: ERB balance
+# and bash -n (schema 1.4; before that STR-06 counted under the layout gate,
+# so a syntax error read as a layout failure). Present only when the app has
+# such rows: an app with no templates (a Passenger app) has no syntax gate.
+TEMPLATE_SYNTAX_RULES = ("STR-05", "STR-06")
 
 RESULT_TO_CRITERION = {
     "FAIL": "fail",
@@ -157,6 +162,9 @@ def derive_app_criteria(app_findings):
         rule = f.get("rule", "")
         if rule in PER_APP_CRITERIA_RULES:
             _worsen(criteria, PER_APP_CRITERIA_RULES[rule], _resolve_result(f))
+        elif rule in TEMPLATE_SYNTAX_RULES:
+            criteria.setdefault("template_syntax", "pass")
+            _worsen(criteria, "template_syntax", _resolve_result(f))
     return criteria
 
 

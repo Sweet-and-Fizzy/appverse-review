@@ -185,21 +185,41 @@ ARTIFACT_R4=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$T
 check "case4: metadata fail (worst wins)" "fail" "$(echo "$ARTIFACT_R4" | python3 -c "import json,sys; print(json.load(sys.stdin)['apps'][0]['criteria']['metadata'])")"
 check "case4: structure warn (worst wins)" "warn" "$(echo "$ARTIFACT_R4" | python3 -c "import json,sys; print(json.load(sys.stdin)['apps'][0]['criteria']['structure'])")"
 
-# Case 4b: STR-06 FAIL -> structure = fail; STR-06 NOT CHECKED -> structure = not_checked
+# Case 4b: STR-06 FAIL -> template_syntax = fail, and layout (structure) stays pass;
+#          STR-06 NOT CHECKED -> template_syntax = not_checked
 cat > "$TMP/findings-result4b.json" << 'EOF'
 [
   {"app_id":"root","rule":"STR-06","defect_key":"template/script.sh.erb:bash-syntax-error","result":"FAIL","severity":"high","summary":"bash -n failed","evidence":"template/script.sh.erb:3"}
 ]
 EOF
 ARTIFACT_R4B=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result4b.json" --md "r.md" --plugin-version "0.3.0")
-check "case4b: STR-06 FAIL makes structure fail" "fail" "$(echo "$ARTIFACT_R4B" | python3 -c "import json,sys; print(json.load(sys.stdin)['apps'][0]['criteria']['structure'])")"
+check "case4b: STR-06 FAIL makes template_syntax fail" "fail" "$(echo "$ARTIFACT_R4B" | jget "d['apps'][0]['criteria']['template_syntax']")"
+check "case4b: STR-06 FAIL leaves layout pass" "pass" "$(echo "$ARTIFACT_R4B" | jget "d['apps'][0]['criteria']['structure']")"
 cat > "$TMP/findings-result4c.json" << 'EOF'
 [
   {"app_id":"root","rule":"STR-06","defect_key":"template/script.sh.erb:bash-syntax-error","result":"NOT CHECKED","severity":"info","summary":"syntax check did not run","evidence":"template/script.sh.erb:1"}
 ]
 EOF
 ARTIFACT_R4C=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result4c.json" --md "r.md" --plugin-version "0.3.0")
-check "case4c: STR-06 NOT CHECKED makes structure not_checked" "not_checked" "$(echo "$ARTIFACT_R4C" | python3 -c "import json,sys; print(json.load(sys.stdin)['apps'][0]['criteria']['structure'])")"
+check "case4c: STR-06 NOT CHECKED makes template_syntax not_checked" "not_checked" "$(echo "$ARTIFACT_R4C" | jget "d['apps'][0]['criteria']['template_syntax']")"
+# Case 4d: STR-05 (ERB balance) shares the gate: a PASS shell file and a FAIL ERB file -> fail
+cat > "$TMP/findings-result4d.json" << 'EOF'
+[
+  {"app_id":"root","rule":"STR-06","defect_key":"template/script.sh.erb:bash-syntax-error","result":"PASS","severity":"info","summary":"bash -n clean","evidence":"template/script.sh.erb"},
+  {"app_id":"root","rule":"STR-05","defect_key":"submit.yml.erb:unbalanced-erb","result":"FAIL","severity":"medium","summary":"unclosed <% tag","evidence":"submit.yml.erb:4"}
+]
+EOF
+ARTIFACT_R4D=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result4d.json" --md "r.md" --plugin-version "0.3.0")
+check "case4d: STR-05 FAIL makes template_syntax fail" "fail" "$(echo "$ARTIFACT_R4D" | jget "d['apps'][0]['criteria']['template_syntax']")"
+# Case 4e: all PASS rows -> template_syntax pass; no STR-05/06 rows (a Passenger app) -> no key
+cat > "$TMP/findings-result4e.json" << 'EOF'
+[
+  {"app_id":"root","rule":"STR-06","defect_key":"template/script.sh.erb:bash-syntax-error","result":"PASS","severity":"info","summary":"bash -n clean","evidence":"template/script.sh.erb"}
+]
+EOF
+ARTIFACT_R4E=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result4e.json" --md "r.md" --plugin-version "0.3.0")
+check "case4e: a PASS row makes template_syntax pass" "pass" "$(echo "$ARTIFACT_R4E" | jget "d['apps'][0]['criteria']['template_syntax']")"
+check "case4e: no template rows, no template_syntax key" "False" "$(echo "$ARTIFACT_R1" | jget "'template_syntax' in d['apps'][0]['criteria']")"
 
 # Case 5: unrecognized result -> fail + stderr warning
 cat > "$TMP/findings-result5.json" << 'EOF'
@@ -341,7 +361,7 @@ EOF
 ART4=$(python3 "$ASSEMBLE" --meta "$TMP/meta-ind.json" --findings "$TMP/findings-ind.json" --md "r.md" --plugin-version "0.3.0" 2> "$TMP/warn4.txt")
 
 SCHEMA=$(echo "$ART4" | jget "d['schema_version']")
-check "schema_version is 1.3" "1.3" "$SCHEMA"
+check "schema_version is 1.4" "1.4" "$SCHEMA"
 
 NO_SEC=$(echo "$ART4" | jget "'security' in d['apps'][0]['indicators']")
 check "no security indicator (schema 1.2)" "False" "$NO_SEC"
