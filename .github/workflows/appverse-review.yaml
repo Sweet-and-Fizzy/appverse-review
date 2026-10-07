@@ -1,4 +1,4 @@
-name: AppVerse App Review
+name: Appverse App Review
 
 # The run list API does not return dispatch inputs, so a caller that needs to
 # find its run afterwards (the portal's poll loop) reads them from the run
@@ -215,7 +215,7 @@ jobs:
             echo "model_id=$model_id"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Run AppVerse review
+      - name: Run Appverse review
         id: review
         # A hung session must not hold the runner for GitHub's six-hour
         # default; the longest reviews so far took under half an hour.
@@ -363,7 +363,7 @@ jobs:
           TARGET_DIR="${{ github.workspace }}/target-repo"
           FILE_LIST=$(find "$TARGET_DIR" -type f | sort | head -50 | sed "s|${TARGET_DIR}/|- |")
           cat > "$REPORT_FILE" <<EOF
-          # AppVerse Review: ${TARGET_REPO} (Dry Run)
+          # Appverse Review: ${TARGET_REPO} (Dry Run)
 
           **Repository:** https://github.com/${TARGET_REPO}
           **Mode:** dry-run
@@ -836,7 +836,7 @@ jobs:
             fi
           done
           if [ "$missing" -ne 0 ]; then
-            echo "The review did not produce its outputs. See the 'Run AppVerse review' step log."
+            echo "The review did not produce its outputs. See the 'Run Appverse review' step log."
             exit 1
           fi
           if [ "$check_failed" -ne 0 ]; then
