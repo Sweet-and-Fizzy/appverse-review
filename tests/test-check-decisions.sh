@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Test check-decisions.py: decisions meet the floor their High/Critical FAILs set, repo-wide for security.
+# Test check-decisions.py: decisions meet the floor their FAILs set: any structure gate FAIL, High/Critical security and upkeep; security repo-wide.
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 CHK="$SCRIPT_DIR/references/check-decisions.py"
@@ -32,7 +32,7 @@ check "the app with the finding is fine" 0 "$(grep -c 'decision apps/b' "$TMP/ou
 echo "Test 2: the same repo with both apps at Request changes passes"
 meta "$TMP/m2.json" "Request changes" "apps/a:Request changes" "apps/b:Request changes"
 check "exit 0" 0 "$(run "$TMP/m2.json" "$TMP/f1.json")"
-check "summary" "decisions: 2 apps against 1 High/Critical floor, 0 problems" "$(tail -1 "$TMP/out")"
+check "summary" "decisions: 2 apps against 1 floor, 0 problems" "$(tail -1 "$TMP/out")"
 
 echo "Test 3: a High structure FAIL in one app sets only that app's floor"
 meta "$TMP/m3.json" "Request changes" "apps/a:Accept" "apps/b:Request changes"
@@ -59,7 +59,7 @@ echo "Test 6: Medium, WARN and PASS records set no floor; a harsher decision is 
 meta "$TMP/m6.json" "Reject" "root:Reject"
 echo "[$(finding root security medium FAIL OODT-05 a:1),$(finding root security high WARN OODT-05 a:2),$(finding root security high PASS OODT-02 a:3)]" > "$TMP/f6.json"
 check "exit 0" 0 "$(run "$TMP/m6.json" "$TMP/f6.json")"
-check "no floors" "decisions: 1 app against 0 High/Critical floors, 0 problems" "$(tail -1 "$TMP/out")"
+check "no floors" "decisions: 1 app against 0 floors, 0 problems" "$(tail -1 "$TMP/out")"
 
 echo "Test 7: snake_case decisions are read; a missing decision is left to check-meta"
 meta "$TMP/m7.json" "request_changes" "apps/a:accept_with_suggestions" "apps/b:"
@@ -83,7 +83,7 @@ echo "Test 10: documentation and code-quality FAILs set no floor, even at High (
 meta "$TMP/m10.json" "Accept with suggestions" "root:Accept with suggestions"
 echo "[$(finding root quality high FAIL QUA-01 README.md),$(finding root maintenance high FAIL MNT-03 CHANGELOG)]" > "$TMP/f10.json"
 check "exit 0" 0 "$(run "$TMP/m10.json" "$TMP/f10.json")"
-check "no floors" "decisions: 1 app against 0 High/Critical floors, 0 problems" "$(tail -1 "$TMP/out")"
+check "no floors" "decisions: 1 app against 0 floors, 0 problems" "$(tail -1 "$TMP/out")"
 
 echo "Test 11: result and severity are read case-insensitively; MNT-01 sets a floor"
 meta "$TMP/m11.json" "Accept" "root:Accept"
@@ -107,5 +107,32 @@ echo "Test 14: unreadable input is exit 2"
 check "missing meta" 2 "$(run "$TMP/nope.json" "$TMP/f1.json")"
 echo '{"not": "a list"}' > "$TMP/bad.json"
 check "findings not a list" 2 "$(run "$TMP/m1.json" "$TMP/bad.json")"
+
+echo "Test 15: a structure gate FAIL sets Request changes at any severity (review-rubric.md: every Structure row is a gate)"
+meta "$TMP/m15.json" "Accept" "root:Accept"
+for sev in medium low info; do
+  echo "[$(finding root structure $sev FAIL STR-01 LICENSE)]" > "$TMP/f15.json"
+  check "$sev: exit 1" 1 "$(run "$TMP/m15.json" "$TMP/f15.json")"
+  check "$sev: app needs Request changes" 1 "$(grep -c "^MISMATCH decision root: Accept, but STR-01 $sev FAIL at LICENSE needs at least Request changes$" "$TMP/out")"
+done
+meta "$TMP/m15b.json" "Request changes" "root:Request changes"
+check "Request changes meets it" 0 "$(run "$TMP/m15b.json" "$TMP/f15.json")"
+
+echo "Test 16: a Low gate FAIL in one monorepo app sets only that app's floor; at repo level, every app's"
+meta "$TMP/m16.json" "Request changes" "apps/a:Accept" "apps/b:Request changes"
+echo "[$(finding apps/b structure low FAIL STR-06 apps/b/template/script.sh.erb:9)]" > "$TMP/f16.json"
+check "own app only: exit 0" 0 "$(run "$TMP/m16.json" "$TMP/f16.json")"
+echo "[$(finding root structure low FAIL STR-01 LICENSE)]" > "$TMP/f16b.json"
+check "repo level: exit 1" 1 "$(run "$TMP/m16.json" "$TMP/f16b.json")"
+check "repo level: names the other app" 1 "$(grep -c '^MISMATCH decision apps/a: Accept, but STR-01 low FAIL at LICENSE (applies to every app) needs at least Request changes$' "$TMP/out")"
+
+echo "Test 17: a Critical gate FAIL still needs Reject; a gate WARN or a Low security or upkeep FAIL sets no floor"
+meta "$TMP/m17.json" "Request changes" "root:Request changes"
+echo "[$(finding root structure critical FAIL STR-01 LICENSE)]" > "$TMP/f17.json"
+check "critical gate: exit 1" 1 "$(run "$TMP/m17.json" "$TMP/f17.json")"
+check "critical gate: needs Reject" 1 "$(grep -c 'needs at least Reject$' "$TMP/out")"
+meta "$TMP/m17b.json" "Accept" "root:Accept"
+echo "[$(finding root structure medium WARN STR-01 LICENSE),$(finding root security low FAIL OODT-05 a:1),$(finding root maintenance low FAIL MNT-01 repo)]" > "$TMP/f17b.json"
+check "WARN gate, Low security, Low MNT-01: exit 0" 0 "$(run "$TMP/m17b.json" "$TMP/f17b.json")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

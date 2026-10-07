@@ -563,8 +563,10 @@ externally by the API provider.
   an app list (section 5).
   `check-decisions.py` (when the meta.json exists): every decision is at
   least the floor its findings set. A High FAIL needs Request changes and a
-  Critical FAIL needs Reject. A security or repo-level one sets that floor
-  for every app and the recommendation; any other sets it for its own app.
+  Critical FAIL needs Reject; a structure gate FAIL (STR) needs at least
+  Request changes whatever its severity. A security or repo-level one sets
+  that floor for every app and the recommendation; any other sets it for its
+  own app.
   `check-sections.py`: the report has Upkeep, Review scope and an Overall
   recommendation that states its decision, every app of a monorepo has a
   Per-app decision line, and those decisions match the meta.json.

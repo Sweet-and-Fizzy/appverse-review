@@ -142,7 +142,7 @@ references/
   insert-catalog.py      Writes the report's Catalog checks section from the pre-review catalog read
   stamp-meta.py          Writes the run's commit, ref, repo URL, shape and model into meta.json
   check-meta.py          Fails a meta.json without the recommendation, gate values or apps the artifact needs
-  check-decisions.py     Fails a decision below the floor its High/Critical findings set (security applies repo-wide)
+  check-decisions.py     Fails a decision below the floor its findings set: any gate FAIL, High/Critical security and upkeep (security applies repo-wide)
   check-sections.py      Fails a report missing Upkeep, Review scope or a stated decision, or disagreeing with meta.json
   check-*.py             The report checkers check-all.py runs
   report_parse.py, repo_paths.py, readme_lines.py, row_candidates.py   Shared code the checkers and pre-review import
