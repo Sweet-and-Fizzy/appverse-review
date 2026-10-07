@@ -361,7 +361,7 @@ EOF
 ART4=$(python3 "$ASSEMBLE" --meta "$TMP/meta-ind.json" --findings "$TMP/findings-ind.json" --md "r.md" --plugin-version "0.3.0" 2> "$TMP/warn4.txt")
 
 SCHEMA=$(echo "$ART4" | jget "d['schema_version']")
-check "schema_version is 1.4" "1.4" "$SCHEMA"
+check "schema_version is 1.5" "1.5" "$SCHEMA"
 
 NO_SEC=$(echo "$ART4" | jget "'security' in d['apps'][0]['indicators']")
 check "no security indicator (schema 1.2)" "False" "$NO_SEC"
@@ -809,6 +809,49 @@ check "malformed findings: exit status non-zero" "1" "$RC16"
 check "malformed findings: no artifact written" "0" "$(wc -c < "$TMP/art16.json" | tr -d ' ')"
 if python3 "$ASSEMBLE" --meta "$TMP/meta-ind.json" --findings "$TMP/does-not-exist.json" --md "r.md" --plugin-version "0.3.0" > /dev/null 2> "$TMP/warn16b.txt"; then RC16B=0; else RC16B=$?; fi
 check "findings path given but missing: exit status non-zero" "1" "$RC16B"
+
+# --- Test 18: catalog checks carried from the pre-review (schema 1.5) ---
+echo "Test 18: catalog checks"
+cat > "$TMP/catalog18.json" << 'EOF'
+{"schema": "catalog/1", "source": "https://openondemand.connectci.org", "this_repo": "osc/bc_osc_abaqus",
+ "pages": {"apps": 3}, "counts": {"software": 92, "app_types": 5, "implementation_tags": 13, "apps": 107},
+ "app_types": ["batch-connect-basic"], "implementation_tags": ["gpu-enabled"],
+ "apps": [{"app_id": "root", "declared": {"status": "declared", "software": "Abaqus"},
+           "checks": {"shape": "declared", "software": {"status": "match", "value": "Abaqus", "entry": "Abaqus"},
+                      "app_type": {"status": "known", "value": "batch-connect-basic"},
+                      "implementation_tags": {"declared": ["gpu"], "known": [], "unknown": ["gpu"], "note": null},
+                      "same_software_apps": [{"title": "Abaqus", "github_url": "https://github.com/x/abaqus", "subpath": null, "this_repo": false}]}}]}
+EOF
+A18=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result1.json" --md r.md --catalog "$TMP/catalog18.json" --plugin-version 0.3.0)
+check "case18: software status" "match" "$(echo "$A18" | jget "d['apps'][0]['catalog']['software']['status']")"
+check "case18: unknown tags" "['gpu']" "$(echo "$A18" | jget "d['apps'][0]['catalog']['implementation_tags']['unknown']")"
+check "case18: same-software apps" "1" "$(echo "$A18" | jget "len(d['apps'][0]['catalog']['same_software_apps'])")"
+check "case18: repo-level source and counts" "https://openondemand.connectci.org 107" "$(echo "$A18" | jget "d['repo_level']['catalog']['source'] + ' ' + str(d['repo_level']['catalog']['counts']['apps'])")"
+check "case18: schema 1.5" "1.5" "$(echo "$A18" | jget "d['schema_version']")"
+# A catalog that is missing, or that names no matching app, adds nothing.
+A18B=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result1.json" --md r.md --catalog "$TMP/nope.json" --plugin-version 0.3.0 2>"$TMP/err18b")
+check "case18b: missing catalog, no catalog keys" "False False" "$(echo "$A18B" | jget "str('catalog' in d['apps'][0]) + ' ' + str('catalog' in d['repo_level'])")"
+check "case18b: missing catalog warns" "1" "$(grep -c 'catalog' "$TMP/err18b")"
+echo '{not json' > "$TMP/bad18.json"
+A18C=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result1.json" --md r.md --catalog "$TMP/bad18.json" --plugin-version 0.3.0 2>/dev/null)
+check "case18c: unreadable catalog still assembles" "False" "$(echo "$A18C" | jget "'catalog' in d['apps'][0]")"
+# A monorepo app id written differently in meta still matches; one with no
+# checks in the catalog is named on stderr.
+cat > "$TMP/meta18e.json" << 'EOF'
+{"recommendation": {"decision": "Accept", "note": "x"}, "apps": [{"app_id": "apps/foo/", "name": "Foo"}, {"app_id": "apps/bar", "name": "Bar"}]}
+EOF
+python3 - "$TMP/catalog18.json" "$TMP/catalog18e.json" << 'PY2'
+import json, sys
+c = json.load(open(sys.argv[1]))
+c["apps"][0]["app_id"] = "apps/foo"
+json.dump(c, open(sys.argv[2], "w"))
+PY2
+A18E=$(python3 "$ASSEMBLE" --meta "$TMP/meta18e.json" --md r.md --catalog "$TMP/catalog18e.json" --plugin-version 0.3.0 2>"$TMP/err18e")
+check "case18e: trailing slash still matches" "match" "$(echo "$A18E" | jget "d['apps'][0]['catalog']['software']['status']")"
+check "case18e: the unmatched app has no checks" "False" "$(echo "$A18E" | jget "'catalog' in d['apps'][1]")"
+check "case18e: the unmatched app is named" "1" "$(grep -c "no checks for app(s) 'apps/bar'" "$TMP/err18e")"
+A18D=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result1.json" --md r.md --plugin-version 0.3.0)
+check "case18d: no --catalog, no catalog keys" "False" "$(echo "$A18D" | jget "'catalog' in d['repo_level']")"
 
 echo ""
 echo "Done: $pass passed, $fail failed."

@@ -765,12 +765,19 @@ jobs:
             if [ -f "$HTML_FILE" ]; then
               HTML_ARG="--html $HTML_FILE"
             fi
+            # The pre-review's catalog comparison, so the artifact carries each
+            # check's status (schema 1.5); absent when the catalog was not read.
+            CATALOG_ARG=""
+            if [ -f "${WS}/pre-review/catalog.json" ]; then
+              CATALOG_ARG="--catalog ${WS}/pre-review/catalog.json"
+            fi
             python3 "${WS}/appverse-review/references/assemble-artifact.py" \
               --meta "$META_FILE" \
               $FINDINGS_ARG \
               --md "$MD_FILE" \
               $PDF_ARG \
               $HTML_ARG \
+              $CATALOG_ARG \
               --plugin-version "$PLUGIN_VERSION" \
               > "$ARTIFACT_FILE"
             echo "Assembled review artifact: $(wc -c < "$ARTIFACT_FILE") bytes"
