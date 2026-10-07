@@ -206,6 +206,52 @@ if [ "$(chk "$O" semgrep status)" = ran ]; then
   check "semgrep scanned neither leak nor fifo" "0" "$(j "$O/semgrep.json" "len([p for p in d['paths']['scanned'] if p in ('leak.sh.erb','fifo.sh.erb')])")"
 else skip "semgrep did not run"; fi
 
+echo "Test 12b: a symlink into the target's .git is never read (it holds the clone's config)"
+T="$TMP/t12b"; mkdir -p "$T/.git" "$T/template"
+printf '[http]\n\textraheader = AUTHORIZATION: basic GIT-CONFIG-SECRET\n' > "$T/.git/config"
+ln -s .git/config "$T/leak.sh.erb"
+ln -s ../.git/config "$T/template/script.sh.erb"
+O="$TMP/o12b"
+check "exit 0" 0 "$(run "$T" "$O")"
+check "root symlink refused as outside" "symlink outside target, not checked" "$(syn "$O" leak.sh.erb stderr)"
+check "template symlink refused as outside" "symlink outside target, not checked" "$(syn "$O" template/script.sh.erb stderr)"
+check "no stripped copy of either" "False|False" "$(yn test -e "$O/stripped/leak.sh.erb.sh")|$(yn test -e "$O/stripped/template/script.sh.erb.sh")"
+check "nothing from .git/config anywhere in the output" "0" "$(grep -rl 'GIT-CONFIG-SECRET' "$O" 2>/dev/null | wc -l | tr -d ' ')"
+
+echo "Test 12c: nothing under a .git directory is read, however it is reached"
+# Every way a path can reach .git: appverse.yml's shared_paths and an app
+# path naming it, a directory symlink to it, a chain of symlinks, a nested
+# (submodule) .git, and a spelling in another case, which a case-insensitive
+# filesystem (macOS) resolves to the same directory. On Linux .GIT is its own
+# directory, refused by name the same way.
+T="$TMP/t12c"; mkdir -p "$T/.git" "$T/sub/.git" "$T/app"
+printf '[http]\n\textraheader = AUTHORIZATION: basic GIT-CONFIG-SECRET\n' > "$T/.git/config"
+printf '[core]\n\tworktree = NESTED-GIT-SECRET\n' > "$T/sub/.git/config"
+printf '#!/bin/bash\necho GIT-HOOK-SECRET\n' > "$T/.git/hook.sh"
+ln -s .git "$T/gitdir"
+ln -s hop2 "$T/hop1.sh.erb"; ln -s .git/config "$T/hop2"
+ln -s sub/.git/config "$T/nested.sh.erb"
+printf 'shared_paths:\n  - .git\n  - gitdir\n  - sub/.git\napps:\n  - path: app\n  - path: .git\n' > "$T/appverse.yml"
+printf 'title: App\n' > "$T/app/form.yml"
+O="$TMP/o12c"
+check "exit 0" 0 "$(run "$T" "$O")"
+check "a chain of symlinks into .git is refused" "symlink outside target, not checked" "$(syn "$O" hop1.sh.erb stderr)"
+check "a symlink into a nested .git is refused" "symlink outside target, not checked" "$(syn "$O" nested.sh.erb stderr)"
+check "shared_paths naming .git, a link to it and a nested .git are refused" ".git|gitdir|sub/.git" "$(j "$O/app/security.json" "'|'.join(sorted(s['file'] for s in d['skipped_files'] if s['reason'] == 'shared path outside target, not read'))")"
+check "an app path of .git is refused" "skipped|True" "$(j "$O/summary.json" "'%s|%s' % ([c for c in d['facts'] if c['name'] == 'security'][0]['per_app']['git'], any('git (.git): app path outside target, not read' in (c.get('note') or '') for c in d['facts']))")"
+check "nothing from any .git anywhere in the output" "0" "$(grep -rlE 'GIT-CONFIG-SECRET|NESTED-GIT-SECRET|GIT-HOOK-SECRET' "$O" 2>/dev/null | wc -l | tr -d ' ')"
+T="$TMP/t12c-case"; mkdir -p "$T/.GIT" "$T/app"
+printf '[http]\n\textraheader = AUTHORIZATION: basic CASE-GIT-SECRET\n' > "$T/.GIT/config"
+ln -s .GIT/config "$T/case.sh.erb"
+printf 'shared_paths:\n  - .GIT\napps:\n  - path: app\n  - path: .Git\n' > "$T/appverse.yml"
+printf 'title: App\n' > "$T/app/form.yml"
+O="$TMP/o12c-case"
+check "case variant: exit 0" 0 "$(run "$T" "$O")"
+check "case variant: a symlink to .GIT/config is refused" "symlink outside target, not checked" "$(syn "$O" case.sh.erb stderr)"
+check "case variant: shared_paths .GIT is refused" ".GIT:shared path outside target, not read" "$(j "$O/app/security.json" "'|'.join('%s:%s' % (s['file'], s['reason']) for s in d['skipped_files'])")"
+check "case variant: an app path of .Git is refused" "True" "$(j "$O/summary.json" "any('(.Git): app path outside target, not read' in (c.get('note') or '') for c in d['facts'])")"
+check "case variant: nothing from .GIT anywhere in the output" "0" "$(grep -rl 'CASE-GIT-SECRET' "$O" 2>/dev/null | wc -l | tr -d ' ')"
+
 echo "Test 13: a file named like an option is passed as a path"
 T="$TMP/t13"; mkdir -p "$T"; printf '#!/bin/bash\ncd "$1"\n' > "$T/-x.sh"
 O="$TMP/o13"

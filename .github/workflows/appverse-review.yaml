@@ -78,6 +78,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: appverse-review
+          # Only read locally (rev-parse); the review runs with this
+          # checkout's files in reach, so keep the token out of them too.
+          persist-credentials: false
 
       - name: Checkout target repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -86,6 +89,9 @@ jobs:
           ref: ${{ inputs.target_branch || '' }}
           path: target-repo
           fetch-depth: 1
+          # The review only reads the target (rev-parse, log); keep the token
+          # out of its git config so nothing in the repo can reach it.
+          persist-credentials: false
 
       - name: Install static analysis tools
         if: inputs.review_aspects != 'dry-run'
