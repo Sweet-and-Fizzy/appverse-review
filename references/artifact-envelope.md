@@ -92,10 +92,15 @@ the skills that produce them refer here.
   maintenance aspect's `app_maintenance` block): the same shape for one app,
   read from the app's own folder (its last commit and contributors, a
   CHANGELOG inside it), with releases, CI and issues taken from the repo
-  unless tags are per app. It has no waiver, and since MNT- findings are filed
-  at repo level its level follows its activity alone. Absent for a single-app
-  repo, or when the aspect could not read the history; a consumer then shows
-  the repo's upkeep for the app.
+  unless tags are per app. It has no waiver (a `waiver_brand_new` is ignored,
+  with a warning), and since MNT- findings are filed at repo level its level
+  follows its activity alone. Every value must be a real boolean (or `null`
+  for `issues_responded`): a mistyped block is skipped with a warning, and
+  `check-meta.py` fails it. It is read only when `repo_shape` is
+  `declared_monorepo`, and, like the other indicators, only for an app that
+  has `assessments`. Absent for a single-app repo, an app at the repo root, or
+  when the aspect could not read the history; a consumer then shows the
+  repo's upkeep for the app.
 - **`reported_signals`** / **`reported_signal`** are optional: the Low / Medium /
   High levels the report's Signals block states. They are used only to
   cross-check the report against the computed levels and are never copied into

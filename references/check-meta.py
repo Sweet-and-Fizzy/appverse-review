@@ -69,6 +69,25 @@ def main(argv):
             elif normalize_decision(d) is None:
                 problems.append("INVALID meta field: apps[%d].decision %r is not Accept, Accept with "
                                 "suggestions, Request changes or Reject" % (i, d))
+            # An app's own upkeep (schema 1.3) feeds a public catalog chip, so
+            # its values must be real booleans: "false" would read as active.
+            am = a.get("maintenance_assessment")
+            if am is not None:
+                bad = None
+                if not isinstance(am, dict):
+                    bad = "is not an object"
+                elif not isinstance(am.get("active_within_12mo"), bool):
+                    bad = "active_within_12mo is not true or false"
+                elif not isinstance(am.get("signals"), dict):
+                    bad = "signals is not an object"
+                else:
+                    for key in ("releases", "changelog", "ci", "multiple_contributors", "issues_responded"):
+                        v = am["signals"].get(key)
+                        if not (isinstance(v, bool) or (key == "issues_responded" and v is None)):
+                            bad = "signals.%s is not true or false" % key
+                            break
+                if bad:
+                    problems.append("INVALID meta field: apps[%d].maintenance_assessment %s" % (i, bad))
     for key in ("sha", "repo_url"):
         if not meta.get(key):
             problems.append("MISSING meta field: %s (stamp-meta.py writes it)" % key)

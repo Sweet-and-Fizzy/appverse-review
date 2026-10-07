@@ -468,10 +468,14 @@ advise rewording it.
 
 Signals about the project's health. Upkeep is a signal on the repo and, in a
 declared monorepo, on each app as well: apps in one repo can be maintained by
-different people at different paces. An app's upkeep reads its own folder (its
-last commit, its contributors, a CHANGELOG of its own) by the same rule below,
-with releases, CI and issues taken from the repo. An app's upkeep is a signal
-for deployers only; the decision role below stays with the repo's.
+different people at different paces. An app's upkeep reads its own folder at the
+reviewed commit (its last change by a person, its human contributors, a
+CHANGELOG of its own) by the same rule below, with releases, CI and issues
+taken from the repo. Bot commits do not count. It says whether people have
+changed the folder lately, not why, so a repo-wide change by a person (a
+license header, a lint pass) counts for every app it touches. An app's upkeep
+is a signal for deployers only; the decision role below stays with the
+repo's.
 
 | Signal | Good Sign | Concern |
 |--------|-----------|---------|

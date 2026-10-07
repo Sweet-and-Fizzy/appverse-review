@@ -107,19 +107,41 @@ Apps in one monorepo can be maintained by different people at different paces,
 so for a **declared monorepo** also assess each app from its own folder. Skip
 this section for a single-app repo.
 
-The CI clone is shallow, so read each app's history from the API, filtered to
-its subpath:
+The CI clone is shallow, so read each app's history from the API: at the
+reviewed commit (`sha=`, not the default branch, which may not have the app
+yet), filtered to the app's subpath (URL-encoded), one page per app:
 
-    gh api 'repos/<owner>/<repo>/commits?path=<subpath>&per_page=1' --jq '.[0].commit.committer.date'
-    gh api 'repos/<owner>/<repo>/commits?path=<subpath>&per_page=100' --jq '[.[] | (.author.login // .commit.author.name)] | unique | length'
+    P=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))' '<subpath>')
+    gh api "repos/<owner>/<repo>/commits?sha=<reviewed sha>&path=$P&per_page=100" > app-commits.json
+
+Commits by bots are not upkeep (dependabot, a CI job, any login ending in
+`[bot]` or author of type `Bot`), so drop them before reading either signal:
+
+    HUMAN='[.[] | select((.author.type // "") != "Bot" and ((.author.login // .commit.author.name // "") | test("\\[bot\\]$") | not))]'
+    jq -r "$HUMAN | .[0].commit.committer.date // empty" app-commits.json          # last human change
+    jq "$HUMAN | map(.author.login // .commit.author.email) | unique | length" app-commits.json   # human contributors
+
+- **No commits at all** (the folder has no history at that commit, or the
+  call failed): leave this app's entry out. Never read an empty answer as
+  "inactive".
+- **Only bot commits:** `active_within_12mo` is `false`; nobody has changed it.
+- **An app at the repo root** (subpath `.` or app_id `root`): leave its entry
+  out. The path filter would return the whole repo's history, which is the
+  repo-level upkeep already.
+- Use each app's `app_id` exactly as the prepared target's app list gives it.
+
+This reads whether people have changed the folder lately, not why: a
+repo-wide change by a person (a license header, a lint pass) counts for every
+app it touches. That is a known limit; say so in the summary when the last
+change is one of those.
 
 Per app:
 
 | Field | Value |
 |---|---|
-| `active_within_12mo` | `true` when the last commit touching the app's subpath is within 12 months |
+| `active_within_12mo` | `true` when the last human commit touching the app's subpath, at the reviewed commit, is within 12 months |
 | `signals.changelog` | `true` when a CHANGELOG (or CHANGES, HISTORY) inside the subpath is present and current; the repo-root CHANGELOG counts only when it has entries for this app |
-| `signals.multiple_contributors` | `true` when more than one author has commits touching the subpath |
+| `signals.multiple_contributors` | `true` when more than one person (bots excluded) has commits touching the subpath |
 | `signals.releases`, `signals.ci`, `signals.issues_responded` | the repo-level values: releases, CI and issues belong to the repo. If tags carry the app's name as a prefix (`jupyter-v1.2`, `jupyter/v1.2`), `releases` is `true` only when this app has one |
 | `summary` | one line, e.g. `Last change 2025-03; one contributor; no CHANGELOG of its own` |
 
@@ -128,7 +150,9 @@ signals = Low, active = Medium, otherwise High); the brand-new-app waiver does
 not apply per app. A quiet app is a signal for deployers, not a finding: file
 no MNT-01 for it, and it does not move the app's decision.
 
-Emit one more fenced JSON block, an entry per app in the orchestrator's order:
+Every value in the block is a JSON `true`, `false` or (for `issues_responded`
+only) `null`, never a string. There is no waiver per app. Emit one more fenced
+JSON block, an entry per app in the orchestrator's order:
 
 ```json
 {

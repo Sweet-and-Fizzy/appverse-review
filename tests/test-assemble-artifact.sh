@@ -756,6 +756,28 @@ check "app without its own assessment: no maintenance indicator" "False" "$(echo
 check "repo upkeep unchanged" "solid" "$(echo "$ART17" | jget "d['repo_level']['indicators']['maintenance']['level']")"
 check "a reported per-app level that disagrees warns" "1" "$(grep -c "app 'quiet': report states maintenance signal 'Low'" "$TMP/warn17.txt")"
 
+# --- Test 17b: a per-app upkeep block must be well-typed, monorepo-only, no waiver ---
+echo ""
+echo "Test 17b: per-app upkeep input checks"
+python3 - "$TMP" << 'PY'
+import json, sys
+tmp = sys.argv[1]
+m = json.load(open(tmp + "/meta-upkeep.json"))
+m["apps"][1]["maintenance_assessment"]["active_within_12mo"] = "false"
+m["apps"][0]["maintenance_assessment"]["waiver_brand_new"] = True
+json.dump(m, open(tmp + "/meta-upkeep-bad.json", "w"))
+m2 = json.load(open(tmp + "/meta-upkeep.json"))
+m2["repo_shape"] = "declared_single"
+json.dump(m2, open(tmp + "/meta-upkeep-single.json", "w"))
+PY
+ART17B=$(python3 "$ASSEMBLE" --meta "$TMP/meta-upkeep-bad.json" --findings "$TMP/findings-upkeep.json" --md "r.md" --plugin-version "0.3.0" 2> "$TMP/warn17b.txt")
+check "string 'false' is refused, not read as active" "False" "$(echo "$ART17B" | jget "'maintenance' in d['apps'][1]['indicators']")"
+check "the refusal warns" "1" "$(grep -c "app 'quiet': maintenance_assessment active_within_12mo is not true or false" "$TMP/warn17b.txt")"
+check "a per-app waiver is ignored" "solid" "$(echo "$ART17B" | jget "d['apps'][0]['indicators']['maintenance']['level']")"
+check "the ignored waiver warns" "1" "$(grep -c "the brand-new waiver does not apply per app" "$TMP/warn17b.txt")"
+ART17C=$(python3 "$ASSEMBLE" --meta "$TMP/meta-upkeep-single.json" --findings "$TMP/findings-upkeep.json" --md "r.md" --plugin-version "0.3.0" 2> "$TMP/warn17c.txt")
+check "outside a declared monorepo there is no per-app upkeep" "False" "$(echo "$ART17C" | jget "'maintenance' in d['apps'][0]['indicators']")"
+
 # --- Test 16: malformed findings.json ---
 echo ""
 echo "Test 16: malformed findings.json"

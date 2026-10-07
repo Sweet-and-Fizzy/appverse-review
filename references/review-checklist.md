@@ -135,8 +135,9 @@ first: the reviewed commit, the version of the review tool, and the disclaimer.
 The report is organized the way the rubric is:
 
 - **Repo-level gate criteria** (pass / fail) and the repo's **Upkeep** signal.
-- Per app: a **Signals** block (Portability, Documentation at Low / Medium /
-  High with an evidence phrase), then the app's **Structure** gate
+- Per app: a **Signals** block (Portability, Documentation and, in a declared
+  monorepo, the app's own Upkeep, at Low / Medium / High with an evidence
+  phrase), then the app's **Structure** gate
   results, then **Security**, **Portability**, **Documentation**, and **Code
   Quality** findings, each with a rule code, severity, and `file:line`.
   Security lists every place in the code the tool was told to check,
