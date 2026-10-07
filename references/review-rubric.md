@@ -20,11 +20,15 @@ this document.
 1. **Gate criteria (pass / fail).** Hard requirements an app must meet to be
    listed. They live in the Structure section. An app that fails one cannot be
    accepted until it is fixed.
-2. **Signals (Low / Medium / High).** A per-dimension reading for a deployer
-   on three axes: Portability, Documentation, and Upkeep. **Low = the
-   good end; High = the most to read before deploying**, on every axis.
-   Signals describe; they never decide. A High signal on its own does not
-   reject an app, and a Low signal does not accept one.
+2. **Signals (levels).** A per-dimension reading for a deployer on three
+   axes, each with its own three level words, from the good end to the end
+   with the most to read before deploying: **Portability** is Portable,
+   Needs site config or Site-specific; **Documentation** is Complete,
+   Adequate or Minimal; **Upkeep** is Well maintained, Active or Inactive.
+   Each axis's section below maps its grades to these words. Signals
+   describe; they never decide. A Site-specific, Minimal or Inactive level
+   on its own does not reject an app, and a Portable, Complete or Well
+   maintained one does not accept it.
 3. **The decision.** Accept, accept with suggestions, request changes, or
    reject, derived from the gate criteria and from properties of individual
    findings. The rules are in the Decision rubric section at the end.
@@ -35,8 +39,9 @@ stating: a fixable High-severity security finding is "request changes", not
 inclusion lands in "accept with suggestions", not "request changes".
 
 **Code Quality** is a fourth kind of content: findings that are neither a gate
-nor a signal. They are reported as findings and the decision rubric sets a
-target for two of them (error handling and input validation).
+nor a signal. They are reported as findings, and they never decide. Two of
+them (error handling and input validation) are strong suggestions; the rest
+are suggestions.
 
 **The README has two roles.** "README present and substantive" is a Structure
 gate (a stub fails). README depth (Minimal / Adequate / Strong / Exemplary)
@@ -46,8 +51,22 @@ Each finding the automated review records carries a rule code (`STR-`, `OODT-`,
 `QUA-`, `MNT-`), a severity, and `file:line` evidence. The severity scale is
 defined in the plugin's `finding-codes.md`. Each finding also carries a
 result: FAIL means the criterion is not met; WARN means the tool could not
-confirm it or the defect is advisory — on a gate row, a WARN is for the
-reviewer to settle in Step 3 of the Process, not an automatic pass.
+confirm it or the defect is advisory; PASS means the check ran and found
+nothing; NOT CHECKED means it could not run. A WARN or NOT CHECKED on a gate
+row is not a pass: the reviewer confirms that row by hand, from the cited
+evidence, before deciding (Reviewer Process, Step 3).
+
+The reviewer can change any of the tool's FAIL or WARN findings on the
+review page: a new severity, higher or lower; "Not a finding", which
+dismisses it; or their own wording of its summary and evidence. A new
+severity or a dismissal needs a reason, given as the finding's note to the
+contributor. The tool's values stay on the record, and the reviewer's
+change applies to that round only. Everything that reads a finding uses the
+reviewer's values: the decision floors, the counts, and the catalog's
+Security count. A dismissed finding counts as no finding. The rule code
+cannot be changed; a finding with the wrong code is dismissed and replaced
+by a reviewer's own. The reviewer can also change a signal level, with a
+reason.
 
 ## Repo shapes
 
@@ -90,7 +109,7 @@ identifiable shape and fails the Structure gate below.
 
 ## Structure (gate criteria)
 
-All of these are gates: every one must pass for the app to be listed. The tool records each as PASS or FAIL; where it could not confirm a row it records WARN or NOT CHECKED, and the reviewer settles that row in Step 3 of the Reviewer Process before deciding (see "How to read this rubric").
+All of these are gates: every one must pass for the app to be listed. The tool records each as PASS or FAIL; where it could not confirm a row it records WARN or NOT CHECKED, and the reviewer confirms that row by hand, checking the cited evidence, before deciding (see "How to read this rubric"). A FAIL on any gate row sets at least Request changes, whatever its severity (see Decision rubric), and is always a fix-item in the feedback to the contributor. A Structure note the tool files as `other:` (something else worth a look) is not a gate row.
 
 ### Repository structure
 
@@ -154,7 +173,9 @@ consistent with the dependency file (`STR-08` if missing or inconsistent).
 Security is a list of **findings**, never a rating. The tool does not assert
 a security level; an app with no FAIL or WARN findings is reported as having
 no tool-detectable issues in the checked tiers, which is not a claim that it
-is safe. Some finding properties feed the decision rubric directly. Every
+is safe. The review page and the catalog show Security as a count of findings
+to review, and as "No findings to review" when there are none; that is never
+a claim of safety either. Some finding properties feed the decision rubric directly. Every
 finding is classified under the OODT taxonomy and rated on the five-level
 severity scale.
 
@@ -307,12 +328,11 @@ in `finding-codes.md`:
 - **Critical** — unfixable without redesigning the feature, or tagged potentially
   malicious (e.g., `curl|bash` on user-supplied URLs). Warrants a Reject
   recommendation.
-- **High** — a real vulnerability, fixable with targeted changes (e.g., CORS open to
-  all origins). Warrants Request changes.
+- **High** — a real vulnerability or gate-criterion failure, fixable with targeted
+  changes (e.g., CORS open to all origins). Warrants Request changes.
 - **Medium** — a genuine concern but lower blast radius or harder to exploit.
 - **Low** — defensive-coding gap or minor hygiene issue.
-- **Info** — positive observations or context (not used for security findings in
-  practice; available for completeness).
+- **Info** — maintenance signals, suggestions, positive observations.
 
 Base the rating on blast radius (cross-user or cross-site outranks self-harm) and how
 easily it is triggered. Tag each finding as **unintentional** or **potentially
@@ -328,10 +348,14 @@ misconfiguration — even High severity, such as CORS open to all origins — po
 "request changes," not "reject." Reserve Critical and Reject for findings tagged
 potentially malicious, or exposures that cannot be fixed without redesigning the app.
 
-> The numeric severity/exploitability scoring, the commit-polling audit pipeline, and
-> the catalog security badges are defined separately, not in this rubric. Both the
-> on-demand skill and that pipeline classify findings with the same OODT taxonomy and
-> pattern checks above.
+> The numeric severity/exploitability scoring and the commit-polling audit pipeline
+> are defined separately, not in this rubric. Both the on-demand skill and that
+> pipeline classify findings with the same OODT taxonomy and pattern checks above.
+
+The catalog shows each listed app's review as four chips: Upkeep,
+Documentation and Portability in the level words this rubric defines, and
+Security as the count of findings to review (FAIL or WARN, after the
+reviewer's changes), or "No findings to review".
 
 ## Portability
 
@@ -343,8 +367,8 @@ How much a deployer at another site has to change before the app runs.
 | **Partially portable** | Some hardcoding, but main config is in form.yml attributes |
 | **Portable** | Every site-specific value is a form attribute, so a site sets it in its own config without editing the repo |
 
-**Portability signal:** Portable = Low; Partially portable = Medium; Not
-portable = High.
+**Portability signal:** Portable is shown as Portable; Partially portable
+as Needs site config; Not portable as Site-specific.
 
 **Target for inclusion:** Partially portable or above. Below the target is
 "accept with suggestions" when the gate criteria pass; suggest the contributor
@@ -383,8 +407,8 @@ should follow the [Appverse README Template](https://github.com/tamu-edu/appvers
 | **Strong** | Above + troubleshooting + screenshots + environment variable docs |
 | **Exemplary** | Above + user-facing info panel + architecture explanation |
 
-**Documentation signal:** Strong or Exemplary = Low; Adequate = Medium;
-Minimal or Below minimal = High.
+**Documentation signal:** Strong or Exemplary is shown as Complete;
+Adequate as Adequate; Minimal, Below minimal, or a stub README as Minimal.
 
 **Evidence:** the rating rests on one evidence line per requirement in the
 table above (what it launches through architecture), each citing the
@@ -411,7 +435,8 @@ for Minimal (both miss the Adequate target). Whether
 a README is a stub is decided once, by the pre-review facts
 (`readme.json` `stub`: fewer than 100 characters of content, or every section body
 template placeholder text with no real text above the first heading), never by the rating: a stub is the Structure
-gate failure (QUA-01 `docs-stub`), not a rating, and the report says
+gate failure (STR-01 `readme-not-substantive`), not a rating. The Documentation side
+records it as QUA-01 `docs-stub`, and the report says
 "Minimal — not supported (stub README; see QUA-01)".
 
 **Target for inclusion:** Adequate or above. Below the target is "accept with
@@ -429,14 +454,16 @@ is the resolution.
 
 ## Code Quality
 
-Findings about how the app is written. They are not a signal and not a gate.
-They are reported with `file:line` evidence, and the decision rubric sets a
-target for the first two.
+Findings about how the app is written. They are not a signal and not a gate,
+and they never set a decision. They are reported with `file:line` evidence.
+The first two are strong suggestions, worded in the feedback as recommended
+rather than optional, since a script that runs on after an error, or a form
+that accepts any value, fails deployers silently. The rest are suggestions.
 
 | Check | Target |
 |-------|--------|
-| Error handling in scripts (`set -e` or explicit checks) (`check: error-handling`) | Target for inclusion |
-| Input validation on form fields (min/max/required) (`check: numeric-field-bounds`) | Target for inclusion |
+| Error handling in scripts (`set -e` or explicit checks) (`check: error-handling`) | Strong suggestion |
+| Input validation on form fields (min/max/required) (`check: numeric-field-bounds`) | Strong suggestion |
 | No undocumented magic numbers or hardcoded literals (resource limits, tunables, ports, hex colors, module versions) without comments (`check: magic-numbers`) | Suggestion |
 | No large blocks of duplicated code (`QUA-09`, `check: duplicated-blocks`) | Suggestion |
 | No commented-out dead code (`check: dead-code`) | Suggestion |
@@ -486,46 +513,61 @@ repo's.
 | CHANGELOG | Present and current | Missing |
 | CI/CD | A CI workflow is present (ideally one that lints shell/ERB or validates the YAML) | None |
 
-**Upkeep signal:** active within 12 months and two or more good-practice
-signals = Low; active within 12 months = Medium; inactive over 12 months =
-High. The good-practice signals are releases, a current CHANGELOG, CI,
-multiple contributors, and responded-to issues. A repo with no open issues is
+**Upkeep signal:** active within 12 months with two or more good-practice
+signals is Well maintained; active within 12 months is Active; inactive over
+12 months (an MNT-01 finding) is Inactive. The good-practice signals are
+releases, a current CHANGELOG, CI, multiple contributors, and responded-to
+issues, and each counts once toward the two. A repo with no open issues is
 neutral on that last signal: it counts neither for nor against, because there
-is no evidence of responsiveness either way.
+is no evidence of responsiveness either way. A brand-new app under the waiver
+below is Active, unless it also has an MNT-01 finding, which makes it
+Inactive.
 
 **Target for inclusion:** active within 12 months. For a brand-new app, waive
-the history requirement and say so in the evidence phrase; the follow-up
-review of brand-new apps will be scheduled by the catalog once reviews are
-stored there, so no manual tracking is needed today.
+the history requirement and say so in the evidence phrase. A follow-up review
+of brand-new apps is not scheduled automatically yet.
 
 **Decision role:** an abandoned or unmaintained repo is a reject trigger.
-Good-practice signals never push the axis down and never fail an app.
+Inactive is not the same as abandoned: an MNT-01 failure at High sets at
+least Request changes, not Reject. Whether a repo is abandoned is the
+reviewer's judgment, for example a repo that is inactive, leaves issues
+unanswered, and has no maintainer who answers at the support URL. An
+archived repo fails the Structure gate instead. Good-practice signals never
+push the axis down and never fail an app.
 
-The other signals — tagged releases, issue responsiveness, contributors, CHANGELOG, CI — are good-practice indicators, not requirements. There is no requirement to cut releases or use versioning; a release is a positive signal that the team follows good practices, and its absence is worth a suggestion, never a failure. CI is the weakest of these for an app repo: most Appverse apps are config-and-template repos with little to test beyond YAML validity and shell/ERB lint, which Appverse Review already checks — so weight a missing CI workflow low.
+The other signals (tagged releases, issue responsiveness, contributors, CHANGELOG, CI) are good-practice indicators, not requirements. There is no requirement to cut releases or use versioning; a release is a positive signal that the team follows good practices, and its absence is worth a suggestion, never a failure. CI is the weakest of these as evidence for an app repo: most Appverse apps are config-and-template repos with little to test beyond YAML validity and shell/ERB lint, which Appverse Review already checks. It still counts once toward the level like the others, but a missing CI workflow is the last suggestion to make and never a reason to hold an app back.
 
 ## Decision rubric
 
 The reviewer's decision. Derived from the gate criteria and from properties of
-individual findings, never from the signal levels.
+individual findings, never from the signal levels. The automated review
+suggests a decision; the reviewer makes it.
 
 | Outcome | Criteria |
 |---------|----------|
-| **Accept** | Passes all gate criteria, adequate+ documentation, partially portable+ config. Always conditional on the duplicate check, which the review performs the catalog reads for but leaves the decision itself to the reviewer — word any Accept as pending that. |
+| **Accept** | Passes all gate criteria, Adequate or Complete documentation, and Portable or Needs site config portability (partially portable or better). Needs the duplicate check recorded for the app. |
 | **Accept with suggestions** | Passes gate criteria but has clear improvement areas — include specific feedback. Below-target docs or portability belongs here, not Request changes, when the gate criteria are otherwise met. |
 | **Request changes** | Missing a gate criterion but fixable — provide specific list of what to address. A missing LICENSE is Request changes: the contributor adds one file. A fixable security misconfiguration, even High severity (e.g. CORS open to all origins), is Request changes, not Reject. |
-| **Reject** | Duplicate app, abandoned/unmaintained, not an OOD app, or a Critical-severity security finding (tagged potentially malicious or unfixable without redesigning the app — see the severity scale in `finding-codes.md`). "Not an OOD app" is a reviewer-only trigger — no automated check produces it. |
+| **Reject** | Duplicate app, abandoned/unmaintained, not an OOD app, or a Critical-severity security finding (tagged potentially malicious or unfixable without redesigning the app — see the severity scale in `finding-codes.md`). "Not an OOD app" is a reviewer-only trigger — no automated check produces it. A duplicate the contributor can make into a meaningfully different approach is Request changes instead. The portal says Decline for this outcome. |
 
 In a monorepo, apply the repo-level criteria and every High or Critical
 security finding to the whole repo first, then decide each app (see Repo
 shapes). A failed Structure gate sets at least Request changes whatever
-severity the finding carries, since every Structure row is a gate.
+severity the finding carries, since every Structure row is a gate; at
+Critical it sets Reject. A Structure note tagged `other:` is not a gate row
+and sets a floor only at High or Critical. A security or upkeep (MNT-01)
+FAIL at High sets at least Request changes and at Critical sets Reject. A
+WARN sets no floor, and a finding the reviewer dismissed sets none; a
+severity the reviewer changed sets the floor at the new severity.
 `check-decisions.py` fails a review whose decisions fall below the floors
 those findings set, or whose recommendation is milder than its strictest
-Per-app decision. Documentation, portability and code-quality
-findings never set a floor.
+Per-app decision, and the review page does not offer a decision below them.
+Documentation, portability and code-quality findings never set a floor.
 
-Any Accept is conditional on the catalog checks (duplicate check, Software
-entry, vocabulary terms). The automated review performs the catalog reads and
+Accepting an app (with or without suggestions) needs its duplicate check
+recorded on the review page; the outcome itself does not limit the decision.
+The Software entry and the vocabulary terms are the reviewer's to settle
+before accepting. The automated review performs the catalog reads and
 records what they returned; the duplicate decision and any Software entry
 creation stay with the reviewer, as the Reviewer Process describes.
 

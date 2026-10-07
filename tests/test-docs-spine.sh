@@ -39,12 +39,15 @@ actual_rubric=$(headings "$RUBRIC")
 echo "Test 3: process doc headings (in order)"
 expected_process="# Appverse Reviewer Process
 ## What a review is, and what we ask of you
+## Who can review
 ## Before you start
 ## Step 1: Gate the app
-## Step 2: Open the review report
+## Step 2: Read the review page
 ## Step 3: Check the findings
 ## Step 4: Curate the feedback
-## Step 5: Decide
+## Step 5: Decide and send
+## After the decision
+## Who sees what, and when
 ## Appendix: Reading the catalog by hand"
 actual_process=$(headings "$PROCESS")
 [ "$actual_process" = "$expected_process" ] && ok "H1/H2 sequence" || { bad "H1/H2 sequence"; diff <(echo "$expected_process") <(echo "$actual_process"); }
@@ -67,7 +70,9 @@ has "$RUBRIC" "GHSA-2cwp-8g29-9q32"                          "advisory reference
 echo "Test 6: three legs and derivation present"
 has "$RUBRIC" "Signals do not gate; the decision rubric does." "gate/signal separation stated"
 has "$RUBRIC" "| **Accept with suggestions** |" "decision table present"
-has "$RUBRIC" "Low = " "Low/High polarity stated"
+has "$RUBRIC" "Portable, Complete or Well" "good end of each axis named in its level words"
+lacks "$RUBRIC" "Low / Medium / High" "rubric has no Low / Medium / High scale"
+lacks "$PROCESS" "Low / Medium / High" "process doc has no Low / Medium / High scale"
 for dim in Portability Documentation Upkeep; do
   has "$RUBRIC" "**$dim signal:**" "$dim derivation line"
 done
@@ -233,7 +238,9 @@ while read -r id weight; do
   [ -n "$id" ] || continue
   case "$weight" in
     target)
-      has "$RUBRIC" "\`check: $id\`) | Target for inclusion |" "$id row: Target for inclusion" ;;
+      # manifest weight "target": a strong suggestion, worded as recommended
+      # in the feedback; it never sets a decision
+      has "$RUBRIC" "\`check: $id\`) | Strong suggestion |" "$id row: Strong suggestion" ;;
     suggestion)
       has "$RUBRIC" "\`check: $id\`) | Suggestion |" "$id row: Suggestion" ;;
     *) bad "$id has a recognised manifest weight (got '$weight')" ;;
