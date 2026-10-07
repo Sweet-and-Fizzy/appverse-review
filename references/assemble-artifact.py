@@ -31,7 +31,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 
 
-SCHEMA_VERSION = "1.2"
+SCHEMA_VERSION = "1.3"
 
 SOLID = "solid"
 SOME_NOTES = "some_notes"
@@ -205,7 +205,10 @@ def derive_grade_indicator(axis, app_id, assessments, app_findings, app_index):
     }
 
 
-def derive_maintenance_indicator(assessment, repo_findings):
+def derive_maintenance_indicator(assessment, repo_findings, anchor=MAINTENANCE_ANCHOR):
+    # The repo's Upkeep, or one app's in a declared monorepo (schema 1.3): an
+    # app's assessment has no waiver and its findings are none, since MNT-
+    # findings are filed at repo level, so its level follows its own activity.
     summary = assessment.get("summary", "")
     stale = any(f.get("rule") == "MNT-01" and _asserted(f) for f in repo_findings)
     waived = bool(assessment.get("waiver_brand_new"))
@@ -229,7 +232,29 @@ def derive_maintenance_indicator(assessment, repo_findings):
         level = SOLID if good_signals >= 2 else SOME_NOTES
     else:
         level = NEEDS_ATTENTION
-    return {"level": level, "summary": summary, "anchor": MAINTENANCE_ANCHOR}
+    return {"level": level, "summary": summary, "anchor": anchor}
+
+
+APP_SIGNALS = ("releases", "changelog", "ci", "multiple_contributors", "issues_responded")
+
+
+def app_maintenance_problem(block):
+    # One app's upkeep feeds a public catalog chip, so a mistyped value must
+    # not pass: "false" as a string would read as active and score solid.
+    if not isinstance(block, dict):
+        return "is not an object"
+    if not isinstance(block.get("active_within_12mo"), bool):
+        return "active_within_12mo is not true or false"
+    signals = block.get("signals")
+    if not isinstance(signals, dict):
+        return "signals is not an object"
+    for key in APP_SIGNALS:
+        value = signals.get(key)
+        if key == "issues_responded" and value is None:
+            continue
+        if not isinstance(value, bool):
+            return "signals.{} is not true or false".format(key)
+    return None
 
 
 def cross_check_reported(scope, reported, indicators):
@@ -301,6 +326,23 @@ def assemble(meta, findings, md_path, pdf_path, html_path, plugin_version):
                 indicator = derive_grade_indicator(axis, app_id, assessments, app_f, app_index)
                 if indicator:
                     indicators[axis] = indicator
+            # A monorepo app's own upkeep, from its folder's activity; it links
+            # to the app's Signals block, where the report states it. Only a
+            # declared monorepo has one, and only well-typed; there is no
+            # waiver per app.
+            app_maintenance = app_meta.get("maintenance_assessment")
+            if app_maintenance is not None:
+                problem = app_maintenance_problem(app_maintenance)
+                if meta.get("repo_shape") != "declared_monorepo":
+                    _warn("app '{}': maintenance_assessment outside a declared monorepo; skipped".format(app_id))
+                elif problem:
+                    _warn("app '{}': maintenance_assessment {}; skipped".format(app_id, problem))
+                else:
+                    if app_maintenance.get("waiver_brand_new"):
+                        _warn("app '{}': the brand-new waiver does not apply per app; ignored".format(app_id))
+                    indicators["maintenance"] = derive_maintenance_indicator(
+                        {k: v for k, v in app_maintenance.items() if k != "waiver_brand_new"},
+                        [], _anchor("signals", app_index))
             cross_check_reported(
                 "app '{}'".format(app_id), app_meta.get("reported_signals"), indicators)
             app_entry["indicators"] = indicators

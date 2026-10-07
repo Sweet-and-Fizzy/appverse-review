@@ -341,7 +341,7 @@ EOF
 ART4=$(python3 "$ASSEMBLE" --meta "$TMP/meta-ind.json" --findings "$TMP/findings-ind.json" --md "r.md" --plugin-version "0.3.0" 2> "$TMP/warn4.txt")
 
 SCHEMA=$(echo "$ART4" | jget "d['schema_version']")
-check "schema_version bumped to 1.2" "1.2" "$SCHEMA"
+check "schema_version is 1.3" "1.3" "$SCHEMA"
 
 NO_SEC=$(echo "$ART4" | jget "'security' in d['apps'][0]['indicators']")
 check "no security indicator (schema 1.2)" "False" "$NO_SEC"
@@ -708,6 +708,75 @@ check "list-shaped reported_signals + null signals: exit 0" "0" "$RC15"
 check "…and the indicators are still derived" "solid" "$(jget "d['apps'][0]['indicators']['portability']['level']" < "$TMP/art15.json")"
 grep -qi "reported_signals" "$TMP/warn15.txt" && SHAPEWARN=yes || SHAPEWARN=no
 check "…and the bad shape is named on stderr" "yes" "$SHAPEWARN"
+
+# --- Test 17: per-app upkeep in a declared monorepo (schema 1.3) ---
+echo ""
+echo "Test 17: per-app upkeep"
+# Each app's own activity sets its upkeep; the repo's stays. An app without a
+# maintenance_assessment has no maintenance indicator, and the level links to
+# the app's Signals block.
+cat > "$TMP/meta-upkeep.json" << 'EOF'
+{
+  "repo_url": "https://github.com/test/mono",
+  "sha": "abc789", "ref": "main",
+  "repo_shape": "declared_monorepo",
+  "not_archived": "pass",
+  "model": "claude-sonnet-4-6",
+  "recommendation": {"decision": "Accept", "note": "Fine."},
+  "maintenance_assessment": {
+    "active_within_12mo": true, "waiver_brand_new": false,
+    "signals": {"releases": true, "changelog": true, "ci": true, "multiple_contributors": true, "issues_responded": null},
+    "summary": "Active, releases, CI"
+  },
+  "apps": [
+    {"app_id": "busy", "name": "Busy", "decision": "Accept",
+     "assessments": {"documentation": "strong", "portability": "portable"},
+     "reported_signals": {"maintenance": "Low"},
+     "maintenance_assessment": {"active_within_12mo": true,
+       "signals": {"releases": true, "changelog": false, "ci": true, "multiple_contributors": true, "issues_responded": null},
+       "summary": "Changed last month; two contributors"}},
+    {"app_id": "quiet", "name": "Quiet", "decision": "Accept",
+     "assessments": {"documentation": "strong", "portability": "portable"},
+     "reported_signals": {"maintenance": "Low"},
+     "maintenance_assessment": {"active_within_12mo": false,
+       "signals": {"releases": true, "changelog": false, "ci": true, "multiple_contributors": false, "issues_responded": null},
+       "summary": "Last change 2023-02"}},
+    {"app_id": "older", "name": "Older", "decision": "Accept",
+     "assessments": {"documentation": "strong", "portability": "portable"}}
+  ]
+}
+EOF
+echo '[]' > "$TMP/findings-upkeep.json"
+ART17=$(python3 "$ASSEMBLE" --meta "$TMP/meta-upkeep.json" --findings "$TMP/findings-upkeep.json" --md "r.md" --plugin-version "0.3.0" 2> "$TMP/warn17.txt")
+check "busy app: its own upkeep is solid" "solid" "$(echo "$ART17" | jget "d['apps'][0]['indicators']['maintenance']['level']")"
+check "busy app: links to its Signals block" "#signals" "$(echo "$ART17" | jget "d['apps'][0]['indicators']['maintenance']['anchor']")"
+check "quiet app: inactive needs attention" "needs_attention" "$(echo "$ART17" | jget "d['apps'][1]['indicators']['maintenance']['level']")"
+check "quiet app: second app's Signals anchor" "#signals-1" "$(echo "$ART17" | jget "d['apps'][1]['indicators']['maintenance']['anchor']")"
+check "app without its own assessment: no maintenance indicator" "False" "$(echo "$ART17" | jget "'maintenance' in d['apps'][2]['indicators']")"
+check "repo upkeep unchanged" "solid" "$(echo "$ART17" | jget "d['repo_level']['indicators']['maintenance']['level']")"
+check "a reported per-app level that disagrees warns" "1" "$(grep -c "app 'quiet': report states maintenance signal 'Low'" "$TMP/warn17.txt")"
+
+# --- Test 17b: a per-app upkeep block must be well-typed, monorepo-only, no waiver ---
+echo ""
+echo "Test 17b: per-app upkeep input checks"
+python3 - "$TMP" << 'PY'
+import json, sys
+tmp = sys.argv[1]
+m = json.load(open(tmp + "/meta-upkeep.json"))
+m["apps"][1]["maintenance_assessment"]["active_within_12mo"] = "false"
+m["apps"][0]["maintenance_assessment"]["waiver_brand_new"] = True
+json.dump(m, open(tmp + "/meta-upkeep-bad.json", "w"))
+m2 = json.load(open(tmp + "/meta-upkeep.json"))
+m2["repo_shape"] = "declared_single"
+json.dump(m2, open(tmp + "/meta-upkeep-single.json", "w"))
+PY
+ART17B=$(python3 "$ASSEMBLE" --meta "$TMP/meta-upkeep-bad.json" --findings "$TMP/findings-upkeep.json" --md "r.md" --plugin-version "0.3.0" 2> "$TMP/warn17b.txt")
+check "string 'false' is refused, not read as active" "False" "$(echo "$ART17B" | jget "'maintenance' in d['apps'][1]['indicators']")"
+check "the refusal warns" "1" "$(grep -c "app 'quiet': maintenance_assessment active_within_12mo is not true or false" "$TMP/warn17b.txt")"
+check "a per-app waiver is ignored" "solid" "$(echo "$ART17B" | jget "d['apps'][0]['indicators']['maintenance']['level']")"
+check "the ignored waiver warns" "1" "$(grep -c "the brand-new waiver does not apply per app" "$TMP/warn17b.txt")"
+ART17C=$(python3 "$ASSEMBLE" --meta "$TMP/meta-upkeep-single.json" --findings "$TMP/findings-upkeep.json" --md "r.md" --plugin-version "0.3.0" 2> "$TMP/warn17c.txt")
+check "outside a declared monorepo there is no per-app upkeep" "False" "$(echo "$ART17C" | jget "'maintenance' in d['apps'][0]['indicators']")"
 
 # --- Test 16: malformed findings.json ---
 echo ""

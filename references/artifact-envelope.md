@@ -51,7 +51,14 @@ the skills that produce them refer here.
       },
       "reported_signals": {
         "portability": "Low | Medium | High",
-        "documentation": "Low | Medium | High"
+        "documentation": "Low | Medium | High",
+        "maintenance": "Low | Medium | High"
+      },
+      "maintenance_assessment": {
+        "active_within_12mo": true,
+        "signals": { "releases": true, "changelog": false, "ci": true,
+                     "multiple_contributors": false, "issues_responded": null },
+        "summary": "one-line evidence phrase"
       }
     }
   ],
@@ -81,6 +88,20 @@ the skills that produce them refer here.
   is no evidence of responsiveness either way, so it counts neither for nor
   against: a quiet repo needs two of the other four signals to reach `solid`.
   `waiver_brand_new` marks an app too new to have a history worth judging.
+- **`apps[].maintenance_assessment`** (1.3, declared monorepos only, from the
+  maintenance aspect's `app_maintenance` block): the same shape for one app,
+  read from the app's own folder (its last commit and contributors, a
+  CHANGELOG inside it), with releases, CI and issues taken from the repo
+  unless tags are per app. It has no waiver (a `waiver_brand_new` is ignored,
+  with a warning), and since MNT- findings are filed at repo level its level
+  follows its activity alone. Every value must be a real boolean (or `null`
+  for `issues_responded`): a mistyped block is skipped with a warning, which
+  `check-meta.py` repeats without failing the run; the app then shows the
+  repo's upkeep. It is read only when `repo_shape` is
+  `declared_monorepo`, and, like the other indicators, only for an app that
+  has `assessments`. Absent for a single-app repo, an app at the repo root, or
+  when the aspect could not read the history; a consumer then shows the
+  repo's upkeep for the app.
 - **`reported_signals`** / **`reported_signal`** are optional: the Low / Medium /
   High levels the report's Signals block states. They are used only to
   cross-check the report against the computed levels and are never copied into
@@ -94,7 +115,7 @@ stderr and still assemble.
 
 ```json
 {
-  "schema_version": "1.2",
+  "schema_version": "1.3",
 
   "reviewed": {
     "repo_url":     "https://github.com/owner/app",
@@ -141,7 +162,8 @@ stderr and still assemble.
       },
       "indicators": {
         "portability":   { "level": "solid", "summary": "All site values in form.yml", "anchor": "#portability" },
-        "documentation": { "level": "some_notes", "summary": "README covers install and config", "anchor": "#documentation" }
+        "documentation": { "level": "some_notes", "summary": "README covers install and config", "anchor": "#documentation" },
+        "maintenance":   { "level": "some_notes", "summary": "Last change 2025-03; one contributor", "anchor": "#signals" }
       }
     }
   ],
@@ -258,7 +280,8 @@ missing key, and the curation form's security level widget should be removed.
   repo-level anchor is `#upkeep` (the report's `## Upkeep` heading). Every app
   section repeats the same headings and pandoc de-duplicates repeats by
   appending `-1`, `-2`, …, so the app at index *n* in `apps[]` gets
-  `#portability-n` (no suffix for the first). This holds under pandoc's
+  `#portability-n` (no suffix for the first). An app's own upkeep (1.3) links
+  to its Signals block the same way: `#signals`, `#signals-1`, … This holds under pandoc's
   `markdown` and `gfm` readers, and rests on two properties of the report: apps
   appear in the same order as in `meta.json`, and every app section includes
   all of the dimension headings.
@@ -293,3 +316,4 @@ tolerate a missing indicator key (see Indicators), so 1.2's removal of
 | 1.0.1 | criteria values gain warn and not_checked; PASS records no longer flip a criterion to fail. |
 | 1.1 | Adds the optional `indicators` on `repo_level` and each `apps[]` entry. |
 | 1.2 | Removes `indicators.security`. Security is the app's OODT- findings in `apps[].findings`; there is no computed security level. |
+| 1.3 | Adds the optional `apps[].indicators.maintenance`: in a declared monorepo, each app's own upkeep from its folder's activity. `repo_level.indicators.maintenance` stays. |
