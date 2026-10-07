@@ -31,7 +31,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 
 
-SCHEMA_VERSION = "1.2"
+SCHEMA_VERSION = "1.3"
 
 SOLID = "solid"
 SOME_NOTES = "some_notes"
@@ -205,7 +205,10 @@ def derive_grade_indicator(axis, app_id, assessments, app_findings, app_index):
     }
 
 
-def derive_maintenance_indicator(assessment, repo_findings):
+def derive_maintenance_indicator(assessment, repo_findings, anchor=MAINTENANCE_ANCHOR):
+    # The repo's Upkeep, or one app's in a declared monorepo (schema 1.3): an
+    # app's assessment has no waiver and its findings are none, since MNT-
+    # findings are filed at repo level, so its level follows its own activity.
     summary = assessment.get("summary", "")
     stale = any(f.get("rule") == "MNT-01" and _asserted(f) for f in repo_findings)
     waived = bool(assessment.get("waiver_brand_new"))
@@ -229,7 +232,7 @@ def derive_maintenance_indicator(assessment, repo_findings):
         level = SOLID if good_signals >= 2 else SOME_NOTES
     else:
         level = NEEDS_ATTENTION
-    return {"level": level, "summary": summary, "anchor": MAINTENANCE_ANCHOR}
+    return {"level": level, "summary": summary, "anchor": anchor}
 
 
 def cross_check_reported(scope, reported, indicators):
@@ -301,6 +304,14 @@ def assemble(meta, findings, md_path, pdf_path, html_path, plugin_version):
                 indicator = derive_grade_indicator(axis, app_id, assessments, app_f, app_index)
                 if indicator:
                     indicators[axis] = indicator
+            # A monorepo app's own upkeep, from its folder's activity; it links
+            # to the app's Signals block, where the report states it.
+            app_maintenance = app_meta.get("maintenance_assessment")
+            if isinstance(app_maintenance, dict):
+                indicators["maintenance"] = derive_maintenance_indicator(
+                    app_maintenance, [], _anchor("signals", app_index))
+            elif app_maintenance is not None:
+                _warn("app '{}': maintenance_assessment is not an object; skipped".format(app_id))
             cross_check_reported(
                 "app '{}'".format(app_id), app_meta.get("reported_signals"), indicators)
             app_entry["indicators"] = indicators

@@ -71,7 +71,8 @@ prompt is:
 > Return your findings as structured finding records (per target-setup.md §4),
 > any prose tables the skill specifies (capability profile, ratings), and any
 > fenced JSON block the skill's Output section specifies (the quality aspect's
-> assessments block, the maintenance aspect's maintenance assessment block).
+> assessments block, the maintenance aspect's maintenance assessment block and,
+> for a declared monorepo, its per-app `app_maintenance` block).
 > Do not make accept or reject judgments.
 
 Only if your tool list has no Agent (or Task) tool at all, run the four
@@ -141,6 +142,7 @@ string; if unavailable, write `unknown`.
 |---|---|---|
 | Portability | Low / Medium / High | <one-line phrase> |
 | Documentation | Low / Medium / High | <one-line phrase> |
+| Upkeep (this app) | Low / Medium / High | <one-line phrase> |
 
 Low means little for a deployer to look at; High means the most to read. A
 signal is not a grade and does not gate listing.
@@ -150,6 +152,10 @@ signal is not a grade and does not gate listing.
      Documentation: Strong/Exemplary = Low; Adequate = Medium; Minimal or Below minimal = High.
      Low = good/low-concern; High = most to read. Never invert; never style High as a hazard.
      Monorepo: one Signals block PER app. No repo-level signal aggregate.
+     Upkeep (this app): declared monorepos only, from the maintenance aspect's
+     app_maintenance entry for this app, by the same rule as the repo's Upkeep
+     row (no waiver). Leave the row out for a single-app repo, or when the
+     aspect gave no app_maintenance block.
      There is no Security signal: security is the findings table below, never a level.
      These are the rules in ${CLAUDE_PLUGIN_ROOT}/references/artifact-envelope.md
      ("Indicators"). assemble-artifact.py computes the same levels from the
@@ -447,7 +453,19 @@ Save to `review-<owner>-<repo>.meta.json`:
       },
       "reported_signals": {
         "portability": "Low | Medium | High",
-        "documentation": "Low | Medium | High"
+        "documentation": "Low | Medium | High",
+        "maintenance": "Low | Medium | High"
+      },
+      "maintenance_assessment": {
+        "active_within_12mo": true,
+        "signals": {
+          "releases": true,
+          "changelog": false,
+          "ci": true,
+          "multiple_contributors": false,
+          "issues_responded": null
+        },
+        "summary": "<one-line evidence phrase>"
       }
     }
   ],
@@ -469,7 +487,11 @@ Save to `review-<owner>-<repo>.meta.json`:
 
 `assessments` is the quality aspect's assessments block for that app and
 `maintenance_assessment` is the maintenance aspect's block — copy each as the
-aspect emitted it, without re-grading. `reported_signals` and `reported_signal`
+aspect emitted it, without re-grading. In a declared monorepo, each app's
+`maintenance_assessment` is its entry from the aspect's `app_maintenance`
+block (without the `app_id`), and `reported_signals.maintenance` is that
+app's Upkeep (this app) row; leave both out for a single-app repo or when the
+aspect gave no `app_maintenance`. `reported_signals` and `reported_signal`
 are the levels you wrote in the report's Signals blocks and Upkeep row. Field
 definitions: `${CLAUDE_PLUGIN_ROOT}/references/artifact-envelope.md`
 ("Indicator inputs"). If an aspect did not run, leave its block out.

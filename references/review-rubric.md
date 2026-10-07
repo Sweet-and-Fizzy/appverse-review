@@ -466,8 +466,12 @@ advise rewording it.
 
 ## Upkeep
 
-Repo-level signals about the project's health. Upkeep is a signal on the repo,
-not on each app.
+Signals about the project's health. Upkeep is a signal on the repo and, in a
+declared monorepo, on each app as well: apps in one repo can be maintained by
+different people at different paces. An app's upkeep reads its own folder (its
+last commit, its contributors, a CHANGELOG of its own) by the same rule below,
+with releases, CI and issues taken from the repo. An app's upkeep is a signal
+for deployers only; the decision role below stays with the repo's.
 
 | Signal | Good Sign | Concern |
 |--------|-----------|---------|
