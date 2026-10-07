@@ -31,6 +31,6 @@
 [meta] MISSING meta field: sha (stamp-meta.py writes it)
 [meta] MISSING meta field: repo_url (stamp-meta.py writes it)
 [meta] meta: 5 problems
-[decisions] decisions: 1 app against 1 High/Critical floor, 0 problems
+[decisions] decisions: 1 app against 1 floor, 0 problems
 [sections] sections: complete
 exit: 1
