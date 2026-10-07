@@ -303,6 +303,13 @@ def normalize_decision(decision_text):
     return mapping.get(decision_text.lower().strip(), decision_text.lower().strip().replace(" ", "_"))
 
 
+def _app_key(app_id):
+    key = str(app_id or "").strip().strip("/")
+    while key.startswith("./"):
+        key = key[2:]
+    return key or "root"
+
+
 def attach_catalog(repo_level, apps, catalog):
     # The pre-review's catalog comparison (catalog.json, schema catalog/1),
     # carried so a consumer can show each check's status rather than parse
@@ -311,12 +318,20 @@ def attach_catalog(repo_level, apps, catalog):
     if not isinstance(catalog, dict) or catalog.get("schema") != "catalog/1":
         _warn("catalog is not a catalog/1 comparison; catalog checks omitted")
         return
-    by_app = {a.get("app_id"): a.get("checks") for a in catalog.get("apps") or []
+    # The pre-review normalises app ids; meta's are written by the model, so
+    # match on the same normal form ("apps/foo/" and "./apps/foo" are one app).
+    by_app = {_app_key(a.get("app_id")): a.get("checks") for a in catalog.get("apps") or []
               if isinstance(a, dict) and isinstance(a.get("checks"), dict)}
+    unmatched = []
     for app in apps:
-        checks = by_app.get(app["app_id"])
+        checks = by_app.get(_app_key(app["app_id"]))
         if checks is not None:
             app["catalog"] = checks
+        else:
+            unmatched.append(app["app_id"])
+    if unmatched and by_app:
+        _warn("catalog has no checks for app(s) {}; their Catalog checks stay the report's text".format(
+            ", ".join("'{}'".format(a) for a in unmatched)))
     repo_level["catalog"] = {
         "source": catalog.get("source", ""),
         "counts": catalog.get("counts", {}),
@@ -418,9 +433,6 @@ def assemble(meta, findings, md_path, pdf_path, html_path, plugin_version, catal
     else:
         _warn("no maintenance_assessment in meta; repo-level indicators omitted")
 
-    if catalog is not None:
-        attach_catalog(repo_level, apps, catalog)
-
     if not apps and app_findings_map:
         for app_id, app_f in app_findings_map.items():
             apps.append({
@@ -429,6 +441,11 @@ def assemble(meta, findings, md_path, pdf_path, html_path, plugin_version, catal
                 "findings": app_f,
                 "criteria": derive_app_criteria(app_f),
             })
+
+    # After the fallback above, so apps assembled from findings alone get
+    # their checks too.
+    if catalog is not None:
+        attach_catalog(repo_level, apps, catalog)
 
     artifact = {
         "schema_version": SCHEMA_VERSION,

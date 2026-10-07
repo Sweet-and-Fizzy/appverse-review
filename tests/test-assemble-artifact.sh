@@ -835,6 +835,21 @@ check "case18b: missing catalog warns" "1" "$(grep -c 'catalog' "$TMP/err18b")"
 echo '{not json' > "$TMP/bad18.json"
 A18C=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result1.json" --md r.md --catalog "$TMP/bad18.json" --plugin-version 0.3.0 2>/dev/null)
 check "case18c: unreadable catalog still assembles" "False" "$(echo "$A18C" | jget "'catalog' in d['apps'][0]")"
+# A monorepo app id written differently in meta still matches; one with no
+# checks in the catalog is named on stderr.
+cat > "$TMP/meta18e.json" << 'EOF'
+{"recommendation": {"decision": "Accept", "note": "x"}, "apps": [{"app_id": "apps/foo/", "name": "Foo"}, {"app_id": "apps/bar", "name": "Bar"}]}
+EOF
+python3 - "$TMP/catalog18.json" "$TMP/catalog18e.json" << 'PY2'
+import json, sys
+c = json.load(open(sys.argv[1]))
+c["apps"][0]["app_id"] = "apps/foo"
+json.dump(c, open(sys.argv[2], "w"))
+PY2
+A18E=$(python3 "$ASSEMBLE" --meta "$TMP/meta18e.json" --md r.md --catalog "$TMP/catalog18e.json" --plugin-version 0.3.0 2>"$TMP/err18e")
+check "case18e: trailing slash still matches" "match" "$(echo "$A18E" | jget "d['apps'][0]['catalog']['software']['status']")"
+check "case18e: the unmatched app has no checks" "False" "$(echo "$A18E" | jget "'catalog' in d['apps'][1]")"
+check "case18e: the unmatched app is named" "1" "$(grep -c "no checks for app(s) 'apps/bar'" "$TMP/err18e")"
 A18D=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result1.json" --md r.md --plugin-version 0.3.0)
 check "case18d: no --catalog, no catalog keys" "False" "$(echo "$A18D" | jget "'catalog' in d['repo_level']")"
 
