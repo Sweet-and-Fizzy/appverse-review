@@ -95,8 +95,9 @@ the skills that produce them refer here.
   unless tags are per app. It has no waiver (a `waiver_brand_new` is ignored,
   with a warning), and since MNT- findings are filed at repo level its level
   follows its activity alone. Every value must be a real boolean (or `null`
-  for `issues_responded`): a mistyped block is skipped with a warning, and
-  `check-meta.py` fails it. It is read only when `repo_shape` is
+  for `issues_responded`): a mistyped block is skipped with a warning, which
+  `check-meta.py` repeats without failing the run; the app then shows the
+  repo's upkeep. It is read only when `repo_shape` is
   `declared_monorepo`, and, like the other indicators, only for an app that
   has `assessments`. Absent for a single-app repo, an app at the repo root, or
   when the aspect could not read the history; a consumer then shows the

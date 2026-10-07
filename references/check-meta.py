@@ -54,6 +54,7 @@ def main(argv):
             problems.append("MISSING meta field: %s (pass, fail or not checked)" % key)
         elif str(v).strip().lower().replace("_", " ") not in ("pass", "fail", "not checked"):
             problems.append("INVALID meta field: %s %r is not pass, fail or not checked" % (key, v))
+    warnings = []
     apps = meta.get("apps")
     if not isinstance(apps, list) or not apps:
         problems.append("MISSING meta field: apps (one entry per app)")
@@ -71,6 +72,8 @@ def main(argv):
                                 "suggestions, Request changes or Reject" % (i, d))
             # An app's own upkeep (schema 1.3) feeds a public catalog chip, so
             # its values must be real booleans: "false" would read as active.
+            # A warning, not a failure: the assembler skips a mistyped block
+            # and the app shows the repo's upkeep, so a run never fails on it.
             am = a.get("maintenance_assessment")
             if am is not None:
                 bad = None
@@ -87,12 +90,15 @@ def main(argv):
                             bad = "signals.%s is not true or false" % key
                             break
                 if bad:
-                    problems.append("INVALID meta field: apps[%d].maintenance_assessment %s" % (i, bad))
+                    warnings.append("WARN meta field: apps[%d].maintenance_assessment %s; the app shows "
+                                    "the repo's upkeep" % (i, bad))
     for key in ("sha", "repo_url"):
         if not meta.get(key):
             problems.append("MISSING meta field: %s (stamp-meta.py writes it)" % key)
     for p in problems:
         print(p)
+    for w in warnings:
+        print(w)
     print("meta: %s" % ("complete" if not problems else "%d problem%s" % (len(problems), "" if len(problems) == 1 else "s")))
     return 1 if problems else 0
 
