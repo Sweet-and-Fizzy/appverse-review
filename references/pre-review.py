@@ -1376,6 +1376,11 @@ def scan_readme(text, placeholders):
 
     rungs = dict((r, None) for r, _ in RUNGS)
     for idx, h in enumerate(headings):
+        # The README's title (its first heading, at level 1) names the app,
+        # not a section: "# Custom Conda Environment" is no Environment
+        # variables section.
+        if idx == 0 and h["level"] == 1:
+            continue
         todo = [r for r in _rungs_for(h["text"]) if rungs[r] is None]
         if not todo:
             continue

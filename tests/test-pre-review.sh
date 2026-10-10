@@ -573,6 +573,12 @@ printf '# App\n\n[![CI](https://img.shields.io/x.svg)](https://ci)\n- a list ite
 check "badge, list and short lines under the H1 are not an intro" "None" "$(rd "$TMP/intro-neg.md" "d['rungs']['what it launches']")"
 printf '# App\n\nLaunches a Jupyter server on a compute node.\n\n## Overview\nMore.\n' > "$TMP/intro-ov.md"
 check "an Overview heading wins over the intro" "Overview|heading" "$(rd "$TMP/intro-ov.md" "'%s|%s' % (d['rungs']['what it launches']['heading'], d['rungs']['what it launches']['match'])")"
+# The README's title names the app, not a section: "# Custom Conda Environment"
+# is not an Environment variables section. A later H1 still can be one.
+printf '# Custom Conda Environment\n\nLaunches Jupyter with a site conda env.\n\n## Installation\nx\n' > "$TMP/title-env.md"
+check "the title is not a section" "None" "$(rd "$TMP/title-env.md" "d['rungs']['environment variables']")"
+printf '# App\n\nIntro text for the app.\n\n# Environment variables\nFOO=1 sets things\n' > "$TMP/h1-env.md"
+check "a later H1 section still counts" "Environment variables" "$(rd "$TMP/h1-env.md" "d['rungs']['environment variables']['heading']")"
 check "no placeholders, screenshots, env_vars" "[]|[]|[]" "$(rd "$R" "'%s|%s|%s' % (d['placeholders'], d['screenshots'], d['env_vars'])")"
 R="$FIX/vnc-stale-debugger/README.md"
 check "vnc headings (a # in a fence is not one)" "1|HPC Debugger|1,2|Overview|6,2|Requirements|11,2|Installation|17,2|Configuration|26" "$(rd "$R" "','.join('%s|%s|%s' % (h['level'], h['text'], h['line']) for h in d['headings'])")"
