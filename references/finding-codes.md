@@ -180,8 +180,11 @@ OODT-XX before hashing.
 (`0.0.0.0`, `::`, `INADDR_ANY`) that answers without authentication. OOD's
 node proxy (`/node/`, `/rnode/`) reaches the service on the compute node, so
 the bind alone is not exposure: a bind whose service requires a password or
-token (OOD's per-session `password`, a `--NotebookApp.token=<%= password %>`,
-a proxy in front that checks a cookie and no direct port) is PASS.
+token is PASS: code-server with `--auth password` and `PASSWORD` exported to
+it, a `--NotebookApp.token="$password"`, a proxy in front that checks a
+cookie and no direct port. The evidence is the line where the service
+consumes the password or token; OOD's per-session `password` generated in
+`before.sh` counts only when the service reads it.
 
 **OODT-06:**
 `missing-cleanenv`, `fakeroot-misuse`, `privileged-container`,

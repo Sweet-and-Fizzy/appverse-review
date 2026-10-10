@@ -125,11 +125,17 @@ candidate sites, not verdicts. Security has no rating: the rows are the output.
      bandit B104) is not a finding by itself: OOD's node proxy reaches the
      service on the compute node, so it must bind a non-loopback interface.
      The finding is a service other users can reach without authentication.
-     PASS when the service requires a password or token (OOD's per-session
-     `password` from `before.sh`, `--NotebookApp.token=<%= password %>`, a
-     proxy in front that checks a cookie with no other port open), naming
-     the line that sets it. FAIL or WARN (OODT-05) when nothing does: no
-     password or token is set, auth is disabled (`--NotebookApp.token=''`,
+     PASS when the service requires a password or token, citing the line
+     where the service consumes it: code-server started with
+     `--auth password` and the `PASSWORD` environment variable exported to
+     it, Jupyter started with `--NotebookApp.token="$password"` (or a
+     config file the launch line loads that sets it), a proxy in front that
+     checks a cookie with no other port open. OOD's per-session `password`
+     generated in `before.sh` is authentication only when the service reads
+     it; the line that generates it is not evidence, and a generated
+     password the launch line never passes on leaves the service open. FAIL
+     or WARN (OODT-05) when nothing does: no password or token reaches the
+     service, auth is disabled (`--NotebookApp.token=''`,
      `--auth none`, `--no-auth`), or the service listens on a port beside an
      authenticating proxy. A `disabled-auth` candidate on the same service
      is its own row; the bind row cites it as the reason.
