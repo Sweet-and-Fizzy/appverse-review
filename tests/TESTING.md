@@ -59,7 +59,7 @@ the skill catches the obvious.
 | 1 | Missing LICENSE | (absent) | Structure | FAIL — STR-01 `missing-license` |
 | 2 | Invalid YAML (unclosed bracket) | `form.yml:3` | Structure | FAIL — STR-03 `yaml-parse-error` — quoted verbatim |
 | 3 | Committed API secret | `template/script.sh.erb:2` | Security | FAIL — OODT-02 `hardcoded-credential`, High |
-| 4 | Service bound to `0.0.0.0` | `template/script.sh.erb:4` | Security | FAIL — OODT-05 `bind-all-interfaces`, Medium–High |
+| 4 | Service bound to `0.0.0.0` with no password or token | `template/script.sh.erb:4` | Security | FAIL — OODT-05 `bind-all-interfaces` (unauthenticated, not the bind itself), Medium–High |
 | 5 | Hardcoded account + partition + absolute path | `submit.yml.erb:5–6`, `template/script.sh.erb:3` | Quality | QUA-02 `hardcoded-account`, `hardcoded-partition`, `hardcoded-path` — Not portable |
 | 6 | Stub README (title + contact only) | `README.md` | Structure + Quality | STR-01 `readme-not-substantive` + QUA-01 `docs-stub` — Minimal |
 
@@ -124,7 +124,11 @@ deeper inspection.
   important finding since it means GPU and hugemem jobs silently get standard
   resources
 - Portability rated "Not portable" due to hardcoded cluster, modules, and paths
-- README rated "Adequate" or better (it has all four required sections)
+- README rated "Minimal", its `readme.json` baseline: Overview
+  (`README.md:6`) and Requirements (`README.md:11`) meet Minimal, and
+  Installation (`README.md:17`) and Configuration (`README.md:26`) are there,
+  but Adequate also needs Known Limitations, which the README lacks, so a
+  higher rating is a check-rating MISMATCH
 
 ---
 
@@ -177,7 +181,7 @@ portability detection, undefined variables, and container-related security.
 | 2 | `${app_port}` undefined in echo statements | `template/after.sh:3,5` | Quality | WARN — QUA-06 `other:undefined-variable` |
 | 3 | Uses `${port}` (correct) for actual check but `${app_port}` (undefined) for logging | `template/after.sh:3–5` | Quality | WARN — QUA-06 `other:variable-inconsistency` |
 | 4 | CORS set to `*` in nginx config | `template/create_nginx_conf.sh.erb:17` | Security | FAIL — OODT-05 `cors-wildcard`, High |
-| 5 | MLflow bound to `0.0.0.0:5000` | `template/script.sh.erb:24` | Security | FAIL — OODT-05 `bind-all-interfaces`, Medium |
+| 5 | MLflow bound to `0.0.0.0:5000` with no authentication, beside the cookie-checking nginx proxy | `template/script.sh.erb:24` | Security | FAIL — OODT-05 `bind-all-interfaces`, Medium |
 | 6 | Hardcoded Singularity image paths (3 locations) | `template/script.sh.erb:4–6`, `template/bin/nginx:2` | Quality | QUA-02 `hardcoded-path` — Not portable |
 | 7 | Hardcoded CSC environment path | `template/before.sh.erb:2` | Quality | QUA-02 `hardcoded-path` — Not portable |
 | 8 | Depends on external functions (`find_port`, `create_passwd`, `singularity_wrapper`) | `template/before.sh.erb:4–5`, `template/script.sh.erb:15,20` | Quality | QUA-02 `site-specific-mixin` — Not portable |
@@ -189,8 +193,10 @@ portability detection, undefined variables, and container-related security.
 - The skill recognizes the nginx reverse proxy architecture and profiles it
   correctly — nginx + MLflow behind it
 - CORS `*` is flagged as a finding, not as a design capability
-- The `0.0.0.0` bind is redundant with the nginx proxy (MLflow should bind to
-  localhost or a Unix socket) — the skill should catch this
+- The `0.0.0.0` bind is a finding because MLflow answers on port 5000 with no
+  authentication, bypassing the nginx cookie check (`create_nginx_conf.sh.erb:10`);
+  a bind alone is not one, since OOD's node proxy needs a non-loopback bind.
+  MLflow should bind to localhost or the Unix socket nginx already proxies
 - Portability rating should be "Not portable" — the app cannot function outside
   the CSC environment
 
@@ -214,14 +220,16 @@ exterior.
 | 4 | Jupyter auth disabled (`--token=''`, `--password=''`) | `template/script.sh.erb:34–35` | Security | FAIL — OODT-05 `disabled-auth`, High |
 | 5 | CORS set to `*` (`--allow_origin='*'`) | `template/script.sh.erb:36` | Security | FAIL — OODT-05 `cors-wildcard`, High |
 | 6 | XSRF protection disabled (`--disable_check_xsrf=True`) | `template/script.sh.erb:37` | Security | FAIL — OODT-05 `disabled-xsrf`, High |
-| 7 | Jupyter bound to `0.0.0.0` | `template/script.sh.erb:32` | Security | FAIL — OODT-05 `bind-all-interfaces`, Medium |
-| 8 | No `set -e` — errors in setup silently ignored | `template/script.sh.erb` | Quality | FAIL — QUA-03 `no-set-e` |
+| 7 | Jupyter bound to `0.0.0.0` with its token and password emptied (defect 4) | `template/script.sh.erb:32` | Security | FAIL — OODT-05 `bind-all-interfaces`, Medium, citing the disabled auth as the reason |
+| 8 | `module load anaconda3/2023.09` runs unchecked (no `\|\| exit`, no `set -e`) — a failed load runs on with the wrong Python | `template/script.sh.erb:4` | Quality | FAIL — QUA-03 `no-error-check` |
 | 9 | Custom PyPI index URL accepted without validation | `form.yml:21–24`, `template/script.sh.erb:19–20` | Security | WARN — OODT-08 `supply-chain-untrusted-index`, Medium |
 
 **Key behavior to verify:**
 
-- Structure checks mostly PASS — README is "Adequate" or "Strong" (has all
-  sections including Known Limitations), LICENSE present, valid YAML
+- Structure checks mostly PASS — README is "Adequate", its `readme.json`
+  baseline (every Minimal and Adequate section, Known Limitations at
+  `README.md:33`; no Troubleshooting or screenshots, so not Strong), LICENSE
+  present, valid YAML
 - Security findings dominate — the curl|bash and eval are critical
 - The skill should recognize that defects 1 and 2 are **potentially malicious**
   patterns, not just misconfiguration — a form field that feeds `curl|bash` is
@@ -276,7 +284,7 @@ categories.
 |--------|-----------|----------|-----------|-----------|-----------|-----------|-------------|
 | **Structure** | FAIL (LICENSE, YAML) | FAIL (metadata) | PASS | FAIL (no form) | WARN (ext attrs) | PASS | PASS |
 | **Security (top severity)** | High (secret, 0.0.0.0) | PASS | PASS | Critical (injection) | High (CORS, 0.0.0.0) | Critical (curl\|bash, eval) | High (secret in one app, decides both) |
-| **Quality** | Minimal docs, Not portable | PASS / mixed | Adequate docs, Not portable, copy-paste artifacts | Below-minimal docs, Not portable | Minimal docs, Not portable | Strong docs, meh quality | PASS |
+| **Quality** | Minimal docs, Not portable | PASS / mixed | Minimal docs (no Known Limitations), Not portable, copy-paste artifacts | Below-minimal docs, Not portable | Minimal docs, Not portable | Adequate docs, meh quality | PASS |
 | **Maintenance** | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED |
 
 | OODT Category | Covered by |
@@ -285,7 +293,7 @@ categories.
 | OODT-02 Credential Exposure | broken-app (committed API key), passenger-flask-app (/tmp tokens), monorepo-shared-risk (committed token in one app of two) |
 | OODT-03 Unauthorized Persistence | (not explicitly planted — stretch goal for future fixtures) |
 | OODT-04 Data Exfiltration | (not explicitly planted) |
-| OODT-05 Network Exposure | broken-app (0.0.0.0), containerized-server (CORS, 0.0.0.0), curl-pipe-installer (CORS, disabled auth, 0.0.0.0) |
+| OODT-05 Network Exposure | broken-app (unauthenticated 0.0.0.0), containerized-server (CORS, unauthenticated 0.0.0.0), curl-pipe-installer (CORS, disabled auth, so its 0.0.0.0 is unauthenticated) |
 | OODT-06 Isolation Weakening | (not explicitly planted) |
 | OODT-07 Resource Abuse | (not explicitly planted) |
 | OODT-08 Supply Chain | curl-pipe-installer (custom PyPI index) |

@@ -22,7 +22,7 @@ Scripts then process these:
 | `assemble-artifact.py` | meta JSON + findings JSON + file paths | **artifact JSON** (this contract) |
 | `check-feedback-floor.py` | findings JSON + report MD | exit status: every Low+ fix-item named in the Draft Feedback (key in `feedback-covers`, file or repo-wide subject named, defect described in the sentence window) |
 | `check-keys.py` | findings JSON (+ target checkout) | exit status: every `defect_key` is `{anchor}:{tag}` with a real or allowed anchor and a vocabulary tag, and a FAIL/WARN record whose evidence cites files cites its anchor file |
-| `check-rating.py` | report MD + findings JSON + pre-review dir | exit status: the rating follows its evidence lines (a ceiling) and the Documentation signal follows the rating; no `content:` line serves two rungs; `Below minimal` needs a QUA-01 `docs-minimal` FAIL record and a README that is not a stub; the stub-README line needs a QUA-01 `docs-stub` FAIL record and `readme.json` `stub` true (with no stub fact, a STR-01 `readme-not-substantive` FAIL record); no suggestion-class check or MNT-02..06 signal is FAIL; the no-tool-detectable-issues sentence never sits under a FAIL/WARN Security row; the repo-level gate table's STR-01 README row is FAIL iff `readme.json`'s `stub` is true; exit 2 when `checks.json` cannot be read |
+| `check-rating.py` | report MD + findings JSON + pre-review dir | exit status: the rating follows its evidence lines (a ceiling); with `readme.json` `rungs`, a rating below `baseline_rating` carries `(lowered from <baseline>: <reason>)` on its rating line and a rating above it rests only on `content:` lines for the requirements the facts miss; and the Documentation signal follows the rating; no `content:` line serves two rungs; `Below minimal` needs a QUA-01 `docs-minimal` FAIL record and a README that is not a stub; the stub-README line needs a QUA-01 `docs-stub` FAIL record and `readme.json` `stub` true (with no stub fact, a STR-01 `readme-not-substantive` FAIL record); no suggestion-class check or MNT-02..06 signal is FAIL, or FAIL/WARN rated above info; the no-tool-detectable-issues sentence never sits under a FAIL/WARN Security row; the repo-level gate table's STR-01 README row is FAIL iff `readme.json`'s `stub` is true; exit 2 when `checks.json` cannot be read |
 | `compare-runs.py` | findings JSON + report MD + pre-review facts, two or more runs | pairwise Jaccard of fix-item keys, and a per-candidate table: each run's verdict (F/W/P/- with severity) from the report row of the candidate's check, recorded (FAIL or WARN) in n of N, answered in n of N; Jaccard only when no run has fact files |
 | `check-rows.py` | report MD + findings JSON + checks JSON + pre-review dir | exit status: every applicable manifest check has a row, and every pre-review candidate is cited (`MISSING`/`UNCITED` lines) |
 | `check-evidence.py` | findings JSON (+ target checkout, report MD, pre-review dir) | exit status: every finding's `file:line` evidence citation names a real file and an in-range line (`BAD` lines), and every `content: README.md:N` citation names a README content line; a literal value the summary asserts but the cited line lacks is a `NOTE` line that does not change the exit status |
@@ -198,6 +198,22 @@ stderr and still assemble.
 - **`apps[].findings`** contains structure, OODT (security), and quality
   findings, filtered by `app_id`. There is no security indicator; a consumer
   reads security from these records directly (see Indicators below).
+- **`path_class`** (1.6, optional, on any finding) is `"outside_install"`
+  when every path the finding's evidence mentions sits under a directory a
+  site does not install or run: `demo/`, `docs/`, `example/`, `examples/`,
+  `test/` or `tests/`, at any depth and in any case. The paths are those in
+  the evidence before any `; reviewed OK:`: its `path:N` citations and its
+  bare paths alike (a relative path with a `/`, such as `docs/install.md` or
+  `tests/`, or a backticked file name such as `` `form.yml` ``; URLs and
+  absolute paths are not repo paths). Each path is classified relative to
+  the finding's app folder: for an `app_id` other than `root` the app's
+  subpath is stripped first, so an app that lives under `examples/` is not
+  marked as a whole, while `examples/app/tests/x.sh` still is. One installed
+  path among them leaves the finding unmarked. `assemble-artifact.py` sets it
+  from the evidence alone and drops any value the model wrote; a finding
+  mentioning no path has no `path_class`. The finding still counts in
+  criteria, floors and totals: the mark tells the reviewer it is outside
+  what a site installs, and the reviewer decides whether to dismiss it.
 - **`artifacts`** holds filenames, not paths. The reports travel beside the
   artifact; the directory they were written to during the run is dropped.
 - **`apps[].catalog`** (1.5, optional) is the app's catalog comparison from
@@ -205,7 +221,8 @@ stderr and still assemble.
   `--catalog`: `software` (`status` `match` with the `entry`, `no_match`
   with the `closest` entry name or null, `not_declared`, `inferred`,
   `unparsed`), `app_type` (`known`, `unknown`, `not_declared`, `inferred`,
-  `unparsed`, with the `value`), `implementation_tags` (`declared`, `known`,
+  `unparsed`, with the `value`; since 1.6 an `unknown` one adds `closest`,
+  the vocabulary terms it most likely meant, a list that may be empty), `implementation_tags` (`declared`, `known`,
   `unknown`, `note`), and `same_software_apps` (each published app with the
   same Software entry: `title`, `github_url`, `subpath`, `this_repo`).
   **`repo_level.catalog`** is where it was read from: `source`, `counts`
@@ -336,3 +353,4 @@ tolerate a missing indicator key (see Indicators), so 1.2's removal of
 | 1.3 | Adds the optional `apps[].indicators.maintenance`: in a declared monorepo, each app's own upkeep from its folder's activity. `repo_level.indicators.maintenance` stays. |
 | 1.4 | Adds the optional `apps[].criteria.template_syntax`, from STR-05 and STR-06 rows. Before 1.4 an STR-06 result counted under `structure`, so a shell syntax error read as a layout failure. |
 | 1.5 | Adds the optional `apps[].catalog` and `repo_level.catalog`: the pre-review's catalog comparison, so a consumer can show each check's status rather than parse the report's Catalog checks prose. |
+| 1.6 | Adds the optional finding field `path_class` (`outside_install` for findings whose every mentioned path, relative to the app's folder, is in a demo, docs, example or test directory), and `closest` (a list) on an `unknown` `apps[].catalog.app_type`. Both are additive; findings are not filtered. |

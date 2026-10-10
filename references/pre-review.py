@@ -32,7 +32,17 @@ the per-app dirs named in the previous apps.json are removed first):
                  when there is no bash, with every file ok false and the
                  reason in stderr. Under a bash older than 4 a failure's
                  stderr starts "bash <ver> rejected this file (may be valid
-                 on bash >= 4): ".
+                 on bash >= 4): ". erb_control_line (int or null): for a
+                 .sh.erb that failed, the line of the nearest ERB control
+                 tag (if, elsif, else, unless, end, case, when, a do or {
+                 block, ...) within ERB_CONTROL_WINDOW (3) lines of the line
+                 bash reported; stripping both branches of a conditional
+                 can leave an orphan (a stray `|& tee` after an if/else
+                 whose branches each end in a line continuation), so such
+                 a failure may be an artefact of stripping. null otherwise,
+                 and always null for an end-of-file error (unexpected end
+                 of file / EOF: a missing fi/done/esac or an unterminated
+                 quote), which no stripping causes.
   shellcheck.json  shellcheck's objects concatenated across files, "file" set
                  to the repo-relative source path (.sh.erb scanned stripped).
   semgrep.json, bandit.json, trivy.json  the tool's own JSON, verbatim.
@@ -65,18 +75,32 @@ the per-app dirs named in the previous apps.json are removed first):
                  [{line, alt, target}] (image links outside code fences;
                  badge images excluded), env_vars [{line, text, match}]
                  (match heading | assignment ([A-Z_]{3,}=) | phrase
-                 ("environment variable")), rungs {what it launches,
+                 ("environment variable(s)" or "env var(s)", not when the
+                 sentence says there are none: "No environment variables
+                 are needed")), rungs {what it launches,
                  prerequisites, installation, configuration, known
                  limitations, troubleshooting, screenshots, environment
                  variables, info panel, architecture: {heading, line,
                  placeholder, match} or null}, stub, content_line_count,
-                 content_chars}.
+                 content_chars, baseline_rating}.
+                 baseline_rating is the Documentation rating these facts
+                 support (readme_lines.baseline_rating): the highest rung
+                 whose requirements, and every lower rung's, are met by a
+                 non-placeholder rungs entry (screenshots: or a screenshots
+                 entry; environment variables: or an env_vars assignment or
+                 phrase), else "Below minimal". The quality skill starts
+                 from it and may lower it only with a stated reason;
+                 check-rating.py enforces both directions.
                  A rung is the first heading whose
                  words contain one of its synonyms (RUNGS); one heading can
                  satisfy several rungs; placeholder is true when
                  the heading or every content line of its section (to the
                  next heading of the same or a higher level; HTML comments
-                 and fence markers are not content) is a placeholder line.
+                 and fence markers are not content) is a placeholder line;
+                 for environment variables, also when every content line
+                 only says there are none ("None.", "No environment
+                 variables are needed"). "environment" alone is not the
+                 environment variables rung, nor "defaults" prerequisites.
                  Headings inside code fences or HTML comments are ignored.
                  match is "heading", except that with no Overview-type
                  heading, the first descriptive paragraph (four or more
@@ -255,6 +279,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from readme_lines import (  # noqa: E402,F401  (re-exported for check-evidence and tests)
     PlaceholdersMissing, CONTACT_LINE, PLACEHOLDERS_FILE, _markdown_lines, _read, _readme_parse, load_placeholders, readme_line_kinds,
+    baseline_rating,
 )
 import catalog_facts  # noqa: E402
 
@@ -268,6 +293,21 @@ MAX_SHELL_BYTES = 1024 * 1024
 NO_FILES = "no applicable files"
 TOO_LARGE = "skipped: file larger than 1 MB"
 ERB_LITERAL = "\x00ERB-LITERAL\x00"
+# A bash -n failure in an ERB-stripped file this many lines or fewer from a
+# stripped ERB control tag may be an orphan the stripping left (both branches
+# of an if/else stripped together), not an error in any rendered template.
+# 3 covers the orphan on the line after an <% end %> and a continued command
+# or blank lines between; further away the tag cannot be the cause.
+ERB_CONTROL_WINDOW = 3
+ERB_CODE_TAG = re.compile(r"<%(?![%=#])-?(.*?)-?%>", re.S)
+ERB_CONTROL = re.compile(
+    r"^\s*(if|elsif|else|unless|end|case|when|while|until|for|begin|rescue|ensure)\b"
+    r"|\bdo\s*(\|[^|]*\|)?\s*$|\{\s*(\|[^|]*\|)?\s*$|^\s*\}", re.S)
+BASH_LINE = re.compile(r": line (\d+):")
+# bash reports an unclosed construct (missing fi/done/esac, an unterminated
+# quote) at end of file, which is often right after a trailing <% end %>.
+# That is a real error in every rendered template, so it is never excused.
+BASH_EOF_ERROR = re.compile(r"unexpected (end of file|EOF)")
 SEMGREP_RULESETS = "rulesets p/security-audit, p/secrets"
 SEMGREP_NOTE = ("files_examined is the tree size; semgrep applies its own ignore list "
                 "(tests/, vendored dirs)")
@@ -516,6 +556,32 @@ def _stripped_copy(target, out, rel):
     return dst
 
 
+def erb_control_lines(text):
+    """Line numbers (1-based) spanned by ERB control tags in text: a <% %>
+    (not <%= or <%#) whose code opens, continues or closes a block."""
+    text = text.replace("<%%", ERB_LITERAL)
+    lines = set()
+    for m in ERB_CODE_TAG.finditer(text):
+        if ERB_CONTROL.search(m.group(1).strip()):
+            first = text.count("\n", 0, m.start()) + 1
+            lines.update(range(first, first + m.group(0).count("\n") + 1))
+    return lines
+
+
+def near_erb_control(stderr, control_lines):
+    """The control-tag line nearest the first `line N` in a bash -n stderr,
+    when it is within ERB_CONTROL_WINDOW lines; else None. None for an
+    end-of-file error (an unclosed if/loop/case or quote), whatever its line."""
+    if BASH_EOF_ERROR.search(stderr or ""):
+        return None
+    m = BASH_LINE.search(stderr or "")
+    if not m or not control_lines:
+        return None
+    n = int(m.group(1))
+    best = min(control_lines, key=lambda c: (abs(c - n), c))
+    return best if abs(best - n) <= ERB_CONTROL_WINDOW else None
+
+
 def _bash_major(bash):
     """(major, version string) from `bash --version`; (None, '') if unreadable."""
     rc, out, err, error = run([bash, "--version"], timeout=60)
@@ -542,6 +608,8 @@ def check_syntax(target, out):
 
     def write(entries):
         entries = sorted(entries, key=lambda e: e["path"])
+        for e in entries:
+            e.setdefault("erb_control_line", None)
         _write_json(out, "syntax.json", [{k: v for k, v in e.items() if k != "_scan"} for e in entries])
         return entries
 
@@ -582,8 +650,13 @@ def check_syntax(target, out):
             ok, stderr = rc == 0, err.replace(scan, rel)
             if old_bash and not ok:
                 stderr = old_prefix + stderr
+        control = None
+        if stripped and not ok and not error:
+            with open(os.path.join(target, rel), encoding="utf-8", errors="surrogateescape") as f:
+                control = near_erb_control(stderr, erb_control_lines(f.read()))
         entries.append({"path": rel, "stripped": stripped, "ok": ok,
-                        "stderr": stderr[:STDERR_CHARS], "_scan": scan})
+                        "stderr": stderr[:STDERR_CHARS], "erb_control_line": control,
+                        "_scan": scan})
     entries = write(entries + refused)
     failed = sum(1 for e in entries if e["path"] in checked and not e["ok"])
     notes = []
@@ -761,7 +834,7 @@ def check_trivy(target, out):
 RUNGS = (
     ("what it launches", ("overview", "about", "description")),
     ("prerequisites", ("requirements", "requirement", "prerequisites", "prerequisite", "dependencies",
-                       "defaults", "getting started")),
+                       "getting started")),
     ("installation", ("install", "installation", "installing", "setup", "set up", "deploy",
                       "deployment", "deploying")),
     ("configuration", ("configuration", "configure", "configuring", "customize", "customization",
@@ -769,10 +842,23 @@ RUNGS = (
     ("known limitations", ("known limitations", "limitations", "caveats", "known issues")),
     ("troubleshooting", ("troubleshooting", "faq", "common problems")),
     ("screenshots", ("screenshots", "screenshot")),
-    ("environment variables", ("environment variables", "environment variable", "environment")),
+    # Not "environment" alone: a "Conda environment" or "Software
+    # environment" section is not environment variables.
+    ("environment variables", ("environment variables", "environment variable", "env vars", "env var",
+                               "env variables", "env variable")),
     ("info panel", ("info panel",)),
     ("architecture", ("architecture", "how it works")),
 )
+# An environment-variable mention in README prose (env_vars "phrase").
+ENV_PHRASE = re.compile(r"\b(?:environment|env)[ \t]+var(?:iable)?s?\b", re.I)
+# A mention that says there are none ("No environment variables are
+# needed", "does not use any env vars", "Environment variables: none") is
+# not content: a negation in the three words before the phrase, or "none",
+# "not" or "n't" right after it.
+ENV_NEGATION_BEFORE = re.compile(r"^(?:no|not|none|never|without|nothing)$|n't$", re.I)
+ENV_NEGATION_AFTER = re.compile(r"^\W*(?:(?:are|is)\s+)?(?:none|not\b|n't|\w+n't\b)", re.I)
+# A line that only says there is nothing: "None.", "N/A", "Nothing yet."
+NOTHING_LINE = re.compile(r"^\W*(?:none|n/?a|nothing)\b[\w\s]{0,12}\W*$", re.I)
 # readme.json "stub": fewer content characters than this (the sum of the
 # stripped lengths of the lines readme_line_kinds calls "content"), or every
 # section body placeholder text. Characters, not lines, so the verdict does
@@ -1284,6 +1370,21 @@ def _rungs_for(text):
     return [rung for rung, synonyms in RUNGS if any(" " + s + " " in words for s in synonyms)]
 
 
+def _env_mention(line):
+    """True when line mentions environment variables and does not say there
+    are none."""
+    for m in ENV_PHRASE.finditer(line):
+        before = re.split(r"[.;!?]", line[:m.start()])[-1]
+        words = re.findall(r"[\w']+", before)[-3:]
+        if any(ENV_NEGATION_BEFORE.search(w) for w in words):
+            continue
+        after = re.split(r"[.;!?]", line[m.end():])[0]
+        if ENV_NEGATION_AFTER.search(after):
+            continue
+        return True
+    return False
+
+
 def _stub(headings, kinds, lines, phrase_of):
     """(stub, content_line_count, content_chars): stub when the content
     lines hold fewer than STUB_CONTENT_CHARS characters (each line's
@@ -1319,6 +1420,11 @@ def scan_readme(text, placeholders):
 
     rungs = dict((r, None) for r, _ in RUNGS)
     for idx, h in enumerate(headings):
+        # The README's title (its first heading, at level 1) names the app,
+        # not a section: "# Custom Conda Environment" is no Environment
+        # variables section.
+        if idx == 0 and h["level"] == 1:
+            continue
         todo = [r for r in _rungs_for(h["text"]) if rungs[r] is None]
         if not todo:
             continue
@@ -1329,7 +1435,13 @@ def scan_readme(text, placeholders):
                    and not re.match(r"^ {0,3}(`{3,}|~{3,})", lines[n - 1])]
         placeholder = bool(phrase_of(h["text"])) or all(n in placeholder_lines for n in content)
         for rung in todo:
-            rungs[rung] = {"heading": h["text"], "line": h["line"], "placeholder": placeholder,
+            # An Environment variables section that only says there are none
+            # documents nothing.
+            empty = rung == "environment variables" and all(
+                n in placeholder_lines or NOTHING_LINE.match(lines[n - 1].strip(" -*>|`"))
+                or (ENV_PHRASE.search(lines[n - 1]) and not _env_mention(lines[n - 1]))
+                for n in content)
+            rungs[rung] = {"heading": h["text"], "line": h["line"], "placeholder": placeholder or empty,
                            "match": "heading"}
     # No Overview-type heading: a descriptive paragraph directly under the H1,
     # before the next heading, says what the app launches.
@@ -1368,12 +1480,14 @@ def scan_readme(text, placeholders):
             continue
         if re.search(r"[A-Z_]{3,}=", line):
             env_vars.append({"line": i + 1, "text": line.strip(), "match": "assignment"})
-        elif "environment variable" in line.lower():
+        elif _env_mention(line):
             env_vars.append({"line": i + 1, "text": line.strip(), "match": "phrase"})
 
-    return {"headings": headings, "placeholders": placeholder_rows, "screenshots": screenshots,
-            "env_vars": env_vars, "rungs": rungs, "stub": stub,
-            "content_line_count": content_line_count, "content_chars": content_chars}
+    facts = {"headings": headings, "placeholders": placeholder_rows, "screenshots": screenshots,
+             "env_vars": env_vars, "rungs": rungs, "stub": stub,
+             "content_line_count": content_line_count, "content_chars": content_chars}
+    facts["baseline_rating"] = baseline_rating(facts)
+    return facts
 
 
 def _attr_lines(text):
@@ -2191,7 +2305,8 @@ CONFIG_FLAGS = [
     (re.compile(r"(?<![\d.])0\.0\.0\.0(?![\d.])|\bINADDR_ANY\b|\[::\]"
                 r"|(?:--(?:host|ip|bind|listen|address)[= ]\s*|\bhost\s*[=:]\s*|\bbind\s*[=:(]\s*)"
                 r"[\"'\[]*::\]?(?![\w:.])|\b(?:listen|bind|serve)\s*\([^)]*[\"']::[\"']"),
-     "OODT-05", "bind-all-interfaces", "binds all interfaces", False),
+     "OODT-05", "bind-all-interfaces", "binds all interfaces; OOD's node proxy needs a non-loopback "
+     "bind, so this is a finding only when the service has no authentication", False),
     (re.compile(r"(?i)Access-Control-Allow-Origin[\"']?\s*[:,]?\s*[\"']?\*|\ballow_origin\s*=\s*[\"']\*"
                 r"|\b(?:origins?|allow_origins?|cors_origins?|cors_allowed_origins)\s*[:=]\s*\[?\s*[\"']\*[\"']"
                 r"|\bCORS_(?:ORIGIN_ALLOW_ALL|ALLOW_ALL_ORIGINS)\s*=\s*True|\bCORS\(\s*app\s*\)|\bcors\(\s*\)"),

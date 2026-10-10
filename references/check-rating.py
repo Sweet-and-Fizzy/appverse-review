@@ -7,8 +7,8 @@ Per "## App:" section:
   1. The Documentation rating may not exceed the highest rung whose
      requirements, and every lower rung's, all have non-"none" evidence lines.
      This is a ceiling, not an equality: a rating below the highest
-     supported rung (the reviewer judged a cited line thin) is not flagged,
-     since the evidence lines support at least that much.
+     supported rung is not flagged here, since the evidence lines support
+     at least that much; rule 6 judges a rating below the facts' baseline.
      Evidence of the form `content: README.md:N` (a rung met by a cited
      content line rather than a matching heading) is non-"none" like any
      other citation; check-evidence.py verifies that line N is a content
@@ -57,7 +57,16 @@ Rule 2 still applies (Minimal maps to High).
      correctness defect, beside the icon check's `icon-os-mismatch`) does
      not match. A maintenance record matches when
      its rule is one of MNT-02 through MNT-06 (MNT-01, activity, is a real
-     failure and is untouched). When checks.json cannot be read, is not
+     failure and is untouched). A suggestion-class record whose result is
+     FAIL or WARN and whose severity is above info (low, medium, high,
+     critical) is also a mismatch, `MISMATCH <app> <rule> <defect_key>:
+     suggestion (check <id>) rated <severity>; suggestions are info`:
+     suggestion checks carry `default_severity: info` in checks.json, and
+     a suggestion at Low or above would be a fix-item the contributor is
+     told to fix. A suggestion FAIL rated low gets both lines. The same
+     holds for an MNT-02..MNT-06 FAIL or WARN rated above info,
+     `MISMATCH <app> <rule> <defect_key>: good-practice signal rated
+     <severity>; good-practice signals are info`. When checks.json cannot be read, is not
      JSON or has no checks list, the script exits 2 with `error: cannot
      load references/checks.json (<reason>)` rather than skip the rule.
      This rule is general — it is not keyed to any particular app or run.
@@ -93,6 +102,30 @@ Rule 2 still applies (Minimal maps to High).
      exception (above) does. This rule is general — it is not keyed to any
      particular app or run.
 
+  6. With a pre-review directory whose <app_id>/readme.json has `rungs`
+     and is not a stub, the rating starts from the facts' baseline
+     (readme_lines.baseline_rating, the highest rung whose requirements and
+     every lower rung's the facts meet; the pre-review writes it as
+     readme.json `baseline_rating`). The checker computes it from `rungs`,
+     `screenshots` and `env_vars`, so facts written before that key are
+     read the same way.
+     - A rating below the baseline (Below minimal counts as lowest) must
+       carry `(lowered from <baseline>: <reason>)` on its rating line, the
+       reason non-empty: without it `MISMATCH <app> documentation: rated
+       <r> below the readme.json baseline <b> with no reason ...`; naming a
+       rung other than the baseline is `... lowered from <x> but the
+       readme.json baseline is <b>`.
+     - A lowering clause on a rating at or above the baseline is a
+       mismatch (`... rated <r> with a lowering clause ...`).
+     - A rating above the baseline is a mismatch unless every requirement
+       between the baseline and the claimed rung that the facts do not meet
+       is cited as `content: <path>:N` (check-evidence.py verifies that
+       line): `... rated <r> above the readme.json baseline <b>; '<req>' is
+       not met in readme.json and its evidence is not a content: line`.
+     Rule 6 runs only when rule 1 passed for the app (one rating line per
+     app) and never for the stub line. Without a pre-review directory, or
+     with a readme.json that has no `rungs`, it does nothing.
+
 Every MISMATCH line that names an app uses its pre-review directory name
 (fact_app_id: "root" for a single app with no id or "."), so the same app
 reads the same in every line.
@@ -119,22 +152,25 @@ from report_parse import (  # noqa: E402
     MALFORMED,
     app_sections as _app_sections, header_name, is_separator, normalize_result, split_row,
 )
+from readme_lines import BELOW_MINIMAL, DOC_LADDER, baseline_rating, facts_meet  # noqa: E402
 
 GOOD_PRACTICE_RULES = {"MNT-02", "MNT-03", "MNT-04", "MNT-05", "MNT-06"}
+# Severities above info: a suggestion-class record rated one of these is a
+# fix-item (check-feedback-floor.py), which a suggestion must never be.
+ABOVE_INFO = {"critical", "high", "medium", "low"}
 
 SECURITY_CLAIM_SENTENCE = "No tool-detectable issues in the checked tiers."
 
-RUNGS = [
-    ("Minimal", ["what it launches", "prerequisites"]),
-    ("Adequate", ["installation", "configuration", "known limitations"]),
-    ("Strong", ["troubleshooting", "screenshots", "environment variables"]),
-    ("Exemplary", ["info panel", "architecture"]),
-]
+RUNGS = DOC_LADDER
 RATING_ORDER = [r for r, _ in RUNGS]
-BELOW_MINIMAL = "Below minimal"
 DOC_SIGNAL = {BELOW_MINIMAL: "High", "Minimal": "High", "Adequate": "Medium", "Strong": "Low",
               "Exemplary": "Low"}
-RATING_RE = re.compile(r"Rating:\s*\**\s*((?i:below\s+minimal)|Minimal|Adequate|Strong|Exemplary)")
+# The lowering clause on the rating line: `(lowered from <baseline>: <reason>)`.
+# Reports bold rating words, so emphasis around the baseline or the colon
+# is allowed: `(lowered from **Strong**: ...)`, `(lowered from **Strong:** ...)`.
+LOWERED_RE = re.compile(r"\(\s*[*_]*\s*lowered from\s+[*_]*\s*((?i:below\s+minimal)|Minimal|Adequate|Strong|Exemplary)"
+                        r"\s*[*_]*\s*:\s*[*_]*\s*([^)]*?)\s*\)", re.I)
+RATING_RE = re.compile(r"Rating:[\s*_]*((?i:below\s+minimal)|Minimal|Adequate|Strong|Exemplary)")
 STUB_NOT_STUB = "stub rating but readme.json says the README is not a stub"
 STUB_NO_RECORD = "stub rating but no STR-01 readme-not-substantive FAIL record and no readme.json stub fact"
 BELOW_NO_RECORD = "Below minimal rating but no QUA-01 docs-minimal FAIL record"
@@ -251,10 +287,10 @@ def fact_app_id(app_id):
     return "root" if app_id in (None, "", ".") else app_id
 
 
-def readme_stub_fact(pre_review_dir, app_id):
-    """readme.json's `stub` for the app: True/False, or None when there is
-    no directory, no readme.json, or no `stub` key. Raises ValueError when
-    the file exists but is not a JSON object."""
+def readme_facts(pre_review_dir, app_id):
+    """The app's readme.json as a dict, or None when there is no directory
+    or no readme.json. Raises ValueError when the file exists but is not a
+    JSON object."""
     if not pre_review_dir:
         return None
     path = os.path.join(pre_review_dir, fact_app_id(app_id), "readme.json")
@@ -267,6 +303,16 @@ def readme_stub_fact(pre_review_dir, app_id):
         raise ValueError("{}: {}".format(path, e))
     if not isinstance(data, dict):
         raise ValueError("{}: not a JSON object".format(path))
+    return data
+
+
+def readme_stub_fact(pre_review_dir, app_id):
+    """readme.json's `stub` for the app: True/False, or None when there is
+    no directory, no readme.json, or no `stub` key. Raises ValueError when
+    the file exists but is not a JSON object."""
+    data = readme_facts(pre_review_dir, app_id)
+    if data is None:
+        return None
     stub = data.get("stub")
     return stub if isinstance(stub, bool) else None
 
@@ -284,6 +330,57 @@ def stub_problem(findings, app_id, single, pre_review_dir):
     if has_record(findings, "STR-01", "readme-not-substantive", ("FAIL",), ids, True):
         return None
     return STUB_NO_RECORD
+
+
+def rating_rank(rating):
+    """Position on the ladder, Below minimal lowest."""
+    return -1 if rating == BELOW_MINIMAL else RATING_ORDER.index(rating)
+
+
+def canonical_rating(text):
+    low = " ".join(text.lower().split())
+    return BELOW_MINIMAL if low == "below minimal" else low.capitalize()
+
+
+def baseline_mismatch(app, rating, rating_line, evidence, facts):
+    """The MISMATCH line (or None) for rule 6, the rating against the
+    facts' baseline (readme_lines.baseline_rating). A rating below the
+    baseline needs `(lowered from <baseline>: <reason>)` on its rating
+    line, naming the baseline and giving a reason; a lowering clause on a
+    rating that is not below the baseline is a mismatch too. A rating
+    above the baseline is a mismatch unless every requirement up to it
+    that the facts do not meet is cited as a `content: <path>:N` line (a
+    line the README delivers the rung on outside its own heading)."""
+    baseline = baseline_rating(facts)
+    if baseline is None:
+        return None
+    m = LOWERED_RE.search(rating_line)
+    named = canonical_rating(m.group(1)) if m else None
+    reason = m.group(2).strip() if m else ""
+    if rating_rank(rating) < rating_rank(baseline):
+        if not m or not re.search(r"[A-Za-z]", reason):
+            return ("MISMATCH {} documentation: rated {} below the readme.json baseline {} with no reason "
+                    "(write '(lowered from {}: <reason>)' on the rating line)".format(app, rating, baseline, baseline))
+        if named != baseline:
+            return ("MISMATCH {} documentation: lowered from {} but the readme.json baseline is {}"
+                    .format(app, named, baseline))
+        return None
+    if m:
+        return ("MISMATCH {} documentation: rated {} with a lowering clause but the readme.json baseline is {}"
+                .format(app, rating, baseline))
+    if rating_rank(rating) > rating_rank(baseline):
+        for rung, reqs in RUNGS:
+            if rating_rank(rung) <= rating_rank(baseline):
+                continue
+            for req in reqs:
+                if facts_meet(facts, req) or CONTENT_CITE_RE.search(evidence.get(req, "")):
+                    continue
+                return ("MISMATCH {} documentation: rated {} above the readme.json baseline {}; '{}' is not "
+                        "met in readme.json and its evidence is not a content: line"
+                        .format(app, rating, baseline, req))
+            if rung == rating:
+                break
+    return None
 
 
 def defect_tag(defect_key):
@@ -333,15 +430,30 @@ def matching_check(record, checks):
 def never_fail_mismatches(findings, checks):
     """MISMATCH lines for suggestion-class checks and MNT-02..MNT-06
     good-practice signals recorded as FAIL — the rubric holds neither is
-    ever a failure. One line per matching FAIL record."""
+    ever a failure — and for either one's FAIL or WARN rated above info, so
+    it never becomes a fix-item. One line per problem: a suggestion or
+    good-practice FAIL rated low gets both lines."""
     lines = []
     for r in findings:
-        if r.get("result") != "FAIL":
+        result = r.get("result")
+        if result not in ("FAIL", "WARN"):
             continue
         rule = r.get("rule")
         app_id = fact_app_id(str(r.get("app_id") or "").strip().strip("/"))
         check = matching_check(r, checks)
-        if check is not None and check.get("weight") == "suggestion":
+        suggestion = check is not None and check.get("weight") == "suggestion"
+        severity = str(r.get("severity") or "").strip().lower()
+        if suggestion and severity in ABOVE_INFO:
+            lines.append(
+                "MISMATCH {} {} {}: suggestion (check {}) rated {}; suggestions are info".format(
+                    app_id, rule, r.get("defect_key"), check["id"], severity))
+        elif rule in GOOD_PRACTICE_RULES and severity in ABOVE_INFO:
+            lines.append(
+                "MISMATCH {} {} {}: good-practice signal rated {}; good-practice signals are info".format(
+                    app_id, rule, r.get("defect_key"), severity))
+        if result != "FAIL":
+            continue
+        if suggestion:
             lines.append(
                 "MISMATCH {} {} {}: suggestion (check {}) recorded as FAIL".format(
                     app_id, rule, r.get("defect_key"), check["id"]))
@@ -535,6 +647,13 @@ def main(argv):
         single = len(sections) == 1
         stub_ok = (STUB_RATING.search(doc) is not None and
                    has_stub_record(findings, app_id, single))
+        rating_line = doc[rm.start():].split("\n", 1)[0]
+        try:
+            facts = readme_facts(pre_review_dir, app_id)
+        except ValueError as e:
+            print("error: {}".format(e), file=sys.stderr)
+            return 2
+        ceiling_ok = True
         if stub_ok:
             try:
                 reason = stub_problem(findings, app_id, single, pre_review_dir)
@@ -567,8 +686,14 @@ def main(argv):
                 if blocker or rung == rating:
                     break
             problems += 1
+            ceiling_ok = False
             print("MISMATCH Documentation rating ({} claimed but '{}' evidence is {}; highest supported rung is {})".format(
                 rating, blocker, "missing" if blocker not in evidence else "none", supported or "none"))
+        if not stub_ok and ceiling_ok and facts is not None and facts.get("stub") is not True:
+            line = baseline_mismatch(fact_app_id(app_id), rating, rating_line, evidence, facts)
+            if line:
+                problems += 1
+                print(line)
         for line in reused_content_lines(fact_app_id(app_id), evidence):
             problems += 1
             print(line)

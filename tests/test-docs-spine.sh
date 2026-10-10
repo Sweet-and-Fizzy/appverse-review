@@ -195,6 +195,9 @@ has "$SEC_SKILL" "presence_checked: true\` is not a guard" "security skill state
 has references/finding-codes.md "entry-point-parse-error" "finding-codes.md lists entry-point-parse-error under STR-07"
 has skills/review-structure/SKILL.md ":entry-point-parse-error\` (STR-07" "structure skill files entry-point-parse-error under STR-07"
 lacks "$QUA_SKILL" "expected to fail" "review-quality has no stale check-rating expected-to-fail wording"
+has "$QUA_SKILL" "\`set -e\` is not required" "review-quality does not require set -e (QUA-03)"
+has "$QUA_SKILL" "missing \`max\` alone is not a finding" "review-quality does not require a hardcoded max (QUA-07)"
+lacks "$QUA_SKILL" "without both \`min\` and \`max\`" "review-quality has no stale min-and-max candidate rule"
 
 has skills/review-maintenance/SKILL.md "Records under MNT-02 to MNT-06 are WARN at most" "maintenance skill states check-rating rejects a good-practice FAIL"
 
@@ -271,6 +274,15 @@ arte=" $(checker references/pre-review.py '" ".join(ARTIFACT_CODES)') "
 stray=""
 for code in $no_codes; do case "$arte" in *" $code "*) stray="$stray $code";; esac; done
 [ -z "$stray" ] && ok "no code the table calls not-an-artefact is in ARTIFACT_CODES" || bad "no code the table calls not-an-artefact is in ARTIFACT_CODES (got:$stray)"
+
+echo "Test 14: a 0.0.0.0 bind is judged by its authentication, not the bind"
+has skills/review-security/SKILL.md "The finding is a service other users can reach without authentication." "security skill: unauthenticated service is the finding"
+has references/finding-codes.md "the bind alone is not exposure" "finding-codes: bind-all-interfaces defined by authentication"
+has references/security-tools.md "a finding only when the service has no authentication, else PASS" "security-tools: B104 judged by authentication"
+has skills/review-security/SKILL.md "the line that generates it is not evidence" "security skill: a generated password counts only where the service consumes it"
+has references/finding-codes.md "counts only when the service reads it" "finding-codes: a generated password counts only when the service reads it"
+has skills/review-structure/SKILL.md "catalog's app_type vocabulary" "structure skill: app_type is a vocabulary term"
+lacks skills/review-structure/SKILL.md "OOD needs the exact value" "structure skill no longer asks for the exact app_type value"
 
 echo
 echo "Done: $pass passed, $fail failed."

@@ -75,12 +75,13 @@ syntax.json is <out>/syntax.json; a missing fact file means no candidates):
   numeric-field-bounds   form.json attributes that are in the form (in_form)
                          and defined under attributes: (defined; an undefined
                          one is an OOD built-in such as bc_num_hours, bounded
-                         by OOD), reach the scheduler, and are unbounded: a
-                         number_field without both min and max; a free-text
-                         field (any other widget outside CONSTRAINED_WIDGETS,
-                         a null widget included) without a pattern and
-                         without both min and max. A non-null bound
-                         (ERBVALUE included) is a bound.
+                         by OOD), reach the scheduler, and have no floor: a
+                         number_field with neither min nor required; a
+                         free-text field (any other widget outside
+                         CONSTRAINED_WIDGETS, a null widget included) without
+                         a pattern (required or a min does not bound free
+                         text). A missing max alone is not a candidate. A
+                         non-null bound (ERBVALUE included) is a bound.
   erb-missing-value      form.json attributes in the form and defined (as
                          above) that are interpolated in submit.yml.erb,
                          minus any with "guarded": true. form.json does not

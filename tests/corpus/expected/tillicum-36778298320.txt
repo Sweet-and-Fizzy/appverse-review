@@ -2,8 +2,12 @@
 # expected: the [rating] STR-01 README gate MISMATCH is real — the report's gate row says FAIL while its own text and readme.json say the README is substantive; rule 5 exists because of this run.
 [floor] feedback floor: 16/16 fix-items covered
 [keys] finding keys: 47/47 valid
+[rating] MISMATCH root QUA-08 template/after.sh:magic-number: suggestion (check magic-numbers) rated low; suggestions are info
+[rating] MISMATCH root QUA-08 template/script.sh.erb:magic-number: suggestion (check magic-numbers) rated low; suggestions are info
+[rating] MISMATCH root QUA-08 template/proxy.py:undocumented-hex-color: suggestion (check magic-numbers) rated low; suggestions are info
+[rating] MISMATCH root QUA-09 template/script.sh.erb:duplicated-block: suggestion (check duplicated-blocks) rated low; suggestions are info
 [rating] MISMATCH root STR-01 README gate: FAIL but readme.json says stub: false
-[rating] ratings: 1 mismatch
+[rating] ratings: 5 mismatches
 [rows] check-rows: 1 app, 19 required rows, 0 problems
 [evidence] NOTE report:str-02-metadata str-02-metadata manifest.yml:1 (`category` is not on manifest.yml:1)
 [evidence] NOTE report:str-02-metadata str-02-metadata manifest.yml:1 (`description` is not on manifest.yml:1)

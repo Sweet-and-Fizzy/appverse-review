@@ -25,10 +25,24 @@
 #                a row only when the facts list a candidate (Security is
 #                row-per-candidate)
 #   dimension    structure, security, portability, documentation, code_quality
+#   default_severity
+#                the severity a FAIL or WARN record for this check takes
+#                unless the evidence clearly warrants another, in which case
+#                the record's summary says why: critical, high, medium, low,
+#                info, or null where severity is judged per finding
+#                (Security, on the rubric's severity scale). Gate checks
+#                default to high for a FAIL; a structure WARN is not a gate
+#                failure and is rated on the rubric's scale (see
+#                review-structure). Suggestion checks default to info, and for
+#                them info is a ceiling: check-rating.py flags a suggestion
+#                record above info, so a suggestion is never a fix-item
+#                (Low or above, check-feedback-floor.py) and never keeps
+#                the recommendation from Accept
 #   tags         suggestion checks only: every finding-codes.md vocabulary
 #                tag (without its qualifier) the check owns under its rule,
-#                so check-rating.py treats a FAIL on any of them as a
-#                suggestion recorded as FAIL, whichever tag was chosen
+#                so check-rating.py treats a FAIL, or a FAIL or WARN above
+#                info, on any of them as a suggestion recorded wrongly,
+#                whichever tag was chosen
 #   weight       code_quality checks only: target (a strong suggestion,
 #                worded as recommended) or suggestion (never a failure) — from the
 #                rubric's Code Quality table
@@ -46,6 +60,7 @@ checks:
     tag: null
     row_required: always
     dimension: structure
+    default_severity: high
   - id: str-03-yaml-valid
     section: Validity
     app_types: [batch_connect, passenger, companion, widget]
@@ -54,6 +69,7 @@ checks:
     tag: yaml-parse-error
     row_required: always
     dimension: structure
+    default_severity: high
   - id: str-06-syntax
     section: Validity
     app_types: [batch_connect]
@@ -62,6 +78,7 @@ checks:
     tag: bash-syntax-error
     row_required: always
     dimension: structure
+    default_severity: high
   - id: str-07-layout
     section: Batch Connect layout
     app_types: [batch_connect]
@@ -70,6 +87,7 @@ checks:
     tag: layout-mismatch
     row_required: always
     dimension: structure
+    default_severity: high
   - id: entry-point-parses
     section: Batch Connect layout
     app_types: [passenger, companion]
@@ -78,6 +96,7 @@ checks:
     tag: null
     row_required: always
     dimension: structure
+    default_severity: high
   - id: str-04-references
     section: Validity
     app_types: [batch_connect, passenger, companion, widget]
@@ -86,6 +105,7 @@ checks:
     tag: null
     row_required: always
     dimension: structure
+    default_severity: high
 
   # Security: row-per-candidate, so a row is required only when
   # security.json lists a candidate of the check's kind.
@@ -97,6 +117,7 @@ checks:
     tag: unsanitized-user-input
     row_required: when_candidates
     dimension: security
+    default_severity: null
   - id: sec-eval-exec
     section: Pattern checks (all app types)
     app_types: [batch_connect, passenger, companion, widget]
@@ -105,6 +126,7 @@ checks:
     tag: eval-exec
     row_required: when_candidates
     dimension: security
+    default_severity: null
   - id: sec-credential-string
     section: Pattern checks (all app types)
     app_types: [batch_connect, passenger, companion, widget]
@@ -113,6 +135,7 @@ checks:
     tag: hardcoded-credential
     row_required: when_candidates
     dimension: security
+    default_severity: null
   - id: sec-permissive-mode
     section: Pattern checks (all app types)
     app_types: [batch_connect, passenger, companion, widget]
@@ -121,6 +144,7 @@ checks:
     tag: permissive-file-mode
     row_required: when_candidates
     dimension: security
+    default_severity: null
   # A network call is OODT-04 (exfiltration); record OODT-05 instead when the
   # call exposes a service to other users.
   - id: sec-network-call
@@ -131,6 +155,7 @@ checks:
     tag: unexpected-network-call
     row_required: when_candidates
     dimension: security
+    default_severity: null
   - id: sec-file-write-outside-job
     section: Pattern checks (all app types)
     app_types: [batch_connect, passenger, companion, widget]
@@ -139,7 +164,11 @@ checks:
     tag: dotfile-write
     row_required: when_candidates
     dimension: security
-  # --no-auth, --disable-ssl, 0.0.0.0, CORS wildcard. The tag is disabled-ssl
+    default_severity: null
+  # --no-auth, --disable-ssl, 0.0.0.0, CORS wildcard. A 0.0.0.0 bind is a fact
+  # to judge, not a finding by itself: OOD's node proxy needs a non-loopback
+  # bind, so the bind-all-interfaces candidate is FAIL or WARN only when the
+  # service answers without authentication. The tag is disabled-ssl
   # because it is the OODT-08 vocabulary term; disabled-auth, bind-all-interfaces
   # and cors-wildcard are OODT-05 terms, so a finding recording one of those
   # uses OODT-05 as its rule.
@@ -151,6 +180,7 @@ checks:
     tag: disabled-ssl
     row_required: when_candidates
     dimension: security
+    default_severity: null
   - id: sec-binary-in-template
     section: Pattern checks (all app types)
     app_types: [batch_connect, passenger, companion, widget]
@@ -159,6 +189,7 @@ checks:
     tag: binary-in-template
     row_required: when_candidates
     dimension: security
+    default_severity: null
   # Every static-tool finding (shellcheck, semgrep, bandit) is its own
   # candidate; rule and tag are null on the manifest entry because the
   # record, when FAIL/WARN, uses the rule and tag the code maps to in
@@ -171,6 +202,7 @@ checks:
     tag: null
     row_required: when_candidates
     dimension: security
+    default_severity: null
 
   # Portability
   - id: hardcoded-site-paths
@@ -181,6 +213,7 @@ checks:
     tag: hardcoded-path
     row_required: always
     dimension: portability
+    default_severity: low
   - id: portability-rating
     section: Portability
     app_types: [batch_connect, passenger, companion, widget]
@@ -189,6 +222,7 @@ checks:
     tag: null
     row_required: always
     dimension: portability
+    default_severity: medium
 
   # Documentation
   - id: documentation-rating
@@ -199,25 +233,41 @@ checks:
     tag: null
     row_required: always
     dimension: documentation
+    default_severity: medium
 
   # Code Quality
+  # Error handling: job scripts check the commands whose failure matters
+  # (cd, module load, mkdir, a copy the job depends on) with `|| exit`, an
+  # `if`, a trap, or `set -e` where the author chose it. `set -e` is not
+  # required (it can break a script with background processes, such as a
+  # VNC script.sh); a missing `set -e` alone is not a finding. A script with
+  # no handling on such commands is.
   - id: error-handling
     section: Code Quality
     app_types: [batch_connect, passenger, companion, widget]
     fact_source: none
     rule: QUA-03
-    tag: no-set-e
+    tag: no-error-check
     row_required: always
     dimension: code_quality
+    default_severity: low
     weight: target
+  # Input validation: a numeric field that reaches the scheduler has a `min`
+  # (or is `required`), so a blank or 0 value cannot reach the job. A `max`
+  # is good but is site policy (node size, partition limits): it may come
+  # from site config (an attribute the site sets, or ERB), and a hardcoded
+  # `max` is not required, so a missing `max` alone is not a finding. A
+  # `min` of 0 where 0 is meaningless (0 cores, 0 hours) is QUA-07
+  # zero-minimum.
   - id: numeric-field-bounds
     section: Code Quality
     app_types: [batch_connect]
     fact_source: form.json
     rule: QUA-07
-    tag: missing-min-max
+    tag: missing-min
     row_required: always
     dimension: code_quality
+    default_severity: low
     weight: target
   - id: magic-numbers
     section: Code Quality
@@ -228,6 +278,7 @@ checks:
     tags: [magic-number, undocumented-resource-limit, undocumented-hex-color]
     row_required: always
     dimension: code_quality
+    default_severity: info
     weight: suggestion
   - id: duplicated-blocks
     section: Code Quality
@@ -238,6 +289,7 @@ checks:
     tags: [duplicated-block]
     row_required: always
     dimension: code_quality
+    default_severity: info
     weight: suggestion
   - id: dead-code
     section: Code Quality
@@ -248,6 +300,7 @@ checks:
     tags: [unused-attribute, dead-branch, commented-out-code, unreachable-lookup-entry]
     row_required: always
     dimension: code_quality
+    default_severity: info
     weight: suggestion
   - id: erb-missing-value
     section: Code Quality
@@ -258,6 +311,7 @@ checks:
     tags: [erb-missing-value-unhandled]
     row_required: always
     dimension: code_quality
+    default_severity: info
     weight: suggestion
   - id: icon-matches-target-os
     section: Code Quality
@@ -268,4 +322,5 @@ checks:
     tags: [icon-os-mismatch]
     row_required: always
     dimension: code_quality
+    default_severity: info
     weight: suggestion

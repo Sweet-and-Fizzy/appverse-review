@@ -8,9 +8,14 @@
 [keys] INVALID QUA-10 submit.yml.erb:erb-missing-value-unhandled (evidence does not cite the anchor file)
 [keys] finding keys: 35/36 valid
 [rating] MISMATCH root security: "No tool-detectable issues in the checked tiers." with 2 FAIL/WARN rows above it
+[rating] MISMATCH root QUA-08 template/script.sh.erb:undocumented-hex-color: suggestion (check magic-numbers) rated low; suggestions are info
+[rating] MISMATCH root QUA-04 template/script.sh.erb:commented-out-code: suggestion (check dead-code) rated low; suggestions are info
+[rating] MISMATCH root QUA-10 submit.yml.erb:erb-missing-value-unhandled: suggestion (check erb-missing-value) rated low; suggestions are info
+[rating] MISMATCH root QUA-06 template/config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml:icon-os-mismatch: suggestion (check icon-matches-target-os) rated low; suggestions are info
+[rating] MISMATCH root MNT-02 releases:no-releases: good-practice signal rated low; good-practice signals are info
 [rating] MISMATCH root MNT-02 releases:no-releases: good-practice signal recorded as FAIL
 [rating] MISMATCH root MNT-04 .github/workflows:no-ci: good-practice signal recorded as FAIL
-[rating] ratings: 3 mismatches
+[rating] ratings: 8 mismatches
 [rows] MISSING root sec-tool-finding
 [rows]   candidate template/before.sh.erb:SC2148
 [rows]   candidate template/script.sh.erb:SC2086

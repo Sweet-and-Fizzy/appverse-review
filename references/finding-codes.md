@@ -62,7 +62,7 @@ defect_key = "{anchor}:{mechanism_tag}"
   repo-relative path (e.g., `template/script.sh.erb`). Anchors are always
   relative to the repo root, never to the app: in a monorepo the anchor
   includes the app subpath (`app_id` `apps/good-app` →
-  `apps/good-app/form.yml:missing-min-max`, not `form.yml:missing-min-max`).
+  `apps/good-app/form.yml:missing-min`, not `form.yml:missing-min`).
   For findings about absent files or repo-level resources, the anchor is
   fixed: see the absent-file tag → anchor pairs and the pseudo-anchor list
   under Edge cases below.
@@ -84,7 +84,7 @@ defect_key = "{anchor}:{mechanism_tag}"
   the same threat, such as `curl-pipe-exec` or `cors-wildcard`) uses that
   one instead. The only other exceptions are fixed: a `form.json` free-text
   field without a `pattern` is QUA-07 `missing-pattern`, a `number_field`
-  without `min` and `max` is QUA-07 `missing-min-max`, and a
+  with neither `min` nor `required` is QUA-07 `missing-min`, and a
   `template.json` `hex_colors` entry is QUA-08 `undocumented-hex-color`.
   Where the manifest tag is null, the aspect skill names the tag. One
   record per file per tag: candidates sharing a file and a tag share one
@@ -176,6 +176,16 @@ OODT-XX before hashing.
 `disabled-xsrf`, `unescaped-output-html`, `unescaped-output-javascript`,
 `token-in-process-list`, `cdn-without-sri`, `partial-auth-coverage`
 
+`bind-all-interfaces` names a service bound to a non-loopback interface
+(`0.0.0.0`, `::`, `INADDR_ANY`) that answers without authentication. OOD's
+node proxy (`/node/`, `/rnode/`) reaches the service on the compute node, so
+the bind alone is not exposure: a bind whose service requires a password or
+token is PASS: code-server with `--auth password` and `PASSWORD` exported to
+it, a `--NotebookApp.token="$password"`, a proxy in front that checks a
+cookie and no direct port. The evidence is the line where the service
+consumes the password or token; OOD's per-session `password` generated in
+`before.sh` counts only when the service reads it.
+
 **OODT-06:**
 `missing-cleanenv`, `fakeroot-misuse`, `privileged-container`,
 `host-path-mount`
@@ -229,8 +239,8 @@ OODT-XX before hashing.
 **STR-06:**
 `bash-syntax-error`
 
-STR-06 is recorded for every shell file, with result PASS, FAIL, or NOT
-CHECKED, so the gate can distinguish "all scripts parse" from "not checked".
+STR-06 is recorded for every shell file, with result PASS, FAIL, WARN or
+NOT CHECKED, so the gate can distinguish "all scripts parse" from "not checked".
 A refused file (see `syntax.json`'s `stderr`) was never syntax-checked and is
 never FAIL. A refused symlink, whether it leads outside the target or
 nowhere, gets no findings record at all, because check-keys resolves the
@@ -238,7 +248,13 @@ anchor and such a path has no valid key; it is named only in the STR-06 row
 summary. A FIFO or device is NOT CHECKED. An entry that is not ok and whose
 `stderr` is neither a bash `line N` message nor a refusal reason (a binary
 file, a permission error, a timeout, an oversized file) is NOT CHECKED with
-the stderr text as evidence.
+the stderr text as evidence. A bash failure in a `.sh.erb` whose
+`syntax.json` entry has an `erb_control_line` (within 3 lines of a stripped
+ERB control tag) is WARN low, not FAIL: stripping both branches of an
+`<% if %>/<% else %>` can leave an orphan line no rendered template has.
+An end-of-file error (unexpected end of file or EOF: a missing
+`fi`/`done`/`esac` or an unterminated quote) never gets an
+`erb_control_line` and stays FAIL.
 
 **STR-07:**
 `missing-entry-point`, `missing-submit-yml`, `layout-mismatch`,
@@ -274,7 +290,12 @@ the stderr text as evidence.
 `hardcoded-account`, `hardcoded-partition`, `site-specific-mixin`
 
 **QUA-03:**
-`no-set-e`, `no-error-check`
+`no-error-check`, `no-set-e`
+
+`no-error-check` is the QUA-03 tag: a command whose failure matters runs
+unchecked. `no-set-e` is kept so records filed before 2026-10 still
+validate; a missing `set -e` alone is not a finding, so do not use it for
+new findings.
 
 **QUA-04:**
 `unused-attribute:{attr_name}`, `dead-branch`, `commented-out-code`,
@@ -288,7 +309,12 @@ the stderr text as evidence.
 `incorrect-default`, `readme-inconsistency:{topic}`, `readme-typo`, `icon-os-mismatch`
 
 **QUA-07:**
-`missing-min-max`, `missing-required`, `zero-minimum`, `missing-pattern`
+`missing-min`, `missing-required`, `zero-minimum`, `missing-pattern`, `missing-min-max`
+
+`missing-min` is a numeric field with neither a `min` nor `required`.
+`missing-min-max` is kept so records filed before 2026-10 still validate;
+a missing `max` alone is not a finding (a `max` is site policy and may come
+from site config), so do not use it for new findings.
 
 **QUA-08:**
 `magic-number`, `undocumented-resource-limit`, `undocumented-hex-color`
