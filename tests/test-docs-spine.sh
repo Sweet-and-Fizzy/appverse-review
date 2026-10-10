@@ -275,6 +275,11 @@ stray=""
 for code in $no_codes; do case "$arte" in *" $code "*) stray="$stray $code";; esac; done
 [ -z "$stray" ] && ok "no code the table calls not-an-artefact is in ARTIFACT_CODES" || bad "no code the table calls not-an-artefact is in ARTIFACT_CODES (got:$stray)"
 
+echo "Test 14: a 0.0.0.0 bind is judged by its authentication, not the bind"
+has skills/review-security/SKILL.md "The finding is a service other users can reach without authentication." "security skill: unauthenticated service is the finding"
+has references/finding-codes.md "the bind alone is not exposure" "finding-codes: bind-all-interfaces defined by authentication"
+has references/security-tools.md "a finding only when the service has no authentication, else PASS" "security-tools: B104 judged by authentication"
+
 echo
 echo "Done: $pass passed, $fail failed."
 [ "$fail" -eq 0 ]

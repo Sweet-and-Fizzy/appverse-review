@@ -2250,7 +2250,8 @@ CONFIG_FLAGS = [
     (re.compile(r"(?<![\d.])0\.0\.0\.0(?![\d.])|\bINADDR_ANY\b|\[::\]"
                 r"|(?:--(?:host|ip|bind|listen|address)[= ]\s*|\bhost\s*[=:]\s*|\bbind\s*[=:(]\s*)"
                 r"[\"'\[]*::\]?(?![\w:.])|\b(?:listen|bind|serve)\s*\([^)]*[\"']::[\"']"),
-     "OODT-05", "bind-all-interfaces", "binds all interfaces", False),
+     "OODT-05", "bind-all-interfaces", "binds all interfaces; OOD's node proxy needs a non-loopback "
+     "bind, so this is a finding only when the service has no authentication", False),
     (re.compile(r"(?i)Access-Control-Allow-Origin[\"']?\s*[:,]?\s*[\"']?\*|\ballow_origin\s*=\s*[\"']\*"
                 r"|\b(?:origins?|allow_origins?|cors_origins?|cors_allowed_origins)\s*[:=]\s*\[?\s*[\"']\*[\"']"
                 r"|\bCORS_(?:ORIGIN_ALLOW_ALL|ALLOW_ALL_ORIGINS)\s*=\s*True|\bCORS\(\s*app\s*\)|\bcors\(\s*\)"),

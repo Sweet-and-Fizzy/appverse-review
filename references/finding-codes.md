@@ -176,6 +176,13 @@ OODT-XX before hashing.
 `disabled-xsrf`, `unescaped-output-html`, `unescaped-output-javascript`,
 `token-in-process-list`, `cdn-without-sri`, `partial-auth-coverage`
 
+`bind-all-interfaces` names a service bound to a non-loopback interface
+(`0.0.0.0`, `::`, `INADDR_ANY`) that answers without authentication. OOD's
+node proxy (`/node/`, `/rnode/`) reaches the service on the compute node, so
+the bind alone is not exposure: a bind whose service requires a password or
+token (OOD's per-session `password`, a `--NotebookApp.token=<%= password %>`,
+a proxy in front that checks a cookie and no direct port) is PASS.
+
 **OODT-06:**
 `missing-cleanenv`, `fakeroot-misuse`, `privileged-container`,
 `host-path-mount`

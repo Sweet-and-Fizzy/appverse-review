@@ -1141,6 +1141,7 @@ check "broken-app candidates" "credential_string:template/script.sh.erb:2,config
 check "broken-app counts first, every kind listed" "counts|$KINDS" "$(sc "$D" "$D" batch_connect "list(d)[0] + '|' + ','.join(d['counts'])")"
 check "broken-app credential shape" "credential_string|sec-credential-string|OODT-02|hardcoded-credential|export API_TOKEN=\"sk-live-FAKE1234567890abcdef\"" "$(sc "$D" "$D" batch_connect "'|'.join(str(d['candidates'][0][k]) for k in ('kind','check','rule','tag','text'))")"
 check "broken-app bind is OODT-05 bind-all-interfaces" "OODT-05|bind-all-interfaces" "$(sc "$D" "$D" batch_connect "'%s|%s' % (d['candidates'][1]['rule'], d['candidates'][1]['tag'])")"
+check "the bind note says the bind alone is not the finding" "True" "$(sc "$D" "$D" batch_connect "'non-loopback' in d['candidates'][1]['note'] and 'no authentication' in d['candidates'][1]['note']")"
 check "broken-app: an unparseable form still names its attributes" "['modules']" "$(sc "$D" "$D" batch_connect "d['attributes']")"
 check "broken-app scope and files" "batch_connect|form.yml,submit.yml.erb,template/script.sh.erb" "$(sc "$D" "$D" batch_connect "d['scope'] + '|' + ','.join(d['files'])")"
 D="$FIX/curl-pipe-installer"

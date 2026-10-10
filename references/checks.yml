@@ -165,7 +165,10 @@ checks:
     row_required: when_candidates
     dimension: security
     default_severity: null
-  # --no-auth, --disable-ssl, 0.0.0.0, CORS wildcard. The tag is disabled-ssl
+  # --no-auth, --disable-ssl, 0.0.0.0, CORS wildcard. A 0.0.0.0 bind is a fact
+  # to judge, not a finding by itself: OOD's node proxy needs a non-loopback
+  # bind, so the bind-all-interfaces candidate is FAIL or WARN only when the
+  # service answers without authentication. The tag is disabled-ssl
   # because it is the OODT-08 vocabulary term; disabled-auth, bind-all-interfaces
   # and cors-wildcard are OODT-05 terms, so a finding recording one of those
   # uses OODT-05 as its rule.

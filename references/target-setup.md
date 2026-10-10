@@ -99,7 +99,7 @@ after any prose tables (ratings, capability profiles) in the aspect's output:
     "severity":    "medium",
     "result":      "FAIL",
     "tag":         "unintentional",
-    "summary":     "MLflow bound to 0.0.0.0:5000, reachable by other users",
+    "summary":     "MLflow on 0.0.0.0:5000 with no authentication, reachable by other users",
     "evidence":    "template/script.sh.erb:24",
     "line":        24
   }
