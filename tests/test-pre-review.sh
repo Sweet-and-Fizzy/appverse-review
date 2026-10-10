@@ -1550,15 +1550,27 @@ check "block keeps the rationale placeholder per app" 2 "$(grep -c 'reviewer fil
 
 echo "Test C2: a single-app repo with a misspelt software, an unknown type and an unknown tag"
 R="$TMP/cat-single"; mkdir -p "$R"
-printf 'description: x\nsoftware: "Jupyter Lab"\napp_type: "Batch-Connect-Bogus"\nimplementation_tags:\n  - "GPU-Enabled"\n  - "quantum"\n' > "$R/appverse.yml"
+printf 'description: x\nsoftware: "Jupyter Lab"\napp_type: "Batch Connect"\nimplementation_tags:\n  - "GPU-Enabled"\n  - "quantum"\n' > "$R/appverse.yml"
 O="$TMP/cat-single-o"
 check "exit 0" 0 "$(run "$R" "$O")"
 check "software no match" "no_match" "$(cat_j "$O" "d['apps'][0]['checks']['software']['status']")"
 check "closest suggestion" "JupyterLab" "$(cat_j "$O" "d['apps'][0]['checks']['software']['closest']")"
 check "app_type unknown" "unknown" "$(cat_j "$O" "d['apps'][0]['checks']['app_type']['status']")"
+check "app_type closest" "['batch-connect-basic']" "$(cat_j "$O" "d['apps'][0]['checks']['app_type']['closest']")"
+check "block asks did you mean" 1 "$(grep -c '`Batch Connect` is not in the published app-type vocabulary (.*). Did you mean `batch-connect-basic`?$' "$O/catalog-checks.md")"
 check "tag case ignored, unknown tag listed" "['quantum']" "$(cat_j "$O" "d['apps'][0]['checks']['implementation_tags']['unknown']")"
 check "single app has no app prefix" 0 "$(grep -c '`root`' "$O/catalog-checks.md")"
 check "block says no entry, with the catalog's suggestion" 1 "$(grep -c '`Jupyter Lab` has no Software entry; the catalog would suggest `JupyterLab`' "$O/catalog-checks.md")"
+
+echo "Test C2b: closest_app_types normalises, then prefixes, then edit distance"
+cl() { python3 -c 'import sys; sys.path.insert(0, sys.argv[1]); import catalog_facts as c; print(c.closest_app_types(sys.argv[2], ["dashboard", "widget", "companion_app", "batch-connect-basic", "batch-connect-VNC"]))' "$SCRIPT_DIR/references" "$1"; }
+check "a prefix suggests every term it starts" "['batch-connect-basic', 'batch-connect-VNC']" "$(cl "Batch Connect")"
+check "spaces and underscores read as hyphens" "['batch-connect-VNC']" "$(cl "Batch_Connect VNC")"
+check "a term that prefixes the value" "['batch-connect-basic']" "$(cl "batch-connect-basic-app")"
+check "underscore term matched loosely" "['companion_app']" "$(cl "Companion App")"
+check "a typo within edit distance 3" "['dashboard']" "$(cl "dashbord")"
+check "nothing close is no suggestion" "[]" "$(cl "jupyter")"
+check "a known value's comparison has no closest" "False" "$(python3 -c 'import sys; sys.path.insert(0, sys.argv[1]); import catalog_facts as c; cat={"software": [], "app_types": ["dashboard"], "implementation_tags": [], "apps": []}; d={"status": "declared", "software": None, "app_type": "Dashboard", "implementation_tags": []}; print("closest" in c.compare(cat, d, None)["app_type"])' "$SCRIPT_DIR/references")"
 
 echo "Test C3: an inferred repo declares nothing to match"
 O="$TMP/cat-inferred"; R="$TMP/cat-inf"; mkdir -p "$R"; printf 'name: x\nrole: batch_connect\n' > "$R/manifest.yml"

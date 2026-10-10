@@ -65,8 +65,11 @@ its own finding with the vocabulary tag that fits or `other:`.
   `<pre-review>/catalog.json` (per app, `checks.app_type` and
   `checks.implementation_tags`, compared with the live vocabularies, ignoring
   case); do not query the catalog yourself. An `app_type` outside the
-  published vocabulary is an STR-02 FAIL, worded as "not in the published
-  vocabulary" (an unpublished term is invisible here); an unknown
+  published vocabulary is an STR-02 FAIL (OOD needs the exact value, so a
+  near miss still breaks the app), worded as "not in the published
+  vocabulary" (an unpublished term is invisible here); when
+  `checks.app_type.closest` lists terms, the summary ends "did you mean
+  `<term>`?" naming each, joined with "or"; an unknown
   implementation tag is a WARN. If `catalog.json` is absent
   (the catalog was not read), record the check as NOT CHECKED with that reason.
 - Every `manifest.yml`, `appverse.yml`, and `form.yml` parses; report parse

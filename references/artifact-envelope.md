@@ -215,7 +215,8 @@ stderr and still assemble.
   `--catalog`: `software` (`status` `match` with the `entry`, `no_match`
   with the `closest` entry name or null, `not_declared`, `inferred`,
   `unparsed`), `app_type` (`known`, `unknown`, `not_declared`, `inferred`,
-  `unparsed`, with the `value`), `implementation_tags` (`declared`, `known`,
+  `unparsed`, with the `value`; since 1.6 an `unknown` one adds `closest`,
+  the vocabulary terms it most likely meant, a list that may be empty), `implementation_tags` (`declared`, `known`,
   `unknown`, `note`), and `same_software_apps` (each published app with the
   same Software entry: `title`, `github_url`, `subpath`, `this_repo`).
   **`repo_level.catalog`** is where it was read from: `source`, `counts`
@@ -346,4 +347,4 @@ tolerate a missing indicator key (see Indicators), so 1.2's removal of
 | 1.3 | Adds the optional `apps[].indicators.maintenance`: in a declared monorepo, each app's own upkeep from its folder's activity. `repo_level.indicators.maintenance` stays. |
 | 1.4 | Adds the optional `apps[].criteria.template_syntax`, from STR-05 and STR-06 rows. Before 1.4 an STR-06 result counted under `structure`, so a shell syntax error read as a layout failure. |
 | 1.5 | Adds the optional `apps[].catalog` and `repo_level.catalog`: the pre-review's catalog comparison, so a consumer can show each check's status rather than parse the report's Catalog checks prose. |
-| 1.6 | Adds the optional finding field `path_class` (`not_installed` for findings cited only in demo, docs, example or test directories). Additive; findings are not filtered. |
+| 1.6 | Adds the optional finding field `path_class` (`not_installed` for findings cited only in demo, docs, example or test directories), and `closest` (a list) on an `unknown` `apps[].catalog.app_type`. Both are additive; findings are not filtered. |
