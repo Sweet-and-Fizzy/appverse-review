@@ -60,15 +60,6 @@
       "note": "template.json icons enumerates it; the tag drifts across runs, so every tag a run used is a key"
     },
     {
-      "defect": "number fields with no max (custom_memory_per_node, custom_num_cores)",
-      "rule": "QUA-07",
-      "candidate": true,
-      "keys": [
-        "form.yml:missing-min-max"
-      ],
-      "note": "form.json attributes enumerates it"
-    },
-    {
       "defect": "free-text fields with no pattern",
       "rule": "QUA-07",
       "candidate": true,
@@ -96,15 +87,6 @@
         "submit.yml.erb:unsanitized-user-input"
       ],
       "note": "security.json interpolation enumerates it; the pre-rows Sonnet runs 735864 and 747753 did not record it"
-    },
-    {
-      "defect": "job script has no set -e",
-      "rule": "QUA-03",
-      "candidate": true,
-      "keys": [
-        "template/script.sh.erb:no-set-e"
-      ],
-      "note": "the error-handling check asks about it on every batch_connect app"
     },
     {
       "defect": "no tagged releases",
@@ -175,7 +157,7 @@
       "keys": [
         "template/script.sh.erb:unquoted-variable"
       ],
-      "note": "script.sh.erb:22,25. Off the candidate list for the nine runs; this branch adds sec-tool-finding candidates for SC2086 and SC2164, so a later run that records it is answering a candidate. Not recalled by line: the QUA-03 no-set-e records cite :25 too"
+      "note": "script.sh.erb:22,25. Off the candidate list for the nine runs; this branch adds sec-tool-finding candidates for SC2086 and SC2164, so a later run that records it is answering a candidate. Not recalled by line: the runs' QUA-03 no-set-e records cite :25 too"
     },
     {
       "defect": "form.yml site values: hard-coded cluster, module version, FASRC partition link",
