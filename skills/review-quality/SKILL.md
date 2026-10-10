@@ -40,7 +40,7 @@ For each app, and for each manifest entry above in manifest order:
    | `magic-numbers` | `template.json` `numeric_literals` and `hex_colors` |
    | `dead-code` | `template.json` `commented_code` (a block of `count` lines from `line`) |
    | `icon-matches-target-os` | `template.json` `icons`, against the OS the README (`readme.json`) says the app was tested on |
-   | `numeric-field-bounds` | `form.json` attributes with `in_form` true, `defined` not false, `reaches_scheduler` true, and no floor: a `number_field` with neither `min` nor `required`, or a free-text widget (anything but select, radio button, check box, hidden field) with no `pattern`, no `min` and not `required`. A missing `max` alone does not make a candidate |
+   | `numeric-field-bounds` | `form.json` attributes with `in_form` true, `defined` not false, `reaches_scheduler` true, and no floor: a `number_field` with neither `min` nor `required`, or a free-text widget (anything but select, radio button, check box, hidden field) with no `pattern`. `required` or a `min` does not bound a free-text field: it still takes any string. A missing `max` alone does not make a candidate |
    | `erb-missing-value` | `form.json` attributes with `in_form` true, `defined` not false and `interpolated_in_submit` true (at `submit_lines`) |
    | `documentation-rating` | `readme.json` `rungs` and `stub` (see Documentation below) |
 

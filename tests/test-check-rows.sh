@@ -173,6 +173,25 @@ check "a defined: false built-in is not a candidate" 0 "$(grep -cF 'form.yml:3' 
 check "a min with no max is not a candidate (a max may come from site config)" 0 "$(grep -cF 'form.yml:18' "$TMP/out")"
 check "required with no min is not a candidate" 0 "$(grep -cF 'form.yml:21' "$TMP/out")"
 
+echo "Test 6b: a free-text field needs a pattern; required or min does not bound it"
+# fc <widget> <required> <min> <pattern> <line>: the candidate labels form_candidates gives one field.
+fc() { python3 - "$@" <<PY
+import sys; sys.path.insert(0, "$SCRIPT_DIR/references")
+import row_candidates as r
+w, req, mn, pat, line = sys.argv[1:]
+a = {"widget": w, "required": req == "true", "min": None if mn == "-" else int(mn),
+     "pattern": None if pat == "-" else pat, "max": None, "line": int(line),
+     "in_form": True, "defined": True, "reaches_scheduler": True}
+print([l for l, _, _ in r.form_candidates("numeric-field-bounds", {"file": "form.yml", "attributes": [a]}, "")])
+PY
+}
+check "required text_field with no pattern is a candidate" "['form.yml:2']" "$(fc text_field true - - 2)"
+check "text_field with a min and no pattern is a candidate" "['form.yml:3']" "$(fc text_field false 1 - 3)"
+check "text_field with a pattern is not" "[]" "$(fc text_field false - '[a-z]+' 4)"
+check "required number_field is not" "[]" "$(fc number_field true - - 5)"
+check "number_field with a min is not" "[]" "$(fc number_field false 1 - 6)"
+check "select is not" "[]" "$(fc select false - - 7)"
+
 echo "Test 7: a when_candidates check with no candidates needs no row; with candidates it does"
 check "sec-eval-exec absent, exit 0 (Test 1)" 0 "$(run "$TMP/report.md" "$TMP/findings.json" "$TMP/checks.json" "$O")"
 grep -vF 'check: sec-interpolation' "$TMP/report.md" > "$TMP/r7.md"

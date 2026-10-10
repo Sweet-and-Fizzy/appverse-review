@@ -97,16 +97,17 @@ def form_candidates(check_id, form, prefix):
             if not a.get("reaches_scheduler"):
                 continue
             widget = a.get("widget")
-            # A floor (min, or required) is what input validation asks for.
-            # A max is site policy and may come from site config, so a
-            # missing max alone does not make a candidate.
-            floor = a.get("min") is not None or a.get("required") is True
+            # A number field needs a floor (min, or required). A max is site
+            # policy and may come from site config, so a missing max alone
+            # does not make a candidate. A free-text field takes any string,
+            # so only a pattern bounds what reaches the scheduler: required
+            # (or a min, which a text input ignores) does not.
             if widget in CONSTRAINED_WIDGETS:
                 continue
             if widget == "number_field":
-                bounded = floor
+                bounded = a.get("min") is not None or a.get("required") is True
             else:
-                bounded = floor or a.get("pattern") is not None
+                bounded = a.get("pattern") is not None
             if bounded:
                 continue
             out.append((label(cites[0][0], a.get("line")), cites, None))
