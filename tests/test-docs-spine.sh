@@ -281,6 +281,8 @@ has references/finding-codes.md "the bind alone is not exposure" "finding-codes:
 has references/security-tools.md "a finding only when the service has no authentication, else PASS" "security-tools: B104 judged by authentication"
 has skills/review-security/SKILL.md "the line that generates it is not evidence" "security skill: a generated password counts only where the service consumes it"
 has references/finding-codes.md "counts only when the service reads it" "finding-codes: a generated password counts only when the service reads it"
+has skills/review-structure/SKILL.md "catalog's app_type vocabulary" "structure skill: app_type is a vocabulary term"
+lacks skills/review-structure/SKILL.md "OOD needs the exact value" "structure skill no longer asks for the exact app_type value"
 
 echo
 echo "Done: $pass passed, $fail failed."
