@@ -195,6 +195,9 @@ has "$SEC_SKILL" "presence_checked: true\` is not a guard" "security skill state
 has references/finding-codes.md "entry-point-parse-error" "finding-codes.md lists entry-point-parse-error under STR-07"
 has skills/review-structure/SKILL.md ":entry-point-parse-error\` (STR-07" "structure skill files entry-point-parse-error under STR-07"
 lacks "$QUA_SKILL" "expected to fail" "review-quality has no stale check-rating expected-to-fail wording"
+has "$QUA_SKILL" "\`set -e\` is not required" "review-quality does not require set -e (QUA-03)"
+has "$QUA_SKILL" "missing \`max\` alone is not a finding" "review-quality does not require a hardcoded max (QUA-07)"
+lacks "$QUA_SKILL" "without both \`min\` and \`max\`" "review-quality has no stale min-and-max candidate rule"
 
 has skills/review-maintenance/SKILL.md "Records under MNT-02 to MNT-06 are WARN at most" "maintenance skill states check-rating rejects a good-practice FAIL"
 

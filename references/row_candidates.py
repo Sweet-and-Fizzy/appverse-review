@@ -97,13 +97,16 @@ def form_candidates(check_id, form, prefix):
             if not a.get("reaches_scheduler"):
                 continue
             widget = a.get("widget")
-            both = a.get("min") is not None and a.get("max") is not None
+            # A floor (min, or required) is what input validation asks for.
+            # A max is site policy and may come from site config, so a
+            # missing max alone does not make a candidate.
+            floor = a.get("min") is not None or a.get("required") is True
             if widget in CONSTRAINED_WIDGETS:
                 continue
             if widget == "number_field":
-                bounded = both
+                bounded = floor
             else:
-                bounded = both or a.get("pattern") is not None
+                bounded = floor or a.get("pattern") is not None
             if bounded:
                 continue
             out.append((label(cites[0][0], a.get("line")), cites, None))

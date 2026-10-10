@@ -62,7 +62,7 @@ defect_key = "{anchor}:{mechanism_tag}"
   repo-relative path (e.g., `template/script.sh.erb`). Anchors are always
   relative to the repo root, never to the app: in a monorepo the anchor
   includes the app subpath (`app_id` `apps/good-app` →
-  `apps/good-app/form.yml:missing-min-max`, not `form.yml:missing-min-max`).
+  `apps/good-app/form.yml:missing-min`, not `form.yml:missing-min`).
   For findings about absent files or repo-level resources, the anchor is
   fixed: see the absent-file tag → anchor pairs and the pseudo-anchor list
   under Edge cases below.
@@ -84,7 +84,7 @@ defect_key = "{anchor}:{mechanism_tag}"
   the same threat, such as `curl-pipe-exec` or `cors-wildcard`) uses that
   one instead. The only other exceptions are fixed: a `form.json` free-text
   field without a `pattern` is QUA-07 `missing-pattern`, a `number_field`
-  without `min` and `max` is QUA-07 `missing-min-max`, and a
+  with neither `min` nor `required` is QUA-07 `missing-min`, and a
   `template.json` `hex_colors` entry is QUA-08 `undocumented-hex-color`.
   Where the manifest tag is null, the aspect skill names the tag. One
   record per file per tag: candidates sharing a file and a tag share one
@@ -274,7 +274,12 @@ the stderr text as evidence.
 `hardcoded-account`, `hardcoded-partition`, `site-specific-mixin`
 
 **QUA-03:**
-`no-set-e`, `no-error-check`
+`no-error-check`, `no-set-e`
+
+`no-error-check` is the QUA-03 tag: a command whose failure matters runs
+unchecked. `no-set-e` is kept so records filed before 2026-10 still
+validate; a missing `set -e` alone is not a finding, so do not use it for
+new findings.
 
 **QUA-04:**
 `unused-attribute:{attr_name}`, `dead-branch`, `commented-out-code`,
@@ -288,7 +293,12 @@ the stderr text as evidence.
 `incorrect-default`, `readme-inconsistency:{topic}`, `readme-typo`, `icon-os-mismatch`
 
 **QUA-07:**
-`missing-min-max`, `missing-required`, `zero-minimum`, `missing-pattern`
+`missing-min`, `missing-required`, `zero-minimum`, `missing-pattern`, `missing-min-max`
+
+`missing-min` is a numeric field with neither a `min` nor `required`.
+`missing-min-max` is kept so records filed before 2026-10 still validate;
+a missing `max` alone is not a finding (a `max` is site policy and may come
+from site config), so do not use it for new findings.
 
 **QUA-08:**
 `magic-number`, `undocumented-resource-limit`, `undocumented-hex-color`

@@ -40,7 +40,7 @@ For each app, and for each manifest entry above in manifest order:
    | `magic-numbers` | `template.json` `numeric_literals` and `hex_colors` |
    | `dead-code` | `template.json` `commented_code` (a block of `count` lines from `line`) |
    | `icon-matches-target-os` | `template.json` `icons`, against the OS the README (`readme.json`) says the app was tested on |
-   | `numeric-field-bounds` | `form.json` attributes with `in_form` true, `defined` not false, `reaches_scheduler` true, and no bound: a `number_field` without both `min` and `max`, or a free-text widget (anything but select, radio button, check box, hidden field) without a `pattern` and without both bounds |
+   | `numeric-field-bounds` | `form.json` attributes with `in_form` true, `defined` not false, `reaches_scheduler` true, and no floor: a `number_field` with neither `min` nor `required`, or a free-text widget (anything but select, radio button, check box, hidden field) with no `pattern`, no `min` and not `required`. A missing `max` alone does not make a candidate |
    | `erb-missing-value` | `form.json` attributes with `in_form` true, `defined` not false and `interpolated_in_submit` true (at `submit_lines`) |
    | `documentation-rating` | `readme.json` `rungs` and `stub` (see Documentation below) |
 
@@ -85,7 +85,7 @@ For each app, and for each manifest entry above in manifest order:
    | Candidate | Tag |
    |---|---|
    | `numeric-field-bounds`: a free-text field without a `pattern` | QUA-07 `missing-pattern` |
-   | `numeric-field-bounds`: a `number_field` without `min` and `max` | QUA-07 `missing-min-max` |
+   | `numeric-field-bounds`: a `number_field` with neither `min` nor `required` | QUA-07 `missing-min` |
    | `magic-numbers`: a `hex_colors` entry | QUA-08 `undocumented-hex-color` |
    | any other candidate | the manifest entry's `tag` |
 
@@ -189,7 +189,7 @@ These rows carry no `check:` marker.
   as QUA-01 a README that references another institution's paths, cluster
   names, or module names without saying they must change.
 - **Code quality** (the `code_quality` entries): error handling
-  (`check: error-handling`, QUA-03: `set -e` or explicit checks), form input
+  (`check: error-handling`, QUA-03), form input
   validation (`check: numeric-field-bounds`, QUA-07), no uncommented magic
   numbers / undocumented literals (`check: magic-numbers`, QUA-08), no large
   duplicated blocks (`check: duplicated-blocks`, QUA-09), no commented-out
@@ -201,6 +201,26 @@ These rows carry no `check:` marker.
   an empty string; `.to_s` turns it into `""`. An unguarded `<%= context.x
   %>` therefore writes nothing (or `nil` under `.inspect`) into the YAML,
   which is why a guard or default is needed.
+
+  **Error handling** (`check: error-handling`) asks whether the job
+  scripts handle the failure of commands that matter: `cd` into the work
+  directory, `module load`, `mkdir`, a copy or download the job depends
+  on. Explicit handling is a check on those commands (`|| exit 1`, an
+  `if`), a `trap`, or `set -e` where the author chose it; any of these is
+  PASS citing where. `set -e` is not required, and its absence is not a
+  finding: it can break a script that runs background processes (a VNC
+  `script.sh`). A script where such a command runs unchecked is the
+  finding, QUA-03 `no-error-check`, citing the unchecked command's line.
+
+  **Input validation** (`check: numeric-field-bounds`) asks for a floor on
+  each numeric field that reaches the scheduler: a `min` (at least 1 where
+  0 is meaningless), which keeps 0 and negative values from reaching the
+  job, or `required`, which at least keeps a blank one out. A `max` is good practice but is site policy (node size, partition
+  limits): it may come from site config (an attribute the site sets, or a
+  value computed in ERB), and a hardcoded `max` is not required, so a
+  missing `max` alone is not a finding. A `min` of 0 that allows 0 cores
+  or 0 hours is still a finding (`zero-minimum`), and so is a field with
+  no floor (`missing-min`).
 
   An unmet target for inclusion — error handling, input validation — is
   recorded as FAIL, not WARN; suggestions that are unmet are WARN. The

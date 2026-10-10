@@ -41,8 +41,6 @@
 [rows] MISSING root error-handling
 [rows] UNCITED root numeric-field-bounds form.yml:15
 [rows] UNCITED root numeric-field-bounds form.yml:27
-[rows] UNCITED root numeric-field-bounds form.yml:30
-[rows] UNCITED root numeric-field-bounds form.yml:38
 [rows] UNCITED root numeric-field-bounds form.yml:65
 [rows] UNCITED root numeric-field-bounds form.yml:72
 [rows] MISSING root magic-numbers
@@ -60,7 +58,7 @@
 [rows]   candidate submit.yml.erb:12
 [rows]   candidate submit.yml.erb:6
 [rows]   candidate submit.yml.erb:15
-[rows] check-rows: 1 app, 19 required rows, 23 problems
+[rows] check-rows: 1 app, 19 required rows, 21 problems
 [evidence] BAD QUA-04 template/script.sh.erb:commented-out-code template/script.sh.erb:33-42,57,78-95 (line 95 past end of file, has 94 lines)
 [evidence] BAD QUA-06 README.md:readme-typo README.md:125 — notificationl; README.md:137 — forml.yml; README.md:235 — Univesity (README.md: line 235 past end of file, has 234 lines)
 [evidence] NOTE report:numeric-field-bounds numeric-field-bounds form.yml:34, form.yml:39 (`custom_memory_per_node` is not on form.yml:34)

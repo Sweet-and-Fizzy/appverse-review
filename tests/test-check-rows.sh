@@ -37,10 +37,12 @@ cat > "$O/syntax.json" <<'EOF'
 EOF
 cat > "$O/root/form.json" <<'EOF'
 {"file": "form.yml", "submit_file": "submit.yml.erb", "erb_sentinel": "ERBVALUE", "error": null, "attributes": [
- {"name": "bc_num_slots", "widget": "number_field", "min": 1, "max": null, "pattern": null, "required": true, "line": 6, "defined": true, "in_form": true, "interpolated_in_submit": true, "submit_lines": [4], "reaches_scheduler": true},
+ {"name": "bc_num_slots", "widget": "number_field", "min": null, "max": null, "pattern": null, "required": false, "line": 6, "defined": true, "in_form": true, "interpolated_in_submit": true, "submit_lines": [4], "reaches_scheduler": true},
  {"name": "cores", "widget": "number_field", "min": 1, "max": "ERBVALUE", "pattern": null, "required": true, "line": 9, "defined": true, "in_form": true, "interpolated_in_submit": false, "submit_lines": [], "reaches_scheduler": true},
  {"name": "version", "widget": "select", "min": null, "max": null, "pattern": null, "required": false, "line": 12, "defined": true, "in_form": true, "interpolated_in_submit": false, "submit_lines": [], "reaches_scheduler": true},
  {"name": "extra", "widget": "text_field", "min": null, "max": null, "pattern": "[a-z]+", "required": false, "line": 15, "defined": true, "in_form": true, "interpolated_in_submit": false, "submit_lines": [], "reaches_scheduler": true},
+ {"name": "mem", "widget": "number_field", "min": 1, "max": null, "pattern": null, "required": false, "line": 18, "defined": true, "in_form": true, "interpolated_in_submit": false, "submit_lines": [], "reaches_scheduler": true},
+ {"name": "gpus", "widget": "number_field", "min": null, "max": null, "pattern": null, "required": true, "line": 21, "defined": true, "in_form": true, "interpolated_in_submit": false, "submit_lines": [], "reaches_scheduler": true},
  {"name": "bc_num_hours", "widget": null, "min": null, "max": null, "pattern": null, "required": false, "line": 3, "defined": false, "in_form": true, "interpolated_in_submit": true, "submit_lines": [8], "reaches_scheduler": true}
 ]}
 EOF
@@ -84,7 +86,7 @@ cat > "$TMP/report.md" <<'EOF'
 ### Code Quality
 | Check | Rule | Result | Severity | Summary | Evidence |
 |---|---|---|---|---|---|
-| Input validation (`check: numeric-field-bounds`) | QUA-07 | FAIL | medium | no max | form.yml:6 |
+| Input validation (`check: numeric-field-bounds`) | QUA-07 | FAIL | medium | no min | form.yml:6 |
 | Magic numbers (`check: magic-numbers`) | QUA-08 | PASS | — | documented timeout | template/script.sh.erb:20 |
 | ERB missing values (`check: erb-missing-value`) | QUA-10 | PASS | — | has a default | submit.yml.erb:4 |
 EOF
@@ -162,12 +164,14 @@ sed 's/| QUA-08 | PASS | — | documented timeout |/| QUA-08 | TBD | — | later
 check "a row with no result is not a row: exit 1" 1 "$(run "$TMP/r5f.md" "$TMP/findings.json" "$TMP/checks.json" "$O")"
 check "message" 1 "$(count "MISSING root magic-numbers")"
 
-echo "Test 6: numeric-field-bounds PASS without the candidate is UNCITED; bounded, ERBVALUE and select fields are not candidates"
-sed 's/| QUA-07 | FAIL | medium | no max | form.yml:6 |/| QUA-07 | PASS | — | all bounded | form.yml:9, form.yml:12 |/' "$TMP/report.md" > "$TMP/r6.md"
+echo "Test 6: numeric-field-bounds PASS without the candidate is UNCITED; a field with a min or required, and a select field, are not candidates"
+sed 's/| QUA-07 | FAIL | medium | no min | form.yml:6 |/| QUA-07 | PASS | — | all bounded | form.yml:9, form.yml:12 |/' "$TMP/report.md" > "$TMP/r6.md"
 check "exit 1" 1 "$(run "$TMP/r6.md" "$TMP/findings.json" "$TMP/checks.json" "$O")"
 check "message" 1 "$(count "UNCITED root numeric-field-bounds form.yml:6")"
 check "only one problem" 1 "$(grep -cE '^(MISSING|UNCITED) ' "$TMP/out")"
 check "a defined: false built-in is not a candidate" 0 "$(grep -cF 'form.yml:3' "$TMP/out")"
+check "a min with no max is not a candidate (a max may come from site config)" 0 "$(grep -cF 'form.yml:18' "$TMP/out")"
+check "required with no min is not a candidate" 0 "$(grep -cF 'form.yml:21' "$TMP/out")"
 
 echo "Test 7: a when_candidates check with no candidates needs no row; with candidates it does"
 check "sec-eval-exec absent, exit 0 (Test 1)" 0 "$(run "$TMP/report.md" "$TMP/findings.json" "$TMP/checks.json" "$O")"
@@ -220,7 +224,7 @@ echo "Test 12: monorepo: sections match by app id; candidates carry the app path
 M="$TMP/out-m"; mkdir -p "$M/a" "$M/b"
 echo '[{"app_id": "a", "path": "apps/a", "app_type": "batch_connect", "readme": "apps/a/README.md"}, {"app_id": "b", "path": "apps/b", "app_type": "passenger", "readme": "README.md"}]' > "$M/apps.json"
 echo '[]' > "$M/syntax.json"
-echo '{"file": "form.yml", "submit_file": "submit.yml.erb", "error": null, "attributes": [{"name": "n", "widget": "number_field", "min": null, "max": null, "pattern": null, "required": true, "line": 3, "defined": true, "in_form": true, "interpolated_in_submit": false, "submit_lines": [], "reaches_scheduler": true}]}' > "$M/a/form.json"
+echo '{"file": "form.yml", "submit_file": "submit.yml.erb", "error": null, "attributes": [{"name": "n", "widget": "number_field", "min": null, "max": null, "pattern": null, "required": false, "line": 3, "defined": true, "in_form": true, "interpolated_in_submit": false, "submit_lines": [], "reaches_scheduler": true}]}' > "$M/a/form.json"
 cat > "$TMP/rm.md" <<'EOF'
 ## App: A (a)
 

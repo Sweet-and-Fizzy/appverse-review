@@ -44,8 +44,6 @@
 [rows] MISSING root numeric-field-bounds
 [rows]   candidate form.yml:15
 [rows]   candidate form.yml:27
-[rows]   candidate form.yml:30
-[rows]   candidate form.yml:38
 [rows]   candidate form.yml:65
 [rows]   candidate form.yml:72
 [rows] MISSING root magic-numbers

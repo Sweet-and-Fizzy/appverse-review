@@ -215,7 +215,7 @@ exterior.
 | 5 | CORS set to `*` (`--allow_origin='*'`) | `template/script.sh.erb:36` | Security | FAIL — OODT-05 `cors-wildcard`, High |
 | 6 | XSRF protection disabled (`--disable_check_xsrf=True`) | `template/script.sh.erb:37` | Security | FAIL — OODT-05 `disabled-xsrf`, High |
 | 7 | Jupyter bound to `0.0.0.0` | `template/script.sh.erb:32` | Security | FAIL — OODT-05 `bind-all-interfaces`, Medium |
-| 8 | No `set -e` — errors in setup silently ignored | `template/script.sh.erb` | Quality | FAIL — QUA-03 `no-set-e` |
+| 8 | `module load anaconda3/2023.09` runs unchecked (no `\|\| exit`, no `set -e`) — a failed load runs on with the wrong Python | `template/script.sh.erb:4` | Quality | FAIL — QUA-03 `no-error-check` |
 | 9 | Custom PyPI index URL accepted without validation | `form.yml:21–24`, `template/script.sh.erb:19–20` | Security | WARN — OODT-08 `supply-chain-untrusted-index`, Medium |
 
 **Key behavior to verify:**

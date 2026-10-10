@@ -233,22 +233,35 @@ checks:
     default_severity: medium
 
   # Code Quality
+  # Error handling: job scripts check the commands whose failure matters
+  # (cd, module load, mkdir, a copy the job depends on) with `|| exit`, an
+  # `if`, a trap, or `set -e` where the author chose it. `set -e` is not
+  # required (it can break a script with background processes, such as a
+  # VNC script.sh); a missing `set -e` alone is not a finding. A script with
+  # no handling on such commands is.
   - id: error-handling
     section: Code Quality
     app_types: [batch_connect, passenger, companion, widget]
     fact_source: none
     rule: QUA-03
-    tag: no-set-e
+    tag: no-error-check
     row_required: always
     dimension: code_quality
     default_severity: low
     weight: target
+  # Input validation: a numeric field that reaches the scheduler has a `min`
+  # (or is `required`), so a blank or 0 value cannot reach the job. A `max`
+  # is good but is site policy (node size, partition limits): it may come
+  # from site config (an attribute the site sets, or ERB), and a hardcoded
+  # `max` is not required, so a missing `max` alone is not a finding. A
+  # `min` of 0 where 0 is meaningless (0 cores, 0 hours) is QUA-07
+  # zero-minimum.
   - id: numeric-field-bounds
     section: Code Quality
     app_types: [batch_connect]
     fact_source: form.json
     rule: QUA-07
-    tag: missing-min-max
+    tag: missing-min
     row_required: always
     dimension: code_quality
     default_severity: low
