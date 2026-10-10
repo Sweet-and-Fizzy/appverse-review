@@ -63,7 +63,9 @@ For each app, and for each manifest entry above in manifest order:
    improving the scanner. A `fact_source: none` check has no facts to
    miss, so its rows never carry the note.
 3. **Write the rows** in the dimension's table (see Output): Check
-   `` `check: <id>` ``, Rule from the manifest, Result, Severity, Summary,
+   `` `check: <id>` ``, Rule from the manifest, Result, Severity (the
+   manifest's `default_severity` unless the evidence clearly warrants
+   another; see Severity below), Summary,
    Evidence citing each candidate the row answers as `path:N`,
    `path:N-M` or `path:N,M`, never prose, with the repo-relative path
    (`template.json` gives it; prefix `form.json`'s app-relative paths with
@@ -202,11 +204,21 @@ These rows carry no `check:` marker.
 
   An unmet target for inclusion — error handling, input validation — is
   recorded as FAIL, not WARN; suggestions that are unmet are WARN. The
-  rubric's Code Quality section says which of these are
-  targets for inclusion and which are improvement suggestions — weight each
-  finding the way the rubric frames it, rather than applying your own
-  severity scale, and keep the labels consistent with findings you record
-  elsewhere in the review.
+  manifest's `weight` says which checks are targets (`target`) and which
+  are improvement suggestions (`suggestion`).
+
+  **Severity.** Every manifest entry has a `default_severity`. A FAIL or
+  WARN record for the check takes it, unless the evidence clearly warrants
+  another; then the row summary says why (a hardcoded path that stops the
+  app at every other site may be Medium rather than Low). PASS and NOT
+  CHECKED records are Info. A suggestion check (`weight: suggestion`)
+  defaults to Info and stays there: `check-rating.py` flags a suggestion
+  record rated above Info, since Low or above makes it a fix-item the
+  contributor is told to fix, and a suggestion is never that. Open-ended
+  findings that no check covers have no default: rate them on the
+  rubric's severity scale, keeping cosmetic polish (a typo, an icon name)
+  at Info. Do not invent your own scale, and keep labels consistent with
+  findings you record elsewhere in the review.
 
   **Magic numbers / undocumented literals** — the facts list bare integers
   and hex colours in template files; judge each. Also look beyond them. In

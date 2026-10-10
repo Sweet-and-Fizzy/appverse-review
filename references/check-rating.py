@@ -57,7 +57,13 @@ Rule 2 still applies (Minimal maps to High).
      correctness defect, beside the icon check's `icon-os-mismatch`) does
      not match. A maintenance record matches when
      its rule is one of MNT-02 through MNT-06 (MNT-01, activity, is a real
-     failure and is untouched). When checks.json cannot be read, is not
+     failure and is untouched). A suggestion-class record whose result is
+     FAIL or WARN and whose severity is above info (low, medium, high,
+     critical) is also a mismatch, `MISMATCH <app> <rule> <defect_key>:
+     suggestion (check <id>) rated <severity>; suggestions are info`:
+     suggestion checks carry `default_severity: info` in checks.json, and
+     a suggestion at Low or above would be a fix-item the contributor is
+     told to fix. A suggestion FAIL rated low gets both lines. When checks.json cannot be read, is not
      JSON or has no checks list, the script exits 2 with `error: cannot
      load references/checks.json (<reason>)` rather than skip the rule.
      This rule is general — it is not keyed to any particular app or run.
@@ -121,6 +127,9 @@ from report_parse import (  # noqa: E402
 )
 
 GOOD_PRACTICE_RULES = {"MNT-02", "MNT-03", "MNT-04", "MNT-05", "MNT-06"}
+# Severities above info: a suggestion-class record rated one of these is a
+# fix-item (check-feedback-floor.py), which a suggestion must never be.
+ABOVE_INFO = {"critical", "high", "medium", "low"}
 
 SECURITY_CLAIM_SENTENCE = "No tool-detectable issues in the checked tiers."
 
@@ -333,15 +342,26 @@ def matching_check(record, checks):
 def never_fail_mismatches(findings, checks):
     """MISMATCH lines for suggestion-class checks and MNT-02..MNT-06
     good-practice signals recorded as FAIL — the rubric holds neither is
-    ever a failure. One line per matching FAIL record."""
+    ever a failure — and for a suggestion-class FAIL or WARN rated above
+    info, its default_severity, so it never becomes a fix-item. One line
+    per problem: a suggestion FAIL rated low gets both lines."""
     lines = []
     for r in findings:
-        if r.get("result") != "FAIL":
+        result = r.get("result")
+        if result not in ("FAIL", "WARN"):
             continue
         rule = r.get("rule")
         app_id = fact_app_id(str(r.get("app_id") or "").strip().strip("/"))
         check = matching_check(r, checks)
-        if check is not None and check.get("weight") == "suggestion":
+        suggestion = check is not None and check.get("weight") == "suggestion"
+        severity = str(r.get("severity") or "").strip().lower()
+        if suggestion and severity in ABOVE_INFO:
+            lines.append(
+                "MISMATCH {} {} {}: suggestion (check {}) rated {}; suggestions are info".format(
+                    app_id, rule, r.get("defect_key"), check["id"], severity))
+        if result != "FAIL":
+            continue
+        if suggestion:
             lines.append(
                 "MISMATCH {} {} {}: suggestion (check {}) recorded as FAIL".format(
                     app_id, rule, r.get("defect_key"), check["id"]))

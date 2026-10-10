@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Test check-rating.py: Documentation rating follows its evidence lines; Documentation signal follows the rating;
-# a suggestion-class check or an MNT-02..MNT-06 good-practice signal recorded as FAIL is a mismatch.
+# a suggestion-class check or an MNT-02..MNT-06 good-practice signal recorded as FAIL is a mismatch, and so is
+# a suggestion-class FAIL or WARN rated above info.
 # Only Documentation is checked among ratings/signals (no security rating, design R4); the findings JSON is also
 # read for a stub README rating (QUA-01 docs-stub) and for the suggestion/good-practice FAIL scan (rule 3).
 set -uo pipefail
@@ -307,7 +308,7 @@ echo "Test 23: a suggestion check or a maintenance good-practice signal recorded
 report Strong Low "$FULL" > "$TMP/r23.md"
 cat > "$TMP/f23.json" <<'EOF'
 [
-  {"app_id":"root","rule":"QUA-04","defect_key":"template/script.sh.erb:commented-out-code","aspect":"quality","severity":"low","result":"FAIL","summary":"dead code","evidence":"template/script.sh.erb:12"},
+  {"app_id":"root","rule":"QUA-04","defect_key":"template/script.sh.erb:commented-out-code","aspect":"quality","severity":"info","result":"FAIL","summary":"dead code","evidence":"template/script.sh.erb:12"},
   {"app_id":"root","rule":"MNT-02","defect_key":"releases:no-releases","aspect":"maintenance","severity":"low","result":"FAIL","summary":"no releases","evidence":"releases"}
 ]
 EOF
@@ -486,8 +487,8 @@ echo "Test 33: a suggestion check matches any tag in its tags list; a tag of the
 report Strong Low "$FULL" > "$TMP/r33.md"
 cat > "$TMP/f33.json" <<'EOF'
 [
-  {"app_id":"root","rule":"QUA-08","defect_key":"form.yml:undocumented-resource-limit","aspect":"quality","severity":"low","result":"FAIL","summary":"x","evidence":"form.yml:3"},
-  {"app_id":"root","rule":"QUA-04","defect_key":"template/script.sh.erb:dead-branch","aspect":"quality","severity":"low","result":"FAIL","summary":"x","evidence":"template/script.sh.erb:6"},
+  {"app_id":"root","rule":"QUA-08","defect_key":"form.yml:undocumented-resource-limit","aspect":"quality","severity":"info","result":"FAIL","summary":"x","evidence":"form.yml:3"},
+  {"app_id":"root","rule":"QUA-04","defect_key":"template/script.sh.erb:dead-branch","aspect":"quality","severity":"info","result":"FAIL","summary":"x","evidence":"template/script.sh.erb:6"},
   {"app_id":"root","rule":"QUA-06","defect_key":"form.yml:duplicate-yaml-key:x","aspect":"quality","severity":"low","result":"FAIL","summary":"x","evidence":"form.yml:6"},
   {"app_id":"root","rule":"QUA-02","defect_key":"form.yml:hardcoded-cluster","aspect":"quality","severity":"low","result":"FAIL","summary":"x","evidence":"form.yml:3"},
   {"app_id":"root","rule":"QUA-01","defect_key":"README.md:docs-minimal","aspect":"quality","severity":"low","result":"FAIL","summary":"x","evidence":"README.md:1"}
@@ -583,5 +584,29 @@ check "LICENSE row ignored, README row consistent: exit 0" 0 "$(run "$TMP/r37lic
 
 # readme.json with no stub key (pre-old, from Test 22b) does nothing.
 check "readme.json with no stub key: exit 0 regardless" 0 "$(run "$TMP/r37fail.md" "$TMP/f1.json" "$TMP/pre-old")"
+
+echo "Test 38: a suggestion check FAIL or WARN rated above info is a MISMATCH; info, a target check and PASS are not"
+report Strong Low "$FULL" > "$TMP/r38.md"
+cat > "$TMP/f38.json" <<'EOF'
+[
+  {"app_id":"root","rule":"QUA-08","defect_key":"template/script.sh.erb:undocumented-hex-color","aspect":"quality","severity":"low","result":"WARN","summary":"x","evidence":"template/script.sh.erb:4"},
+  {"app_id":"root","rule":"QUA-09","defect_key":"template/script.sh.erb:duplicated-block","aspect":"quality","severity":"Medium","result":"WARN","summary":"x","evidence":"template/script.sh.erb:10"},
+  {"app_id":"root","rule":"QUA-04","defect_key":"template/script.sh.erb:commented-out-code","aspect":"quality","severity":"low","result":"FAIL","summary":"x","evidence":"template/script.sh.erb:12"},
+  {"app_id":"root","rule":"QUA-10","defect_key":"submit.yml.erb:erb-missing-value-unhandled","aspect":"quality","severity":"info","result":"WARN","summary":"x","evidence":"submit.yml.erb:3"},
+  {"app_id":"root","rule":"QUA-06","defect_key":"template/desktop.xml:icon-os-mismatch","aspect":"quality","severity":"low","result":"PASS","summary":"x","evidence":"template/desktop.xml:2"},
+  {"app_id":"root","rule":"QUA-07","defect_key":"form.yml:missing-pattern","aspect":"quality","severity":"low","result":"WARN","summary":"x","evidence":"form.yml:3"},
+  {"app_id":"root","rule":"QUA-06","defect_key":"form.yml:duplicate-yaml-key:x","aspect":"quality","severity":"low","result":"WARN","summary":"x","evidence":"form.yml:6"}
+]
+EOF
+check "exit 1" 1 "$(run "$TMP/r38.md" "$TMP/f38.json")"
+check "QUA-08 hex colour WARN low" 1 "$(grep -cxF 'MISMATCH root QUA-08 template/script.sh.erb:undocumented-hex-color: suggestion (check magic-numbers) rated low; suggestions are info' "$TMP/out")"
+check "QUA-09 WARN Medium (case-insensitive)" 1 "$(grep -cxF 'MISMATCH root QUA-09 template/script.sh.erb:duplicated-block: suggestion (check duplicated-blocks) rated medium; suggestions are info' "$TMP/out")"
+check "QUA-04 FAIL low: the severity line" 1 "$(grep -cxF 'MISMATCH root QUA-04 template/script.sh.erb:commented-out-code: suggestion (check dead-code) rated low; suggestions are info' "$TMP/out")"
+check "QUA-04 FAIL low: the FAIL line too" 1 "$(grep -cxF 'MISMATCH root QUA-04 template/script.sh.erb:commented-out-code: suggestion (check dead-code) recorded as FAIL' "$TMP/out")"
+check "a suggestion WARN at info is fine" 0 "$(grep -c 'erb-missing-value-unhandled' "$TMP/out")"
+check "a suggestion PASS is not judged on severity" 0 "$(grep -c 'icon-os-mismatch' "$TMP/out")"
+check "a target check WARN low is fine" 0 "$(grep -c missing-pattern "$TMP/out")"
+check "a QUA-06 correctness tag the icon check does not own is fine" 0 "$(grep -c 'duplicate-yaml-key' "$TMP/out")"
+check "only those four" "ratings: 4 mismatches" "$(tail -1 "$TMP/out")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

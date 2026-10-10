@@ -49,7 +49,12 @@ file lists candidates (`syntax.json` entries with `ok` false,
 `entry_point.json` with `parses` false) must cite each one in a row's
 Evidence as `path:N` or the bare path. Finding records use the manifest
 entry's `tag` in `defect_key` where it has one; where it is null, the tag
-the bullet below names. Anything else you notice goes after the checks, as
+the bullet below names. A FAIL record takes the entry's
+`default_severity` (High for every structure check, as a gate failure)
+unless the evidence clearly warrants another, and the row summary then
+says why. A WARN (an unknown implementation tag, a missing `role`) is not
+a gate failure: rate it on the rubric's severity scale. NOT CHECKED and
+PASS records are Info. Anything else you notice goes after the checks, as
 its own finding with the vocabulary tag that fits or `other:`.
 
 - Required metadata fields for the repo shape, per the rubric's "Repository

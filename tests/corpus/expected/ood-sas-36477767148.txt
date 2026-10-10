@@ -4,7 +4,10 @@
 # note: [evidence] NOTE lines are the cited-value rule in informational mode (precision under 80% on this corpus); they never change the exit code.
 [floor] feedback floor: 18/18 fix-items covered
 [keys] finding keys: 22/22 valid
-[rating] ratings: consistent
+[rating] MISMATCH root QUA-04 template/script.sh.erb:commented-out-code: suggestion (check dead-code) rated low; suggestions are info
+[rating] MISMATCH root QUA-08 template/script.sh.erb:undocumented-hex-color: suggestion (check magic-numbers) rated low; suggestions are info
+[rating] MISMATCH root QUA-10 submit.yml.erb:erb-missing-value-unhandled: suggestion (check erb-missing-value) rated low; suggestions are info
+[rating] ratings: 3 mismatches
 [rows] MISSING root str-02-metadata
 [rows] MISSING root str-03-yaml-valid
 [rows] MISSING root str-06-syntax

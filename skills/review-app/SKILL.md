@@ -343,8 +343,8 @@ Apply the decision rubric below (from the rubric's "Decision rubric" section):
 
 | Outcome | Criteria |
 |---------|----------|
-| **Accept** | Passes all gate criteria, adequate+ documentation, partially portable+ config. Always conditional on the duplicate check, which the review performs the catalog reads for but leaves the decision itself to the reviewer — word any Accept as pending that. |
-| **Accept with suggestions** | Passes gate criteria but has clear improvement areas. A below-target Documentation or Portability rating belongs here, not Request changes, when gate criteria are otherwise met. |
+| **Accept** | Passes all gate criteria, adequate+ documentation, partially portable+ config, and no fix-item remains: every remaining finding is Info-level polish (a suggestion check sits at Info by default, so suggestions alone never move an app off Accept). Always conditional on the duplicate check, which the review performs the catalog reads for but leaves the decision itself to the reviewer — word any Accept as pending that. |
+| **Accept with suggestions** | Passes gate criteria but has clear improvement areas: at least one fix-item (a FAIL or WARN rated Low or above, see the inclusion floor below) or a below-target rating. A below-target Documentation or Portability rating belongs here, not Request changes, when gate criteria are otherwise met. Info-level polish alone is not an improvement area; that app is Accept. |
 | **Request changes** | Missing a required (gate) criterion but fixable. A missing LICENSE is Request changes: the contributor adds one file. A fixable security misconfiguration, even High severity (e.g. CORS open to all origins), is Request changes, not Reject. |
 | **Reject** | Duplicate app, abandoned/unmaintained, not an OOD app, or a security finding tagged potentially malicious or unfixable without redesigning the app. |
 
@@ -403,10 +403,12 @@ FAIL. It is Recommended when it is a target miss in any dimension —
 Documentation rated below Adequate, Portability rated Not portable, or a
 `code_quality` check whose manifest `weight` is `target`
 (`references/checks.yml`) recorded FAIL — needed to reach the target rating
-but not to block listing. It is Suggested when it is a `weight: suggestion`
-check, a maintenance signal MNT-02 to MNT-06, or polish (any other
-FAIL/WARN). Word the feedback accordingly rather than flattening every
-fix-item into the same register.
+but not to block listing. It is Suggested when it is a maintenance signal MNT-02 to MNT-06 or
+polish (any other FAIL/WARN at Low or above). A `weight: suggestion` check
+is Info (its manifest `default_severity`, and `check-rating.py` rejects
+it rated higher), so it is never a fix-item: it goes in the one line of
+Info-level polish, or is left out. Word the feedback accordingly rather
+than flattening every fix-item into the same register.
 
 **Never advise removing a real caveat.** Never advise removing a comment or
 help text that states a real constraint (a partition that requires a GPU, a
@@ -548,7 +550,8 @@ externally by the API provider.
   lines support, its signal follows the rating, no `content:` line is
   cited for two rungs, the stub line and Below minimal follow
   `readme.json`'s `stub`; no suggestion-class check (any tag in its
-  checks.json `tags`) or MNT-02 to MNT-06 signal is FAIL; and
+  checks.json `tags`) or MNT-02 to MNT-06 signal is FAIL, and no
+  suggestion-class FAIL or WARN is rated above Info; and
   "No tool-detectable issues in the checked tiers." never sits under a
   FAIL or WARN Security row of any rule code.
   `check-rows.py`: every manifest check applicable to an app has a row, and
