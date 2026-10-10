@@ -124,7 +124,11 @@ deeper inspection.
   important finding since it means GPU and hugemem jobs silently get standard
   resources
 - Portability rated "Not portable" due to hardcoded cluster, modules, and paths
-- README rated "Adequate" or better (it has all four required sections)
+- README rated "Minimal", its `readme.json` baseline: Overview
+  (`README.md:6`) and Requirements (`README.md:11`) meet Minimal, and
+  Installation (`README.md:17`) and Configuration (`README.md:26`) are there,
+  but Adequate also needs Known Limitations, which the README lacks, so a
+  higher rating is a check-rating MISMATCH
 
 ---
 
@@ -222,8 +226,10 @@ exterior.
 
 **Key behavior to verify:**
 
-- Structure checks mostly PASS — README is "Adequate" or "Strong" (has all
-  sections including Known Limitations), LICENSE present, valid YAML
+- Structure checks mostly PASS — README is "Adequate", its `readme.json`
+  baseline (every Minimal and Adequate section, Known Limitations at
+  `README.md:33`; no Troubleshooting or screenshots, so not Strong), LICENSE
+  present, valid YAML
 - Security findings dominate — the curl|bash and eval are critical
 - The skill should recognize that defects 1 and 2 are **potentially malicious**
   patterns, not just misconfiguration — a form field that feeds `curl|bash` is
@@ -278,7 +284,7 @@ categories.
 |--------|-----------|----------|-----------|-----------|-----------|-----------|-------------|
 | **Structure** | FAIL (LICENSE, YAML) | FAIL (metadata) | PASS | FAIL (no form) | WARN (ext attrs) | PASS | PASS |
 | **Security (top severity)** | High (secret, 0.0.0.0) | PASS | PASS | Critical (injection) | High (CORS, 0.0.0.0) | Critical (curl\|bash, eval) | High (secret in one app, decides both) |
-| **Quality** | Minimal docs, Not portable | PASS / mixed | Adequate docs, Not portable, copy-paste artifacts | Below-minimal docs, Not portable | Minimal docs, Not portable | Strong docs, meh quality | PASS |
+| **Quality** | Minimal docs, Not portable | PASS / mixed | Minimal docs (no Known Limitations), Not portable, copy-paste artifacts | Below-minimal docs, Not portable | Minimal docs, Not portable | Adequate docs, meh quality | PASS |
 | **Maintenance** | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED |
 
 | OODT Category | Covered by |
