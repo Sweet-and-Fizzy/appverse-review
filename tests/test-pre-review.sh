@@ -631,9 +631,9 @@ check "one heading, two rungs" "{'heading': 'Requirements and Setup', 'line': 12
 check "FAQ is troubleshooting, placeholder" "{'heading': 'FAQ', 'line': 28, 'placeholder': True, 'match': 'heading'}" "$(rd "$R" "d['rungs']['troubleshooting']")"
 check "Known Issues is known limitations" "{'heading': 'Known Issues', 'line': 32, 'placeholder': False, 'match': 'heading'}" "$(rd "$R" "d['rungs']['known limitations']")"
 check "screenshots rung" "{'heading': 'Screenshots', 'line': 8, 'placeholder': False, 'match': 'heading'}" "$(rd "$R" "d['rungs']['screenshots']")"
-check "Environment is environment variables" "{'heading': 'Environment', 'line': 21, 'placeholder': False, 'match': 'heading'}" "$(rd "$R" "d['rungs']['environment variables']")"
+check "Environment alone is not environment variables" "None" "$(rd "$R" "d['rungs']['environment variables']")"
 check "screenshots (badge excluded)" "[{'line': 9, 'alt': 'Session view', 'target': 'docs/session.png'}]" "$(rd "$R" "d['screenshots']")"
-check "env_vars" "17:assignment,21:heading,23:phrase" "$(rd "$R" "','.join('%s:%s' % (e['line'], e['match']) for e in d['env_vars'])")"
+check "env_vars" "17:assignment,23:phrase" "$(rd "$R" "','.join('%s:%s' % (e['line'], e['match']) for e in d['env_vars'])")"
 check "placeholder file is seeded" "True" "$(yn grep -qxF '[Application Name]' "$SCRIPT_DIR/references/readme-placeholders.txt")"
 check "git checkout v1.0.0 is not a placeholder" "False" "$(yn grep -qF 'git checkout v1.0.0' "$SCRIPT_DIR/references/readme-placeholders.txt")"
 
@@ -811,7 +811,7 @@ Check the job log for an out-of-memory error.
 MD
 check "tillicum-shaped (many headings, none a prerequisites synonym): not a stub" "False|6|None" "$(rd "$T/tillicum-shaped.md" "'%s|%s|%s' % (d['stub'], d['content_line_count'], d['rungs']['prerequisites'])")"
 printf '# App\n\n## Current defaults\n\nCluster x.\n\n## Getting started\n\nLoad y.\n' > "$T/defaults.md"
-check "a 'defaults' heading is prerequisites" "Current defaults|3" "$(rd "$T/defaults.md" "'%s|%s' % (d['rungs']['prerequisites']['heading'], d['rungs']['prerequisites']['line'])")"
+check "a 'defaults' heading is not prerequisites; a later Getting started is" "Getting started|7" "$(rd "$T/defaults.md" "'%s|%s' % (d['rungs']['prerequisites']['heading'], d['rungs']['prerequisites']['line'])")"
 printf '# App\n\n## Getting Started\n\nLoad y.\n' > "$T/started.md"
 check "a 'getting started' heading is prerequisites" "Getting Started|heading" "$(rd "$T/started.md" "'%s|%s' % (d['rungs']['prerequisites']['heading'], d['rungs']['prerequisites']['match'])")"
 cat > "$T/kinds.md" <<'MD'
@@ -1728,6 +1728,47 @@ MD
 check "screenshots and env vars met by content entries, no headings: Strong" "Strong" "$(bl "$T/strong.md")"
 sed 's/^If the session never starts.*/Common issue: [what it does]/' "$T/strong.md" > "$T/placeholder.md"
 check "a placeholder Troubleshooting section is not met: Adequate" "Adequate|True" "$(rd "$T/placeholder.md" "'%s|%s' % (d['baseline_rating'], d['rungs']['troubleshooting']['placeholder'])")"
+
+echo "Test 59b: rung keywords are tight enough to set the baseline"
+T="$TMP/t59b"; mkdir -p "$T"
+printf '# App\n\nLaunches a desktop on a compute node.\n\n## Conda environment\nLoad the conda env before you start the app.\n' > "$T/conda.md"
+check "a Conda environment section is not environment variables" "None|[]" "$(rd "$T/conda.md" "'%s|%s' % (d['rungs']['environment variables'], d['env_vars'])")"
+printf '# App\n\nLaunches a desktop on a compute node.\n\n## Environment Variables\nNo environment variables are needed.\n' > "$T/none.md"
+check "an Environment Variables section that says there are none is placeholder" "True" "$(rd "$T/none.md" "d['rungs']['environment variables']['placeholder']")"
+check "a negated mention is not an env_vars phrase" "['heading']" "$(rd "$T/none.md" "[e['match'] for e in d['env_vars']]")"
+printf '# App\n\nLaunches a desktop on a compute node.\n\n## Environment Variables\nNone.\n' > "$T/none2.md"
+check "an Environment Variables section reading None. is placeholder" "True" "$(rd "$T/none2.md" "d['rungs']['environment variables']['placeholder']")"
+printf '# App\n\nLaunches a desktop.\n\n## Usage\nThis app does not use any environment variables.\nThere are no env vars to set.\nEnvironment variables: none.\nSet the env vars in submit.yml.erb to change the port.\n' > "$T/phrases.md"
+check "negated mentions are skipped, a real env var mention is kept" "9" "$(rd "$T/phrases.md" "','.join(str(e['line']) for e in d['env_vars'])")"
+printf '# App\n\nLaunches a desktop.\n\n## Env vars\nAPP_PORT sets the port.\n' > "$T/envvars.md"
+check "an Env vars heading is environment variables" "Env vars|False" "$(rd "$T/envvars.md" "'%s|%s' % (d['rungs']['environment variables']['heading'], d['rungs']['environment variables']['placeholder'])")"
+printf '# App\n\nLaunches a desktop on a compute node.\n\n## Current defaults\nfour cores and one hour.\n' > "$T/defaults.md"
+check "a defaults section is not prerequisites" "None" "$(rd "$T/defaults.md" "d['rungs']['prerequisites']")"
+# The ood-sas Troubleshooting section is the template's text unchanged.
+cat > "$T/sas.md" <<'MD'
+# SAS
+
+Launches SAS in a desktop session on a compute node.
+
+## Troubleshooting
+
+### Job starts but app doesn't appear (Batch Connect)
+
+1. Check the job's `output.log` in `~/ondemand/data/sys/YOUR-APP/`
+2. Verify the module loads correctly: `module load software/1.0`
+3. For VNC apps, verify the window manager is installed: `which xfwm4`
+
+### "Module not found" error
+
+The module name in `form.yml` doesn't match your system. Run `module spider
+software` to find the correct name and update the `modules` attribute.
+
+### Connection timeout
+
+The app may need more time to start. Increase the connection timeout or check
+that the compute node can open the required port.
+MD
+check "ood-sas's template Troubleshooting is placeholder" "True" "$(rd "$T/sas.md" "d['rungs']['troubleshooting']['placeholder']")"
 
 echo "Test 60: a bash -n failure next to a stripped ERB control tag is marked"
 T="$TMP/t60"; mkdir -p "$T"

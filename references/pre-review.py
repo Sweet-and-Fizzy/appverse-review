@@ -75,7 +75,9 @@ the per-app dirs named in the previous apps.json are removed first):
                  [{line, alt, target}] (image links outside code fences;
                  badge images excluded), env_vars [{line, text, match}]
                  (match heading | assignment ([A-Z_]{3,}=) | phrase
-                 ("environment variable")), rungs {what it launches,
+                 ("environment variable(s)" or "env var(s)", not when the
+                 sentence says there are none: "No environment variables
+                 are needed")), rungs {what it launches,
                  prerequisites, installation, configuration, known
                  limitations, troubleshooting, screenshots, environment
                  variables, info panel, architecture: {heading, line,
@@ -94,7 +96,11 @@ the per-app dirs named in the previous apps.json are removed first):
                  satisfy several rungs; placeholder is true when
                  the heading or every content line of its section (to the
                  next heading of the same or a higher level; HTML comments
-                 and fence markers are not content) is a placeholder line.
+                 and fence markers are not content) is a placeholder line;
+                 for environment variables, also when every content line
+                 only says there are none ("None.", "No environment
+                 variables are needed"). "environment" alone is not the
+                 environment variables rung, nor "defaults" prerequisites.
                  Headings inside code fences or HTML comments are ignored.
                  match is "heading", except that with no Overview-type
                  heading, the first descriptive paragraph (four or more
@@ -828,7 +834,7 @@ def check_trivy(target, out):
 RUNGS = (
     ("what it launches", ("overview", "about", "description")),
     ("prerequisites", ("requirements", "requirement", "prerequisites", "prerequisite", "dependencies",
-                       "defaults", "getting started")),
+                       "getting started")),
     ("installation", ("install", "installation", "installing", "setup", "set up", "deploy",
                       "deployment", "deploying")),
     ("configuration", ("configuration", "configure", "configuring", "customize", "customization",
@@ -836,10 +842,23 @@ RUNGS = (
     ("known limitations", ("known limitations", "limitations", "caveats", "known issues")),
     ("troubleshooting", ("troubleshooting", "faq", "common problems")),
     ("screenshots", ("screenshots", "screenshot")),
-    ("environment variables", ("environment variables", "environment variable", "environment")),
+    # Not "environment" alone: a "Conda environment" or "Software
+    # environment" section is not environment variables.
+    ("environment variables", ("environment variables", "environment variable", "env vars", "env var",
+                               "env variables", "env variable")),
     ("info panel", ("info panel",)),
     ("architecture", ("architecture", "how it works")),
 )
+# An environment-variable mention in README prose (env_vars "phrase").
+ENV_PHRASE = re.compile(r"\b(?:environment|env)[ \t]+var(?:iable)?s?\b", re.I)
+# A mention that says there are none ("No environment variables are
+# needed", "does not use any env vars", "Environment variables: none") is
+# not content: a negation in the three words before the phrase, or "none",
+# "not" or "n't" right after it.
+ENV_NEGATION_BEFORE = re.compile(r"^(?:no|not|none|never|without|nothing)$|n't$", re.I)
+ENV_NEGATION_AFTER = re.compile(r"^\W*(?:(?:are|is)\s+)?(?:none|not\b|n't|\w+n't\b)", re.I)
+# A line that only says there is nothing: "None.", "N/A", "Nothing yet."
+NOTHING_LINE = re.compile(r"^\W*(?:none|n/?a|nothing)\b[\w\s]{0,12}\W*$", re.I)
 # readme.json "stub": fewer content characters than this (the sum of the
 # stripped lengths of the lines readme_line_kinds calls "content"), or every
 # section body placeholder text. Characters, not lines, so the verdict does
@@ -1351,6 +1370,21 @@ def _rungs_for(text):
     return [rung for rung, synonyms in RUNGS if any(" " + s + " " in words for s in synonyms)]
 
 
+def _env_mention(line):
+    """True when line mentions environment variables and does not say there
+    are none."""
+    for m in ENV_PHRASE.finditer(line):
+        before = re.split(r"[.;!?]", line[:m.start()])[-1]
+        words = re.findall(r"[\w']+", before)[-3:]
+        if any(ENV_NEGATION_BEFORE.search(w) for w in words):
+            continue
+        after = re.split(r"[.;!?]", line[m.end():])[0]
+        if ENV_NEGATION_AFTER.search(after):
+            continue
+        return True
+    return False
+
+
 def _stub(headings, kinds, lines, phrase_of):
     """(stub, content_line_count, content_chars): stub when the content
     lines hold fewer than STUB_CONTENT_CHARS characters (each line's
@@ -1401,7 +1435,13 @@ def scan_readme(text, placeholders):
                    and not re.match(r"^ {0,3}(`{3,}|~{3,})", lines[n - 1])]
         placeholder = bool(phrase_of(h["text"])) or all(n in placeholder_lines for n in content)
         for rung in todo:
-            rungs[rung] = {"heading": h["text"], "line": h["line"], "placeholder": placeholder,
+            # An Environment variables section that only says there are none
+            # documents nothing.
+            empty = rung == "environment variables" and all(
+                n in placeholder_lines or NOTHING_LINE.match(lines[n - 1].strip(" -*>|`"))
+                or (ENV_PHRASE.search(lines[n - 1]) and not _env_mention(lines[n - 1]))
+                for n in content)
+            rungs[rung] = {"heading": h["text"], "line": h["line"], "placeholder": placeholder or empty,
                            "match": "heading"}
     # No Overview-type heading: a descriptive paragraph directly under the H1,
     # before the next heading, says what the app launches.
@@ -1440,7 +1480,7 @@ def scan_readme(text, placeholders):
             continue
         if re.search(r"[A-Z_]{3,}=", line):
             env_vars.append({"line": i + 1, "text": line.strip(), "match": "assignment"})
-        elif "environment variable" in line.lower():
+        elif _env_mention(line):
             env_vars.append({"line": i + 1, "text": line.strip(), "match": "phrase"})
 
     facts = {"headings": headings, "placeholders": placeholder_rows, "screenshots": screenshots,

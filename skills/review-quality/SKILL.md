@@ -182,8 +182,11 @@ These rows carry no `check:` marker.
   variables, a `screenshots` or `env_vars` assignment/phrase entry). Rate
   at the baseline unless the README itself gives you a reason to rate
   lower: a section is wrong, out of date, describes a different site or
-  app, or does not help a deployer do what its heading claims. A heading
-  that merely exists is the facts' call, not a reason; thinness you cannot
+  app, or does not help a deployer do what its heading claims, or the
+  heading matched a rung's keyword but its content does not cover that rung
+  (a "Conda environment" section is not environment variables; a "Setup"
+  section that only lists the scheduler options is not installation). A
+  heading that merely exists is the facts' call, not a reason; thinness you cannot
   name is not a reason either. To lower, write `none` with that reason on
   the evidence line of each rung you withdraw, and put the clause on the
   rating line right after the rating:
