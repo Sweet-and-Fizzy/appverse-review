@@ -166,9 +166,11 @@ RATING_ORDER = [r for r, _ in RUNGS]
 DOC_SIGNAL = {BELOW_MINIMAL: "High", "Minimal": "High", "Adequate": "Medium", "Strong": "Low",
               "Exemplary": "Low"}
 # The lowering clause on the rating line: `(lowered from <baseline>: <reason>)`.
-LOWERED_RE = re.compile(r"\(\s*lowered from\s+((?i:below\s+minimal)|Minimal|Adequate|Strong|Exemplary)"
-                        r"\s*:\s*([^)]*?)\s*\)", re.I)
-RATING_RE = re.compile(r"Rating:\s*\**\s*((?i:below\s+minimal)|Minimal|Adequate|Strong|Exemplary)")
+# Reports bold rating words, so emphasis around the baseline or the colon
+# is allowed: `(lowered from **Strong**: ...)`, `(lowered from **Strong:** ...)`.
+LOWERED_RE = re.compile(r"\(\s*[*_]*\s*lowered from\s+[*_]*\s*((?i:below\s+minimal)|Minimal|Adequate|Strong|Exemplary)"
+                        r"\s*[*_]*\s*:\s*[*_]*\s*([^)]*?)\s*\)", re.I)
+RATING_RE = re.compile(r"Rating:[\s*_]*((?i:below\s+minimal)|Minimal|Adequate|Strong|Exemplary)")
 STUB_NOT_STUB = "stub rating but readme.json says the README is not a stub"
 STUB_NO_RECORD = "stub rating but no STR-01 readme-not-substantive FAIL record and no readme.json stub fact"
 BELOW_NO_RECORD = "Below minimal rating but no QUA-01 docs-minimal FAIL record"
