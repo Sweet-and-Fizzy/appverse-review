@@ -239,7 +239,7 @@ Findings are classified under OODT (Open OnDemand App Threats); codes are define
 | QUA-02 | `check: portability-rating` | PASS/FAIL | ... | <rating; PASS at Partially portable or above; a FAIL cites the hardcoded-* records and adds no record> | ... |
 
 ### Documentation
-- Rating: <Below minimal | Minimal | Adequate | Strong | Exemplary> — <one-line justification>
+- Rating: <Below minimal | Minimal | Adequate | Strong | Exemplary>[ (lowered from <baseline>: <reason>)] — <one-line justification>
 - Evidence per rung (from readme.json rungs; a placeholder heading counts as none):
   what it launches: <"Heading", README.md:N, or none>; prerequisites: <…>; installation: <…>;
   configuration: <…>; known limitations: <…>;
@@ -253,10 +253,15 @@ Findings are classified under OODT (Open OnDemand App Threats); codes are define
      readme.json heading may cite the one README line that delivers it as
      content: README.md:N (a text line, which check-evidence.py verifies).
      A line may say none with a reason where the section does not deliver
-     its rung; it may never claim a rung without a citation. The rating is
-     the highest rung with every requirement satisfied above; with none for
-     Minimal it is Below minimal. Never claim a rung whose evidence line
-     says none. Only when readme.json stub is true does the rating line
+     its rung; it may never claim a rung without a citation. The rating
+     starts at readme.json baseline_rating, the highest rung the facts
+     support. A rating below it carries "(lowered from <baseline>:
+     <reason>)" after the rating word, the reason saying what the README
+     gets wrong for a deployer (wrong, out of date, another site's or app's
+     text, or a section that does not do what its heading claims); no
+     clause when the rating equals the baseline. A rating above it needs a
+     content: line for each requirement the facts miss. Never claim a rung
+     whose evidence line says none. Only when readme.json stub is true does the rating line
      read "Minimal — not supported (stub README; see QUA-01)". In
      meta.json assessments, Below minimal and a stub are "minimal". -->
 

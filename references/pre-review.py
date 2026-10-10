@@ -70,7 +70,15 @@ the per-app dirs named in the previous apps.json are removed first):
                  limitations, troubleshooting, screenshots, environment
                  variables, info panel, architecture: {heading, line,
                  placeholder, match} or null}, stub, content_line_count,
-                 content_chars}.
+                 content_chars, baseline_rating}.
+                 baseline_rating is the Documentation rating these facts
+                 support (readme_lines.baseline_rating): the highest rung
+                 whose requirements, and every lower rung's, are met by a
+                 non-placeholder rungs entry (screenshots: or a screenshots
+                 entry; environment variables: or an env_vars assignment or
+                 phrase), else "Below minimal". The quality skill starts
+                 from it and may lower it only with a stated reason;
+                 check-rating.py enforces both directions.
                  A rung is the first heading whose
                  words contain one of its synonyms (RUNGS); one heading can
                  satisfy several rungs; placeholder is true when
@@ -255,6 +263,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from readme_lines import (  # noqa: E402,F401  (re-exported for check-evidence and tests)
     PlaceholdersMissing, CONTACT_LINE, PLACEHOLDERS_FILE, _markdown_lines, _read, _readme_parse, load_placeholders, readme_line_kinds,
+    baseline_rating,
 )
 import catalog_facts  # noqa: E402
 
@@ -1371,9 +1380,11 @@ def scan_readme(text, placeholders):
         elif "environment variable" in line.lower():
             env_vars.append({"line": i + 1, "text": line.strip(), "match": "phrase"})
 
-    return {"headings": headings, "placeholders": placeholder_rows, "screenshots": screenshots,
-            "env_vars": env_vars, "rungs": rungs, "stub": stub,
-            "content_line_count": content_line_count, "content_chars": content_chars}
+    facts = {"headings": headings, "placeholders": placeholder_rows, "screenshots": screenshots,
+             "env_vars": env_vars, "rungs": rungs, "stub": stub,
+             "content_line_count": content_line_count, "content_chars": content_chars}
+    facts["baseline_rating"] = baseline_rating(facts)
+    return facts
 
 
 def _attr_lines(text):

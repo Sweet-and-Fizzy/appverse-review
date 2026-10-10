@@ -1673,4 +1673,41 @@ check "a renamed field still exits 0" 0 "$(run "$R" "$O" --catalog "$URL")"; api
 check "a renamed field is failed_to_run, never an empty match" "failed_to_run" "$(chk "$O" catalog status)"
 check "the note says the fields may have changed" 1 "$(chk "$O" catalog note | grep -c 'fields may have changed')"
 
+echo "Test 59: readme.json baseline_rating is the highest rung the facts support"
+# bl <README>: baseline_rating
+bl() { rd "$1" "d['baseline_rating']"; }
+check "broken-app (stub, nothing met): Below minimal" "Below minimal" "$(bl "$FIX/broken-app/README.md")"
+check "passenger-flask-app (no prerequisites heading): Below minimal" "Below minimal" "$(bl "$FIX/passenger-flask-app/README.md")"
+check "vnc-stale-debugger (no known limitations): Minimal" "Minimal" "$(bl "$FIX/vnc-stale-debugger/README.md")"
+check "curl-pipe-installer (no troubleshooting): Adequate" "Adequate" "$(bl "$FIX/curl-pipe-installer/README.md")"
+T="$TMP/t59"; mkdir -p "$T"
+cat > "$T/strong.md" <<'MD'
+# App
+
+## Overview
+Launches a desktop on a compute node.
+
+## Requirements
+Needs Xfce and TurboVNC on the compute nodes.
+
+## Installation
+Clone into /var/www/ood/apps/sys and restart the portal.
+
+## Configuration
+Set the cluster in form.yml to your own cluster name.
+
+![the desktop](docs/desktop.png)
+
+Set APP_DEBUG=1 to keep the job directory after the session ends.
+
+## Known Limitations
+Single-node jobs only.
+
+## Troubleshooting
+If the session never starts, read output.log in the session directory.
+MD
+check "screenshots and env vars met by content entries, no headings: Strong" "Strong" "$(bl "$T/strong.md")"
+sed 's/^If the session never starts.*/Common issue: [what it does]/' "$T/strong.md" > "$T/placeholder.md"
+check "a placeholder Troubleshooting section is not met: Adequate" "Adequate|True" "$(rd "$T/placeholder.md" "'%s|%s' % (d['baseline_rating'], d['rungs']['troubleshooting']['placeholder'])")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

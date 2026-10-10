@@ -173,9 +173,29 @@ These rows carry no `check:` marker.
   You may argue a section does not really satisfy its rung, and write
   `none` with the reason; you may never claim a rung without a citation
   (a `readme.json` heading, intro or content entry, or a `content:` line).
-  Rungs are cumulative: the rating is the
-  highest rung whose requirements, and every lower rung's, all have
-  evidence; never claim a rung with a `none` line. The
+  Rungs are cumulative: a rating needs its requirements, and every lower
+  rung's, all to have evidence; never claim a rung with a `none` line.
+
+  **The rating starts from the facts.** `readme.json`'s `baseline_rating`
+  is the highest rung the facts support (every requirement up to it is a
+  non-placeholder heading or intro, or, for screenshots and environment
+  variables, a `screenshots` or `env_vars` assignment/phrase entry). Rate
+  at the baseline unless the README itself gives you a reason to rate
+  lower: a section is wrong, out of date, describes a different site or
+  app, or does not help a deployer do what its heading claims. A heading
+  that merely exists is the facts' call, not a reason; thinness you cannot
+  name is not a reason either. To lower, write `none` with that reason on
+  the evidence line of each rung you withdraw, and put the clause on the
+  rating line right after the rating:
+  `Rating: Adequate (lowered from Strong: the Troubleshooting section
+  describes the MATLAB app it was copied from) — …`. The clause names the
+  baseline exactly. Never rate above the baseline except where a
+  requirement the facts miss is delivered by a `content: README.md:N`
+  line. `check-rating.py` enforces all of this: a rating below the
+  baseline with no clause, a clause naming another rung, a clause on a
+  rating at or above the baseline, and a rating above the baseline on
+  anything but `content:` lines are each a MISMATCH. The reviewer may
+  still override the level on the review page. The
   `documentation-rating` row is PASS at Adequate or above and FAIL below,
   with a QUA-01 record (`docs-minimal`, anchored at the README path, its
   evidence citing `README.md:N`). When no rung supports Minimal and

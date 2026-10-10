@@ -500,7 +500,7 @@ check "QUA-04 dead-branch is in dead-code's tags" 1 "$(grep -cxF 'MISMATCH root 
 check "QUA-06 duplicate-yaml-key (a correctness defect) is not a suggestion" 0 "$(grep -c 'duplicate-yaml-key' "$TMP/out")"
 check "only those two" "ratings: 2 mismatches" "$(tail -1 "$TMP/out")"
 mkdir -p "$TMP/refs2"
-cp "$CHECK" "$SCRIPT_DIR/references/report_parse.py" "$TMP/refs2/"
+cp "$CHECK" "$SCRIPT_DIR/references/report_parse.py" "$SCRIPT_DIR/references/readme_lines.py" "$TMP/refs2/"
 cat > "$TMP/refs2/checks.json" <<'EOF'
 {"checks":[
  {"id":"magic-numbers","rule":"QUA-08","tag":"magic-number","weight":"suggestion"},
@@ -608,5 +608,68 @@ check "a suggestion PASS is not judged on severity" 0 "$(grep -c 'icon-os-mismat
 check "a target check WARN low is fine" 0 "$(grep -c missing-pattern "$TMP/out")"
 check "a QUA-06 correctness tag the icon check does not own is fine" 0 "$(grep -c 'duplicate-yaml-key' "$TMP/out")"
 check "only those four" "ratings: 4 mismatches" "$(tail -1 "$TMP/out")"
+
+echo "Test 39: the rating starts from readme.json's baseline; lower only with a stated reason, never above"
+# rf <dir> <rungs met, comma list> [screenshots] [env]: a readme.json whose rungs entries are headings
+rf() { mkdir -p "$1/root"; python3 - "$1/root/readme.json" "$2" <<'PY'
+import json, sys
+all_rungs = ["what it launches", "prerequisites", "installation", "configuration", "known limitations",
+             "troubleshooting", "screenshots", "environment variables", "info panel", "architecture"]
+met = [r for r in sys.argv[2].split(",") if r]
+rungs = {r: ({"heading": r, "line": 10 + i, "placeholder": False, "match": "heading"} if r in met else None)
+         for i, r in enumerate(all_rungs)}
+json.dump({"file": "README.md", "stub": False, "rungs": rungs, "screenshots": [], "env_vars": []}, open(sys.argv[1], "w"))
+PY
+}
+STRONG_FACTS="what it launches,prerequisites,installation,configuration,known limitations,troubleshooting,screenshots,environment variables"
+rf "$TMP/pre-strong" "$STRONG_FACTS"
+NOTROUBLE='  - what it launches: README.md:27
+  - prerequisites: README.md:65
+  - installation: README.md:84
+  - configuration: README.md:99
+  - known limitations: README.md:200
+  - troubleshooting: none (the section describes a different app)
+  - screenshots: README.md:39
+  - environment variables: README.md:120
+  - info panel: none
+  - architecture: none'
+report Strong Low "$FULL" > "$TMP/r39a.md"
+check "(a) rating equals the baseline: exit 0" 0 "$(run "$TMP/r39a.md" "$TMP/f1.json" "$TMP/pre-strong")"
+check "(a) baseline met: consistent" "ratings: consistent" "$(tail -1 "$TMP/out")"
+report "Adequate (lowered from Strong: the Troubleshooting section describes a different app)" Medium "$NOTROUBLE" > "$TMP/r39b.md"
+check "(b) lowered with a reason: exit 0" 0 "$(run "$TMP/r39b.md" "$TMP/f1.json" "$TMP/pre-strong")"
+report Adequate Medium "$NOTROUBLE" > "$TMP/r39c.md"
+check "(c) lowered without a reason: exit 1" 1 "$(run "$TMP/r39c.md" "$TMP/f1.json" "$TMP/pre-strong")"
+check "(c) the line" "MISMATCH root documentation: rated Adequate below the readme.json baseline Strong with no reason (write '(lowered from Strong: <reason>)' on the rating line)" "$(head -1 "$TMP/out")"
+report "Adequate (lowered from Strong: )" Medium "$NOTROUBLE" > "$TMP/r39d.md"
+check "(d) an empty reason is no reason: exit 1" 1 "$(run "$TMP/r39d.md" "$TMP/f1.json" "$TMP/pre-strong")"
+report "Adequate (lowered from Exemplary: thin troubleshooting)" Medium "$NOTROUBLE" > "$TMP/r39e.md"
+check "(e) naming a rung other than the baseline: exit 1" 1 "$(run "$TMP/r39e.md" "$TMP/f1.json" "$TMP/pre-strong")"
+check "(e) the line" "MISMATCH root documentation: lowered from Exemplary but the readme.json baseline is Strong" "$(head -1 "$TMP/out")"
+report "Strong (lowered from Strong: no reason really)" Low "$FULL" > "$TMP/r39f.md"
+check "(f) a lowering clause on a rating at the baseline: exit 1" 1 "$(run "$TMP/r39f.md" "$TMP/f1.json" "$TMP/pre-strong")"
+check "(f) the line" "MISMATCH root documentation: rated Strong with a lowering clause but the readme.json baseline is Strong" "$(head -1 "$TMP/out")"
+rf "$TMP/pre-adequate" "what it launches,prerequisites,installation,configuration,known limitations,screenshots,environment variables"
+check "(g) above the baseline on a heading citation the facts do not meet: exit 1" 1 "$(run "$TMP/r39a.md" "$TMP/f1.json" "$TMP/pre-adequate")"
+check "(g) the line" "MISMATCH root documentation: rated Strong above the readme.json baseline Adequate; 'troubleshooting' is not met in readme.json and its evidence is not a content: line" "$(head -1 "$TMP/out")"
+sed 's|troubleshooting: README.md:159|troubleshooting: content: README.md:159|' "$TMP/r39a.md" > "$TMP/r39h.md"
+check "(h) above the baseline where a content: line delivers the missing rung: exit 0" 0 "$(run "$TMP/r39h.md" "$TMP/f1.json" "$TMP/pre-adequate")"
+report Strong Low "$NOENV" > "$TMP/r39i.md"
+check "(i) above the evidence ceiling is still the ceiling MISMATCH, once" "MISMATCH Documentation rating (Strong claimed but 'environment variables' evidence is none; highest supported rung is Adequate)|ratings: 1 mismatch" "$(run "$TMP/r39i.md" "$TMP/f1.json" "$TMP/pre-strong" >/dev/null; paste -sd'|' "$TMP/out")"
+report "Below minimal (lowered from Strong: every section is copied from another site's app)" High "$NOTROUBLE" > "$TMP/r39j.md"
+DOCMIN='[{"app_id":"root","rule":"QUA-01","defect_key":"README.md:docs-minimal","aspect":"quality","severity":"low","result":"FAIL","summary":"x","evidence":"README.md:1"}]'
+echo "$DOCMIN" > "$TMP/f39j.json"
+check "(j) Below minimal lowered from the baseline with a reason: exit 0" 0 "$(run "$TMP/r39j.md" "$TMP/f39j.json" "$TMP/pre-strong")"
+report "Below minimal" High "$NOTROUBLE" > "$TMP/r39k.md"
+check "(k) Below minimal under a Strong baseline with no reason: exit 1" 1 "$(run "$TMP/r39k.md" "$TMP/f39j.json" "$TMP/pre-strong")"
+mkdir -p "$TMP/pre-lists/root"
+printf '{"file":"README.md","stub":false,"rungs":{"what it launches":{"line":1,"placeholder":false},"prerequisites":{"line":2,"placeholder":false},"installation":{"line":3,"placeholder":false},"configuration":{"line":4,"placeholder":false},"known limitations":{"line":5,"placeholder":false},"troubleshooting":{"line":6,"placeholder":false},"screenshots":null,"environment variables":null},"screenshots":[{"line":39}],"env_vars":[{"line":120,"match":"assignment"}]}' > "$TMP/pre-lists/root/readme.json"
+check "(l) screenshots and env_vars content entries meet their rungs: Strong baseline, exit 0" 0 "$(run "$TMP/r39a.md" "$TMP/f1.json" "$TMP/pre-lists")"
+mkdir -p "$TMP/pre-lists2/root"
+sed 's/"troubleshooting":{"line":6,"placeholder":false}/"troubleshooting":{"line":6,"placeholder":true}/' "$TMP/pre-lists/root/readme.json" > "$TMP/pre-lists2/root/readme.json"
+check "(m) a placeholder rung is not met by the facts: Strong is above the Adequate baseline, exit 1" 1 "$(run "$TMP/r39a.md" "$TMP/f1.json" "$TMP/pre-lists2")"
+check "(m) the line names troubleshooting" 1 "$(grep -c "above the readme.json baseline Adequate; 'troubleshooting'" "$TMP/out")"
+check "(n) facts with no rungs (pre-real): rule 6 does nothing, exit 0" 0 "$(run "$TMP/r39c.md" "$TMP/f1.json" "$TMP/pre-real")"
+check "(o) no pre-review directory: rule 6 does nothing, exit 0" 0 "$(run "$TMP/r39c.md" "$TMP/f1.json")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
