@@ -63,7 +63,10 @@ Rule 2 still applies (Minimal maps to High).
      suggestion (check <id>) rated <severity>; suggestions are info`:
      suggestion checks carry `default_severity: info` in checks.json, and
      a suggestion at Low or above would be a fix-item the contributor is
-     told to fix. A suggestion FAIL rated low gets both lines. When checks.json cannot be read, is not
+     told to fix. A suggestion FAIL rated low gets both lines. The same
+     holds for an MNT-02..MNT-06 FAIL or WARN rated above info,
+     `MISMATCH <app> <rule> <defect_key>: good-practice signal rated
+     <severity>; good-practice signals are info`. When checks.json cannot be read, is not
      JSON or has no checks list, the script exits 2 with `error: cannot
      load references/checks.json (<reason>)` rather than skip the rule.
      This rule is general — it is not keyed to any particular app or run.
@@ -425,9 +428,9 @@ def matching_check(record, checks):
 def never_fail_mismatches(findings, checks):
     """MISMATCH lines for suggestion-class checks and MNT-02..MNT-06
     good-practice signals recorded as FAIL — the rubric holds neither is
-    ever a failure — and for a suggestion-class FAIL or WARN rated above
-    info, its default_severity, so it never becomes a fix-item. One line
-    per problem: a suggestion FAIL rated low gets both lines."""
+    ever a failure — and for either one's FAIL or WARN rated above info, so
+    it never becomes a fix-item. One line per problem: a suggestion or
+    good-practice FAIL rated low gets both lines."""
     lines = []
     for r in findings:
         result = r.get("result")
@@ -442,6 +445,10 @@ def never_fail_mismatches(findings, checks):
             lines.append(
                 "MISMATCH {} {} {}: suggestion (check {}) rated {}; suggestions are info".format(
                     app_id, rule, r.get("defect_key"), check["id"], severity))
+        elif rule in GOOD_PRACTICE_RULES and severity in ABOVE_INFO:
+            lines.append(
+                "MISMATCH {} {} {}: good-practice signal rated {}; good-practice signals are info".format(
+                    app_id, rule, r.get("defect_key"), severity))
         if result != "FAIL":
             continue
         if suggestion:

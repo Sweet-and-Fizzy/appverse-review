@@ -408,10 +408,11 @@ FAIL. It is Recommended when it is a target miss in any dimension —
 Documentation rated below Adequate, Portability rated Not portable, or a
 `code_quality` check whose manifest `weight` is `target`
 (`references/checks.yml`) recorded FAIL — needed to reach the target rating
-but not to block listing. It is Suggested when it is a maintenance signal MNT-02 to MNT-06 or
-polish (any other FAIL/WARN at Low or above). A `weight: suggestion` check
-is Info (its manifest `default_severity`, and `check-rating.py` rejects
-it rated higher), so it is never a fix-item: it goes in the one line of
+but not to block listing. It is Suggested when it is polish (any other
+FAIL/WARN at Low or above). A `weight: suggestion` check is Info (its
+manifest `default_severity`, and `check-rating.py` rejects it rated
+higher), and so is a maintenance good-practice signal MNT-02 to MNT-06, so
+neither is ever a fix-item: it goes in the one line of
 Info-level polish, or is left out. Word the feedback accordingly rather
 than flattening every fix-item into the same register.
 
@@ -556,7 +557,7 @@ externally by the API provider.
   cited for two rungs, the stub line and Below minimal follow
   `readme.json`'s `stub`; no suggestion-class check (any tag in its
   checks.json `tags`) or MNT-02 to MNT-06 signal is FAIL, and no
-  suggestion-class FAIL or WARN is rated above Info; and
+  suggestion-class or MNT-02 to MNT-06 FAIL or WARN is rated above Info; and
   "No tool-detectable issues in the checked tiers." never sits under a
   FAIL or WARN Security row of any rule code.
   `check-rows.py`: every manifest check applicable to an app has a row, and

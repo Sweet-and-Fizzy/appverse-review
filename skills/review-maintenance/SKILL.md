@@ -58,7 +58,10 @@ Weight each signal the way the rubric's Upkeep section frames it:
 activity within 12 months is its target for inclusion, while releases, issue
 responsiveness, contributors, CHANGELOG, and CI are good-practice indicators, not
 requirements — a missing release is a suggestion, never a failure.
-Records under MNT-02 to MNT-06 are WARN at most; `check-rating.py` rejects a FAIL.
+Records under MNT-02 to MNT-06 are WARN at most and always severity `info`:
+a FAIL or WARN rated Low or above is a fix-item the Draft feedback must
+name, and a good-practice suggestion is never one. `check-rating.py`
+rejects a FAIL, and a FAIL or WARN rated above info.
 Apply the brand-new-app waiver where relevant and say so. Don't invent your
 own severity scale, and keep labels consistent with the rubric and with your
 other findings.

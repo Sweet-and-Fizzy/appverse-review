@@ -315,6 +315,23 @@ EOF
 check "exit 1" 1 "$(run "$TMP/r23.md" "$TMP/f23.json")"
 check "QUA-04 line" 1 "$(grep -cF 'MISMATCH root QUA-04 template/script.sh.erb:commented-out-code: suggestion (check dead-code) recorded as FAIL' "$TMP/out")"
 check "MNT-02 line" 1 "$(grep -cF 'MISMATCH root MNT-02 releases:no-releases: good-practice signal recorded as FAIL' "$TMP/out")"
+check "MNT-02 FAIL rated low also gets the severity line" 1 "$(grep -cF 'MISMATCH root MNT-02 releases:no-releases: good-practice signal rated low; good-practice signals are info' "$TMP/out")"
+
+echo "Test 23b: a maintenance good-practice WARN above info is a MISMATCH; at info, or MNT-01 at any severity, it is not"
+report Strong Low "$FULL" > "$TMP/r23b.md"
+cat > "$TMP/f23b.json" <<'EOF'
+[
+  {"app_id":"root","rule":"MNT-03","defect_key":"CHANGELOG.md:no-changelog","aspect":"maintenance","severity":"low","result":"WARN","summary":"no CHANGELOG","evidence":"CHANGELOG.md"},
+  {"app_id":"root","rule":"MNT-06","defect_key":"issues:unresponsive-issues","aspect":"maintenance","severity":"medium","result":"WARN","summary":"unanswered","evidence":"issues"},
+  {"app_id":"root","rule":"MNT-04","defect_key":".github/workflows:no-ci","aspect":"maintenance","severity":"info","result":"WARN","summary":"no CI","evidence":".github/workflows"},
+  {"app_id":"root","rule":"MNT-05","defect_key":"contributors:single-contributor","aspect":"maintenance","severity":"low","result":"PASS","summary":"two contributors","evidence":"contributors"},
+  {"app_id":"root","rule":"MNT-01","defect_key":"commits:stale-repo","aspect":"maintenance","severity":"medium","result":"WARN","summary":"quiet","evidence":"commits"}
+]
+EOF
+check "exit 1" 1 "$(run "$TMP/r23b.md" "$TMP/f23b.json")"
+check "MNT-03 low line" 1 "$(grep -cF 'MISMATCH root MNT-03 CHANGELOG.md:no-changelog: good-practice signal rated low; good-practice signals are info' "$TMP/out")"
+check "MNT-06 medium line" 1 "$(grep -cF 'MISMATCH root MNT-06 issues:unresponsive-issues: good-practice signal rated medium' "$TMP/out")"
+check "only those two" 2 "$(grep -c '^MISMATCH' "$TMP/out")"
 
 echo "Test 24: a target check FAIL and an MNT-01 FAIL are not mismatches"
 report Strong Low "$FULL" > "$TMP/r24.md"

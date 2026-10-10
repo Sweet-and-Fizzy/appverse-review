@@ -9,7 +9,8 @@
 [keys] finding keys: 23/27 valid
 [rating] MISMATCH Documentation rating (Strong claimed but 'environment variables' evidence is none; highest supported rung is Adequate)
 [rating] MISMATCH root QUA-04 template/script.sh.erb:commented-out-code: suggestion (check dead-code) rated low; suggestions are info
-[rating] ratings: 2 mismatches
+[rating] MISMATCH root MNT-03 CHANGELOG.md:no-changelog: good-practice signal rated low; good-practice signals are info
+[rating] ratings: 3 mismatches
 [rows] MISSING root str-02-metadata
 [rows] MISSING root str-03-yaml-valid
 [rows] MISSING root str-06-syntax
