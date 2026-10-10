@@ -91,6 +91,14 @@ its own finding with the vocabulary tag that fits or `other:`.
     is older than 4, and the file may use bash 4 syntax such as `;;&`): NOT
     CHECKED (severity info, evidence `<path>:1` plus that stderr text), not
     FAIL.
+  - `stderr` is a bash message and `erb_control_line` is a number (the
+    failure is within 3 lines of a stripped ERB control tag such as
+    `<% else %>` or `<% end %>`; stripping both branches of a conditional
+    can leave an orphan line that no rendered template contains): WARN
+    (severity low, evidence `<path>:<N>` with the line from stderr, plus
+    the first stderr line and "may come from stripping the template (ERB
+    control tag at line `<erb_control_line>`); check it"). It is not a
+    gate failure; the reviewer reads both branches.
   - `stderr` is a bash message (it starts with the file path followed by
     `: line N:`): FAIL (severity high, evidence `<path>:<N>` using that line
     number, or `<path>:1` when no `line N` is present, plus the first stderr
@@ -99,7 +107,8 @@ its own finding with the vocabulary tag that fits or `other:`.
     large to check): NOT CHECKED (severity info, evidence `<path>:1` plus the
     stderr text).
   The per-app Structure table's STR-06 row summarises them: "N files pass; M fail:
-  `<paths>`; K not checked: `<path>` (`<reason>`)", with refused symlinks
+  `<paths>`; W may come from stripping the template: `<paths>`; K not
+  checked: `<path>` (`<reason>`)", the row's Result the worst of them, with refused symlinks
   listed among the not-checked paths. Its Evidence column cites every
   entry whose `ok` is false (failed, not checked, or refused), each as
   `path:N` with the line from stderr or as the bare path; one row may cite

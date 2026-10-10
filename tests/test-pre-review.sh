@@ -1710,4 +1710,30 @@ check "screenshots and env vars met by content entries, no headings: Strong" "St
 sed 's/^If the session never starts.*/Common issue: [what it does]/' "$T/strong.md" > "$T/placeholder.md"
 check "a placeholder Troubleshooting section is not met: Adequate" "Adequate|True" "$(rd "$T/placeholder.md" "'%s|%s' % (d['baseline_rating'], d['rungs']['troubleshooting']['placeholder'])")"
 
+echo "Test 60: a bash -n failure next to a stripped ERB control tag is marked"
+T="$TMP/t60"; mkdir -p "$T"
+# The bc_osc_abaqus shape: both branches end in a continuation, so stripping
+# the if/else/end leaves `|& tee` orphaned on the line after the end tag.
+printf '#!/bin/bash\nmodule load abaqus\n<%%- if gpu -%%>\nvglrun abaqus cae \\\n<%%- else -%%>\nabaqus cae -mesa \\\n<%%- end -%%>\n  |& tee out.log\necho done\n' > "$T/abaqus.sh.erb"
+# An orphan fi 3 lines after the end tag (inside the window) and 4 after (outside).
+printf '#!/bin/bash\n<%% if x %%>\necho a\n<%% end %%>\necho b\necho c\nfi\n' > "$T/edge3.sh.erb"
+printf '#!/bin/bash\n<%% if x %%>\necho a\n<%% end %%>\necho b\necho c\necho d\nfi\n' > "$T/edge4.sh.erb"
+# A value tag and a comment tag are not control tags; an orphan next to them stays unmarked.
+printf '#!/bin/bash\nX=<%%= x %%>\n<%%# note %%>\nfi\n' > "$T/value.sh.erb"
+# A block opened with do on a multi-line tag counts on every line it spans.
+printf '#!/bin/bash\n<%% items.each do |i|\n%%>\necho i\n<%% end %%>\n)\n' > "$T/each.sh.erb"
+printf '#!/bin/bash\nfi\n' > "$T/plain.sh"
+printf '#!/bin/bash\n<%% if x %%>\necho ok\n<%% end %%>\n' > "$T/fine.sh.erb"
+O="$TMP/o60"
+check "exit 0" 0 "$(run "$T" "$O")"
+check "abaqus orphan fails at line 8" "True" "$(syn "$O" abaqus.sh.erb stderr | grep -q 'line 8:' && echo True || echo False)"
+check "abaqus orphan marked by the end tag" "7" "$(syn "$O" abaqus.sh.erb erb_control_line)"
+check "3 lines from a control tag is marked" "4" "$(syn "$O" edge3.sh.erb erb_control_line)"
+check "4 lines from a control tag is not" "None" "$(syn "$O" edge4.sh.erb erb_control_line)"
+check "value and comment tags are not control tags" "None" "$(syn "$O" value.sh.erb erb_control_line)"
+check "multi-line do tag marks the failure" "5" "$(syn "$O" each.sh.erb erb_control_line)"
+check "plain .sh never marked" "None" "$(syn "$O" plain.sh erb_control_line)"
+check "a passing .sh.erb is not marked" "True|None" "$(j "$O/syntax.json" "'%s|%s' % ([e for e in d if e['path']=='fine.sh.erb'][0]['ok'], [e for e in d if e['path']=='fine.sh.erb'][0]['erb_control_line'])")"
+check "every entry carries erb_control_line" "True" "$(j "$O/syntax.json" "all('erb_control_line' in e for e in d)")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

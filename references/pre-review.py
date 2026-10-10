@@ -32,7 +32,14 @@ the per-app dirs named in the previous apps.json are removed first):
                  when there is no bash, with every file ok false and the
                  reason in stderr. Under a bash older than 4 a failure's
                  stderr starts "bash <ver> rejected this file (may be valid
-                 on bash >= 4): ".
+                 on bash >= 4): ". erb_control_line (int or null): for a
+                 .sh.erb that failed, the line of the nearest ERB control
+                 tag (if, elsif, else, unless, end, case, when, a do or {
+                 block, ...) within ERB_CONTROL_WINDOW (3) lines of the line
+                 bash reported; stripping both branches of a conditional
+                 can leave an orphan (a stray `|& tee` after an if/else
+                 whose branches each end in a line continuation), so such
+                 a failure may be an artefact of stripping. null otherwise.
   shellcheck.json  shellcheck's objects concatenated across files, "file" set
                  to the repo-relative source path (.sh.erb scanned stripped).
   semgrep.json, bandit.json, trivy.json  the tool's own JSON, verbatim.
@@ -277,6 +284,17 @@ MAX_SHELL_BYTES = 1024 * 1024
 NO_FILES = "no applicable files"
 TOO_LARGE = "skipped: file larger than 1 MB"
 ERB_LITERAL = "\x00ERB-LITERAL\x00"
+# A bash -n failure in an ERB-stripped file this many lines or fewer from a
+# stripped ERB control tag may be an orphan the stripping left (both branches
+# of an if/else stripped together), not an error in any rendered template.
+# 3 covers the orphan on the line after an <% end %> and a continued command
+# or blank lines between; further away the tag cannot be the cause.
+ERB_CONTROL_WINDOW = 3
+ERB_CODE_TAG = re.compile(r"<%(?![%=#])-?(.*?)-?%>", re.S)
+ERB_CONTROL = re.compile(
+    r"^\s*(if|elsif|else|unless|end|case|when|while|until|for|begin|rescue|ensure)\b"
+    r"|\bdo\s*(\|[^|]*\|)?\s*$|\{\s*(\|[^|]*\|)?\s*$|^\s*\}", re.S)
+BASH_LINE = re.compile(r": line (\d+):")
 SEMGREP_RULESETS = "rulesets p/security-audit, p/secrets"
 SEMGREP_NOTE = ("files_examined is the tree size; semgrep applies its own ignore list "
                 "(tests/, vendored dirs)")
@@ -525,6 +543,29 @@ def _stripped_copy(target, out, rel):
     return dst
 
 
+def erb_control_lines(text):
+    """Line numbers (1-based) spanned by ERB control tags in text: a <% %>
+    (not <%= or <%#) whose code opens, continues or closes a block."""
+    text = text.replace("<%%", ERB_LITERAL)
+    lines = set()
+    for m in ERB_CODE_TAG.finditer(text):
+        if ERB_CONTROL.search(m.group(1).strip()):
+            first = text.count("\n", 0, m.start()) + 1
+            lines.update(range(first, first + m.group(0).count("\n") + 1))
+    return lines
+
+
+def near_erb_control(stderr, control_lines):
+    """The control-tag line nearest the first `line N` in a bash -n stderr,
+    when it is within ERB_CONTROL_WINDOW lines; else None."""
+    m = BASH_LINE.search(stderr or "")
+    if not m or not control_lines:
+        return None
+    n = int(m.group(1))
+    best = min(control_lines, key=lambda c: (abs(c - n), c))
+    return best if abs(best - n) <= ERB_CONTROL_WINDOW else None
+
+
 def _bash_major(bash):
     """(major, version string) from `bash --version`; (None, '') if unreadable."""
     rc, out, err, error = run([bash, "--version"], timeout=60)
@@ -551,6 +592,8 @@ def check_syntax(target, out):
 
     def write(entries):
         entries = sorted(entries, key=lambda e: e["path"])
+        for e in entries:
+            e.setdefault("erb_control_line", None)
         _write_json(out, "syntax.json", [{k: v for k, v in e.items() if k != "_scan"} for e in entries])
         return entries
 
@@ -591,8 +634,13 @@ def check_syntax(target, out):
             ok, stderr = rc == 0, err.replace(scan, rel)
             if old_bash and not ok:
                 stderr = old_prefix + stderr
+        control = None
+        if stripped and not ok and not error:
+            with open(os.path.join(target, rel), encoding="utf-8", errors="surrogateescape") as f:
+                control = near_erb_control(stderr, erb_control_lines(f.read()))
         entries.append({"path": rel, "stripped": stripped, "ok": ok,
-                        "stderr": stderr[:STDERR_CHARS], "_scan": scan})
+                        "stderr": stderr[:STDERR_CHARS], "erb_control_line": control,
+                        "_scan": scan})
     entries = write(entries + refused)
     failed = sum(1 for e in entries if e["path"] in checked and not e["ok"])
     notes = []

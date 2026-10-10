@@ -229,8 +229,8 @@ OODT-XX before hashing.
 **STR-06:**
 `bash-syntax-error`
 
-STR-06 is recorded for every shell file, with result PASS, FAIL, or NOT
-CHECKED, so the gate can distinguish "all scripts parse" from "not checked".
+STR-06 is recorded for every shell file, with result PASS, FAIL, WARN or
+NOT CHECKED, so the gate can distinguish "all scripts parse" from "not checked".
 A refused file (see `syntax.json`'s `stderr`) was never syntax-checked and is
 never FAIL. A refused symlink, whether it leads outside the target or
 nowhere, gets no findings record at all, because check-keys resolves the
@@ -238,7 +238,10 @@ anchor and such a path has no valid key; it is named only in the STR-06 row
 summary. A FIFO or device is NOT CHECKED. An entry that is not ok and whose
 `stderr` is neither a bash `line N` message nor a refusal reason (a binary
 file, a permission error, a timeout, an oversized file) is NOT CHECKED with
-the stderr text as evidence.
+the stderr text as evidence. A bash failure in a `.sh.erb` whose
+`syntax.json` entry has an `erb_control_line` (within 3 lines of a stripped
+ERB control tag) is WARN low, not FAIL: stripping both branches of an
+`<% if %>/<% else %>` can leave an orphan line no rendered template has.
 
 **STR-07:**
 `missing-entry-point`, `missing-submit-yml`, `layout-mismatch`,
