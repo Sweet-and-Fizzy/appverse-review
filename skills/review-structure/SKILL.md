@@ -65,8 +65,9 @@ its own finding with the vocabulary tag that fits or `other:`.
   `<pre-review>/catalog.json` (per app, `checks.app_type` and
   `checks.implementation_tags`, compared with the live vocabularies, ignoring
   case); do not query the catalog yourself. An `app_type` outside the
-  published vocabulary is an STR-02 FAIL (OOD needs the exact value, so a
-  near miss still breaks the app), worded as "not in the published
+  published vocabulary is an STR-02 FAIL (the value must be a term from the
+  catalog's app_type vocabulary, so a near miss such as a misspelling still
+  fails), worded as "not in the published
   vocabulary" (an unpublished term is invisible here); when
   `checks.app_type.closest` lists terms, the summary ends "did you mean
   `<term>`?" naming each, joined with "or"; an unknown
