@@ -26,12 +26,16 @@ If --plugin-version is omitted, it defaults to "unknown".
 import argparse
 import json
 import os
+import re
 import sys
 from collections import defaultdict
 from datetime import datetime, timezone
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from repo_paths import parse_citations, split_reviewed_ok  # noqa: E402
 
-SCHEMA_VERSION = "1.5"
+
+SCHEMA_VERSION = "1.6"
 
 SOLID = "solid"
 SOME_NOTES = "some_notes"
@@ -280,6 +284,54 @@ def cross_check_reported(scope, reported, indicators):
                 scope, axis, stated, computed))
 
 
+# Directories a site does not install or run: a finding whose evidence cites
+# only files under one of them (at any depth, so apps/x/tests/ counts) is
+# marked path_class "not_installed" (schema 1.6). It still counts; the
+# reviewer decides. Kept short on purpose: CI config, vendored code and
+# build scripts are left out because a site may run them.
+NOT_INSTALLED_DIRS = {"demo", "docs", "example", "examples", "test", "tests"}
+NOT_INSTALLED = "not_installed"
+_BARE_PATH = re.compile(r"^[`*]*(?:\./)?([\w.@+~-]+(?:/[\w.@+~-]+)+)")
+
+
+def _evidence_paths(evidence):
+    """The repo paths a finding's evidence cites for its FAIL/WARN part (the
+    text before any '; reviewed OK:'): every path:N citation, else a bare
+    leading path such as `docs/x.md`."""
+    main, _ = split_reviewed_ok(evidence)
+    paths = [p for p, _ in parse_citations(main)]
+    if not paths and isinstance(main, str):
+        m = _BARE_PATH.match(main.strip())
+        if m:
+            paths = [m.group(1)]
+    return paths
+
+
+def path_class(finding):
+    """"not_installed" when every path the evidence cites sits under a
+    NOT_INSTALLED_DIRS directory, else None (no path, or any installed one)."""
+    paths = _evidence_paths(finding.get("evidence"))
+    if not paths:
+        return None
+    for p in paths:
+        dirs = [seg.lower() for seg in p.split("/")[:-1]]
+        if not any(seg in NOT_INSTALLED_DIRS for seg in dirs):
+            return None
+    return NOT_INSTALLED
+
+
+def classify_paths(findings):
+    """Set path_class from the evidence on every finding, replacing any value
+    the model wrote: the field is the assembler's, never the model's."""
+    for f in findings:
+        if not isinstance(f, dict):
+            continue
+        f.pop("path_class", None)
+        cls = path_class(f)
+        if cls:
+            f["path_class"] = cls
+
+
 def split_findings_by_app(findings):
     by_app = defaultdict(list)
     repo_level = []
@@ -340,6 +392,7 @@ def attach_catalog(repo_level, apps, catalog):
 
 
 def assemble(meta, findings, md_path, pdf_path, html_path, plugin_version, catalog=None):
+    classify_paths(findings)
     repo_findings, app_findings_map = split_findings_by_app(findings)
     repo_criteria = derive_repo_criteria(findings, meta)
 

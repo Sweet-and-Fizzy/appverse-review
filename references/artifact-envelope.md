@@ -198,6 +198,16 @@ stderr and still assemble.
 - **`apps[].findings`** contains structure, OODT (security), and quality
   findings, filtered by `app_id`. There is no security indicator; a consumer
   reads security from these records directly (see Indicators below).
+- **`path_class`** (1.6, optional, on any finding) is `"not_installed"` when
+  every path the finding's evidence cites (its `path:N` citations before any
+  `; reviewed OK:`, or a bare leading path) sits under a directory a site
+  does not install or run: `demo/`, `docs/`, `example/`, `examples/`,
+  `test/` or `tests/`, at any depth (`apps/a/tests/x.sh` counts) and in any
+  case. `assemble-artifact.py` sets it from the evidence alone and drops any
+  value the model wrote; a finding citing no path, or any installed path,
+  has no `path_class`. The finding still counts in criteria, floors and
+  totals: the mark tells the reviewer it is outside what a site installs,
+  and the reviewer decides whether to dismiss it.
 - **`artifacts`** holds filenames, not paths. The reports travel beside the
   artifact; the directory they were written to during the run is dropped.
 - **`apps[].catalog`** (1.5, optional) is the app's catalog comparison from
@@ -336,3 +346,4 @@ tolerate a missing indicator key (see Indicators), so 1.2's removal of
 | 1.3 | Adds the optional `apps[].indicators.maintenance`: in a declared monorepo, each app's own upkeep from its folder's activity. `repo_level.indicators.maintenance` stays. |
 | 1.4 | Adds the optional `apps[].criteria.template_syntax`, from STR-05 and STR-06 rows. Before 1.4 an STR-06 result counted under `structure`, so a shell syntax error read as a layout failure. |
 | 1.5 | Adds the optional `apps[].catalog` and `repo_level.catalog`: the pre-review's catalog comparison, so a consumer can show each check's status rather than parse the report's Catalog checks prose. |
+| 1.6 | Adds the optional finding field `path_class` (`not_installed` for findings cited only in demo, docs, example or test directories). Additive; findings are not filtered. |
