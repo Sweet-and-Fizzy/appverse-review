@@ -249,6 +249,9 @@ the stderr text as evidence. A bash failure in a `.sh.erb` whose
 `syntax.json` entry has an `erb_control_line` (within 3 lines of a stripped
 ERB control tag) is WARN low, not FAIL: stripping both branches of an
 `<% if %>/<% else %>` can leave an orphan line no rendered template has.
+An end-of-file error (unexpected end of file or EOF: a missing
+`fi`/`done`/`esac` or an unterminated quote) never gets an
+`erb_control_line` and stays FAIL.
 
 **STR-07:**
 `missing-entry-point`, `missing-submit-yml`, `layout-mismatch`,

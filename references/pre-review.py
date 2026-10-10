@@ -39,7 +39,10 @@ the per-app dirs named in the previous apps.json are removed first):
                  bash reported; stripping both branches of a conditional
                  can leave an orphan (a stray `|& tee` after an if/else
                  whose branches each end in a line continuation), so such
-                 a failure may be an artefact of stripping. null otherwise.
+                 a failure may be an artefact of stripping. null otherwise,
+                 and always null for an end-of-file error (unexpected end
+                 of file / EOF: a missing fi/done/esac or an unterminated
+                 quote), which no stripping causes.
   shellcheck.json  shellcheck's objects concatenated across files, "file" set
                  to the repo-relative source path (.sh.erb scanned stripped).
   semgrep.json, bandit.json, trivy.json  the tool's own JSON, verbatim.
@@ -295,6 +298,10 @@ ERB_CONTROL = re.compile(
     r"^\s*(if|elsif|else|unless|end|case|when|while|until|for|begin|rescue|ensure)\b"
     r"|\bdo\s*(\|[^|]*\|)?\s*$|\{\s*(\|[^|]*\|)?\s*$|^\s*\}", re.S)
 BASH_LINE = re.compile(r": line (\d+):")
+# bash reports an unclosed construct (missing fi/done/esac, an unterminated
+# quote) at end of file, which is often right after a trailing <% end %>.
+# That is a real error in every rendered template, so it is never excused.
+BASH_EOF_ERROR = re.compile(r"unexpected (end of file|EOF)")
 SEMGREP_RULESETS = "rulesets p/security-audit, p/secrets"
 SEMGREP_NOTE = ("files_examined is the tree size; semgrep applies its own ignore list "
                 "(tests/, vendored dirs)")
@@ -557,7 +564,10 @@ def erb_control_lines(text):
 
 def near_erb_control(stderr, control_lines):
     """The control-tag line nearest the first `line N` in a bash -n stderr,
-    when it is within ERB_CONTROL_WINDOW lines; else None."""
+    when it is within ERB_CONTROL_WINDOW lines; else None. None for an
+    end-of-file error (an unclosed if/loop/case or quote), whatever its line."""
+    if BASH_EOF_ERROR.search(stderr or ""):
+        return None
     m = BASH_LINE.search(stderr or "")
     if not m or not control_lines:
         return None
