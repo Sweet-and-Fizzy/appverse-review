@@ -62,7 +62,8 @@ Records under MNT-02 to MNT-06 are WARN at most and always severity `info`:
 a FAIL or WARN rated Low or above is a fix-item the Draft feedback must
 name, and a good-practice suggestion is never one. `check-rating.py`
 rejects a FAIL, and a FAIL or WARN rated above info.
-Apply the brand-new-app waiver where relevant and say so. Don't invent your
+Apply the brand-new-app waiver when the repo's first commit is less than six
+months before the reviewed commit, and say so. Don't invent your
 own severity scale, and keep labels consistent with the rubric and with your
 other findings.
 

@@ -13,14 +13,15 @@ with suggestions:
     sets the floor for every app, wherever in the repo it was found.
     Installing any one app clones the whole repo (review-rubric.md, Repo
     shapes).
-  - A structure gate FAIL (an STR rule, whichever aspect filed it) sets at
-    least Request changes at any severity, since every Structure row is a
-    gate and a missing gate criterion is Request changes (review-rubric.md);
-    Critical sets Reject. An STR note tagged `other:` is not a gate row and
-    floors only at High or Critical.
-    The upkeep gate (MNT-01) sets a floor at High or Critical. Both apply to
-    their own app, or to every app when the finding is repo-level (its
-    app_id is not one of meta.json's apps, as "root" is in a monorepo).
+  - A structure gate FAIL (an STR rule, whichever aspect filed it) sets
+    Request changes at any severity: every Structure row is a gate, a
+    missing gate criterion is Request changes, and a gate failure can always
+    be fixed, so it is never Reject (review-rubric.md). An STR note tagged
+    `other:` is not a gate row and floors only at High or Critical. Both
+    apply to their own app, or to every app when the finding is repo-level
+    (its app_id is not one of meta.json's apps, as "root" is in a monorepo).
+  - Inactivity (MNT-01) sets no floor: it is the Inactive upkeep level, and
+    whether an inactive repo is abandoned (a Reject) is the reviewer's call.
   - A failed repo gate in meta.json (not_archived or public is "fail") sets
     Request changes for every app.
   - The recommendation is held to every repo-wide floor, and in a monorepo to
@@ -87,11 +88,9 @@ def main(argv):
         # STR-04, say) is still a gate, so it floors like one and its pill and
         # floor agree.
         security = not gate and (str(f.get("aspect", "")).strip().lower() == "security" or rule.startswith("OODT"))
-        if not (security or rule.startswith("STR") or rule == "MNT-01"):
+        if not (security or rule.startswith("STR")):
             continue
-        floor = FLOOR.get(str(f.get("severity", "")).strip().lower())
-        if gate:
-            floor = max(floor if floor is not None else 0, GATE_FLOOR)
+        floor = GATE_FLOOR if gate else FLOOR.get(str(f.get("severity", "")).strip().lower())
         if floor is None:
             continue
         repo_wide = security or f.get("app_id") not in app_ids

@@ -74,7 +74,9 @@ check "applies to the other app" 1 "$(grep -c '^MISMATCH decision apps/a: Accept
 
 echo "Test 9: an app with a repo-wide High floor and its own Critical floor is held to the Critical one"
 meta "$TMP/m9.json" "Reject" "apps/a:Accept" "apps/b:Reject"
-echo "[$(finding apps/a security high FAIL OODT-05 apps/a/x.sh:1),$(finding apps/a structure critical FAIL STR-03 apps/a/y.sh:4)]" > "$TMP/f9.json"
+# The app's own Critical floor comes from a structure note (other:), since a
+# gate failure is never more than Request changes.
+echo "[$(finding apps/a security high FAIL OODT-05 apps/a/x.sh:1),$(finding apps/a structure critical FAIL STR-03 apps/a/y.sh:4 apps/a/y.sh:other:unrenderable)]" > "$TMP/f9.json"
 check "exit 1" 1 "$(run "$TMP/m9.json" "$TMP/f9.json")"
 check "names the Critical floor in one line" 1 "$(grep -c '^MISMATCH decision apps/a: Accept, but STR-03 critical FAIL at apps/a/y.sh:4 needs at least Reject$' "$TMP/out")"
 check "only one line for that app" 1 "$(grep -c 'decision apps/a' "$TMP/out")"
@@ -85,12 +87,12 @@ echo "[$(finding root quality high FAIL QUA-01 README.md),$(finding root mainten
 check "exit 0" 0 "$(run "$TMP/m10.json" "$TMP/f10.json")"
 check "no floors" "decisions: 1 app against 0 floors, 0 problems" "$(tail -1 "$TMP/out")"
 
-echo "Test 11: result and severity are read case-insensitively; MNT-01 sets a floor"
+echo "Test 11: result and severity are read case-insensitively; inactivity (MNT-01) sets no floor"
 meta "$TMP/m11.json" "Accept" "root:Accept"
 echo '[{"app_id":"root","aspect":"security","rule":"OODT-02","severity":"High ","result":"Fail","evidence":"a:1"}]' > "$TMP/f11.json"
 check "Fail/High : exit 1" 1 "$(run "$TMP/m11.json" "$TMP/f11.json")"
 echo "[$(finding root maintenance high FAIL MNT-01 .git)]" > "$TMP/f11b.json"
-check "MNT-01 High: exit 1" 1 "$(run "$TMP/m11.json" "$TMP/f11b.json")"
+check "MNT-01 High: exit 0" 0 "$(run "$TMP/m11.json" "$TMP/f11b.json")"
 
 echo "Test 12: a failed public or archive gate in meta.json sets Request changes for every app"
 python3 -c "import json; json.dump({'recommendation':{'decision':'Accept'},'public':'fail','not_archived':'pass','apps':[{'app_id':'apps/a','decision':'Accept'},{'app_id':'apps/b','decision':'Request changes'}]},open('$TMP/m12.json','w'))"
@@ -126,11 +128,13 @@ echo "[$(finding root structure low FAIL STR-01 LICENSE)]" > "$TMP/f16b.json"
 check "repo level: exit 1" 1 "$(run "$TMP/m16.json" "$TMP/f16b.json")"
 check "repo level: names the other app" 1 "$(grep -c '^MISMATCH decision apps/a: Accept, but STR-01 low FAIL at LICENSE (applies to every app) needs at least Request changes$' "$TMP/out")"
 
-echo "Test 17: a Critical gate FAIL still needs Reject; a gate WARN or a Low security or upkeep FAIL sets no floor"
+echo "Test 17: a gate FAIL is Request changes even if recorded Critical; a gate WARN or a Low security or upkeep FAIL sets no floor"
 meta "$TMP/m17.json" "Request changes" "root:Request changes"
 echo "[$(finding root structure critical FAIL STR-01 LICENSE)]" > "$TMP/f17.json"
-check "critical gate: exit 1" 1 "$(run "$TMP/m17.json" "$TMP/f17.json")"
-check "critical gate: needs Reject" 1 "$(grep -c 'needs at least Reject$' "$TMP/out")"
+check "critical gate: Request changes meets it" 0 "$(run "$TMP/m17.json" "$TMP/f17.json")"
+meta "$TMP/m17c.json" "Accept" "root:Accept"
+check "critical gate: Accept does not" 1 "$(run "$TMP/m17c.json" "$TMP/f17.json")"
+check "critical gate: needs Request changes" 1 "$(grep -c 'needs at least Request changes$' "$TMP/out")"
 meta "$TMP/m17b.json" "Accept" "root:Accept"
 echo "[$(finding root structure medium WARN STR-01 LICENSE),$(finding root security low FAIL OODT-05 a:1),$(finding root maintenance low FAIL MNT-01 repo)]" > "$TMP/f17b.json"
 check "WARN gate, Low security, Low MNT-01: exit 0" 0 "$(run "$TMP/m17b.json" "$TMP/f17b.json")"
