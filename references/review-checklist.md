@@ -47,11 +47,6 @@ As a reviewer, we ask you to do at least this:
 You are not expected to find everything. A clear record of what you checked
 is what makes the review useful.
 
-## Who can review
-
-Appverse PMs review. Site administrators can too. Only an Appverse PM can be
-assigned as a repo's reviewer.
-
 ## Before you start
 
 Repos awaiting review are on the
@@ -63,7 +58,7 @@ commit. Once a report exists, the button reads **Rerun report**.
 
 A repo has one reviewer across all its rounds. Use **Assign to me** on the
 card, or pick a name in the Reviewer box on the review page. If nobody is
-assigned and you are an Appverse PM, saving the review assigns you.
+assigned, saving the review assigns you.
 
 You get an email when a repo is submitted or re-submitted. To stop these,
 turn off "Appverse review emails" on your account's edit page. Emails about
