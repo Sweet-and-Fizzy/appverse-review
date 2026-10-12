@@ -343,6 +343,8 @@ linting OOD's job-script files (a `.sh.erb` file, or `template/before.sh*`,
 `template/script.sh*`, `template/after.sh*`) one at a time: pre-review.py
 marks such a candidate `artifact: true`, and the security skill answers
 those together in one PASS row.
+A tool finding at a line another candidate already covers still gets its
+own row: a PASS that names the covering row.
 
 | Code | What it flags | Rule | Tag | Artefact |
 |---|---|---|---|---|
