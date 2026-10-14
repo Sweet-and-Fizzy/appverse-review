@@ -573,6 +573,12 @@ printf '# App\n\n[![CI](https://img.shields.io/x.svg)](https://ci)\n- a list ite
 check "badge, list and short lines under the H1 are not an intro" "None" "$(rd "$TMP/intro-neg.md" "d['rungs']['what it launches']")"
 printf '# App\n\nLaunches a Jupyter server on a compute node.\n\n## Overview\nMore.\n' > "$TMP/intro-ov.md"
 check "an Overview heading wins over the intro" "Overview|heading" "$(rd "$TMP/intro-ov.md" "'%s|%s' % (d['rungs']['what it launches']['heading'], d['rungs']['what it launches']['match'])")"
+# The README's title names the app, not a section: "# Custom Conda Environment"
+# is not an Environment variables section. A later H1 still can be one.
+printf '# Custom Conda Environment\n\nLaunches Jupyter with a site conda env.\n\n## Installation\nx\n' > "$TMP/title-env.md"
+check "the title is not a section" "None" "$(rd "$TMP/title-env.md" "d['rungs']['environment variables']")"
+printf '# App\n\nIntro text for the app.\n\n# Environment variables\nFOO=1 sets things\n' > "$TMP/h1-env.md"
+check "a later H1 section still counts" "Environment variables" "$(rd "$TMP/h1-env.md" "d['rungs']['environment variables']['heading']")"
 check "no placeholders, screenshots, env_vars" "[]|[]|[]" "$(rd "$R" "'%s|%s|%s' % (d['placeholders'], d['screenshots'], d['env_vars'])")"
 R="$FIX/vnc-stale-debugger/README.md"
 check "vnc headings (a # in a fence is not one)" "1|HPC Debugger|1,2|Overview|6,2|Requirements|11,2|Installation|17,2|Configuration|26" "$(rd "$R" "','.join('%s|%s|%s' % (h['level'], h['text'], h['line']) for h in d['headings'])")"
@@ -625,9 +631,9 @@ check "one heading, two rungs" "{'heading': 'Requirements and Setup', 'line': 12
 check "FAQ is troubleshooting, placeholder" "{'heading': 'FAQ', 'line': 28, 'placeholder': True, 'match': 'heading'}" "$(rd "$R" "d['rungs']['troubleshooting']")"
 check "Known Issues is known limitations" "{'heading': 'Known Issues', 'line': 32, 'placeholder': False, 'match': 'heading'}" "$(rd "$R" "d['rungs']['known limitations']")"
 check "screenshots rung" "{'heading': 'Screenshots', 'line': 8, 'placeholder': False, 'match': 'heading'}" "$(rd "$R" "d['rungs']['screenshots']")"
-check "Environment is environment variables" "{'heading': 'Environment', 'line': 21, 'placeholder': False, 'match': 'heading'}" "$(rd "$R" "d['rungs']['environment variables']")"
+check "Environment alone is not environment variables" "None" "$(rd "$R" "d['rungs']['environment variables']")"
 check "screenshots (badge excluded)" "[{'line': 9, 'alt': 'Session view', 'target': 'docs/session.png'}]" "$(rd "$R" "d['screenshots']")"
-check "env_vars" "17:assignment,21:heading,23:phrase" "$(rd "$R" "','.join('%s:%s' % (e['line'], e['match']) for e in d['env_vars'])")"
+check "env_vars" "17:assignment,23:phrase" "$(rd "$R" "','.join('%s:%s' % (e['line'], e['match']) for e in d['env_vars'])")"
 check "placeholder file is seeded" "True" "$(yn grep -qxF '[Application Name]' "$SCRIPT_DIR/references/readme-placeholders.txt")"
 check "git checkout v1.0.0 is not a placeholder" "False" "$(yn grep -qF 'git checkout v1.0.0' "$SCRIPT_DIR/references/readme-placeholders.txt")"
 
@@ -805,7 +811,7 @@ Check the job log for an out-of-memory error.
 MD
 check "tillicum-shaped (many headings, none a prerequisites synonym): not a stub" "False|6|None" "$(rd "$T/tillicum-shaped.md" "'%s|%s|%s' % (d['stub'], d['content_line_count'], d['rungs']['prerequisites'])")"
 printf '# App\n\n## Current defaults\n\nCluster x.\n\n## Getting started\n\nLoad y.\n' > "$T/defaults.md"
-check "a 'defaults' heading is prerequisites" "Current defaults|3" "$(rd "$T/defaults.md" "'%s|%s' % (d['rungs']['prerequisites']['heading'], d['rungs']['prerequisites']['line'])")"
+check "a 'defaults' heading is not prerequisites; a later Getting started is" "Getting started|7" "$(rd "$T/defaults.md" "'%s|%s' % (d['rungs']['prerequisites']['heading'], d['rungs']['prerequisites']['line'])")"
 printf '# App\n\n## Getting Started\n\nLoad y.\n' > "$T/started.md"
 check "a 'getting started' heading is prerequisites" "Getting Started|heading" "$(rd "$T/started.md" "'%s|%s' % (d['rungs']['prerequisites']['heading'], d['rungs']['prerequisites']['match'])")"
 cat > "$T/kinds.md" <<'MD'
@@ -1141,6 +1147,7 @@ check "broken-app candidates" "credential_string:template/script.sh.erb:2,config
 check "broken-app counts first, every kind listed" "counts|$KINDS" "$(sc "$D" "$D" batch_connect "list(d)[0] + '|' + ','.join(d['counts'])")"
 check "broken-app credential shape" "credential_string|sec-credential-string|OODT-02|hardcoded-credential|export API_TOKEN=\"sk-live-FAKE1234567890abcdef\"" "$(sc "$D" "$D" batch_connect "'|'.join(str(d['candidates'][0][k]) for k in ('kind','check','rule','tag','text'))")"
 check "broken-app bind is OODT-05 bind-all-interfaces" "OODT-05|bind-all-interfaces" "$(sc "$D" "$D" batch_connect "'%s|%s' % (d['candidates'][1]['rule'], d['candidates'][1]['tag'])")"
+check "the bind note says the bind alone is not the finding" "True" "$(sc "$D" "$D" batch_connect "'non-loopback' in d['candidates'][1]['note'] and 'no authentication' in d['candidates'][1]['note']")"
 check "broken-app: an unparseable form still names its attributes" "['modules']" "$(sc "$D" "$D" batch_connect "d['attributes']")"
 check "broken-app scope and files" "batch_connect|form.yml,submit.yml.erb,template/script.sh.erb" "$(sc "$D" "$D" batch_connect "d['scope'] + '|' + ','.join(d['files'])")"
 D="$FIX/curl-pipe-installer"
@@ -1550,15 +1557,27 @@ check "block keeps the rationale placeholder per app" 2 "$(grep -c 'reviewer fil
 
 echo "Test C2: a single-app repo with a misspelt software, an unknown type and an unknown tag"
 R="$TMP/cat-single"; mkdir -p "$R"
-printf 'description: x\nsoftware: "Jupyter Lab"\napp_type: "Batch-Connect-Bogus"\nimplementation_tags:\n  - "GPU-Enabled"\n  - "quantum"\n' > "$R/appverse.yml"
+printf 'description: x\nsoftware: "Jupyter Lab"\napp_type: "Batch Connect"\nimplementation_tags:\n  - "GPU-Enabled"\n  - "quantum"\n' > "$R/appverse.yml"
 O="$TMP/cat-single-o"
 check "exit 0" 0 "$(run "$R" "$O")"
 check "software no match" "no_match" "$(cat_j "$O" "d['apps'][0]['checks']['software']['status']")"
 check "closest suggestion" "JupyterLab" "$(cat_j "$O" "d['apps'][0]['checks']['software']['closest']")"
 check "app_type unknown" "unknown" "$(cat_j "$O" "d['apps'][0]['checks']['app_type']['status']")"
+check "app_type closest" "['batch-connect-basic']" "$(cat_j "$O" "d['apps'][0]['checks']['app_type']['closest']")"
+check "block asks did you mean" 1 "$(grep -c '`Batch Connect` is not in the published app-type vocabulary (.*). Did you mean `batch-connect-basic`?$' "$O/catalog-checks.md")"
 check "tag case ignored, unknown tag listed" "['quantum']" "$(cat_j "$O" "d['apps'][0]['checks']['implementation_tags']['unknown']")"
 check "single app has no app prefix" 0 "$(grep -c '`root`' "$O/catalog-checks.md")"
 check "block says no entry, with the catalog's suggestion" 1 "$(grep -c '`Jupyter Lab` has no Software entry; the catalog would suggest `JupyterLab`' "$O/catalog-checks.md")"
+
+echo "Test C2b: closest_app_types normalises, then prefixes, then edit distance"
+cl() { python3 -c 'import sys; sys.path.insert(0, sys.argv[1]); import catalog_facts as c; print(c.closest_app_types(sys.argv[2], ["dashboard", "widget", "companion_app", "batch-connect-basic", "batch-connect-VNC"]))' "$SCRIPT_DIR/references" "$1"; }
+check "a prefix suggests every term it starts" "['batch-connect-basic', 'batch-connect-VNC']" "$(cl "Batch Connect")"
+check "spaces and underscores read as hyphens" "['batch-connect-VNC']" "$(cl "Batch_Connect VNC")"
+check "a term that prefixes the value" "['batch-connect-basic']" "$(cl "batch-connect-basic-app")"
+check "underscore term matched loosely" "['companion_app']" "$(cl "Companion App")"
+check "a typo within edit distance 3" "['dashboard']" "$(cl "dashbord")"
+check "nothing close is no suggestion" "[]" "$(cl "jupyter")"
+check "a known value's comparison has no closest" "False" "$(python3 -c 'import sys; sys.path.insert(0, sys.argv[1]); import catalog_facts as c; cat={"software": [], "app_types": ["dashboard"], "implementation_tags": [], "apps": []}; d={"status": "declared", "software": None, "app_type": "Dashboard", "implementation_tags": []}; print("closest" in c.compare(cat, d, None)["app_type"])' "$SCRIPT_DIR/references")"
 
 echo "Test C3: an inferred repo declares nothing to match"
 O="$TMP/cat-inferred"; R="$TMP/cat-inf"; mkdir -p "$R"; printf 'name: x\nrole: batch_connect\n' > "$R/manifest.yml"
@@ -1672,5 +1691,115 @@ api renamed; O="$TMP/cat-net-renamed"
 check "a renamed field still exits 0" 0 "$(run "$R" "$O" --catalog "$URL")"; api_stop
 check "a renamed field is failed_to_run, never an empty match" "failed_to_run" "$(chk "$O" catalog status)"
 check "the note says the fields may have changed" 1 "$(chk "$O" catalog note | grep -c 'fields may have changed')"
+
+echo "Test 59: readme.json baseline_rating is the highest rung the facts support"
+# bl <README>: baseline_rating
+bl() { rd "$1" "d['baseline_rating']"; }
+check "broken-app (stub, nothing met): Below minimal" "Below minimal" "$(bl "$FIX/broken-app/README.md")"
+check "passenger-flask-app (no prerequisites heading): Below minimal" "Below minimal" "$(bl "$FIX/passenger-flask-app/README.md")"
+check "vnc-stale-debugger (no known limitations): Minimal" "Minimal" "$(bl "$FIX/vnc-stale-debugger/README.md")"
+check "curl-pipe-installer (no troubleshooting): Adequate" "Adequate" "$(bl "$FIX/curl-pipe-installer/README.md")"
+T="$TMP/t59"; mkdir -p "$T"
+cat > "$T/strong.md" <<'MD'
+# App
+
+## Overview
+Launches a desktop on a compute node.
+
+## Requirements
+Needs Xfce and TurboVNC on the compute nodes.
+
+## Installation
+Clone into /var/www/ood/apps/sys and restart the portal.
+
+## Configuration
+Set the cluster in form.yml to your own cluster name.
+
+![the desktop](docs/desktop.png)
+
+Set APP_DEBUG=1 to keep the job directory after the session ends.
+
+## Known Limitations
+Single-node jobs only.
+
+## Troubleshooting
+If the session never starts, read output.log in the session directory.
+MD
+check "screenshots and env vars met by content entries, no headings: Strong" "Strong" "$(bl "$T/strong.md")"
+sed 's/^If the session never starts.*/Common issue: [what it does]/' "$T/strong.md" > "$T/placeholder.md"
+check "a placeholder Troubleshooting section is not met: Adequate" "Adequate|True" "$(rd "$T/placeholder.md" "'%s|%s' % (d['baseline_rating'], d['rungs']['troubleshooting']['placeholder'])")"
+
+echo "Test 59b: rung keywords are tight enough to set the baseline"
+T="$TMP/t59b"; mkdir -p "$T"
+printf '# App\n\nLaunches a desktop on a compute node.\n\n## Conda environment\nLoad the conda env before you start the app.\n' > "$T/conda.md"
+check "a Conda environment section is not environment variables" "None|[]" "$(rd "$T/conda.md" "'%s|%s' % (d['rungs']['environment variables'], d['env_vars'])")"
+printf '# App\n\nLaunches a desktop on a compute node.\n\n## Environment Variables\nNo environment variables are needed.\n' > "$T/none.md"
+check "an Environment Variables section that says there are none is placeholder" "True" "$(rd "$T/none.md" "d['rungs']['environment variables']['placeholder']")"
+check "a negated mention is not an env_vars phrase" "['heading']" "$(rd "$T/none.md" "[e['match'] for e in d['env_vars']]")"
+printf '# App\n\nLaunches a desktop on a compute node.\n\n## Environment Variables\nNone.\n' > "$T/none2.md"
+check "an Environment Variables section reading None. is placeholder" "True" "$(rd "$T/none2.md" "d['rungs']['environment variables']['placeholder']")"
+printf '# App\n\nLaunches a desktop.\n\n## Usage\nThis app does not use any environment variables.\nThere are no env vars to set.\nEnvironment variables: none.\nSet the env vars in submit.yml.erb to change the port.\n' > "$T/phrases.md"
+check "negated mentions are skipped, a real env var mention is kept" "9" "$(rd "$T/phrases.md" "','.join(str(e['line']) for e in d['env_vars'])")"
+printf '# App\n\nLaunches a desktop.\n\n## Env vars\nAPP_PORT sets the port.\n' > "$T/envvars.md"
+check "an Env vars heading is environment variables" "Env vars|False" "$(rd "$T/envvars.md" "'%s|%s' % (d['rungs']['environment variables']['heading'], d['rungs']['environment variables']['placeholder'])")"
+printf '# App\n\nLaunches a desktop on a compute node.\n\n## Current defaults\nfour cores and one hour.\n' > "$T/defaults.md"
+check "a defaults section is not prerequisites" "None" "$(rd "$T/defaults.md" "d['rungs']['prerequisites']")"
+# The ood-sas Troubleshooting section is the template's text unchanged.
+cat > "$T/sas.md" <<'MD'
+# SAS
+
+Launches SAS in a desktop session on a compute node.
+
+## Troubleshooting
+
+### Job starts but app doesn't appear (Batch Connect)
+
+1. Check the job's `output.log` in `~/ondemand/data/sys/YOUR-APP/`
+2. Verify the module loads correctly: `module load software/1.0`
+3. For VNC apps, verify the window manager is installed: `which xfwm4`
+
+### "Module not found" error
+
+The module name in `form.yml` doesn't match your system. Run `module spider
+software` to find the correct name and update the `modules` attribute.
+
+### Connection timeout
+
+The app may need more time to start. Increase the connection timeout or check
+that the compute node can open the required port.
+MD
+check "ood-sas's template Troubleshooting is placeholder" "True" "$(rd "$T/sas.md" "d['rungs']['troubleshooting']['placeholder']")"
+
+echo "Test 60: a bash -n failure next to a stripped ERB control tag is marked"
+T="$TMP/t60"; mkdir -p "$T"
+# The bc_osc_abaqus shape: both branches end in a continuation, so stripping
+# the if/else/end leaves `|& tee` orphaned on the line after the end tag.
+printf '#!/bin/bash\nmodule load abaqus\n<%%- if gpu -%%>\nvglrun abaqus cae \\\n<%%- else -%%>\nabaqus cae -mesa \\\n<%%- end -%%>\n  |& tee out.log\necho done\n' > "$T/abaqus.sh.erb"
+# An orphan fi 3 lines after the end tag (inside the window) and 4 after (outside).
+printf '#!/bin/bash\n<%% if x %%>\necho a\n<%% end %%>\necho b\necho c\nfi\n' > "$T/edge3.sh.erb"
+printf '#!/bin/bash\n<%% if x %%>\necho a\n<%% end %%>\necho b\necho c\necho d\nfi\n' > "$T/edge4.sh.erb"
+# A value tag and a comment tag are not control tags; an orphan next to them stays unmarked.
+printf '#!/bin/bash\nX=<%%= x %%>\n<%%# note %%>\nfi\n' > "$T/value.sh.erb"
+# A block opened with do on a multi-line tag counts on every line it spans.
+printf '#!/bin/bash\n<%% items.each do |i|\n%%>\necho i\n<%% end %%>\n)\n' > "$T/each.sh.erb"
+printf '#!/bin/bash\nfi\n' > "$T/plain.sh"
+# End-of-file errors are real whatever tag sits next to them: an if with no
+# fi, and an unterminated quote, both ending on a trailing end tag.
+printf '#!/bin/bash\nif [ -n "$X" ]; then\n<%% if y %%>\necho a\n<%% end %%>\n' > "$T/nofi.sh.erb"
+printf '#!/bin/bash\n<%% if y %%>\necho "a\n<%% end %%>\n' > "$T/quote.sh.erb"
+printf '#!/bin/bash\n<%% if x %%>\necho ok\n<%% end %%>\n' > "$T/fine.sh.erb"
+O="$TMP/o60"
+check "exit 0" 0 "$(run "$T" "$O")"
+check "abaqus orphan fails at line 8" "True" "$(syn "$O" abaqus.sh.erb stderr | grep -q 'line 8:' && echo True || echo False)"
+check "abaqus orphan marked by the end tag" "7" "$(syn "$O" abaqus.sh.erb erb_control_line)"
+check "3 lines from a control tag is marked" "4" "$(syn "$O" edge3.sh.erb erb_control_line)"
+check "4 lines from a control tag is not" "None" "$(syn "$O" edge4.sh.erb erb_control_line)"
+check "value and comment tags are not control tags" "None" "$(syn "$O" value.sh.erb erb_control_line)"
+check "multi-line do tag marks the failure" "5" "$(syn "$O" each.sh.erb erb_control_line)"
+check "an if with no fi (end of file) is not marked" "False|None" "$(syn "$O" nofi.sh.erb ok)|$(syn "$O" nofi.sh.erb erb_control_line)"
+check "an unterminated quote (EOF) is not marked" "False|None" "$(syn "$O" quote.sh.erb ok)|$(syn "$O" quote.sh.erb erb_control_line)"
+check "plain .sh never marked" "None" "$(syn "$O" plain.sh erb_control_line)"
+check "a passing .sh.erb is not marked" "True|None" "$(j "$O/syntax.json" "'%s|%s' % ([e for e in d if e['path']=='fine.sh.erb'][0]['ok'], [e for e in d if e['path']=='fine.sh.erb'][0]['erb_control_line'])")"
+check "every entry carries erb_control_line" "True" "$(j "$O/syntax.json" "all('erb_control_line' in e for e in d)")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

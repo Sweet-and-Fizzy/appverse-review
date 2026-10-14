@@ -1,10 +1,11 @@
 [floor] feedback floor: 15/15 fix-items covered
 [keys] finding keys: 39/39 valid
-[rating] ratings: consistent
+[rating] MISMATCH root QUA-04 template/script.sh.erb:commented-out-code: suggestion (check dead-code) rated low; suggestions are info
+[rating] ratings: 1 mismatch
 [rows] check-rows: 1 app, 19 required rows, 0 problems
 [evidence] evidence: 39/39 valid; report rows: 24/24 valid
 [catalog] catalog: not checked (no catalog-checks.md in the pre-review output)
 [meta] meta: complete
 [decisions] decisions: 1 app against 0 floors, 0 problems
 [sections] sections: complete
-exit: 0
+exit: 1

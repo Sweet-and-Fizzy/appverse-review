@@ -99,7 +99,7 @@ after any prose tables (ratings, capability profiles) in the aspect's output:
     "severity":    "medium",
     "result":      "FAIL",
     "tag":         "unintentional",
-    "summary":     "MLflow bound to 0.0.0.0:5000, reachable by other users",
+    "summary":     "MLflow on 0.0.0.0:5000 with no authentication, reachable by other users",
     "evidence":    "template/script.sh.erb:24",
     "line":        24
   }
@@ -112,9 +112,9 @@ Field definitions:
 |---|---|---|---|
 | `app_id` | Yes | Yes | `"root"` for single-app repos; subpath for monorepos. Same value as `apps.json`'s `app_id` for the app; the per-app pre-review fact directory is `<pre-review>/<app_id>/` |
 | `rule` | Yes | Yes | Code from `finding-codes.md` (OODT-XX, STR-XX, QUA-XX, MNT-XX) |
-| `defect_key` | Yes | Yes | `{anchor}:{mechanism_tag}` per `finding-codes.md`. The anchor is relative to the repo root, so a monorepo app's anchor includes its subpath (`apps/good-app/form.yml:missing-min-max`) |
+| `defect_key` | Yes | Yes | `{anchor}:{mechanism_tag}` per `finding-codes.md`. The anchor is relative to the repo root, so a monorepo app's anchor includes its subpath (`apps/good-app/form.yml:missing-min`) |
 | `aspect` | Yes | No | `security`, `structure`, `quality`, or `maintenance` |
-| `severity` | Yes | No | `critical`, `high`, `medium`, `low`, or `info` |
+| `severity` | Yes | No | `critical`, `high`, `medium`, `low`, or `info`. A finding for a manifest check takes the check's `default_severity` (`checks.json`) unless the evidence clearly warrants another, and the summary says why; a suggestion check stays `info` |
 | `result` | Yes | No | `FAIL`, `WARN`, `PASS`, or `NOT CHECKED` |
 | `summary` | Yes | No | Human-readable description — display text, not identity |
 | `evidence` | Yes | No | `file:line` plus a short quote. Every FAIL/WARN needs evidence |

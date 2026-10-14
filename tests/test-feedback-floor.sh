@@ -593,4 +593,24 @@ check "exit 1" 1 "$(run "$TMP/f49.json" "$TMP/r49.md")"
 check "the gate FAIL is missing" 1 "$(grep -c 'MISSING STR-01 LICENSE:missing-license' "$TMP/out")"
 check "the other: note is not a fix-item" 0 "$(grep -c 'both-form-variants' "$TMP/out")"
 
+echo "Test 50: a suggestion check at its default severity (info) is not a fix-item; a target check at low is"
+cat > "$TMP/f50.json" <<'EOF'
+[
+ {"app_id":"root","rule":"QUA-08","defect_key":"template/script.sh.erb:undocumented-hex-color","aspect":"quality","severity":"info","result":"WARN","summary":"x","evidence":"template/script.sh.erb:4"},
+ {"app_id":"root","rule":"QUA-09","defect_key":"template/script.sh.erb:duplicated-block","aspect":"quality","severity":"info","result":"WARN","summary":"x","evidence":"template/script.sh.erb:10"},
+ {"app_id":"root","rule":"QUA-03","defect_key":"template/script.sh.erb:no-error-check","aspect":"quality","severity":"low","result":"WARN","summary":"x","evidence":"template/script.sh.erb:7"}
+]
+EOF
+cat > "$TMP/r50.md" <<'EOF'
+# Appverse Review: x
+## Overall recommendation
+Accept with suggestions.
+## Draft feedback — edit before sending
+Nothing to add.
+<!-- feedback-covers: -->
+EOF
+check "exit 1" 1 "$(run "$TMP/f50.json" "$TMP/r50.md")"
+check "only the target check is a fix-item" "feedback floor: 0/1 fix-items covered" "$(tail -1 "$TMP/out")"
+check "the info suggestions are not listed" 0 "$(grep -cE 'hex-color|duplicated-block' "$TMP/out")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

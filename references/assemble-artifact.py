@@ -26,12 +26,16 @@ If --plugin-version is omitted, it defaults to "unknown".
 import argparse
 import json
 import os
+import re
 import sys
 from collections import defaultdict
 from datetime import datetime, timezone
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from repo_paths import parse_citations, split_reviewed_ok  # noqa: E402
 
-SCHEMA_VERSION = "1.5"
+
+SCHEMA_VERSION = "1.6"
 
 SOLID = "solid"
 SOME_NOTES = "some_notes"
@@ -280,6 +284,78 @@ def cross_check_reported(scope, reported, indicators):
                 scope, axis, stated, computed))
 
 
+# Directories a site does not install or run: a finding every one of whose
+# mentioned paths sits under one of them (at any depth below the app's own
+# folder, so apps/x/tests/ counts) is marked path_class "outside_install"
+# (schema 1.6). It still counts; the reviewer decides. Kept short on purpose:
+# CI config, vendored code and build scripts are left out because a site may
+# run them.
+OUTSIDE_INSTALL_DIRS = {"demo", "docs", "example", "examples", "test", "tests"}
+OUTSIDE_INSTALL = "outside_install"
+_URL = re.compile(r"\b[a-z][a-z0-9+.-]*://\S+", re.I)
+_TOKEN = re.compile(r"[\w.@+~/-]+")
+_BARE_FILE = re.compile(r"[\w@+~-][\w.@+~-]*\.[A-Za-z]\w*")
+
+
+def _evidence_paths(evidence):
+    """The repo paths a finding's evidence mentions in its FAIL/WARN part
+    (the text before any '; reviewed OK:'): every path:N citation, and every
+    bare path: a relative token with a '/' whose last segment has an
+    extension or that ends in '/' (docs/x.md, tests/), or a backticked file
+    name (`form.yml`). URLs and absolute paths are not repo paths."""
+    main, _ = split_reviewed_ok(evidence)
+    if not isinstance(main, str):
+        return []
+    text = _URL.sub(" ", main)
+    paths = [p for p, _ in parse_citations(text)]
+    for m in _TOKEN.finditer(text):
+        tok = m.group(0).rstrip(".")
+        if tok.startswith("./"):
+            tok = tok[2:]
+        if not tok or tok.startswith("/"):
+            continue
+        if "/" in tok:
+            if tok.endswith("/") or "." in tok.rsplit("/", 1)[-1]:
+                paths.append(tok)
+        elif (text[m.start() - 1:m.start()] == "`" and text[m.end():m.end() + 1] == "`"
+              and _BARE_FILE.fullmatch(tok)):
+            paths.append(tok)
+    return paths
+
+
+def _app_relative(path, app_id):
+    """path with the app's own folder stripped: an app that lives under
+    examples/ is not outside the install as a whole."""
+    prefix = "" if app_id in (None, "", ".", "root") else str(app_id).strip("/") + "/"
+    return path[len(prefix):] if prefix and path.startswith(prefix) else path
+
+
+def path_class(finding):
+    """"outside_install" when every path the evidence mentions sits under an
+    OUTSIDE_INSTALL_DIRS directory below the finding's app folder, else None
+    (no path, or any installed one)."""
+    paths = _evidence_paths(finding.get("evidence"))
+    if not paths:
+        return None
+    for p in paths:
+        dirs = [seg.lower() for seg in _app_relative(p, finding.get("app_id")).split("/")[:-1]]
+        if not any(seg in OUTSIDE_INSTALL_DIRS for seg in dirs):
+            return None
+    return OUTSIDE_INSTALL
+
+
+def classify_paths(findings):
+    """Set path_class from the evidence on every finding, replacing any value
+    the model wrote: the field is the assembler's, never the model's."""
+    for f in findings:
+        if not isinstance(f, dict):
+            continue
+        f.pop("path_class", None)
+        cls = path_class(f)
+        if cls:
+            f["path_class"] = cls
+
+
 def split_findings_by_app(findings):
     by_app = defaultdict(list)
     repo_level = []
@@ -340,6 +416,7 @@ def attach_catalog(repo_level, apps, catalog):
 
 
 def assemble(meta, findings, md_path, pdf_path, html_path, plugin_version, catalog=None):
+    classify_paths(findings)
     repo_findings, app_findings_map = split_findings_by_app(findings)
     repo_criteria = derive_repo_criteria(findings, meta)
 

@@ -2,7 +2,9 @@
 # expected: the hand-made sample report has no Draft feedback section by construction; a missing section is a malformed report, exit 1.
 [floor] MISSING section: no '## Draft feedback' or '## Fix before submitting' section
 [keys] finding keys: 17/17 valid
-[rating] ratings: consistent
+[rating] MISMATCH root QUA-08 template/create_nginx_conf.sh.erb:magic-number: suggestion (check magic-numbers) rated low; suggestions are info
+[rating] MISMATCH root QUA-08 template/script.sh.erb:magic-number: suggestion (check magic-numbers) rated low; suggestions are info
+[rating] ratings: 2 mismatches
 [rows] MISSING root sec-tool-finding
 [rows]   candidate template/after.sh:SC2154
 [rows]   candidate template/before.sh.erb:SC1091

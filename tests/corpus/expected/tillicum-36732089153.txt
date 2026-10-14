@@ -7,7 +7,11 @@
 [keys] finding keys: 39/39 valid
 [rating] MISMATCH root documentation: stub rating but readme.json says the README is not a stub
 [rating] MISMATCH root security: "No tool-detectable issues in the checked tiers." with 4 FAIL/WARN rows above it
-[rating] ratings: 2 mismatches
+[rating] MISMATCH root QUA-08 template/after.sh:magic-number: suggestion (check magic-numbers) rated low; suggestions are info
+[rating] MISMATCH root QUA-08 template/script.sh.erb:magic-number: suggestion (check magic-numbers) rated low; suggestions are info
+[rating] MISMATCH root QUA-09 template/script.sh.erb:duplicated-block: suggestion (check duplicated-blocks) rated low; suggestions are info
+[rating] MISMATCH root QUA-10 submit.yml.erb:erb-missing-value-unhandled: suggestion (check erb-missing-value) rated low; suggestions are info
+[rating] ratings: 6 mismatches
 [rows] MISSING root sec-tool-finding
 [rows]   candidate template/after.sh:SC2148
 [rows]   candidate template/after.sh:SC2154

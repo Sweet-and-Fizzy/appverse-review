@@ -218,6 +218,34 @@ def _levenshtein(a, b):
     return prev[-1]
 
 
+def _type_key(value):
+    """An app_type compared loosely: lowercase, runs of spaces, underscores
+    and hyphens as one hyphen."""
+    return re.sub(r"[\s_-]+", "-", str(value).strip().lower()).strip("-")
+
+
+def closest_app_types(value, app_types):
+    """The vocabulary terms an unknown app_type most likely meant, in
+    vocabulary order: those equal to it compared loosely (_type_key); else
+    those it is a prefix of, or that are a prefix of it ("Batch Connect" ->
+    batch-connect-basic and batch-connect-VNC); else those within edit
+    distance 3 of it, the nearest only. Empty when nothing is close. A
+    suggestion only: app_type itself must match exactly."""
+    key = _type_key(value)
+    if not key:
+        return []
+    keyed = [(t, _type_key(t)) for t in app_types]
+    same = [t for t, k in keyed if k == key]
+    if same:
+        return same
+    prefix = [t for t, k in keyed if k.startswith(key + "-") or key.startswith(k + "-")]
+    if prefix:
+        return prefix
+    dist = [(_levenshtein(key, k), t) for t, k in keyed]
+    best = min((d for d, _ in dist), default=None)
+    return [t for d, t in dist if d == best] if best is not None and best <= 3 else []
+
+
 def compare(cat, decl, this_repo):
     """The checks for one app against the catalog. this_repo is the reviewed
     repo's owner/repo (or None), used to mark its own published apps."""
@@ -243,6 +271,8 @@ def compare(cat, decl, this_repo):
         res["app_type"] = {"status": "not_declared"}
     else:
         res["app_type"] = {"status": "known" if at.lower() in types else "unknown", "value": at}
+        if res["app_type"]["status"] == "unknown":
+            res["app_type"]["closest"] = closest_app_types(at, cat["app_types"])
     res["implementation_tags"] = {
         "declared": decl["implementation_tags"],
         "known": [t for t in decl["implementation_tags"] if t.lower() in tags],
@@ -326,6 +356,8 @@ def render(cat, per_app, monorepo):
         elif at["status"] == "unknown":
             t = "%s is not in the published app-type vocabulary (%s)." % (
                 code_span(at["value"]), ", ".join(code_span(x) for x in cat["app_types"]))
+            if at.get("closest"):
+                t += " Did you mean %s?" % " or ".join(code_span(x) for x in at["closest"])
         elif at["status"] == "not_declared":
             t = "not declared; `app_type` is required in `appverse.yml`."
         elif at["status"] == "unparsed":

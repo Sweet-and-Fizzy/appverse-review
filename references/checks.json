@@ -13,7 +13,8 @@
       "rule": "STR-02",
       "tag": null,
       "row_required": "always",
-      "dimension": "structure"
+      "dimension": "structure",
+      "default_severity": "high"
     },
     {
       "id": "str-03-yaml-valid",
@@ -28,7 +29,8 @@
       "rule": "STR-03",
       "tag": "yaml-parse-error",
       "row_required": "always",
-      "dimension": "structure"
+      "dimension": "structure",
+      "default_severity": "high"
     },
     {
       "id": "str-06-syntax",
@@ -40,7 +42,8 @@
       "rule": "STR-06",
       "tag": "bash-syntax-error",
       "row_required": "always",
-      "dimension": "structure"
+      "dimension": "structure",
+      "default_severity": "high"
     },
     {
       "id": "str-07-layout",
@@ -52,7 +55,8 @@
       "rule": "STR-07",
       "tag": "layout-mismatch",
       "row_required": "always",
-      "dimension": "structure"
+      "dimension": "structure",
+      "default_severity": "high"
     },
     {
       "id": "entry-point-parses",
@@ -65,7 +69,8 @@
       "rule": "STR-07",
       "tag": null,
       "row_required": "always",
-      "dimension": "structure"
+      "dimension": "structure",
+      "default_severity": "high"
     },
     {
       "id": "str-04-references",
@@ -80,7 +85,8 @@
       "rule": "STR-04",
       "tag": null,
       "row_required": "always",
-      "dimension": "structure"
+      "dimension": "structure",
+      "default_severity": "high"
     },
     {
       "id": "sec-interpolation",
@@ -95,7 +101,8 @@
       "rule": "OODT-01",
       "tag": "unsanitized-user-input",
       "row_required": "when_candidates",
-      "dimension": "security"
+      "dimension": "security",
+      "default_severity": null
     },
     {
       "id": "sec-eval-exec",
@@ -110,7 +117,8 @@
       "rule": "OODT-01",
       "tag": "eval-exec",
       "row_required": "when_candidates",
-      "dimension": "security"
+      "dimension": "security",
+      "default_severity": null
     },
     {
       "id": "sec-credential-string",
@@ -125,7 +133,8 @@
       "rule": "OODT-02",
       "tag": "hardcoded-credential",
       "row_required": "when_candidates",
-      "dimension": "security"
+      "dimension": "security",
+      "default_severity": null
     },
     {
       "id": "sec-permissive-mode",
@@ -140,7 +149,8 @@
       "rule": "OODT-03",
       "tag": "permissive-file-mode",
       "row_required": "when_candidates",
-      "dimension": "security"
+      "dimension": "security",
+      "default_severity": null
     },
     {
       "id": "sec-network-call",
@@ -155,7 +165,8 @@
       "rule": "OODT-04",
       "tag": "unexpected-network-call",
       "row_required": "when_candidates",
-      "dimension": "security"
+      "dimension": "security",
+      "default_severity": null
     },
     {
       "id": "sec-file-write-outside-job",
@@ -170,7 +181,8 @@
       "rule": "OODT-07",
       "tag": "dotfile-write",
       "row_required": "when_candidates",
-      "dimension": "security"
+      "dimension": "security",
+      "default_severity": null
     },
     {
       "id": "sec-config-flag",
@@ -185,7 +197,8 @@
       "rule": "OODT-08",
       "tag": "disabled-ssl",
       "row_required": "when_candidates",
-      "dimension": "security"
+      "dimension": "security",
+      "default_severity": null
     },
     {
       "id": "sec-binary-in-template",
@@ -200,7 +213,8 @@
       "rule": "OODT-04",
       "tag": "binary-in-template",
       "row_required": "when_candidates",
-      "dimension": "security"
+      "dimension": "security",
+      "default_severity": null
     },
     {
       "id": "sec-tool-finding",
@@ -215,7 +229,8 @@
       "rule": null,
       "tag": null,
       "row_required": "when_candidates",
-      "dimension": "security"
+      "dimension": "security",
+      "default_severity": null
     },
     {
       "id": "hardcoded-site-paths",
@@ -227,7 +242,8 @@
       "rule": "QUA-02",
       "tag": "hardcoded-path",
       "row_required": "always",
-      "dimension": "portability"
+      "dimension": "portability",
+      "default_severity": "low"
     },
     {
       "id": "portability-rating",
@@ -242,7 +258,8 @@
       "rule": "QUA-02",
       "tag": null,
       "row_required": "always",
-      "dimension": "portability"
+      "dimension": "portability",
+      "default_severity": "medium"
     },
     {
       "id": "documentation-rating",
@@ -257,7 +274,8 @@
       "rule": "QUA-01",
       "tag": null,
       "row_required": "always",
-      "dimension": "documentation"
+      "dimension": "documentation",
+      "default_severity": "medium"
     },
     {
       "id": "error-handling",
@@ -270,9 +288,10 @@
       ],
       "fact_source": "none",
       "rule": "QUA-03",
-      "tag": "no-set-e",
+      "tag": "no-error-check",
       "row_required": "always",
       "dimension": "code_quality",
+      "default_severity": "low",
       "weight": "target"
     },
     {
@@ -283,9 +302,10 @@
       ],
       "fact_source": "form.json",
       "rule": "QUA-07",
-      "tag": "missing-min-max",
+      "tag": "missing-min",
       "row_required": "always",
       "dimension": "code_quality",
+      "default_severity": "low",
       "weight": "target"
     },
     {
@@ -304,6 +324,7 @@
       ],
       "row_required": "always",
       "dimension": "code_quality",
+      "default_severity": "info",
       "weight": "suggestion"
     },
     {
@@ -323,6 +344,7 @@
       ],
       "row_required": "always",
       "dimension": "code_quality",
+      "default_severity": "info",
       "weight": "suggestion"
     },
     {
@@ -342,6 +364,7 @@
       ],
       "row_required": "always",
       "dimension": "code_quality",
+      "default_severity": "info",
       "weight": "suggestion"
     },
     {
@@ -358,6 +381,7 @@
       ],
       "row_required": "always",
       "dimension": "code_quality",
+      "default_severity": "info",
       "weight": "suggestion"
     },
     {
@@ -377,6 +401,7 @@
       ],
       "row_required": "always",
       "dimension": "code_quality",
+      "default_severity": "info",
       "weight": "suggestion"
     }
   ]

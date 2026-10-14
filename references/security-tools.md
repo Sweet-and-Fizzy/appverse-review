@@ -128,7 +128,7 @@ the strip itself.
 | **Detect** | `command -v bandit` |
 | **Install** | `pip install bandit` (all platforms) |
 | **Project** | https://bandit.readthedocs.io |
-| **OODT mapping** | OODT-01 (subprocess/eval/exec), OODT-02 (hardcoded passwords), OODT-05 (binding to 0.0.0.0), OODT-08 (insecure config) |
+| **OODT mapping** | OODT-01 (subprocess/eval/exec), OODT-02 (hardcoded passwords), OODT-05 (binding to 0.0.0.0, a finding only for a service with no authentication), OODT-08 (insecure config) |
 
 **Run:**
 
@@ -142,7 +142,8 @@ bandit reports everything and low-severity results are weighed, not hidden.
 **Key test IDs:**
 - B102: `exec()` used
 - B103: `set_bad_file_permissions` (chmod)
-- B104: binding to `0.0.0.0`
+- B104: binding to `0.0.0.0` (OOD's node proxy needs a non-loopback bind;
+  a finding only when the service has no authentication)
 - B108: hardcoded `/tmp` path
 - B602: `subprocess` with `shell=True`
 - B605: `os.system()` call
@@ -299,7 +300,7 @@ counts at the start of a string (`["curl", url]`, `"curl ..."`).
 | `file_write_outside_job` | A shell redirect, or a `cp` / `mv` / `install` / `ln` / `rsync` destination or `tee` argument, that is `$HOME`, `~`, or an absolute path (except `/dev/` and `/proc/self/`); `crontab` or `systemctl --user enable\|start` in command position; elsewhere, a `crontab` command string, or a write (`open(..., "w")`, `.write`, `File.write`, `FileUtils`, `shutil.copy`, `writeFile`, `>>`) on a line naming `.ssh/`, `authorized_keys`, a shell init file, `/etc/cron`, `.config/systemd/user` or `.config/autostart` | `sec-file-write-outside-job` | OODT-07 | `ssh-key-write` (`.ssh/`, `authorized_keys`), `cron-install` (crontab, `/etc/cron`, `systemd/user`), `dotfile-write` (a dotfile or dot-directory); `write-outside-job` for any other target (`/tmp`, `/usr/local`, `$HOME/<not a dotfile>`) |
 | `permission_change` | `chmod`, `chown`, `chgrp`, `umask`, `setfacl` in command position; `os.chmod` / `os.chown` / `os.umask`, `File.chmod`, `FileUtils.chmod`, `fs.chmod`. The note states the mode (`chmod 700`, `umask 077`) and `world-writable` or `not world-writable`: world-writable when the last octal digit sets other-write, for `o+w` / `a+w` / `+w`, or for a `umask` that leaves other-write | `sec-permissive-mode` | OODT-03 | `permissive-file-mode` |
 | `credential_string` | A literal of four or more characters (no spaces, not a path, URL, variable or ERB tag) assigned (`=`, `:`, `=>`) to a name containing password, passphrase, pass, secret, token, api key, access key, private key or credential; an unquoted value of eight or more characters needs a letter and a digit. Names ending `_dir`, `_path`, `_file`, `_url`, `_name`, `_env`, `_field`, `_label`, `_id` and similar are skipped. Also `--password=<literal>`-style flags, `-----BEGIN ... PRIVATE KEY`, and AWS / GitHub / Slack token shapes | `sec-credential-string` | OODT-02 | `hardcoded-credential` |
-| `config_flag` | `0.0.0.0`, `[::]`, `::` as a host or a `listen(` / `bind(` argument, `INADDR_ANY` (OODT-05 `bind-all-interfaces`); `Access-Control-Allow-Origin: *`, `allow_origin='*'`, `origins="*"`, `CORS(app)`, `cors()` (OODT-05 `cors-wildcard`); `--no-auth`, `--auth none`, an empty `--...token=` / `--...password=` or `.token = ''` (OODT-05 `disabled-auth`); `disable_check_xsrf=True`, `WTF_CSRF_ENABLED = False`, `@csrf_exempt`, `skip_before_action :verify_authenticity_token` (OODT-05 `disabled-xsrf`); `--disable-ssl`, `--no-check-certificate`, `--insecure`, `curl -k`, `verify=False`, `rejectUnauthorized: false` (OODT-08 `disabled-ssl`); `set -x`, `bash -x` (the note says trace output goes to the job's own output.log, world-readable only if the job directory is), `app.run(debug=True)`, `DEBUG = True` (OODT-08 `debug-tracing-enabled`); `disable_host_check`, `allow_remote_access=True`, `ALLOWED_HOSTS = ['*']` (OODT-08 `dns-rebinding-relaxed`); `PIP_INDEX_URL=`, `--index-url`, `--trusted-host` (OODT-08 `supply-chain-untrusted-index`) | `sec-config-flag` | per match, as listed | per match, as listed |
+| `config_flag` | `0.0.0.0`, `[::]`, `::` as a host or a `listen(` / `bind(` argument, `INADDR_ANY` (OODT-05 `bind-all-interfaces`, a fact to judge: the finding is a service reachable without authentication, not the bind, which OOD's node proxy needs); `Access-Control-Allow-Origin: *`, `allow_origin='*'`, `origins="*"`, `CORS(app)`, `cors()` (OODT-05 `cors-wildcard`); `--no-auth`, `--auth none`, an empty `--...token=` / `--...password=` or `.token = ''` (OODT-05 `disabled-auth`); `disable_check_xsrf=True`, `WTF_CSRF_ENABLED = False`, `@csrf_exempt`, `skip_before_action :verify_authenticity_token` (OODT-05 `disabled-xsrf`); `--disable-ssl`, `--no-check-certificate`, `--insecure`, `curl -k`, `verify=False`, `rejectUnauthorized: false` (OODT-08 `disabled-ssl`); `set -x`, `bash -x` (the note says trace output goes to the job's own output.log, world-readable only if the job directory is), `app.run(debug=True)`, `DEBUG = True` (OODT-08 `debug-tracing-enabled`); `disable_host_check`, `allow_remote_access=True`, `ALLOWED_HOSTS = ['*']` (OODT-08 `dns-rebinding-relaxed`); `PIP_INDEX_URL=`, `--index-url`, `--trusted-host` (OODT-08 `supply-chain-untrusted-index`) | `sec-config-flag` | per match, as listed | per match, as listed |
 | `binary_in_template` | A file under `template/` with a NUL byte in its first 8 KB, at line 1, `text` "binary file (N bytes)". An image or font by its magic bytes (PNG, JPEG, GIF, ICO, WOFF/WOFF2, TTF/OTF) is not a candidate and is listed in `skipped_files`; SVG is text and is scanned | `sec-binary-in-template` | OODT-04 | `binary-in-template` |
 | `tool_finding` | Every shellcheck, semgrep or bandit finding at a file in the app's security scope (see "What the script runs per file type" above), one candidate per (tool, code, file): shellcheck `file`, `line`, `code` (rendered `SC%d`), `level`, `message`; semgrep `results[].path`, `start.line`, `check_id`, `extra.severity`, `extra.message`; bandit `results[].filename`, `line_number`, `test_id`, `issue_severity`, `issue_text`. Excluded: shellcheck `style` level, semgrep `INFO` severity (bandit has no floor — every severity is a candidate). A candidate's `lines` lists every line that tool raised that code at in that file (instead of a single `line`); `rule` and `tag` are null on the candidate itself — a FAIL/WARN record uses the rule and tag "Tool finding codes: rule and tag" gives the code; `artifact` is true when every finding in the candidate is an artefact of linting OOD's job-script files (that table's Artefact column) | `sec-tool-finding` | null | null |
 
@@ -357,7 +358,7 @@ those together in one PASS row.
 | SC1090 | `source` of a non-constant path shellcheck cannot follow | QUA-06 | `other:unfollowed-source` | in a job-script file |
 | SC1091 | `source` of a file shellcheck was not given | QUA-06 | `other:unfollowed-source` | in a job-script file |
 | B602 | `subprocess` call with `shell=True` | OODT-01 | `command-injection` | no |
-| B104 | Binding to all interfaces (`0.0.0.0`) | OODT-05 | `bind-all-interfaces` | no |
+| B104 | Binding to all interfaces (`0.0.0.0`); a finding only when the service has no authentication, else PASS | OODT-05 | `bind-all-interfaces` | no |
 | B110 | `try`/`except`/`pass` swallowing every error | QUA-03 | `no-error-check` | no |
 
 ## Interpreting tool output

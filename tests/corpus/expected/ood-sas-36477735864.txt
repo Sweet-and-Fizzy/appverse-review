@@ -8,7 +8,9 @@
 [keys] INVALID MNT-02 github/releases:no-releases (anchor is not a repo path or allowed pseudo-anchor)
 [keys] finding keys: 23/27 valid
 [rating] MISMATCH Documentation rating (Strong claimed but 'environment variables' evidence is none; highest supported rung is Adequate)
-[rating] ratings: 1 mismatch
+[rating] MISMATCH root QUA-04 template/script.sh.erb:commented-out-code: suggestion (check dead-code) rated low; suggestions are info
+[rating] MISMATCH root MNT-03 CHANGELOG.md:no-changelog: good-practice signal rated low; good-practice signals are info
+[rating] ratings: 3 mismatches
 [rows] MISSING root str-02-metadata
 [rows] MISSING root str-03-yaml-valid
 [rows] MISSING root str-06-syntax
@@ -43,8 +45,6 @@
 [rows] MISSING root numeric-field-bounds
 [rows]   candidate form.yml:15
 [rows]   candidate form.yml:27
-[rows]   candidate form.yml:30
-[rows]   candidate form.yml:38
 [rows]   candidate form.yml:65
 [rows]   candidate form.yml:72
 [rows] MISSING root magic-numbers

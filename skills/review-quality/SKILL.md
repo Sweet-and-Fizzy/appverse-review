@@ -40,7 +40,7 @@ For each app, and for each manifest entry above in manifest order:
    | `magic-numbers` | `template.json` `numeric_literals` and `hex_colors` |
    | `dead-code` | `template.json` `commented_code` (a block of `count` lines from `line`) |
    | `icon-matches-target-os` | `template.json` `icons`, against the OS the README (`readme.json`) says the app was tested on |
-   | `numeric-field-bounds` | `form.json` attributes with `in_form` true, `defined` not false, `reaches_scheduler` true, and no bound: a `number_field` without both `min` and `max`, or a free-text widget (anything but select, radio button, check box, hidden field) without a `pattern` and without both bounds |
+   | `numeric-field-bounds` | `form.json` attributes with `in_form` true, `defined` not false, `reaches_scheduler` true, and no floor: a `number_field` with neither `min` nor `required`, or a free-text widget (anything but select, radio button, check box, hidden field) with no `pattern`. `required` or a `min` does not bound a free-text field: it still takes any string. A missing `max` alone does not make a candidate |
    | `erb-missing-value` | `form.json` attributes with `in_form` true, `defined` not false and `interpolated_in_submit` true (at `submit_lines`) |
    | `documentation-rating` | `readme.json` `rungs` and `stub` (see Documentation below) |
 
@@ -63,7 +63,9 @@ For each app, and for each manifest entry above in manifest order:
    improving the scanner. A `fact_source: none` check has no facts to
    miss, so its rows never carry the note.
 3. **Write the rows** in the dimension's table (see Output): Check
-   `` `check: <id>` ``, Rule from the manifest, Result, Severity, Summary,
+   `` `check: <id>` ``, Rule from the manifest, Result, Severity (the
+   manifest's `default_severity` unless the evidence clearly warrants
+   another; see Severity below), Summary,
    Evidence citing each candidate the row answers as `path:N`,
    `path:N-M` or `path:N,M`, never prose, with the repo-relative path
    (`template.json` gives it; prefix `form.json`'s app-relative paths with
@@ -83,7 +85,7 @@ For each app, and for each manifest entry above in manifest order:
    | Candidate | Tag |
    |---|---|
    | `numeric-field-bounds`: a free-text field without a `pattern` | QUA-07 `missing-pattern` |
-   | `numeric-field-bounds`: a `number_field` without `min` and `max` | QUA-07 `missing-min-max` |
+   | `numeric-field-bounds`: a `number_field` with neither `min` nor `required` | QUA-07 `missing-min` |
    | `magic-numbers`: a `hex_colors` entry | QUA-08 `undocumented-hex-color` |
    | any other candidate | the manifest entry's `tag` |
 
@@ -171,9 +173,32 @@ These rows carry no `check:` marker.
   You may argue a section does not really satisfy its rung, and write
   `none` with the reason; you may never claim a rung without a citation
   (a `readme.json` heading, intro or content entry, or a `content:` line).
-  Rungs are cumulative: the rating is the
-  highest rung whose requirements, and every lower rung's, all have
-  evidence; never claim a rung with a `none` line. The
+  Rungs are cumulative: a rating needs its requirements, and every lower
+  rung's, all to have evidence; never claim a rung with a `none` line.
+
+  **The rating starts from the facts.** `readme.json`'s `baseline_rating`
+  is the highest rung the facts support (every requirement up to it is a
+  non-placeholder heading or intro, or, for screenshots and environment
+  variables, a `screenshots` or `env_vars` assignment/phrase entry). Rate
+  at the baseline unless the README itself gives you a reason to rate
+  lower: a section is wrong, out of date, describes a different site or
+  app, or does not help a deployer do what its heading claims, or the
+  heading matched a rung's keyword but its content does not cover that rung
+  (a "Conda environment" section is not environment variables; a "Setup"
+  section that only lists the scheduler options is not installation). A
+  heading that merely exists is the facts' call, not a reason; thinness you cannot
+  name is not a reason either. To lower, write `none` with that reason on
+  the evidence line of each rung you withdraw, and put the clause on the
+  rating line right after the rating:
+  `Rating: Adequate (lowered from Strong: the Troubleshooting section
+  describes the MATLAB app it was copied from) — …`. The clause names the
+  baseline exactly. Never rate above the baseline except where a
+  requirement the facts miss is delivered by a `content: README.md:N`
+  line. `check-rating.py` enforces all of this: a rating below the
+  baseline with no clause, a clause naming another rung, a clause on a
+  rating at or above the baseline, and a rating above the baseline on
+  anything but `content:` lines are each a MISMATCH. The reviewer may
+  still override the level on the review page. The
   `documentation-rating` row is PASS at Adequate or above and FAIL below,
   with a QUA-01 record (`docs-minimal`, anchored at the README path, its
   evidence citing `README.md:N`). When no rung supports Minimal and
@@ -187,7 +212,7 @@ These rows carry no `check:` marker.
   as QUA-01 a README that references another institution's paths, cluster
   names, or module names without saying they must change.
 - **Code quality** (the `code_quality` entries): error handling
-  (`check: error-handling`, QUA-03: `set -e` or explicit checks), form input
+  (`check: error-handling`, QUA-03), form input
   validation (`check: numeric-field-bounds`, QUA-07), no uncommented magic
   numbers / undocumented literals (`check: magic-numbers`, QUA-08), no large
   duplicated blocks (`check: duplicated-blocks`, QUA-09), no commented-out
@@ -200,13 +225,43 @@ These rows carry no `check:` marker.
   %>` therefore writes nothing (or `nil` under `.inspect`) into the YAML,
   which is why a guard or default is needed.
 
+  **Error handling** (`check: error-handling`) asks whether the job
+  scripts handle the failure of commands that matter: `cd` into the work
+  directory, `module load`, `mkdir`, a copy or download the job depends
+  on. Explicit handling is a check on those commands (`|| exit 1`, an
+  `if`), a `trap`, or `set -e` where the author chose it; any of these is
+  PASS citing where. `set -e` is not required, and its absence is not a
+  finding: it can break a script that runs background processes (a VNC
+  `script.sh`). A script where such a command runs unchecked is the
+  finding, QUA-03 `no-error-check`, citing the unchecked command's line.
+
+  **Input validation** (`check: numeric-field-bounds`) asks for a floor on
+  each numeric field that reaches the scheduler: a `min` (at least 1 where
+  0 is meaningless), which keeps 0 and negative values from reaching the
+  job, or `required`, which at least keeps a blank one out. A `max` is good practice but is site policy (node size, partition
+  limits): it may come from site config (an attribute the site sets, or a
+  value computed in ERB), and a hardcoded `max` is not required, so a
+  missing `max` alone is not a finding. A `min` of 0 that allows 0 cores
+  or 0 hours is still a finding (`zero-minimum`), and so is a field with
+  no floor (`missing-min`).
+
   An unmet target for inclusion — error handling, input validation — is
   recorded as FAIL, not WARN; suggestions that are unmet are WARN. The
-  rubric's Code Quality section says which of these are
-  targets for inclusion and which are improvement suggestions — weight each
-  finding the way the rubric frames it, rather than applying your own
-  severity scale, and keep the labels consistent with findings you record
-  elsewhere in the review.
+  manifest's `weight` says which checks are targets (`target`) and which
+  are improvement suggestions (`suggestion`).
+
+  **Severity.** Every manifest entry has a `default_severity`. A FAIL or
+  WARN record for the check takes it, unless the evidence clearly warrants
+  another; then the row summary says why (a hardcoded path that stops the
+  app at every other site may be Medium rather than Low). PASS and NOT
+  CHECKED records are Info. A suggestion check (`weight: suggestion`)
+  defaults to Info and stays there: `check-rating.py` flags a suggestion
+  record rated above Info, since Low or above makes it a fix-item the
+  contributor is told to fix, and a suggestion is never that. Open-ended
+  findings that no check covers have no default: rate them on the
+  rubric's severity scale, keeping cosmetic polish (a typo, an icon name)
+  at Info. Do not invent your own scale, and keep labels consistent with
+  findings you record elsewhere in the review.
 
   **Magic numbers / undocumented literals** — the facts list bare integers
   and hex colours in template files; judge each. Also look beyond them. In

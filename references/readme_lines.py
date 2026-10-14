@@ -162,3 +162,50 @@ def readme_line_kinds(text, placeholders, parsed=None):
         else:
             kinds.append("content")
     return kinds
+
+
+# The documentation ladder: each rating and the rung requirements it adds.
+# Rungs are cumulative (a rating needs its own requirements and every lower
+# rating's). check-rating.py reads the same list, so the baseline the
+# pre-review states and the ceiling the checker enforces use one ladder.
+DOC_LADDER = (
+    ("Minimal", ("what it launches", "prerequisites")),
+    ("Adequate", ("installation", "configuration", "known limitations")),
+    ("Strong", ("troubleshooting", "screenshots", "environment variables")),
+    ("Exemplary", ("info panel", "architecture")),
+)
+BELOW_MINIMAL = "Below minimal"
+
+
+def facts_meet(facts, requirement):
+    """Whether readme.json's facts meet one rung requirement: its `rungs`
+    entry is a heading (or intro paragraph) that is not placeholder text,
+    or, for screenshots and environment variables, the content lists hold
+    an entry (an image link in `screenshots`; an `assignment` or `phrase`
+    in `env_vars`)."""
+    entry = (facts.get("rungs") or {}).get(requirement)
+    if isinstance(entry, dict) and not entry.get("placeholder"):
+        return True
+    if requirement == "screenshots":
+        return bool(facts.get("screenshots"))
+    if requirement == "environment variables":
+        return any(isinstance(e, dict) and e.get("match") in ("assignment", "phrase")
+                   for e in facts.get("env_vars") or [])
+    return False
+
+
+def baseline_rating(facts):
+    """The documentation rating readme.json's facts support: the highest
+    rung whose requirements, and every lower rung's, the facts meet
+    (facts_meet), else "Below minimal". None when the facts have no
+    `rungs` (written before the key existed). It is the starting level: the
+    reviewer may rate lower with a stated reason, never higher, except
+    where a `content:` line delivers a requirement the facts miss."""
+    if not isinstance(facts, dict) or not facts.get("rungs"):
+        return None
+    best = BELOW_MINIMAL
+    for rating, reqs in DOC_LADDER:
+        if not all(facts_meet(facts, r) for r in reqs):
+            break
+        best = rating
+    return best

@@ -361,7 +361,7 @@ EOF
 ART4=$(python3 "$ASSEMBLE" --meta "$TMP/meta-ind.json" --findings "$TMP/findings-ind.json" --md "r.md" --plugin-version "0.3.0" 2> "$TMP/warn4.txt")
 
 SCHEMA=$(echo "$ART4" | jget "d['schema_version']")
-check "schema_version is 1.5" "1.5" "$SCHEMA"
+check "schema_version is 1.6" "1.6" "$SCHEMA"
 
 NO_SEC=$(echo "$ART4" | jget "'security' in d['apps'][0]['indicators']")
 check "no security indicator (schema 1.2)" "False" "$NO_SEC"
@@ -827,7 +827,7 @@ check "case18: software status" "match" "$(echo "$A18" | jget "d['apps'][0]['cat
 check "case18: unknown tags" "['gpu']" "$(echo "$A18" | jget "d['apps'][0]['catalog']['implementation_tags']['unknown']")"
 check "case18: same-software apps" "1" "$(echo "$A18" | jget "len(d['apps'][0]['catalog']['same_software_apps'])")"
 check "case18: repo-level source and counts" "https://openondemand.connectci.org 107" "$(echo "$A18" | jget "d['repo_level']['catalog']['source'] + ' ' + str(d['repo_level']['catalog']['counts']['apps'])")"
-check "case18: schema 1.5" "1.5" "$(echo "$A18" | jget "d['schema_version']")"
+check "case18: schema 1.6" "1.6" "$(echo "$A18" | jget "d['schema_version']")"
 # A catalog that is missing, or that names no matching app, adds nothing.
 A18B=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result1.json" --md r.md --catalog "$TMP/nope.json" --plugin-version 0.3.0 2>"$TMP/err18b")
 check "case18b: missing catalog, no catalog keys" "False False" "$(echo "$A18B" | jget "str('catalog' in d['apps'][0]) + ' ' + str('catalog' in d['repo_level'])")"
@@ -852,6 +852,40 @@ check "case18e: the unmatched app has no checks" "False" "$(echo "$A18E" | jget 
 check "case18e: the unmatched app is named" "1" "$(grep -c "no checks for app(s) 'apps/bar'" "$TMP/err18e")"
 A18D=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result1.json" --md r.md --plugin-version 0.3.0)
 check "case18d: no --catalog, no catalog keys" "False" "$(echo "$A18D" | jget "'catalog' in d['repo_level']")"
+
+# --- Test 19: findings in paths a site does not install are marked (schema 1.6) ---
+echo "Test 19: path_class outside_install"
+cat > "$TMP/meta19.json" << 'EOF'
+{"recommendation": {"decision": "Accept", "note": "x"}, "apps": [{"app_id": "root", "name": "App"}, {"app_id": "apps/a", "name": "A"}, {"app_id": "examples/jupyter", "name": "J"}]}
+EOF
+cat > "$TMP/findings19.json" << 'EOF'
+[
+  {"app_id":"root","rule":"OODT-05","defect_key":"demo/Dockerfile:bind-all-interfaces","result":"WARN","severity":"low","summary":"s","evidence":"demo/Dockerfile:12 `0.0.0.0`"},
+  {"app_id":"root","rule":"OODT-08","defect_key":"tests/run.sh:debug-tracing-enabled","result":"WARN","severity":"low","summary":"s","evidence":"tests/run.sh:2; reviewed OK: template/script.sh.erb:4"},
+  {"app_id":"root","rule":"QUA-06","defect_key":"docs/install.md:other:typo","result":"WARN","severity":"info","summary":"s","evidence":"docs/install.md"},
+  {"app_id":"root","rule":"QUA-04","defect_key":"tests/a.sh:dead-code","result":"WARN","severity":"info","summary":"s","evidence":"tests/a.sh:3 and docs/b.md, see https://example.com/x/y.html"},
+  {"app_id":"root","rule":"OODT-01","defect_key":"template/script.sh.erb:eval-exec","result":"FAIL","severity":"high","summary":"s","evidence":"template/script.sh.erb:3"},
+  {"app_id":"root","rule":"OODT-01","defect_key":"examples/x.sh:eval-exec","result":"FAIL","severity":"high","summary":"s","evidence":"examples/x.sh:3, template/script.sh.erb:9"},
+  {"app_id":"root","rule":"OODT-08","defect_key":"tests/run.sh:debug-tracing-enabled","result":"WARN","severity":"low","summary":"s","evidence":"tests/run.sh:2 copies the line from template/before.sh.erb"},
+  {"app_id":"root","rule":"QUA-06","defect_key":"docs/x.md:other:typo","result":"WARN","severity":"info","summary":"s","evidence":"docs/x.md:4 contradicts `form.yml`"},
+  {"app_id":"root","rule":"MNT-02","defect_key":"releases:no-releases","result":"WARN","severity":"info","summary":"s","evidence":"releases"},
+  {"app_id":"root","rule":"QUA-04","defect_key":"Example.sh:dead-code","result":"WARN","severity":"info","summary":"s","evidence":"Example.sh:5","path_class":"outside_install"},
+  {"app_id":"apps/a","rule":"OODT-08","defect_key":"apps/a/Test/x.py:debug-tracing-enabled","result":"WARN","severity":"low","summary":"s","evidence":"apps/a/Test/x.py:1"},
+  {"app_id":"apps/a","rule":"OODT-08","defect_key":"apps/a/template/script.sh:debug-tracing-enabled","result":"WARN","severity":"low","summary":"s","evidence":"apps/a/template/script.sh:1"},
+  {"app_id":"examples/jupyter","rule":"OODT-01","defect_key":"examples/jupyter/template/script.sh.erb:eval-exec","result":"FAIL","severity":"high","summary":"s","evidence":"examples/jupyter/template/script.sh.erb:7"},
+  {"app_id":"examples/jupyter","rule":"QUA-06","defect_key":"examples/jupyter/form.yml:other:x","result":"WARN","severity":"info","summary":"s","evidence":"form.yml:2"},
+  {"app_id":"examples/jupyter","rule":"OODT-08","defect_key":"examples/jupyter/tests/t.sh:debug-tracing-enabled","result":"WARN","severity":"low","summary":"s","evidence":"examples/jupyter/tests/t.sh:1"}
+]
+EOF
+A19=$(python3 "$ASSEMBLE" --meta "$TMP/meta19.json" --findings "$TMP/findings19.json" --md r.md --plugin-version 0.3.0 2>/dev/null)
+pc() { echo "$A19" | jget "[f.get('path_class') for f in d['apps'][$1]['findings']]"; }
+check "case19: demo/, tests/ (FAIL/WARN part only), bare docs/ path, tests+docs+URL marked; installed, mixed cited, mixed bare, mixed backticked, pseudo-anchor and model-set values not" \
+  "['outside_install', 'outside_install', 'outside_install', 'outside_install', None, None, None, None, None]" "$(pc 0)"
+check "case19: an outside-install directory at any depth, any case" "['outside_install', None]" "$(pc 1)"
+check "case19: an app living under examples/ is classified from its own folder" "[None, None, 'outside_install']" "$(pc 2)"
+check "case19: marked findings stay in the app's findings; a pseudo-anchor is unmarked" "9 False" "$(echo "$A19" | jget "str(len(d['apps'][0]['findings'])) + ' ' + str('path_class' in d['repo_level']['findings'][0])")"
+check "case19: findings without an outside-install path have no path_class key" "True" "$(echo "$A19" | jget "all('path_class' not in f for f in d['apps'][0]['findings'][4:])")"
+check "case19: the tool-status word not_installed is not used" "0" "$(echo "$A19" | grep -c not_installed)"
 
 echo ""
 echo "Done: $pass passed, $fail failed."

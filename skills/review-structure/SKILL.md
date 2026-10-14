@@ -49,7 +49,12 @@ file lists candidates (`syntax.json` entries with `ok` false,
 `entry_point.json` with `parses` false) must cite each one in a row's
 Evidence as `path:N` or the bare path. Finding records use the manifest
 entry's `tag` in `defect_key` where it has one; where it is null, the tag
-the bullet below names. Anything else you notice goes after the checks, as
+the bullet below names. A FAIL record takes the entry's
+`default_severity` (High for every structure check, as a gate failure)
+unless the evidence clearly warrants another, and the row summary then
+says why. A WARN (an unknown implementation tag, a missing `role`) is not
+a gate failure: rate it on the rubric's severity scale. NOT CHECKED and
+PASS records are Info. Anything else you notice goes after the checks, as
 its own finding with the vocabulary tag that fits or `other:`.
 
 - Required metadata fields for the repo shape, per the rubric's "Repository
@@ -60,8 +65,12 @@ its own finding with the vocabulary tag that fits or `other:`.
   `<pre-review>/catalog.json` (per app, `checks.app_type` and
   `checks.implementation_tags`, compared with the live vocabularies, ignoring
   case); do not query the catalog yourself. An `app_type` outside the
-  published vocabulary is an STR-02 FAIL, worded as "not in the published
-  vocabulary" (an unpublished term is invisible here); an unknown
+  published vocabulary is an STR-02 FAIL (the value must be a term from the
+  catalog's app_type vocabulary, so a near miss such as a misspelling still
+  fails), worded as "not in the published
+  vocabulary" (an unpublished term is invisible here); when
+  `checks.app_type.closest` lists terms, the summary ends "did you mean
+  `<term>`?" naming each, joined with "or"; an unknown
   implementation tag is a WARN. If `catalog.json` is absent
   (the catalog was not read), record the check as NOT CHECKED with that reason.
 - Every `manifest.yml`, `appverse.yml`, and `form.yml` parses; report parse
@@ -86,6 +95,14 @@ its own finding with the vocabulary tag that fits or `other:`.
     is older than 4, and the file may use bash 4 syntax such as `;;&`): NOT
     CHECKED (severity info, evidence `<path>:1` plus that stderr text), not
     FAIL.
+  - `stderr` is a bash message and `erb_control_line` is a number (the
+    failure is within 3 lines of a stripped ERB control tag such as
+    `<% else %>` or `<% end %>`; stripping both branches of a conditional
+    can leave an orphan line that no rendered template contains): WARN
+    (severity low, evidence `<path>:<N>` with the line from stderr, plus
+    the first stderr line and "may come from stripping the template (ERB
+    control tag at line `<erb_control_line>`); check it"). It is not a
+    gate failure; the reviewer reads both branches.
   - `stderr` is a bash message (it starts with the file path followed by
     `: line N:`): FAIL (severity high, evidence `<path>:<N>` using that line
     number, or `<path>:1` when no `line N` is present, plus the first stderr
@@ -94,7 +111,8 @@ its own finding with the vocabulary tag that fits or `other:`.
     large to check): NOT CHECKED (severity info, evidence `<path>:1` plus the
     stderr text).
   The per-app Structure table's STR-06 row summarises them: "N files pass; M fail:
-  `<paths>`; K not checked: `<path>` (`<reason>`)", with refused symlinks
+  `<paths>`; W may come from stripping the template: `<paths>`; K not
+  checked: `<path>` (`<reason>`)", the row's Result the worst of them, with refused symlinks
   listed among the not-checked paths. Its Evidence column cites every
   entry whose `ok` is false (failed, not checked, or refused), each as
   `path:N` with the line from stderr or as the bare path; one row may cite
