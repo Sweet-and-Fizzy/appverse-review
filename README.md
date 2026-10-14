@@ -120,6 +120,43 @@ for the workflow definition. It supports:
   target repo (see [`references/artifact-envelope.md`](references/artifact-envelope.md)
   for the full script list)
 
+## Checking the catalog by hand
+
+For people running the tool, or checking the catalog without it. The review
+reads the catalog for you; use these when it could not, or when a Catalog
+checks result looks wrong.
+
+The catalog is a Drupal site with JSON:API enabled and readable anonymously,
+so the Software entries, the vocabularies and the published app list can all
+be checked from the command line with no account. Writing (creating a
+Software entry, sending a decision) needs a login.
+
+Two mistakes make these look like an unreachable host. Follow redirects
+(`-L`), or the request returns `000`. Percent-encode the query brackets as
+`%5B`/`%5D`: a URL with a literal `[` is dropped before it reaches Drupal and
+yields an empty response with no status code.
+
+```bash
+# Does a Software entry exist for this app's `software` value?
+curl -sL -H 'Accept: application/vnd.api+json' \
+  'https://openondemand.connectci.org/jsonapi/node/appverse_software?filter%5Btitle%5D=API%20Access&fields%5Bnode--appverse_software%5D=title'
+
+# The implementation-tags vocabulary (matching is case-insensitive)
+curl -sL -H 'Accept: application/vnd.api+json' \
+  'https://openondemand.connectci.org/jsonapi/taxonomy_term/appverse_implementation_tags?fields%5Btaxonomy_term--appverse_implementation_tags%5D=name&page%5Blimit%5D=50'
+
+# Published apps, for the duplicate check (50 per page at most)
+curl -sL -H 'Accept: application/vnd.api+json' \
+  'https://openondemand.connectci.org/jsonapi/node/appverse_app?fields%5Bnode--appverse_app%5D=title&page%5Blimit%5D=50'
+```
+
+A list longer than one page carries a `links.next` URL in the response. Keep
+following it until there is none; reading only the first page misses apps.
+
+Other resources on the same API: `taxonomy_term--appverse_app_type`,
+`taxonomy_term--appverse_license`, `node--appverse_repo`. `GET /jsonapi`
+lists everything available.
+
 ## Project layout
 
 ```

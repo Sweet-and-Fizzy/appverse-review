@@ -39,7 +39,6 @@ actual_rubric=$(headings "$RUBRIC")
 echo "Test 3: process doc headings (in order)"
 expected_process="# Appverse Reviewer Process
 ## What a review is, and what we ask of you
-## Who can review
 ## Before you start
 ## Step 1: Gate the app
 ## Step 2: Read the review page

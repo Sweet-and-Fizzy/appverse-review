@@ -19,6 +19,12 @@ survives line shifts, LLM rewording, and aspect reclassification.
 - **Low** — defensive-coding gap or minor hygiene issue.
 - **Info** — maintenance signals, suggestions, positive observations.
 
+How severity sets a decision floor is in the Decision rubric of
+`review-rubric.md`; `check-decisions.py` enforces it. The numeric
+severity/exploitability scoring and the commit-polling audit pipeline are
+defined separately, not in the rubric. Both the on-demand review and that
+pipeline classify findings with the same OODT taxonomy and pattern checks.
+
 ## Stable finding ID
 
 ```
@@ -74,6 +80,10 @@ defect_key = "{anchor}:{mechanism_tag}"
   When reviewing findings with `other:` tags, check whether an existing
   vocabulary term fits; if a novel tag recurs across reviews, promote it
   to the vocabulary.
+  An STR finding tagged `other:` (a structure note the review adds after
+  the gate checks) is not a Structure gate row: `report_parse.is_gate_finding`
+  excludes it, so `check-decisions.py` floors it only at High or Critical,
+  like a security finding, never at Request changes for any severity.
 - **Enumerated candidates.** A finding on a candidate the pre-review facts
   list (a `security.json`, `form.json` or `template.json` entry) takes its
   tag from the checks manifest (`references/checks.yml`): the `tag` of the
@@ -241,6 +251,10 @@ consumes the password or token; OOD's per-session `password` generated in
 
 STR-06 is recorded for every shell file, with result PASS, FAIL, WARN or
 NOT CHECKED, so the gate can distinguish "all scripts parse" from "not checked".
+The result comes from the pre-review syntax check (`bash -n`, with ERB tags
+stripped first from a `.sh.erb` file; see `security-tools.md`). Shellcheck
+is a separate, best-effort Tier 2 tool: its absence, or its warnings, never
+fail STR-06.
 A refused file (see `syntax.json`'s `stderr`) was never syntax-checked and is
 never FAIL. A refused symlink, whether it leads outside the target or
 nowhere, gets no findings record at all, because check-keys resolves the

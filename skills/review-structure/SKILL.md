@@ -165,6 +165,8 @@ The Structure table (orchestrator template): Rule / Check / Result /
 Severity / Summary / Evidence, one row per manifest check with its
 `` `check: <id>` `` marker, then any other structure rows without a marker.
 Evidence is `path:N`, `path:N-M` or `path:N,M`, never prose.
+A structure finding is never Critical: a gate failure can always be fixed, so
+High is the most any STR row is rated (review-rubric.md, Floors).
 
 **Structured findings** per target-setup.md §4: one repo-level set, one per app.
 Each finding uses an STR-XX rule code and a `defect_key` from the structure
