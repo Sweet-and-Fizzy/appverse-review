@@ -458,10 +458,38 @@ limit); advise rewording it.
   3. Each item names its own file and line, even when the item before it
      names the same file, and says what is wrong and what to change, in
      one to three sentences. `check-feedback-floor.py` reads each item on
-     its own, so an item that leaves its file to the one above fails. In a monorepo, name the app's path.
-     Keep one list for the whole repo; the email states each app's decision.
+     its own, so an item that leaves its file to the one above fails. In a
+     monorepo, name the app's path. Keep one list for the whole repo; the
+     email states each app's decision.
   4. Info-level polish, if mentioned, is one line after the list. End there:
      no closing summary, then the `feedback-covers` comment.
+
+  Write the section in exactly this form. Angle brackets are placeholders;
+  every group, the last one included, has a bold label and numbered items:
+
+  ```markdown
+  ## Draft feedback — edit before sending
+
+  Thank you for submitting <app> to Appverse. <One or two sentences naming strengths the report records.>
+
+  **Must fix**
+
+  1. `<file>:<line>` <what is wrong>. <What to change.>
+  2. `<file>:<line>` <what is wrong>. <What to change.>
+
+  **Should fix**
+
+  3. `<file>:<line>` <what is wrong>. <What to change.>
+
+  **Suggestions (optional)**
+
+  4. `<file>:<line>` <what is wrong>. <What to change.>
+  5. `<file>:<line>` <what is wrong>. <What to change.>
+
+  <Optional one line of Info-level polish.>
+
+  <!-- feedback-covers: <defect_key>, <defect_key> -->
+  ```
 - **Submitter mode:** append a prioritized "Fix before submitting" list instead —
   gate-criteria failures first (security findings at the top), then quality
   improvements, each with the file to change.
