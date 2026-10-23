@@ -72,6 +72,41 @@ filled; echo '{"new": 1}' > "$M"
 check "an absent meta.json that now exists restores" 1 "$(verify)"
 check "and is removed on restore" no "$([ -e "$M" ] && echo yes || echo no)"
 
+echo "Test 4b: digest of the guard's own inputs"
+setup
+dg() { python3 "$FG" digest "$SNAP" "$B" 2>/dev/null; }
+d1=$(dg); d2=$(dg)
+check "digest is stable" "$d1" "$d2"
+check "digest is a sha256" 64 "${#d1}"
+echo tampered > "$SNAP/0"; check "a changed snapshot file changes the digest" changed "$([ "$(dg)" != "$d1" ] && echo changed || echo same)"
+setup; d1=$(dg); echo '[floor] MISSING nothing' >> "$B"
+check "a changed baseline changes the digest" changed "$([ "$(dg)" != "$d1" ] && echo changed || echo same)"
+setup; d1=$(dg); echo "absent	/x" >> "$SNAP/MANIFEST"
+check "a changed MANIFEST changes the digest" changed "$([ "$(dg)" != "$d1" ] && echo changed || echo same)"
+
+echo "Test 4d: plugin-status"
+G="$TMP/plugin"; mkdir -p "$G"; git -C "$G" init -q; echo a > "$G/a.py"; git -C "$G" add a.py; git -C "$G" -c user.email=x -c user.name=x commit -qm a
+ps() { python3 "$FG" plugin-status "$1" 2>/dev/null; }
+p1=$(ps "$G"); check "plugin-status is a sha256" 64 "${#p1}"
+check "plugin-status is stable" "$p1" "$(ps "$G")"
+echo b >> "$G/a.py"; check "a modified script changes it" changed "$([ "$(ps "$G")" != "$p1" ] && echo changed || echo same)"
+git -C "$G" checkout -q -- a.py; echo x > "$G/json.py"; check "a planted module changes it" changed "$([ "$(ps "$G")" != "$p1" ] && echo changed || echo same)"
+check "not a git checkout prints error" error "$(ps "$TMP/nope")"
+
+echo "Test 4c: a guard error still restores"
+setup; filled; echo '[{"k": 2}]' > "$F"
+out=$(python3 - "$FG" "$SNAP" "$R" "$F" "$M" "$FB" "$B" "$A" <<'EOF'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("fg", sys.argv[1]); fg = importlib.util.module_from_spec(spec); spec.loader.exec_module(fg)
+def boom(*a): raise RuntimeError("boom")
+fg.failure = boom
+print(fg.main(["fill-guard.py", "verify"] + sys.argv[2:]))
+EOF
+)
+check "an exception in verify exits 3" 3 "$(echo "$out" | tail -1)"
+check "and says guard error" 1 "$(echo "$out" | grep -c 'fill-guard: restored (guard error')"
+check "and restores the files" '[{"k": 1}]' "$(cat "$F")"
+
 echo "Test 5: draft_section_bounds"
 sb() { PYTHONPATH="$REFS" python3 -c 'import sys; from feedback_terms import draft_section_bounds; print(draft_section_bounds(open(sys.argv[1]).read().splitlines()))' "$1"; }
 printf 'a\n## Draft feedback\nx\n## Next\ny\n' > "$TMP/s1.md"; check "section with a following heading" "(1, 3)" "$(sb "$TMP/s1.md")"

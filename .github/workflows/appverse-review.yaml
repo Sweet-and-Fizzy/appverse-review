@@ -830,6 +830,9 @@ jobs:
                      "$WS/review-${SLUG}.md" "$WS/review-${SLUG}.findings.json" \
                      "$WS/appverse-review/references/checks.json" "$WS/pre-review" \
                      --target "$WS/target-repo" > "$RUNNER_TEMP/fill-before.txt" 2>&1 || true; } \
+              && digest=$(python3 "$WS/appverse-review/references/fill-guard.py" digest "$RUNNER_TEMP/fill-snapshot" "$RUNNER_TEMP/fill-before.txt") \
+              && echo "snapshot_digest=$digest" >> "$GITHUB_OUTPUT" \
+              && echo "plugin_status=$(python3 "$WS/appverse-review/references/fill-guard.py" plugin-status "$WS/appverse-review")" >> "$GITHUB_OUTPUT" \
               && echo "needs_fill=true" >> "$GITHUB_OUTPUT" \
               || echo "::warning::could not snapshot the draft; the fill step will not run"
           fi
@@ -904,21 +907,47 @@ jobs:
             item has text.
 
       - name: Keep or roll back the filled draft
+        id: fill_guard
         if: "!cancelled() && inputs.review_aspects == 'all' && steps.feedback_gate.outputs.needs_fill == 'true'"
         continue-on-error: true
+        env:
+          SNAPSHOT_DIGEST: ${{ steps.feedback_gate.outputs.snapshot_digest }}
+          PLUGIN_STATUS: ${{ steps.feedback_gate.outputs.plugin_status }}
         run: |
           WS="${{ github.workspace }}"; SLUG="${{ steps.params.outputs.repo_slug }}"
           FB="$WS/review-${SLUG}.feedback.json"
+          # The fill session's permissions are what keep it out of the guard's
+          # own scripts and snapshot. Check that they did before trusting
+          # either: the digest is a step output, which the session cannot
+          # write. If they changed, nothing here can be trusted to restore, so
+          # "Verify review outputs" fails the run instead of shipping it.
+          now=$(python3 "$WS/appverse-review/references/fill-guard.py" digest "$RUNNER_TEMP/fill-snapshot" "$RUNNER_TEMP/fill-before.txt" || echo error)
+          # The plugin checkout is compared with its state at the gate, not
+          # required clean, so files an earlier step left there do not count;
+          # a script the session changed, or a module it planted, does.
+          pstat=$(python3 "$WS/appverse-review/references/fill-guard.py" plugin-status "$WS/appverse-review" || echo error)
+          if [ "$now" != "$SNAPSHOT_DIGEST" ] || [ "$pstat" != "$PLUGIN_STATUS" ] || [ "$pstat" = error ]; then
+            echo "integrity=fail" >> "$GITHUB_OUTPUT"
+            echo "::error::the fill session changed the guard's snapshot or the plugin checkout; this run's outputs are not trusted"
+            git -C "$WS/appverse-review" status --porcelain || true
+            exit 0
+          fi
+          echo "integrity=ok" >> "$GITHUB_OUTPUT"
           if [ "${{ inputs.review_aspects }}" = all ] && [ -s "$WS/review-${SLUG}.findings.json" ]; then python3 "$WS/appverse-review/references/prepare-feedback.py" "$WS/review-${SLUG}.findings.json" "$WS/review-${SLUG}.meta.json" "$WS/appverse-review/references/checks.json" "$FB" || echo "::warning::prepare-feedback did not run cleanly after the fill"; fi
           if [ "${{ inputs.review_aspects }}" = all ] && [ -s "$FB" ] && [ -s "$WS/review-${SLUG}.md" ]; then python3 "$WS/appverse-review/references/render-feedback.py" "$WS/review-${SLUG}.md" "$FB" || echo "::warning::render-feedback did not run cleanly after the fill"; fi
           python3 "$WS/appverse-review/references/check-all.py" \
             "$WS/review-${SLUG}.md" "$WS/review-${SLUG}.findings.json" \
             "$WS/appverse-review/references/checks.json" "$WS/pre-review" \
             --target "$WS/target-repo" > "$RUNNER_TEMP/fill-after.txt" 2>&1 || true
-          python3 "$WS/appverse-review/references/fill-guard.py" verify "$RUNNER_TEMP/fill-snapshot" \
+          rc=0; python3 "$WS/appverse-review/references/fill-guard.py" verify "$RUNNER_TEMP/fill-snapshot" \
             "$WS/review-${SLUG}.md" "$WS/review-${SLUG}.findings.json" "$WS/review-${SLUG}.meta.json" "$FB" \
-            "$RUNNER_TEMP/fill-before.txt" "$RUNNER_TEMP/fill-after.txt" \
-            || echo "::warning::the fill session's changes were rolled back (see the fill-guard line above)"
+            "$RUNNER_TEMP/fill-before.txt" "$RUNNER_TEMP/fill-after.txt" || rc=$?
+          case "$rc" in
+            0) ;;
+            1) echo "::warning::the fill session's changes were rolled back (see the fill-guard line above)" ;;
+            3) echo "::warning::fill-guard hit an error and restored the pre-fill draft (see the fill-guard line above)" ;;
+            *) echo "::warning::fill-guard could not run (exit $rc); the draft may include unchecked fill changes" ;;
+          esac
           echo "Empty draft sentences after the fill: $(python3 "$WS/appverse-review/references/fill-guard.py" needs-fill "$FB" || echo unknown)"
 
       - name: Generate PDF and HTML from review
@@ -1019,10 +1048,15 @@ jobs:
           CHECKS_OUTCOME: ${{ steps.checks.outcome }}
           RECHECK_OUTCOME: ${{ steps.recheck.outcome }}
           RECHECK2_OUTCOME: ${{ steps.recheck2.outcome }}
+          FILL_INTEGRITY: ${{ steps.fill_guard.outputs.integrity }}
         run: |
           # A failed check stays red, but the steps above still assembled and
           # uploaded the artifact so the reviewer can see what the check saw.
           check_failed=0
+          if [ "$FILL_INTEGRITY" = fail ]; then
+            echo "::error::The fill session changed files outside feedback.json that the guard relies on; not shipping this run"
+            check_failed=1
+          fi
           final="$CHECKS_OUTCOME"
           if [ -n "$RECHECK_OUTCOME" ] && [ "$RECHECK_OUTCOME" != "skipped" ]; then
             final="$RECHECK_OUTCOME"

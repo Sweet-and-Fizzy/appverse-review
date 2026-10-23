@@ -350,6 +350,15 @@ echo "$fill" | grep -qF 'Never present as a strength anything' && ok "fill promp
 grep -qF 'Never present as a strength anything' skills/review-app/SKILL.md && ok "the quoted praise rule is still in the skill" || bad "the quoted praise rule is still in the skill"
 echo "$guard" | grep -q 'fill-guard.py" verify' && ok "guard step runs fill-guard verify" || bad "guard step runs fill-guard verify"
 
+echo "Test: the guard checks its own inputs"
+echo "$gate" | grep -q 'snapshot_digest=' && ok "gate emits the snapshot digest" || bad "gate emits the snapshot digest"
+echo "$guard" | grep -qF 'steps.feedback_gate.outputs.snapshot_digest' && ok "guard compares the digest" || bad "guard compares the digest"
+echo "$gate" | grep -qF 'plugin_status=$(python3 "$WS/appverse-review/references/fill-guard.py" plugin-status' && echo "$guard" | grep -qF '[ "$pstat" = error ]' \
+  && ok "guard checks the plugin checkout is unchanged since the gate" || bad "guard checks the plugin checkout is unchanged since the gate"
+verify_step=$(step "Verify review outputs")
+echo "$verify_step" | grep -qF 'FILL_INTEGRITY: ${{ steps.fill_guard.outputs.integrity }}' && echo "$verify_step" | grep -q '"$FILL_INTEGRITY" = fail' \
+  && ok "Verify fails a run whose guard inputs were tampered with" || bad "Verify fails a run whose guard inputs were tampered with"
+
 echo
 echo "Done: $pass passed, $fail failed."
 [ "$fail" -eq 0 ]

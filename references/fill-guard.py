@@ -3,6 +3,8 @@
 
     python3 references/fill-guard.py needs-fill <feedback.json>
     python3 references/fill-guard.py snapshot <snapdir> <file>...
+    python3 references/fill-guard.py digest <snapdir> <file>...
+    python3 references/fill-guard.py plugin-status <git-dir>
     python3 references/fill-guard.py verify <snapdir> <report.md> \\
         <findings.json> <meta.json> <feedback.json> <before-checks> <after-checks>
 
@@ -11,6 +13,15 @@ with empty text, otherwise false (also for a missing or malformed file).
 
 snapshot copies each file into snapdir and records in MANIFEST which paths
 existed, so a file the session creates counts as a change too.
+
+digest prints a sha256 over the snapshot (MANIFEST and every saved file)
+and the given files (the check-all baseline). The gate emits it as a step
+output, which the fill session cannot write, and the guard compares it
+before trusting the snapshot: the session's permissions are what keep it
+out of these files, and this checks that they did. plugin-status does the
+same for the plugin checkout the guard's scripts run from: a sha256 of its
+`git status --porcelain` (untracked files included, since a planted module
+would be imported), or "error" when git cannot read it.
 
 verify runs after the session and after the workflow has re-run prepare and
 render. The changes are kept only if: findings.json and meta.json are
@@ -23,12 +34,15 @@ check is the one check-all cannot make: an item with no text falls back to
 its summaries and still passes the floor, so a fill that blanked or broke
 the sentences would otherwise look fine. On the first failure every
 snapshotted file is restored (one that did not exist is deleted) and verify
-exits 1; otherwise it exits 0.
+exits 1; otherwise it exits 0. If the check itself raises, every file is
+restored and verify exits 3.
 """
+import hashlib
 import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -167,6 +181,24 @@ def failure(snapdir, report, findings, meta, feedback, before, after):
     return None
 
 
+def digest(snapdir, extra):
+    h = hashlib.sha256()
+    names = sorted(os.listdir(snapdir)) if os.path.isdir(snapdir) else []
+    for name in names:
+        h.update(name.encode() + b"\0" + (current(os.path.join(snapdir, name)) or b"") + b"\0")
+    for path in extra:
+        h.update(path.encode() + b"\0" + (current(path) or b"") + b"\0")
+    return h.hexdigest()
+
+
+def plugin_status(path):
+    try:
+        out = subprocess.run(["git", "-C", path, "status", "--porcelain"], capture_output=True, check=True).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return "error"
+    return hashlib.sha256(out).hexdigest()
+
+
 def main(argv):
     if len(argv) >= 3 and argv[1] == "needs-fill":
         print("true" if needs_fill(argv[2]) else "false")
@@ -175,9 +207,20 @@ def main(argv):
         snapshot(argv[2], argv[3:])
         print("fill-guard: snapshot of {} files".format(len(argv) - 3))
         return 0
+    if len(argv) == 3 and argv[1] == "plugin-status":
+        print(plugin_status(argv[2]))
+        return 0
+    if len(argv) >= 3 and argv[1] == "digest":
+        print(digest(argv[2], argv[3:]))
+        return 0
     if len(argv) == 9 and argv[1] == "verify":
         snapdir, report, findings, meta, feedback, before, after = argv[2:]
-        reason = failure(snapdir, report, findings, meta, feedback, before, after)
+        try:
+            reason = failure(snapdir, report, findings, meta, feedback, before, after)
+        except Exception as e:  # noqa: BLE001 - an unchecked fill must never stand
+            restore(snapdir)
+            print("fill-guard: restored (guard error: {})".format(e))
+            return 3
         if reason:
             restore(snapdir)
             print("fill-guard: restored ({})".format(reason))
