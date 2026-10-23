@@ -285,6 +285,22 @@ lacks skills/review-structure/SKILL.md "OOD needs the exact value" "structure sk
 
 grep -q 'sets_floor' references/check-decisions.py && ok "check-decisions uses sets_floor" || bad "check-decisions uses sets_floor"
 
+levels_problems=$(PYTHONPATH=references python3 -c '
+import json
+from feedback_terms import vocabulary_tags
+vocab = vocabulary_tags("references/finding-codes.md")
+levels = json.load(open("references/checks.json")).get("feedback_levels", {}).get("should_at_low")
+if not levels:
+    print("no feedback_levels.should_at_low in checks.json")
+else:
+    for rule, tags in levels.items():
+        for t in tags:
+            if t != "*" and t not in vocab.get(rule, []):
+                print(rule, t)
+' 2>&1)
+[ -z "$levels_problems" ] && ok "feedback_levels tags are finding-codes tags" \
+  || { bad "feedback_levels tags are finding-codes tags"; echo "$levels_problems"; }
+
 echo
 echo "Done: $pass passed, $fail failed."
 [ "$fail" -eq 0 ]

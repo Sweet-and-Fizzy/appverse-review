@@ -228,3 +228,38 @@ def words_named(words, prose):
         if n and re.search(r"(?<![a-z0-9])" + re.escape(n) + r"s?(?![a-z0-9])", norm_prose):
             return True
     return False
+
+
+RULE_HEADER = re.compile(r"^\*\*([A-Z]+-\d+):\*\*\s*$")
+BACKTICKED = re.compile(r"`([^`]+)`")
+
+
+def vocabulary_tags(path):
+    """{rule: [tag, ...]} from finding-codes.md: the backticked tokens on the
+    lines after each `**RULE:**` header, up to the first blank line. The
+    prose paragraphs that follow some tag lists quote other backticked
+    things (`bash -n`, `syntax.json`), so only that first block counts, and a
+    token with a space or a '.' is never a tag. A qualifier, whether the
+    `:{name}` placeholder or a worked example (`missing-field:software`), is
+    stripped, leaving the base tag."""
+    vocab = {}
+    rule = None
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            m = RULE_HEADER.match(line.strip())
+            if m:
+                rule = m.group(1)
+                vocab.setdefault(rule, [])
+                continue
+            if rule is None:
+                continue
+            if not line.strip():
+                rule = None
+                continue
+            for token in BACKTICKED.findall(line):
+                if " " in token or "." in token:
+                    continue
+                tag = token.split(":", 1)[0]
+                if tag not in vocab[rule]:
+                    vocab[rule].append(tag)
+    return vocab

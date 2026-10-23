@@ -326,3 +326,19 @@ checks:
     dimension: code_quality
     default_severity: info
     weight: suggestion
+
+# Draft feedback levels (references/prepare-feedback.py). A fix-item that sets
+# a decision floor (report_parse.sets_floor) is Must fix; any other is Should
+# fix at High or Medium and a Suggestion at Low. This table lists the findings
+# that are Should fix even at Low: target misses, fixes that move a rating or a
+# code-quality target. It only ever raises a level. Keyed by rule; the tags
+# are base tags from finding-codes.md (no qualifier), and "*" means every tag
+# of the rule. QUA-02 site-specific-mixin is the Not portable rating finding;
+# QUA-07 missing-pattern is left out, since a text field without a pattern is
+# not the numeric-bounds target numeric-field-bounds names.
+feedback_levels:
+  should_at_low:
+    QUA-01: ["*"]
+    QUA-02: [site-specific-mixin]
+    QUA-03: [no-error-check, no-set-e]
+    QUA-07: [missing-min, missing-required, zero-minimum, missing-min-max]
