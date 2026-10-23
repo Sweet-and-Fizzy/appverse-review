@@ -263,3 +263,31 @@ def vocabulary_tags(path):
                 if tag not in vocab[rule]:
                     vocab[rule].append(tag)
     return vocab
+
+
+LINE_TOKEN = re.compile(r"\d+(?:-\d+)?")
+
+
+def evidence_locations(evidence):
+    """[(path, [line, ...]), ...] for each file the evidence cites, in order:
+    the evidence is cut at '; reviewed OK:' (those lines are PASS lines),
+    split on ';', and each part contributes its path and the line tokens
+    after it. A range ("8-9") stays one token, as written. A file cited in
+    two parts appears once, with its lines merged."""
+    text = split_reviewed_ok(str(evidence or ""))[0]
+    out = []
+    index = {}
+    for part in text.split(";"):
+        part = part.strip()
+        path = evidence_path(part)
+        if not path:
+            continue
+        lines = LINE_TOKEN.findall(part[len(path):])
+        if path not in index:
+            index[path] = len(out)
+            out.append((path, []))
+        merged = out[index[path]][1]
+        for line in lines:
+            if line not in merged:
+                merged.append(line)
+    return out
