@@ -77,6 +77,9 @@ def finding_locations(finding):
     words = subject_words(finding.get("defect_key"))
     if not words:
         return []
+    # A two-letter subject word is an initialism ("ci"), so it is written in
+    # capitals; otherwise only the label's first letter is.
+    words = [w.upper() if len(w) <= 2 else w for w in words]
     label = " ".join(words)
     return [(label[:1].upper() + label[1:], [])]
 

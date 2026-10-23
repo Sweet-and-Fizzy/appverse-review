@@ -90,6 +90,8 @@ findings "$(finding root MNT-01 root:stale-repo WARN medium commits maintenance)
 check "root:stale-repo gets label Stale repo" "Stale repo" "$(q '"|".join(items[0]["locations"])')"
 findings "$(finding root MNT-02 releases:no-releases WARN low 'GitHub releases API: 0' maintenance)"; prep >/dev/null
 check "releases:no-releases gets label Release" "Release" "$(q '"|".join(items[0]["locations"])')"
+findings "$(finding root MNT-04 .github/workflows:no-ci WARN low 'none found' maintenance)"; prep >/dev/null
+check ".github/workflows:no-ci gets label CI workflow" "CI workflow" "$(q '"|".join(items[0]["locations"])')"
 findings "$(finding root OODT-04 network:unexpected-network-call WARN low 'n/a' security)"; prep >/dev/null
 check "pathless non-pseudo finding has no label" "0" "$(q 'len(items[0]["locations"])')"
 
