@@ -24,18 +24,20 @@ same for the plugin checkout the guard's scripts run from: a sha256 of its
 would be imported), or "error" when git cannot read it.
 
 verify runs after the session and after the workflow has re-run prepare and
-render. The changes are kept only if: findings.json and meta.json are
+render. Every snapshotted file is restored (one that did not exist is
+deleted) and verify exits 1 unless: findings.json and meta.json are
 unchanged; the report is unchanged outside the Draft feedback section; the
 report has exactly one Draft feedback heading carrying the
-feedback-generated marker; check-all printed no problem line that was not
-there before; and feedback.json keeps every opening and text that was
-already filled, unchanged, and fills at least one that was empty. The last
-check is the one check-all cannot make: an item with no text falls back to
-its summaries and still passes the floor, so a fill that blanked or broke
-the sentences would otherwise look fine. On the first failure every
-snapshotted file is restored (one that did not exist is deleted) and verify
-exits 1; otherwise it exits 0. If the check itself raises, every file is
-restored and verify exits 3.
+feedback-generated marker; and check-all printed no problem line that was
+not there before. Then it salvages the sentences: one that was already
+written and that the session changed goes back to its snapshot value, and
+one it filled in an empty slot is kept, so a session that rewords the
+opening on its way to filling three empty items keeps the three. The section
+is re-rendered if anything went back. If nothing new was filled, everything
+is restored, since an item with no text falls back to its summaries and
+still passes the floor, so check-all alone would not notice a fill that
+blanked or broke the sentences. If the check itself raises, every file is
+restored and verify exits 3; otherwise it exits 0.
 """
 import hashlib
 import json
@@ -148,7 +150,7 @@ def texts(doc):
     return out
 
 
-def failure(snapdir, report, findings, meta, feedback, before, after):
+def structure_failure(snapdir, report, findings, meta):
     for path in (findings, meta):
         if current(path) != saved(snapdir, path):
             return "{} changed".format(os.path.basename(path))
@@ -164,21 +166,62 @@ def failure(snapdir, report, findings, meta, feedback, before, after):
     if len(headings) != 1 or bounds is None or \
             GENERATED not in "\n".join(new_text.splitlines()[bounds[0]:bounds[1]]):
         return "the report does not have exactly one generated Draft feedback section"
+    return None
+
+
+def failure(snapdir, report, findings, meta, feedback, before, after):
+    reason = structure_failure(snapdir, report, findings, meta)
+    if reason:
+        return reason
     new_problems = problem_lines(after) - problem_lines(before)
     if new_problems:
         return "new checker problem: " + sorted(new_problems)[0]
+    return None
+
+
+def salvage(snapdir, report, findings, meta, feedback):
+    """(reason, filled, reverted). A sentence that was already written and
+    that the session changed goes back to its snapshot value; a sentence it
+    filled in an empty slot is kept. The section is re-rendered when
+    anything was reverted. reason is set when nothing new was filled or the
+    re-rendered report fails the structure checks."""
     old_fb = saved(snapdir, feedback)
     try:
         old = texts(json.loads(old_fb.decode("utf-8"))) if old_fb else {}
     except ValueError:
         old = {}
-    new = texts(load_json(feedback))
+    doc = load_json(feedback)
+    if not isinstance(doc, dict):
+        return "feedback.json is unreadable", 0, 0
+    items = {i["group"]: i for i in doc.get("items", []) if isinstance(i, dict) and isinstance(i.get("group"), str)} \
+        if isinstance(doc.get("items"), list) else {}
+    reverted = 0
     for key, value in old.items():
-        if filled(value) and new.get(key) != value:
-            return "an already-written sentence changed ({})".format(key)
-    if not any(not filled(old.get(key, "")) and filled(value) for key, value in new.items()):
-        return "no empty sentence was filled"
-    return None
+        if not filled(value):
+            continue
+        if key == "opening":
+            if doc.get("opening") != value:
+                doc["opening"] = value
+                reverted += 1
+        elif key in items and items[key].get("text") != value:
+            items[key]["text"] = value
+            reverted += 1
+    new = texts(doc)
+    newly = sum(1 for key, value in new.items() if not filled(old.get(key, "")) and filled(value))
+    if not newly:
+        return "no empty sentence was filled", 0, reverted
+    if reverted:
+        tmp = feedback + ".salvage-tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(doc, f, indent=2, ensure_ascii=False)
+            f.write("\n")
+        os.replace(tmp, feedback)
+        render = os.path.join(os.path.dirname(os.path.abspath(__file__)), "render-feedback.py")
+        subprocess.run([sys.executable, render, report, feedback], capture_output=True, check=False)
+        reason = structure_failure(snapdir, report, findings, meta)
+        if reason:
+            return "after reverting changed sentences: " + reason, newly, reverted
+    return None, newly, reverted
 
 
 def digest(snapdir, extra):
@@ -215,8 +258,11 @@ def main(argv):
         return 0
     if len(argv) == 9 and argv[1] == "verify":
         snapdir, report, findings, meta, feedback, before, after = argv[2:]
+        filled_n = reverted = 0
         try:
             reason = failure(snapdir, report, findings, meta, feedback, before, after)
+            if not reason:
+                reason, filled_n, reverted = salvage(snapdir, report, findings, meta, feedback)
         except Exception as e:  # noqa: BLE001 - an unchecked fill must never stand
             restore(snapdir)
             print("fill-guard: restored (guard error: {})".format(e))
@@ -225,7 +271,7 @@ def main(argv):
             restore(snapdir)
             print("fill-guard: restored ({})".format(reason))
             return 1
-        print("fill-guard: kept")
+        print("fill-guard: kept ({} filled, {} reverted)".format(filled_n, reverted) if reverted else "fill-guard: kept")
         return 0
     print(__doc__.split("\n\n")[1], file=sys.stderr)
     return 2

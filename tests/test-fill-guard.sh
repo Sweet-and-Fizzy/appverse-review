@@ -12,7 +12,7 @@ check() { local name="$1" expected="$2" actual="$3"
 
 R="$TMP/review.md"; F="$TMP/review.findings.json"; M="$TMP/review.meta.json"; FB="$TMP/review.feedback.json"
 B="$TMP/before.txt"; A="$TMP/after.txt"; SNAP="$TMP/snap"
-fb() { printf '{"app_name": "X", "opening": "%s", "items": [{"group": "should:QUA-03:no-error-check", "text": "%s", "defect_keys": ["a.sh:no-error-check"]}, {"group": "suggestion:QUA-07:missing-pattern", "text": "%s", "defect_keys": ["form.yml:missing-pattern"]}]}' "$1" "$2" "$3" > "$FB"; }
+fb() { printf '{"app_name": "X", "opening": "%s", "items": [{"group": "should:QUA-03:no-error-check", "text": "%s", "level": "should", "defect_keys": ["a.sh:no-error-check"]}, {"group": "suggestion:QUA-07:missing-pattern", "text": "%s", "level": "suggestion", "defect_keys": ["form.yml:missing-pattern"]}]}' "$1" "$2" "$3" > "$FB"; }
 report() { printf '# Appverse Review: o/r\n\n## Overall recommendation\n\nAccept.\n\n## Draft feedback — edit before sending\n\n%s\n\n<!-- feedback-generated -->\n<!-- feedback-covers: a.sh:no-error-check -->\n\n```json\n[]\n```\n' "$1" > "$R"; }
 setup() { # a snapshot with the opening and first text filled, the second empty
   rm -rf "$SNAP"; report "Thanks. 1. a"; echo '[{"k": 1}]' > "$F"; echo '{"m": 1}' > "$M"; fb "Thanks." "Fix a." ""
@@ -57,12 +57,22 @@ check "a new problem line restores" 1 "$(verify)"
 setup; fb "Thanks." "" ""; report "Thanks. 1. fallback 2. fallback"
 check "malformed feedback after fill restores" 1 "$(verify)"
 check "and the snapshot feedback is back" yes "$(grep -q '"text": "Fix a."' "$FB" && echo yes || echo no)"
-setup; fb "Thanks." "" "Add a pattern."; report "Thanks. 1. fallback 2. b"
-check "a blanked sentence restores" 1 "$(verify)"
 setup; fb "Thanks." "Fix a." ""; report "Thanks. 1. a 2. fallback"
 check "no newly filled sentence restores" 1 "$(verify)"
+
+echo "Test 3b: salvaged"
+setup; fb "Thanks." "" "Add a pattern."; report "Thanks. 1. fallback 2. b"
+check "a blanked sentence is salvaged, not restored" 0 "$(verify)"
+check "says how many were filled and reverted" "fill-guard: kept (1 filled, 1 reverted)" "$(tail -1 "$TMP/out")"
+check "the blanked sentence is back" yes "$(grep -q '"text": "Fix a."' "$FB" && echo yes || echo no)"
+check "the new sentence stays" yes "$(grep -q '"text": "Add a pattern."' "$FB" && echo yes || echo no)"
+check "the section is re-rendered with both" "2" "$(grep -cE '^[0-9]+\. (Fix a\.|Add a pattern\.)$' "$R")"
 setup; fb "Different." "Fix a." "Add a pattern."
-check "a changed opening restores" 1 "$(verify)"
+check "a changed opening is salvaged" 0 "$(verify)"
+check "the opening is the snapshot's" yes "$(grep -q '"opening": "Thanks."' "$FB" && echo yes || echo no)"
+check "and the report shows it" 1 "$(grep -c '^Thanks\.$' "$R")"
+setup; fb "Different." "Fix a." ""
+check "a changed opening with nothing newly filled restores" 1 "$(verify)"
 
 echo "Test 4: absent files"
 rm -rf "$SNAP"; report "Thanks. 1. a"; echo '[{"k": 1}]' > "$F"; rm -f "$M"; fb "Thanks." "Fix a." ""
