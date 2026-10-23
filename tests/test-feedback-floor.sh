@@ -613,4 +613,33 @@ check "exit 1" 1 "$(run "$TMP/f50.json" "$TMP/r50.md")"
 check "only the target check is a fix-item" "feedback floor: 0/1 fix-items covered" "$(tail -1 "$TMP/out")"
 check "the info suggestions are not listed" 0 "$(grep -cE 'hex-color|duplicated-block' "$TMP/out")"
 
+echo "Test 51: the reviewer-mode shape (thanks, bold level labels, one numbered list) is read like prose"
+cat > "$TMP/r51.md" <<'EOF'
+# Appverse Review: x
+## Overall recommendation
+Accept with suggestions.
+## Draft feedback — edit before sending
+Thank you for submitting x to Appverse. The README's configuration table is unusually complete.
+
+**Should fix**
+
+1. `form.yml` line 63 hardcodes a module version; make it a form option.
+
+**Suggestions (optional)**
+
+2. `submit.yml.erb` passes unsanitized input from the free-text fields to the scheduler.
+3. `template/script.sh.erb` has no error handling; add `set -e`.
+4. `CHANGELOG.md` describes a different, wrong app; replace it with this app's history.
+5. Consider tagging a release.
+
+<!-- feedback-covers: submit.yml.erb:unsanitized-input, template/script.sh.erb:no-error-handling, root:changelog-wrong-app, root:no-releases, form.yml:hardcoded-module-version -->
+EOF
+check "exit 0" 0 "$(run "$TMP/findings.json" "$TMP/r51.md")"
+check "reports 5/5" "feedback floor: 5/5 fix-items covered" "$(tail -1 "$TMP/out")"
+
+echo "Test 52: a list item that drops its file fails, even under a level label"
+sed 's/^1\. `form.yml` line 63 hardcodes/1. The form hardcodes/' "$TMP/r51.md" > "$TMP/r52.md"
+check "exit 1" 1 "$(run "$TMP/findings.json" "$TMP/r52.md")"
+check "names the dropped item" 1 "$(grep -c 'MISSING QUA-02 form.yml:hardcoded-module-version' "$TMP/out")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

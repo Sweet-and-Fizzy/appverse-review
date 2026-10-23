@@ -373,17 +373,20 @@ finding in a table above (gate criteria, security, or the quality findings
 table). If while writing the feedback you notice a real defect that is not yet
 recorded, stop and add it to the appropriate findings table first, then
 summarize it here. A problem must never appear for the first time in the
-recommendation or the feedback message.
+recommendation or the feedback message. The feedback's opening praise is the
+one part that is not a fix, and it is derived too: each strength it names
+must be one the report records (a PASS row, a rating, a documentation rung
+the README clears).
 
 **Inclusion floor — derive, don't recall.** Before writing the feedback, list
 every finding whose `result` is FAIL or WARN and whose `severity` is Low or
 above, plus every Structure gate FAIL (an STR rule not tagged `other:`) at any
 severity, since a failed gate is why the decision is at least Request
 changes. Each of these is a fix-item and must be named in the feedback with the
-file it lives in; group related items in one paragraph where that reads
+file it lives in; related items may share one list item where that reads
 better. Info-level polish may be summarized in one line or omitted. Write the
 feedback first. Then end the section with a single HTML comment that lists
-the `defect_key` of every fix-item the prose above addresses; it is a
+the `defect_key` of every fix-item the feedback above addresses; it is a
 checksum of what you wrote, not a list to satisfy:
 
     <!-- feedback-covers: submit.yml.erb:unsanitized-input, template/script.sh.erb:no-error-handling -->
@@ -413,8 +416,8 @@ FAIL/WARN at Low or above). A `weight: suggestion` check is Info (its
 manifest `default_severity`, and `check-rating.py` rejects it rated
 higher), and so is a maintenance good-practice signal MNT-02 to MNT-06, so
 neither is ever a fix-item: it goes in the one line of
-Info-level polish, or is left out. Word the feedback accordingly rather
-than flattening every fix-item into the same register.
+Info-level polish, or is left out. The reviewer-mode list below groups the
+fix-items by these three levels rather than flattening them into one.
 
 **Never advise removing a real caveat.** Never advise removing a comment or
 help text that states a real constraint (a partition that requires a GPU, a
@@ -422,14 +425,32 @@ limit); advise rewording it.
 
 - **Reviewer mode:** append a draft contributor feedback message using the
   Reviewer Process's Step 4 feedback guidance (specific, references files, links the README
-  template or best-practices guide where relevant). Plain prose paragraphs.
-  The portal pre-fills the reviewer's response with it, and the response
-  becomes the body of the decision email. That email already greets the
-  contributor, states each app's decision, says how to re-submit and says a
-  reply reaches the reviewer, so open with the first finding: no greeting or
-  thank-you, no restating the decision, no re-submit or "reply to me"
-  instructions, and no sign-off. Label it "Draft feedback — edit before
-  sending."
+  template or best-practices guide where relevant). The portal pre-fills the
+  reviewer's response with it, and the response becomes the body of the
+  decision email. That email already greets the contributor, states each
+  app's decision, says how to re-submit and says a reply reaches the
+  reviewer, so the draft has no greeting ("Hi …"), no restating of the
+  decision, no re-submit or "reply to me" instructions, and no sign-off.
+  Label it "Draft feedback — edit before sending." Shape it like this:
+
+  1. Open with one sentence thanking the contributor for submitting the app,
+     then one or two sentences on what this app does well, specific to it
+     and recorded in the report (see the Derived-only rule). "Solid
+     structure and good documentation" is not specific. When the report
+     records no strength worth naming, the thank-you stands alone.
+  2. Then list the fix-items, numbered, under a bold label per level:
+     `**Must fix**` (Required), `**Should fix**` (Recommended) and
+     `**Suggestions (optional)**` (Suggested), in that order. Leave out a
+     level with no items. Use bold lines, not Markdown headings: the portal
+     and the checkers end the section at the next `## ` line, and the email
+     quotes the draft, where a heading renders oversized. Number straight
+     through all three groups (the first Should fix item follows the last
+     Must fix item), so a reply can cite "item 7".
+  3. Each item names its file and line, says what is wrong and what to
+     change, in one to three sentences. In a monorepo, name the app's path.
+     Keep one list for the whole repo; the email states each app's decision.
+  4. Info-level polish, if mentioned, is one line after the list. End there:
+     no closing summary, then the `feedback-covers` comment.
 - **Submitter mode:** append a prioritized "Fix before submitting" list instead —
   gate-criteria failures first (security findings at the top), then quality
   improvements, each with the file to change.
