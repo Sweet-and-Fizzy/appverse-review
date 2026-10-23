@@ -328,6 +328,28 @@ stray=$(grep -n 'inputs.max_turns' "$WF" | grep -v 'MAX_TURNS_INPUT: ${{ inputs.
   || { bad "max_turns input never in a run block"; echo "$stray"; }
 has "$WF" "turns_re='^[0-9]{1,3}\$'" "params checks review_turns before writing it"
 
+echo "Test: the guarded fill steps"
+WF=.github/workflows/appverse-review.yaml
+step() { awk -v n="$1" 'index($0, "      - name: " n) == 1 {on=1; print; next} on && /^      - name: /{exit} on' "$WF"; }
+fill=$(step "Fill draft feedback")
+gate=$(step "Check draft feedback for empty sentences")
+guard=$(step "Keep or roll back the filled draft")
+echo "$fill" | grep -qF "if: \"!cancelled() && inputs.review_aspects == 'all' && steps.feedback_gate.outputs.needs_fill == 'true'\"" \
+  && ok "fill step runs only on full reviews when the gate says so" || bad "fill step runs only on full reviews when the gate says so"
+echo "$fill" | grep -q '"Bash(' && bad "fill step cannot run Bash" \
+  || { echo "$fill" | grep -q '"Bash"' && ok "fill step cannot run Bash" || bad "fill step cannot run Bash"; }
+scoped=$(echo "$fill" | grep -oE '"(Edit|Write)[^"]*"' | grep -v '\.feedback\.json)"$')
+[ -z "$scoped" ] && [ "$(echo "$fill" | grep -cE '"(Edit|Write)\(')" -eq 2 ] && ok "fill step edits only feedback.json" \
+  || { bad "fill step edits only feedback.json"; echo "$scoped"; }
+for st in "$gate" "$fill" "$guard"; do echo "$st" | grep -q 'continue-on-error: true' || nofail=1; done
+[ -z "${nofail:-}" ] && [ -n "$gate" ] && [ -n "$guard" ] && ok "new steps never fail the job" || bad "new steps never fail the job"
+fl=$(grep -n '      - name: Fill draft feedback' "$WF" | cut -d: -f1); pl=$(grep -n '      - name: Generate PDF and HTML from review' "$WF" | cut -d: -f1)
+[ -n "$fl" ] && [ "$fl" -lt "$pl" ] && ok "fill steps sit before the PDF step" || bad "fill steps sit before the PDF step"
+printf '%s\n%s\n%s\n' "$gate" "$fill" "$guard" | grep -q needs_repair && bad "the fill steps never write needs_repair" || ok "the fill steps never write needs_repair"
+echo "$fill" | grep -qF 'Never present as a strength anything' && ok "fill prompt quotes the skill's praise rule" || bad "fill prompt quotes the skill's praise rule"
+grep -qF 'Never present as a strength anything' skills/review-app/SKILL.md && ok "the quoted praise rule is still in the skill" || bad "the quoted praise rule is still in the skill"
+echo "$guard" | grep -q 'fill-guard.py" verify' && ok "guard step runs fill-guard verify" || bad "guard step runs fill-guard verify"
+
 echo
 echo "Done: $pass passed, $fail failed."
 [ "$fail" -eq 0 ]
