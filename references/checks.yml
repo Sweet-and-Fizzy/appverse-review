@@ -258,7 +258,9 @@ checks:
   # from site config (an attribute the site sets, or ERB), and a hardcoded
   # `max` is not required, so a missing `max` alone is not a finding. A
   # `min` of 0 where 0 is meaningless (0 cores, 0 hours) is QUA-07
-  # zero-minimum.
+  # zero-minimum. A count of an optional resource, where 0 means "none"
+  # (GPUs, accelerators, licenses), is meant to allow 0: its `min` of 0 is
+  # the floor, and the row is PASS.
   - id: numeric-field-bounds
     section: Code Quality
     app_types: [batch_connect]

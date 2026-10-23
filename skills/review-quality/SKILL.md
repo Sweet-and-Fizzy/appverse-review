@@ -243,7 +243,10 @@ These rows carry no `check:` marker.
   value computed in ERB), and a hardcoded `max` is not required, so a
   missing `max` alone is not a finding. A `min` of 0 that allows 0 cores
   or 0 hours is still a finding (`zero-minimum`), and so is a field with
-  no floor (`missing-min`).
+  no floor (`missing-min`). A count of an optional resource, where 0 means
+  "none" (GPUs, accelerators, licenses), is meant to allow 0: `min: 0` is
+  its floor, so record the row PASS and never advise raising it to 1,
+  which would stop CPU-only jobs.
 
   An unmet target for inclusion — error handling, input validation — is
   recorded as FAIL, not WARN; suggestions that are unmet are WARN. The
