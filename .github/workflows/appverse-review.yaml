@@ -260,11 +260,15 @@ jobs:
                   "Bash(head:*)",
                   "Bash(tail:*)",
                   "Bash(python3:*)",
-                  "Bash(gh api repos/:*)",
-                  "Bash(gh api 'repos/:*)",
+                  "Bash(gh api repos/*)",
+                  "Bash(gh api 'repos/*)",
                   "Bash(git log:*)",
                   "Bash(git diff:*)",
                   "Bash(git show:*)",
+                  "Bash(git -C * log *)",
+                  "Bash(git -C * diff *)",
+                  "Bash(git -C * show *)",
+                  "Bash(git -C * rev-parse *)",
                   "Bash(sed:*)",
                   "Bash(sort:*)",
                   "Bash(uniq:*)",
@@ -348,6 +352,19 @@ jobs:
             (run_in_background: false) so each call returns its result to
             you; background launches are denied here. Your turn ends only
             after the three files below are written.
+
+            Commands outside the allowed list are refused, so use these
+            forms, and include this list in each sub-agent's prompt:
+            - git in another directory: `git -C <dir> log ...` (also diff,
+              show, rev-parse), never `cd <dir> && git ...`.
+            - GitHub data: `gh api repos/<owner>/<repo>/...`, never curl.
+            - Python longer than one line: write it to a .py file with the
+              Write tool and run `python3 <file>`; a `python3 -c` script
+              containing a newline followed by `#` is refused.
+            - Output files: write them with the Write tool, not shell
+              redirection (`>`).
+            - One command per Bash call; chaining with `&&`, `;` or `|` into
+              a command that is not allowed refuses the whole call.
 
             After the review completes:
             1. Write the full report to
