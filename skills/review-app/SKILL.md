@@ -76,7 +76,9 @@ prompt is:
 > Do not make accept or reject judgments.
 
 Only if your tool list has no Agent (or Task) tool at all, run the four
-aspect skill files yourself, one at a time, in the order above. When the tool
+aspect skill files yourself, one at a time, in the order above. In that case
+the orchestrator limits above do not apply: read each aspect skill and the fact
+files and target code it names, as its subagent would have. When the tool
 is present, always dispatch, whatever the size of the repo.
 
 ## 3. Synthesize the report
