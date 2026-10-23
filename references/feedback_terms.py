@@ -297,3 +297,34 @@ def evidence_locations(evidence):
         if path and path not in index:
             add(path, [])
     return out
+
+
+DRAFT_HEADING_RE = re.compile(r"^##\s+Draft feedback\b", re.IGNORECASE)
+JSON_FENCE_RE = re.compile(r"^```json\s*$")
+
+
+def draft_section_bounds(lines):
+    """(start, end) line indices of the Draft feedback section: its heading
+    (outside code fences, with or without "— edit before sending") up to the
+    next `## ` heading or the structured-findings ```json fence, or None.
+    render-feedback.py replaces this span and fill-guard.py compares
+    everything outside it, so the two agree on where the section is."""
+    start = None
+    in_fence = False
+    for i, line in enumerate(lines):
+        if line.startswith("```"):
+            in_fence = not in_fence
+            continue
+        if not in_fence and DRAFT_HEADING_RE.match(line):
+            start = i
+            break
+    if start is None:
+        return None
+    in_fence = False
+    for i in range(start + 1, len(lines)):
+        line = lines[i]
+        if not in_fence and (JSON_FENCE_RE.match(line) or line.startswith("## ")):
+            return start, i
+        if line.startswith("```"):
+            in_fence = not in_fence
+    return start, len(lines)

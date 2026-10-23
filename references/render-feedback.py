@@ -25,10 +25,11 @@ import os
 import re
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from feedback_terms import draft_section_bounds  # noqa: E402
+
 HEADING = "## Draft feedback — edit before sending"
-HEADING_RE = re.compile(r"^##\s+Draft feedback\b", re.IGNORECASE)
 TITLE_RE = re.compile(r"^#\s+Appverse Review:\s*(?:[^/\s]+/)?([^\s(]+)", re.MULTILINE)
-JSON_FENCE = re.compile(r"^```json\s*$")
 LABELS = (("must", "**Must fix**"), ("should", "**Should fix**"), ("suggestion", "**Suggestions (optional)**"))
 
 
@@ -62,7 +63,10 @@ def fallback_text(summaries):
 
 def render_section(doc, report):
     items = [i for i in doc.get("items", []) if isinstance(i, dict)] if isinstance(doc.get("items"), list) else []
-    lines = [HEADING, "", as_text(doc.get("opening")) or default_opening(as_text(doc.get("app_name")), report), ""]
+    # The opening is the one line not led by an item number, so a leading
+    # '#' would make it a heading and end the section there.
+    opening = as_text(doc.get("opening")).lstrip("# ").strip()
+    lines = [HEADING, "", opening or default_opening(as_text(doc.get("app_name")), report), ""]
     missing = []
     covers = []
     n = 0
@@ -91,26 +95,10 @@ def render_section(doc, report):
 
 def replace_section(report, section):
     lines = report.splitlines()
-    start = None
-    in_fence = False
-    for i, line in enumerate(lines):
-        if line.startswith("```"):
-            in_fence = not in_fence
-            continue
-        if not in_fence and HEADING_RE.match(line):
-            start = i
-            break
-    if start is None:
+    bounds = draft_section_bounds(lines)
+    if bounds is None:
         return report.rstrip("\n") + "\n\n" + section
-    end = len(lines)
-    in_fence = False
-    for i in range(start + 1, len(lines)):
-        line = lines[i]
-        if not in_fence and (JSON_FENCE.match(line) or line.startswith("## ")):
-            end = i
-            break
-        if line.startswith("```"):
-            in_fence = not in_fence
+    start, end = bounds
     before = "\n".join(lines[:start])
     after = "\n".join(lines[end:])
     out = (before + "\n" if before else "") + section

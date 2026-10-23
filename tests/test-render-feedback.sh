@@ -104,6 +104,14 @@ check "covers stays in the section" "1" "$(section | grep -c 'feedback-covers')"
 check "opening is one line" "Thanks. Great README." "$(section | sed -n 3p)"
 check "fallback summaries are de-duplicated, joined as sentences" '2. `form.yml:4` No pattern. Free text unchecked. <!-- feedback-missing -->' "$(section | grep '^2\. ')"
 
+echo "Test 3c: an opening cannot become a heading"
+echo '{"app_name": "SAS", "opening": "## Oops thanks for the app.", "items": []}' > "$TMP/fb.json"
+report '## Draft feedback
+'
+render >/dev/null
+check "an opening starting with ## is neutralised" "Oops thanks for the app." "$(section | sed -n 3p)"
+check "still one heading after the opening" "2" "$(grep -c '^## ' "$TMP/r.md")"
+
 echo "Test 4: floor passes on every fallback"
 # Every vocabulary tag, as a WARN low fix-item with no sentence written,
 # rendered by prepare + render, must pass check-feedback-floor.py. MNT tags
