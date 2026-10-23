@@ -283,6 +283,8 @@ has references/finding-codes.md "counts only when the service reads it" "finding
 has skills/review-structure/SKILL.md "catalog's app_type vocabulary" "structure skill: app_type is a vocabulary term"
 lacks skills/review-structure/SKILL.md "OOD needs the exact value" "structure skill no longer asks for the exact app_type value"
 
+grep -q 'sets_floor' references/check-decisions.py && ok "check-decisions uses sets_floor" || bad "check-decisions uses sets_floor"
+
 echo
 echo "Done: $pass passed, $fail failed."
 [ "$fail" -eq 0 ]

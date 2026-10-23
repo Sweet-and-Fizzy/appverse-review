@@ -168,6 +168,37 @@ def is_gate_finding(finding):
     return rule.startswith("STR") and defect_tag(finding.get("defect_key")) != "other"
 
 
+FIX_SEVERITIES = {"critical", "high", "medium", "low"}
+FIX_RESULTS = {"FAIL", "WARN"}
+FLOOR_SEVERITIES = {"high", "critical"}
+
+
+def is_fix_item(finding):
+    """The inclusion floor: a FAIL or WARN rated Low or above, or a gate FAIL
+    at any severity, since a failed gate is why the decision is at least
+    Request changes and the feedback must say so."""
+    result = str(finding.get("result", "")).strip().upper()
+    severity = str(finding.get("severity", "")).strip().lower()
+    return result in FIX_RESULTS and (
+        severity in FIX_SEVERITIES or (result == "FAIL" and is_gate_finding(finding)))
+
+
+def sets_floor(finding):
+    """True when the finding sets a decision floor (check-decisions.py): a
+    gate FAIL at any severity, or a security or non-gate STR FAIL at High or
+    Critical. A WARN never does, nor does a documentation, portability or
+    code-quality finding. The draft feedback's Must fix list uses the same
+    predicate, so the two cannot drift apart."""
+    if str(finding.get("result", "")).strip().upper() != "FAIL":
+        return False
+    if is_gate_finding(finding):
+        return True
+    rule = str(finding.get("rule", "")).strip().upper()
+    security = str(finding.get("aspect", "")).strip().lower() == "security" or rule.startswith("OODT")
+    return (security or rule.startswith("STR")) and \
+        str(finding.get("severity", "")).strip().lower() in FLOOR_SEVERITIES
+
+
 DECISIONS = ("accept", "accept with suggestions", "request changes", "reject")
 DECISION_NAMES = {"accept": "Accept", "accept with suggestions": "Accept with suggestions",
                   "request changes": "Request changes", "reject": "Reject"}
