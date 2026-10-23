@@ -137,21 +137,24 @@ def build_items(findings, meta, should_at_low):
                 for line in lines:
                     if line not in merged[index[path]][1]:
                         merged[index[path]][1].append(line)
+        # `text` follows `group` so the pair is a unique anchor for a model
+        # filling the file with an exact-match edit; every item's text starts
+        # out the same, so the text line alone is not.
         items.append({
             "group": key,
+            "text": "",
             "level": g["level"],
             "locations": [p + (":" + ",".join(ls) if ls else "") for p, ls in merged],
-            "defect_keys": [f.get("defect_key", "") for f in g["findings"]],
+            "defect_keys": [str(f.get("defect_key") or "") for f in g["findings"]],
             "summaries": [str(f.get("summary", "")) for f in g["findings"]],
-            "text": "",
             "_rank": (LEVELS.index(g["level"]),
                       min(SEVERITY_RANK.get(str(f.get("severity", "")).lower(), 4) for f in g["findings"]),
                       g["rule"], merged[0][0] if merged else ""),
         })
     for gate, text in META_GATES:
         if str(meta.get(gate, "")).strip().lower() == "fail":
-            items.append({"group": "must:meta:" + gate, "level": "must", "locations": [],
-                          "defect_keys": [], "summaries": [], "text": text,
+            items.append({"group": "must:meta:" + gate, "text": text, "level": "must", "locations": [],
+                          "defect_keys": [], "summaries": [],
                           "_rank": (0, SEVERITY_RANK["high"], "META", gate)})
     items.sort(key=lambda i: i["_rank"])
     for item in items:
@@ -218,6 +221,9 @@ def main(argv):
     should_at_low = (checks or {}).get("feedback_levels", {}).get("should_at_low", {}) \
         if isinstance(checks, dict) else {}
     old = load(out_path, "feedback") if os.path.exists(out_path) else None
+    if old is not None and not (isinstance(old, dict) and isinstance(old.get("items"), list)):
+        warn("feedback {} is not an object with an items list; treated as absent".format(out_path))
+        old = None
     doc = merge(build_items(findings, meta, should_at_low), old)
     doc = {"app_name": app_name(meta), "opening": doc["opening"], "items": doc["items"]}
     try:

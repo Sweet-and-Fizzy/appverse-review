@@ -87,6 +87,23 @@ render >/dev/null
 check "meta-gate item has no location" "1. The repository is not public; make it public so the catalog can read it." "$(section | grep '^1\. ')"
 check "missing report exits 2" 2 "$(python3 "$RENDER" "$TMP/nope.md" "$TMP/fb.json" >/dev/null 2>&1; echo $?)"
 
+echo "Test 3b: model text cannot break the layout"
+cat > "$TMP/fb.json" <<'EOF'
+{"app_name": "SAS", "opening": "Thanks.\n\nGreat README.",
+ "items": [
+  {"group": "should:QUA-03:no-error-check", "level": "should", "locations": ["a.sh:3"], "defect_keys": ["a.sh:no-error-check"], "summaries": ["x"], "text": "Add set -e.\n\n## Oops\n\n1. stray"},
+  {"group": "suggestion:QUA-07:missing-pattern", "level": "suggestion", "locations": ["form.yml:4"], "defect_keys": ["form.yml:missing-pattern"], "summaries": ["No pattern.", "No pattern.", "Free text\nunchecked"], "text": ""}
+ ]}
+EOF
+report '## Draft feedback
+'
+render >/dev/null
+check "a newline in text adds no heading" "1" "$(grep -c '^## ' "$TMP/r.md" | xargs -I{} expr {} - 1)"
+check "text is one line" '1. `a.sh:3` Add set -e. ## Oops 1. stray' "$(section | grep '^1\. ')"
+check "covers stays in the section" "1" "$(section | grep -c 'feedback-covers')"
+check "opening is one line" "Thanks. Great README." "$(section | sed -n 3p)"
+check "fallback summaries are de-duplicated, joined as sentences" '2. `form.yml:4` No pattern. Free text unchecked. <!-- feedback-missing -->' "$(section | grep '^2\. ')"
+
 echo "Test 4: floor passes on every fallback"
 # Every vocabulary tag, as a WARN low fix-item with no sentence written,
 # rendered by prepare + render, must pass check-feedback-floor.py. MNT tags

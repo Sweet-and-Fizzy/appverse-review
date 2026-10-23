@@ -377,7 +377,10 @@ jobs:
                  python3 ${{ github.workspace }}/appverse-review/references/prepare-feedback.py ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.findings.json ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.meta.json ${{ github.workspace }}/appverse-review/references/checks.json ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.feedback.json
             5. In ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.feedback.json,
                fill `opening` and every item's `text` as review-app/SKILL.md
-               §4 says, using the Edit tool. Change no other field.
+               §4 says. Each item's `text` is on the line after its unique
+               `group` line, so with the Edit tool match the two lines
+               together; or rewrite the whole file with Write. Change no
+               other field (the script regenerates them anyway).
             6. Run:
                  python3 ${{ github.workspace }}/appverse-review/references/render-feedback.py ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.md ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.feedback.json
             7. Verify the report and findings against the checks manifest:

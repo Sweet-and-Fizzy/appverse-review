@@ -84,6 +84,10 @@ check "four lines in one file" "[('template/script.sh.erb', ['11', '12', '17', '
 check "reviewed OK tail is cut" "[('form.yml', ['3'])]" "$(el 'form.yml:3; reviewed OK: form.yml:9')"
 check "range kept as written" "[('form.yml', ['8-9', '12'])]" "$(el 'form.yml:8-9,12')"
 check "no path" "[]" "$(el 'commits')"
+check "quoted code after the line is not more lines" "[('template/script.sh.erb', ['64'])]" "$(el 'template/script.sh.erb:64: module load sas/9.4')"
+check "a quoted value is not a line" "[('form.yml', ['47'])]" "$(el 'form.yml:47: min: 0')"
+check "comma-separated files are two entries" "[('form.yml', ['3']), ('template/script.sh.erb', ['21'])]" "$(el 'form.yml:3, template/script.sh.erb:21')"
+check "a line-less path is kept" "[('manifest.yml', [])]" "$(el 'manifest.yml')"
 
 echo "Test 6: labels for findings with no file"
 findings "$(finding root MNT-01 root:stale-repo WARN medium commits maintenance)"; prep >/dev/null
@@ -134,6 +138,24 @@ echo "{broken" > "$TMP/fb.json"
 check "malformed feedback.json exits 0" 0 "$(prep)"
 check "malformed feedback.json warns" "1" "$(grep -c '^warning:' "$TMP/out")"
 check "and is rebuilt" "2" "$(q 'len(items)')"
+
+echo "Test 8a: each item's text sits on the line after its unique group"
+meta
+findings "$(finding root QUA-03 a.sh:no-error-check FAIL low a.sh:3)" "$(finding root QUA-07 form.yml:missing-pattern WARN low form.yml:4)"
+rm -f "$TMP/fb.json"; prep >/dev/null
+check "text follows group in the file" '"text": ""|"text": ""' "$(grep -A1 '"group": ' "$TMP/fb.json" | grep -v '"group"' | grep -v '^--' | sed 's/^ *//; s/,$//' | paste -sd'|' -)"
+
+echo "Test 8b: degraded findings and feedback shapes"
+meta
+echo '[{"app_id":"root","rule":"QUA-03","defect_key":null,"result":"FAIL","severity":"low","evidence":"a.sh:3"},{"app_id":"root","rule":"QUA-03","defect_key":null,"result":"FAIL","severity":"low","evidence":"b.sh:4"}]' > "$TMP/f.json"
+prep >/dev/null
+check "null defect_key with an existing feedback.json exits 0" 0 "$(prep)"
+echo '{"items": {"not": "a list"}}' > "$TMP/fb.json"
+prep >/dev/null
+check "wrong-shaped feedback.json warns" "1" "$(grep -c '^warning:' "$TMP/out")"
+echo '["a list"]' > "$TMP/fb.json"
+prep >/dev/null
+check "non-object feedback.json warns" "1" "$(grep -c '^warning:' "$TMP/out")"
 
 echo "Test 9: findings that cannot be read exit 2"
 echo "nope" > "$TMP/f.json"

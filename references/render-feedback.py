@@ -41,7 +41,23 @@ def default_opening(app_name, report):
 
 
 def as_text(value):
-    return value.strip() if isinstance(value, str) else ""
+    """A string field as one line. A newline the model put in a JSON string
+    would end the numbered list, or start a `## ` section of its own that
+    carries the covers comment out of the Draft feedback section."""
+    return " ".join(value.split()) if isinstance(value, str) else ""
+
+
+def fallback_text(summaries):
+    """The findings' summaries as sentences, each once, for an item the model
+    wrote no text for. Several findings in one group often share a summary."""
+    out = []
+    for s in summaries:
+        s = as_text(s)
+        if s and s[-1] not in ".!?":
+            s += "."
+        if s and s not in out:
+            out.append(s)
+    return " ".join(out)
 
 
 def render_section(doc, report):
@@ -63,7 +79,7 @@ def render_section(doc, report):
             text = as_text(item.get("text"))
             if not text:
                 summaries = item.get("summaries") if isinstance(item.get("summaries"), list) else []
-                text = (" ".join(as_text(s) for s in summaries if as_text(s)) + " <!-- feedback-missing -->").strip()
+                text = (fallback_text(summaries) + " <!-- feedback-missing -->").strip()
                 missing.append(str(item.get("group", "?")))
             lines.append("{}. {}".format(n, (prefix + " " + text) if prefix else text))
             keys = item.get("defect_keys") if isinstance(item.get("defect_keys"), list) else []

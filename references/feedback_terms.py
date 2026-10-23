@@ -11,7 +11,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from repo_paths import PSEUDO_ANCHORS, split_reviewed_ok  # noqa: E402
+from repo_paths import CITATION_RE, PSEUDO_ANCHORS, split_reviewed_ok  # noqa: E402
 
 
 PATH_PREFIX = re.compile(
@@ -269,20 +269,19 @@ LINE_TOKEN = re.compile(r"\d+(?:-\d+)?")
 
 
 def evidence_locations(evidence):
-    """[(path, [line, ...]), ...] for each file the evidence cites, in order:
-    the evidence is cut at '; reviewed OK:' (those lines are PASS lines),
-    split on ';', and each part contributes its path and the line tokens
-    after it. A range ("8-9") stays one token, as written. A file cited in
-    two parts appears once, with its lines merged."""
+    """[(path, [line, ...]), ...] for each file the evidence cites, in order.
+    The evidence is cut at '; reviewed OK:' (those lines are PASS lines).
+    Citations are read with repo_paths.CITATION_RE, the parser check-evidence
+    uses, so a quoted value after the line ("form.yml:47: min: 0") is not
+    taken for more lines and a comma-separated second file is kept. A range
+    ("8-9") stays one token, as written. A path cited with no line
+    ("manifest.yml") is kept with no lines. A file cited twice appears once,
+    with its lines merged."""
     text = split_reviewed_ok(str(evidence or ""))[0]
     out = []
     index = {}
-    for part in text.split(";"):
-        part = part.strip()
-        path = evidence_path(part)
-        if not path:
-            continue
-        lines = LINE_TOKEN.findall(part[len(path):])
+
+    def add(path, lines):
         if path not in index:
             index[path] = len(out)
             out.append((path, []))
@@ -290,4 +289,11 @@ def evidence_locations(evidence):
         for line in lines:
             if line not in merged:
                 merged.append(line)
+
+    for m in CITATION_RE.finditer(text):
+        add(m.group(1), LINE_TOKEN.findall(m.group(2)))
+    for part in text.split(";"):
+        path = evidence_path(part.strip())
+        if path and path not in index:
+            add(path, [])
     return out
