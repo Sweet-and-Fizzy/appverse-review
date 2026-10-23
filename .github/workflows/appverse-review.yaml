@@ -56,6 +56,11 @@ on:
         required: false
         type: string
         default: ""
+      max_turns:
+        description: "Review session turn limit for a manual run (1-150; default from the app count)"
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -140,6 +145,9 @@ jobs:
           EXTRA_GATEWAY_HOSTS: ${{ secrets.LLM_GATEWAY_ALLOWED_HOSTS }}
           HAS_GATEWAY_KEY: ${{ secrets.LLM_GATEWAY_KEY != '' }}
           HAS_ANTHROPIC_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+          # Only ever read here, as an argument; never interpolated into a
+          # script, so a dispatcher cannot inject shell through it.
+          MAX_TURNS_INPUT: ${{ inputs.max_turns }}
         run: |
           if [ "$REVIEW_ASPECTS" = "all" ]; then
             echo "skill=review-app" >> "$GITHUB_OUTPUT"
@@ -216,9 +224,21 @@ jobs:
               echo "Gateway run, model: $model_id"
             fi
           fi
+          # The review's turn limit scales with the app count, capped
+          # (references/turn-limits.py). Checked like model_id before it
+          # reaches $GITHUB_OUTPUT and claude_args.
+          review_turns=$(python3 "$GITHUB_WORKSPACE/appverse-review/references/turn-limits.py" \
+            "$GITHUB_WORKSPACE/pre-review/apps.json" "$MAX_TURNS_INPUT")
+          turns_re='^[0-9]{1,3}$'
+          if ! [[ "$review_turns" =~ $turns_re ]]; then
+            echo "::error::review turn limit '$review_turns' is not a number"
+            exit 1
+          fi
+          echo "Review turn limit: $review_turns"
           {
             echo "backend=$backend"
             echo "model_id=$model_id"
+            echo "review_turns=$review_turns"
           } >> "$GITHUB_OUTPUT"
 
       - name: Run Appverse review
@@ -247,7 +267,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           plugin_marketplaces: "./appverse-review/"
           plugins: "appverse-review"
-          claude_args: "--max-turns 100 --model ${{ steps.params.outputs.model_id }}"
+          claude_args: "--max-turns ${{ steps.params.outputs.review_turns }} --model ${{ steps.params.outputs.model_id }}"
           settings: |
             {
               "permissions": {

@@ -320,6 +320,14 @@ first_check=$(grep -n 'references/check-all.py' "$WF" | head -1 | cut -d: -f1)
   || bad "review prompt runs render before check-all"
 has "$WF" 'review-*.feedback.json' "workflow uploads feedback.json"
 
+echo "Test: the review's turn limit comes from the app count"
+WF=.github/workflows/appverse-review.yaml
+has "$WF" '--max-turns ${{ steps.params.outputs.review_turns }}' "review max-turns comes from params"
+stray=$(grep -n 'inputs.max_turns' "$WF" | grep -v 'MAX_TURNS_INPUT: ${{ inputs.max_turns }}')
+[ -z "$stray" ] && grep -q 'MAX_TURNS_INPUT: ${{ inputs.max_turns }}' "$WF" && ok "max_turns input never in a run block" \
+  || { bad "max_turns input never in a run block"; echo "$stray"; }
+has "$WF" "turns_re='^[0-9]{1,3}\$'" "params checks review_turns before writing it"
+
 echo
 echo "Done: $pass passed, $fail failed."
 [ "$fail" -eq 0 ]
