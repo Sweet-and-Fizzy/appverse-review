@@ -49,7 +49,8 @@ Each must be represented in the feedback section of the report:
      defects over the sentences that follow, and that still passes; the
      window only has to stop once the prose moves on to a different file,
      so a line number or mechanism word attached to that other file's
-     mention does not count for this one.
+     mention does not count for this one. In a numbered list the window
+     also stops at the next item, so each item has to name its own file.
      The mechanism tag is the part of defect_key after the
      anchor (the first ":"). If it starts with "other:", the distinctive
      words come from the remainder, hyphen-split. Otherwise, if it carries a
@@ -196,6 +197,9 @@ NEGATION_PREFIXES = {"no", "missing", "without", "unhandled", "undocumented"}
 # ':' does not end a sentence: "The repo is stale: the last commit ..." is
 # one sentence, its lead-in and its detail.
 SENTENCE_END = re.compile(r"(?<=[.;])\s+|\n")
+# The marker that opens a numbered list item. SENTENCE_END splits "4. Add
+# set -e" after "4.", so the marker can be a sentence of its own.
+LIST_ITEM = re.compile(r"^\s*\d+[.)](?:\s|$)")
 # A filename-shaped token anywhere in a sentence: a path/word segment with a
 # file extension (e.g. "form.yml", "template/script.sh.erb"). Used to detect
 # whether a sentence is about a *different* file than the one whose window
@@ -355,14 +359,17 @@ def sentence_windows(paragraph, candidates, ci=False):
     the whole paragraph, so a description of a *different* file's defect
     does not count for this one — the description has to sit with the
     file, from its lead-in up to wherever the paragraph turns to something
-    else. `ci` is as in `paragraph_naming`."""
+    else. A window also stops at the next numbered list item: each item in
+    the reviewer-mode list stands alone, so it names its own file rather
+    than borrowing the previous item's. `ci` is as in `paragraph_naming`."""
     ss = sentences(paragraph)
     windows = []
     for i, s in enumerate(ss):
         if not any(named_in(c, s, ci) for c in candidates):
             continue
         end = i + 1
-        while end < len(ss) and not names_other_file(ss[end], candidates):
+        while (end < len(ss) and not names_other_file(ss[end], candidates)
+               and not LIST_ITEM.match(ss[end])):
             end += 1
         windows.append(" ".join(ss[i:end]))
     return windows

@@ -395,7 +395,8 @@ checksum of what you wrote, not a list to satisfy:
 key is absent from that line, its file is not named in the prose, or its
 defect is not described where the file is named. The description must sit
 in the sentence window that runs from the sentence naming the file up to
-the first later sentence naming a different file, as a line number from the
+the first later sentence naming a different file or the next numbered
+item, whichever comes first, as a line number from the
 finding's evidence, a word of its defect key other than the file's own
 name, or a value quoted from its evidence. A repo-wide item with no file is
 named by its subject word (release, commit, issue, CI) and still needs such
@@ -431,13 +432,20 @@ limit); advise rewording it.
   app's decision, says how to re-submit and says a reply reaches the
   reviewer, so the draft has no greeting ("Hi …"), no restating of the
   decision, no re-submit or "reply to me" instructions, and no sign-off.
-  Label it "Draft feedback — edit before sending." Shape it like this:
+  The section heading is exactly `## Draft feedback — edit before sending`.
+  Shape the section like this:
 
   1. Open with one sentence thanking the contributor for submitting the app,
-     then one or two sentences on what this app does well, specific to it
-     and recorded in the report (see the Derived-only rule). "Solid
-     structure and good documentation" is not specific. When the report
-     records no strength worth naming, the thank-you stands alone.
+     then one or two sentences on what this app does well. Take each
+     strength from the report as written: a Signals level of Medium or
+     High with what its evidence phrase credits, a Documentation rating of
+     Adequate or better with the rungs the README clears, or a gate or
+     check the report records as PASS. Never present as a strength anything
+     the report records as WARN or FAIL, even in part ("bounds on every
+     numeric field" when one field lacks a `max` is a WARN, not a
+     strength). "Solid structure and good documentation" is not specific.
+     When the report records no strength worth naming, the thank-you
+     stands alone.
   2. Then list the fix-items, numbered, under a bold label per level:
      `**Must fix**` (Required), `**Should fix**` (Recommended) and
      `**Suggestions (optional)**` (Suggested), in that order. Leave out a
@@ -445,9 +453,12 @@ limit); advise rewording it.
      and the checkers end the section at the next `## ` line, and the email
      quotes the draft, where a heading renders oversized. Number straight
      through all three groups (the first Should fix item follows the last
-     Must fix item), so a reply can cite "item 7".
-  3. Each item names its file and line, says what is wrong and what to
-     change, in one to three sentences. In a monorepo, name the app's path.
+     Must fix item), so a reply can cite "item 7". Within a group, put no
+     blank line between items.
+  3. Each item names its own file and line, even when the item before it
+     names the same file, and says what is wrong and what to change, in
+     one to three sentences. `check-feedback-floor.py` reads each item on
+     its own, so an item that leaves its file to the one above fails. In a monorepo, name the app's path.
      Keep one list for the whole repo; the email states each app's decision.
   4. Info-level polish, if mentioned, is one line after the list. End there:
      no closing summary, then the `feedback-covers` comment.

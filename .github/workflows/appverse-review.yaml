@@ -590,8 +590,8 @@ jobs:
             - An UNCITED row: add the file:line the facts give for that
               candidate.
             - A floor MISSING: name the file in the draft feedback and say
-              what is wrong there, and list the key in the feedback-covers
-              comment.
+              what is wrong there, in the same numbered item, and list the
+              key in the feedback-covers comment.
             - A rating MISMATCH: change the rating or the record, whichever
               the line says is unsupported.
             - A [findings] MISSING line: write the findings file as a JSON

@@ -642,4 +642,12 @@ sed 's/^1\. `form.yml` line 63 hardcodes/1. The form hardcodes/' "$TMP/r51.md" >
 check "exit 1" 1 "$(run "$TMP/findings.json" "$TMP/r52.md")"
 check "names the dropped item" 1 "$(grep -c 'MISSING QUA-02 form.yml:hardcoded-module-version' "$TMP/out")"
 
+echo "Test 53: a numbered item is its own window: a defect described in the next item, which names no file, does not count"
+sed -e 's/^3\. `template\/script.sh.erb` has no error handling; add `set -e`\./3. `template\/script.sh.erb` writes its log to a fixed path.\
+4. Add `set -e` so the script stops on error handling failures./' -e 's/^4\. `CHANGELOG.md`/5. `CHANGELOG.md`/' -e 's/^5\. Consider/6. Consider/' "$TMP/r51.md" > "$TMP/r53.md"
+check "exit 1" 1 "$(run "$TMP/findings.json" "$TMP/r53.md")"
+check "names the item without its file" 1 "$(grep -c 'MISSING QUA-03 template/script.sh.erb:no-error-handling (defect not described' "$TMP/out")"
+sed 's/^4\. Add `set -e`/4. In `template\/script.sh.erb`, add `set -e`/' "$TMP/r53.md" > "$TMP/r53b.md"
+check "naming the file in that item passes" 0 "$(run "$TMP/findings.json" "$TMP/r53b.md")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
