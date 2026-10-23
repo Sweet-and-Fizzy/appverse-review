@@ -301,6 +301,25 @@ else:
 [ -z "$levels_problems" ] && ok "feedback_levels tags are finding-codes tags" \
   || { bad "feedback_levels tags are finding-codes tags"; echo "$levels_problems"; }
 
+echo "Test: the draft feedback is built by script"
+WF=.github/workflows/appverse-review.yaml
+sec6=$(awk '/^## 6\. /{on=1; next} on && /^## /{exit} on' skills/review-app/SKILL.md)
+echo "$sec6" | grep -q 'prepare-feedback.py' && echo "$sec6" | grep -q 'render-feedback.py' \
+  && ok "skill names prepare-feedback and render-feedback in §6" || bad "skill names prepare-feedback and render-feedback in §6"
+tr '\n' ' ' < skills/review-app/SKILL.md | tr -s ' ' | grep -q "or any OODT FAIL" \
+  && bad "skill no longer says any OODT FAIL is Required" || ok "skill no longer says any OODT FAIL is Required"
+n=$(grep -c '"$WS/appverse-review/references/render-feedback.py"' "$WF")
+[ "$n" -ge 3 ] && ok "workflow runs render-feedback in checks, recheck and recheck2" \
+  || bad "workflow runs render-feedback in checks, recheck and recheck2 (found $n)"
+unguarded=$(grep -E '"\$WS/appverse-review/references/(prepare|render)-feedback\.py"' "$WF" | grep -vE 'review_aspects.*\|\| echo')
+[ -z "$unguarded" ] && [ "$n" -ge 3 ] && ok "workflow never lets prepare/render fail a step" \
+  || { bad "workflow never lets prepare/render fail a step"; echo "$unguarded"; }
+first_render=$(grep -n 'references/render-feedback.py' "$WF" | head -1 | cut -d: -f1)
+first_check=$(grep -n 'references/check-all.py' "$WF" | head -1 | cut -d: -f1)
+[ -n "$first_render" ] && [ "$first_render" -lt "$first_check" ] && ok "review prompt runs render before check-all" \
+  || bad "review prompt runs render before check-all"
+has "$WF" 'review-*.feedback.json' "workflow uploads feedback.json"
+
 echo
 echo "Done: $pass passed, $fail failed."
 [ "$fail" -eq 0 ]

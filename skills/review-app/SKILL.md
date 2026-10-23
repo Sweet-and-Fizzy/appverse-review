@@ -378,15 +378,15 @@ one part that is not a fix, and it is derived too: each strength it names
 must be one the report records (a PASS row, a rating, a documentation rung
 the README clears).
 
-**Inclusion floor — derive, don't recall.** Before writing the feedback, list
-every finding whose `result` is FAIL or WARN and whose `severity` is Low or
-above, plus every Structure gate FAIL (an STR rule not tagged `other:`) at any
-severity, since a failed gate is why the decision is at least Request
-changes. Each of these is a fix-item and must be named in the feedback with the
-file it lives in; related items may share one list item where that reads
-better. Info-level polish may be summarized in one line or omitted. Write the
-feedback first. Then end the section with a single HTML comment that lists
-the `defect_key` of every fix-item the feedback above addresses; it is a
+**Inclusion floor — derive, don't recall.** A fix-item is every finding whose
+`result` is FAIL or WARN and whose `severity` is Low or above, plus every
+Structure gate FAIL (an STR rule not tagged `other:`) at any severity, since a
+failed gate is why the decision is at least Request changes
+(`report_parse.is_fix_item`). Info-level polish is never a fix-item. In
+reviewer mode the scripts below list the fix-items for you, so the floor holds
+by construction. In submitter mode you write the list: name every fix-item
+with the file it lives in, then end the section with a single HTML comment
+that lists the `defect_key` of every fix-item the list addresses; it is a
 checksum of what you wrote, not a list to satisfy:
 
     <!-- feedback-covers: submit.yml.erb:unsanitized-input, template/script.sh.erb:no-error-handling -->
@@ -406,36 +406,38 @@ for the contributor; the check is looking for the file and either the line
 or what is wrong, not jargon. (This complements the Derived-only rule:
 feedback ⊆ findings, and fix-items ⊆ feedback.)
 
-**Required vs. recommended vs. suggested.** A fix-item is Required when it
-blocks listing or triggers Request changes: a gate criterion, or any OODT
-FAIL. It is Recommended when it is a target miss in any dimension —
-Documentation rated below Adequate, Portability rated Not portable, or a
-`code_quality` check whose manifest `weight` is `target`
-(`references/checks.yml`) recorded FAIL — needed to reach the target rating
-but not to block listing. It is Suggested when it is polish (any other
-FAIL/WARN at Low or above). A `weight: suggestion` check is Info (its
-manifest `default_severity`, and `check-rating.py` rejects it rated
-higher), and so is a maintenance good-practice signal MNT-02 to MNT-06, so
-neither is ever a fix-item: it goes in the one line of
-Info-level polish, or is left out. The reviewer-mode list below groups the
-fix-items by these three levels rather than flattening them into one.
+**Levels.** Each fix-item is Must fix, Should fix or a Suggestion.
+`prepare-feedback.py` assigns them: Must fix exactly when the finding sets a
+decision floor (`report_parse.sets_floor`, the condition `check-decisions.py`
+uses), so the Must fix list is always the reason the decision is not Accept;
+otherwise Should fix at High or Medium and a Suggestion at Low, except that the
+target misses `feedback_levels.should_at_low` in `references/checks.yml`
+lists are Should fix even at Low. A failed `not_archived` or `public` gate in
+meta.json adds its own Must fix item. Severity is where a security finding's
+blast radius is rated (see the rubric's Rating findings), so a pattern that can
+only affect the user's own job, rated Low, is a Suggestion whether it is a FAIL
+or a WARN.
 
 **Never advise removing a real caveat.** Never advise removing a comment or
 help text that states a real constraint (a partition that requires a GPU, a
 limit); advise rewording it.
 
-- **Reviewer mode:** append a draft contributor feedback message using the
-  Reviewer Process's Step 4 feedback guidance (specific, references files, links the README
-  template or best-practices guide where relevant). The portal pre-fills the
-  reviewer's response with it, and the response becomes the body of the
-  decision email. That email already greets the contributor, states each
-  app's decision, says how to re-submit and says a reply reaches the
-  reviewer, so the draft has no greeting ("Hi …"), no restating of the
+- **Reviewer mode:** the report gets a draft contributor feedback message,
+  which the portal pre-fills into the reviewer's response; the response becomes
+  the body of the decision email. That email already greets the contributor,
+  states each app's decision, says how to re-submit and says a reply reaches
+  the reviewer, so the draft has no greeting ("Hi …"), no restating of the
   decision, no re-submit or "reply to me" instructions, and no sign-off.
-  The section heading is exactly `## Draft feedback — edit before sending`.
-  Shape the section like this:
 
-  1. Open with one sentence thanking the contributor for submitting the app,
+  The section is built by script; write none of its body yourself. In the
+  report, write only the heading line `## Draft feedback — edit before
+  sending` as the last section. Then, at wrap-up (§6), `prepare-feedback.py`
+  writes `review-<owner>-<repo>.feedback.json` with one item per group of
+  fix-items: its level, its locations, its findings' defect keys and
+  summaries, and an empty `text`. Fill in two kinds of field and change
+  nothing else (the script regenerates every other field on each run):
+
+  1. `opening`: one sentence thanking the contributor for submitting the app,
      then one or two sentences on what this app does well. Take each
      strength from the report as written: a Signals level of Medium or
      High with what its evidence phrase credits, a Documentation rating of
@@ -444,52 +446,21 @@ limit); advise rewording it.
      the report records as WARN or FAIL, even in part ("bounds on every
      numeric field" when one field lacks a `max` is a WARN, not a
      strength). "Solid structure and good documentation" is not specific.
-     When the report records no strength worth naming, the thank-you
-     stands alone.
-  2. Then list the fix-items, numbered, under a bold label per level:
-     `**Must fix**` (Required), `**Should fix**` (Recommended) and
-     `**Suggestions (optional)**` (Suggested), in that order. Leave out a
-     level with no items. Use bold lines, not Markdown headings: the portal
-     and the checkers end the section at the next `## ` line, and the email
-     quotes the draft, where a heading renders oversized. Number straight
-     through all three groups (the first Should fix item follows the last
-     Must fix item), so a reply can cite "item 7". Within a group, put no
-     blank line between items.
-  3. Each item names its own file and line, even when the item before it
-     names the same file, and says what is wrong and what to change, in
-     one to three sentences. `check-feedback-floor.py` reads each item on
-     its own, so an item that leaves its file to the one above fails. In a
-     monorepo, name the app's path. Keep one list for the whole repo; the
-     email states each app's decision.
-  4. Info-level polish, if mentioned, is one line after the list. End there:
-     no closing summary, then the `feedback-covers` comment.
+     When the report records no strength worth naming, write only the
+     thank-you.
+  2. Each item's `text`: one to three sentences for the contributor saying
+     what is wrong and what to change, covering every location in the item
+     (an item can group the same fix across several files or apps). Do not
+     repeat the locations; the script prints them before your text. Use the
+     item's `summaries` for the specifics, in plain words.
 
-  Write the section in exactly this form. Angle brackets are placeholders;
-  every group, the last one included, has a bold label and numbered items:
-
-  ```markdown
-  ## Draft feedback — edit before sending
-
-  Thank you for submitting <app> to Appverse. <One or two sentences naming strengths the report records.>
-
-  **Must fix**
-
-  1. `<file>:<line>` <what is wrong>. <What to change.>
-  2. `<file>:<line>` <what is wrong>. <What to change.>
-
-  **Should fix**
-
-  3. `<file>:<line>` <what is wrong>. <What to change.>
-
-  **Suggestions (optional)**
-
-  4. `<file>:<line>` <what is wrong>. <What to change.>
-  5. `<file>:<line>` <what is wrong>. <What to change.>
-
-  <Optional one line of Info-level polish.>
-
-  <!-- feedback-covers: <defect_key>, <defect_key> -->
-  ```
+  `render-feedback.py` then writes the section: the opening, the items
+  numbered under **Must fix**, **Should fix** and **Suggestions (optional)**,
+  and the `feedback-covers` comment. An item whose `text` is empty is
+  rendered from its findings' summaries and marked feedback-missing, which
+  the reviewer then has to rewrite, so fill every one. To change the draft,
+  change `feedback.json` and run both scripts again; never edit the rendered
+  section, which the next run replaces.
 - **Submitter mode:** append a prioritized "Fix before submitting" list instead —
   gate-criteria failures first (security findings at the top), then quality
   improvements, each with the file to change.
@@ -590,12 +561,23 @@ externally by the API provider.
         && mv review-<owner>-<repo>.findings.json.tmp \
               review-<owner>-<repo>.findings.json
 
-- Then write the Catalog checks section from the catalog read, and check the
-  report and findings against every checker in one pass, fixing the findings
-  or the report until it passes:
+- Then write the Catalog checks section from the catalog read and, in
+  reviewer mode, build the Draft feedback (§4): prepare the items, fill
+  `opening` and every item's `text` in the feedback file, and render. Then
+  check the report and findings against every checker in one pass, fixing the
+  findings or the report until it passes. A `[floor]` line in reviewer mode is
+  fixed in the feedback file or the findings, followed by prepare and render
+  again, never by editing the rendered section:
 
       python3 "${CLAUDE_PLUGIN_ROOT}/references/insert-catalog.py" \
         review-<owner>-<repo>.md <pre-review-dir>
+      python3 "${CLAUDE_PLUGIN_ROOT}/references/prepare-feedback.py" \
+        review-<owner>-<repo>.findings.json review-<owner>-<repo>.meta.json \
+        "${CLAUDE_PLUGIN_ROOT}/references/checks.json" \
+        review-<owner>-<repo>.feedback.json
+      # fill opening and each text in review-<owner>-<repo>.feedback.json
+      python3 "${CLAUDE_PLUGIN_ROOT}/references/render-feedback.py" \
+        review-<owner>-<repo>.md review-<owner>-<repo>.feedback.json
       python3 "${CLAUDE_PLUGIN_ROOT}/references/check-all.py" \
         review-<owner>-<repo>.md review-<owner>-<repo>.findings.json \
         "${CLAUDE_PLUGIN_ROOT}/references/checks.json" <pre-review-dir> \
