@@ -252,8 +252,18 @@ that:
 
 Your text becomes the body of the decision email. The portal adds the
 greeting, each app's decision, how to re-submit, and a note that a reply
-reaches you. Write only what to change and why. Leave out a greeting, a
-thank-you, the decision and a sign-off. You can use Markdown.
+reaches you, so leave those and a sign-off out. The draft opens by thanking
+the contributor and naming what the app does well; keep that, and make sure
+the praise is true of this app. The fixes follow as one numbered list under
+**Must fix**, **Should fix** and **Suggestions (optional)**, so the
+contributor can see what blocks listing and can refer to an item by number.
+Must fix is exactly what keeps the recommendation from Accept; an item there
+should never be optional. The list is built from the findings, so the same
+fix in several files or apps is one item listing them all. Keep that shape
+when you edit. An item that reads like a finding's summary rather than a
+sentence to the contributor is one the tool wrote no sentence for: rewrite
+it. If you change a finding's severity, check that its item still sits under
+the right label. You can use Markdown.
 
 **Good feedback:**
 > The README lists prerequisites but doesn't include installation steps. Please add a section showing how to clone and deploy the app (see [ProteinStructure-OOD](https://github.com/EpiGenomicsCode/ProteinStructure-OOD) for an example).

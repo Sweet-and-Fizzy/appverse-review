@@ -49,7 +49,8 @@ Each must be represented in the feedback section of the report:
      defects over the sentences that follow, and that still passes; the
      window only has to stop once the prose moves on to a different file,
      so a line number or mechanism word attached to that other file's
-     mention does not count for this one.
+     mention does not count for this one. In a numbered list the window
+     also stops at the next item, so each item has to name its own file.
      The mechanism tag is the part of defect_key after the
      anchor (the first ":"). If it starts with "other:", the distinctive
      words come from the remainder, hyphen-split. Otherwise, if it carries a
@@ -158,44 +159,27 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from report_parse import MALFORMED, is_gate_finding, positional_args  # noqa: E402
+from report_parse import MALFORMED, is_fix_item, positional_args  # noqa: E402
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from repo_paths import CITATION_RE, PSEUDO_ANCHORS, split_reviewed_ok  # noqa: E402
+from feedback_terms import (  # noqa: E402
+    NEGATION_PREFIXES, STOPWORDS, evidence_numbers, evidence_path, mechanism_words,
+    phrase_words, subject_words, tag_words, words_named,
+)
 
-FIX_SEVERITIES = {"critical", "high", "medium", "low"}
-FIX_RESULTS = {"FAIL", "WARN"}
 SECTION_HEADINGS = (
     re.compile(r"^##\s+Draft feedback", re.IGNORECASE),
     re.compile(r"^##\s+Fix before submitting", re.IGNORECASE),
 )
 JSON_FENCE = re.compile(r"^```json\s*$")
 COVERS = re.compile(r"<!--\s*feedback-covers:\s*(.*?)\s*-->", re.DOTALL)
-PATH_PREFIX = re.compile(
-    r"^([A-Za-z0-9_./\-]+\.[A-Za-z0-9_.]+)(?::|\s|$)"  # has a file extension
-    r"|^([A-Za-z0-9_./\-]+)(?=:\d)"                    # extensionless, e.g. LICENSE:1
-)
-STOPWORDS = {
-    "no", "not", "missing", "other", "wrong", "bad", "un", "non",
-    "app", "key", "value", "file",
-    # File-extension fragments (erb, yml, yaml, sh, md) and bare verbs (set)
-    # that show up inside a mechanism tag but, on their own, describe the
-    # file's name or a generic action rather than the specific defect — a
-    # mention of the file itself (e.g. "submit.yml.erb") or an unrelated
-    # command (e.g. "set -x") would otherwise make rule 3's mechanism-word
-    # check trivially true.
-    "erb", "yml", "yaml", "sh", "md", "set",
-}
-# Leading words in a mechanism tag that negate or genericize what follows
-# rather than naming it — "no-set-e" is about "set -e", not "no" or "set" in
-# isolation. Stripped only from the front of the tag's word sequence (see
-# `phrase_words`), not treated as stopwords generally: "set" still needs to
-# be droppable on its own (STOPWORDS) when what's left after it isn't a
-# genuine negated phrase.
-NEGATION_PREFIXES = {"no", "missing", "without", "unhandled", "undocumented"}
 # ':' does not end a sentence: "The repo is stale: the last commit ..." is
 # one sentence, its lead-in and its detail.
 SENTENCE_END = re.compile(r"(?<=[.;])\s+|\n")
+# The marker that opens a numbered list item. SENTENCE_END splits "4. Add
+# set -e" after "4.", so the marker can be a sentence of its own.
+LIST_ITEM = re.compile(r"^\s*\d+[.)](?:\s|$)")
 # A filename-shaped token anywhere in a sentence: a path/word segment with a
 # file extension (e.g. "form.yml", "template/script.sh.erb"). Used to detect
 # whether a sentence is about a *different* file than the one whose window
@@ -209,17 +193,6 @@ FILENAME_TOKEN = re.compile(
     r"((?:[A-Za-z0-9_\-]+/)*[A-Za-z0-9_\-]{2,}(?:\.[A-Za-z][A-Za-z0-9]{0,5})+)"
     r"(?![A-Za-z0-9_/\-])"
 )
-# Pseudo-anchor -> subject words: what a fix-item with no recognizable file
-# path in its evidence is "about", drawn from the defect_key's anchor (the
-# part before the first ':'). Only overrides that the default rule in
-# subject_words() can't produce itself — "root" has no subject word of its
-# own (it falls back to the mechanism tag), and ".github/workflows" is
-# better described by "ci"/"workflow" than by its own default. Every other
-# entry of repo_paths.PSEUDO_ANCHORS gets a subject from the default rule,
-# so this table does not need one entry per pseudo-anchor.
-PSEUDO_SUBJECTS = {
-    ".github/workflows": ["ci", "workflow"],
-}
 
 
 PREHEADING_LOOKBACK = 5
@@ -282,13 +255,6 @@ def strip_fences(text):
         if not in_fence:
             out.append(line)
     return "\n".join(out)
-
-
-def evidence_path(evidence):
-    m = PATH_PREFIX.match(str(evidence or "").strip())
-    if not m:
-        return None
-    return m.group(1) if m.group(1) is not None else m.group(2)
 
 
 def token_in_prose(candidate, prose):
@@ -355,30 +321,20 @@ def sentence_windows(paragraph, candidates, ci=False):
     the whole paragraph, so a description of a *different* file's defect
     does not count for this one — the description has to sit with the
     file, from its lead-in up to wherever the paragraph turns to something
-    else. `ci` is as in `paragraph_naming`."""
+    else. A window also stops at the next numbered list item: each item in
+    the reviewer-mode list stands alone, so it names its own file rather
+    than borrowing the previous item's. `ci` is as in `paragraph_naming`."""
     ss = sentences(paragraph)
     windows = []
     for i, s in enumerate(ss):
         if not any(named_in(c, s, ci) for c in candidates):
             continue
         end = i + 1
-        while end < len(ss) and not names_other_file(ss[end], candidates):
+        while (end < len(ss) and not names_other_file(ss[end], candidates)
+               and not LIST_ITEM.match(ss[end])):
             end += 1
         windows.append(" ".join(ss[i:end]))
     return windows
-
-
-def evidence_numbers(evidence):
-    """Every integer and every 'a-b' range in the evidence string, as
-    (singles, ranges) — singles is the set of individual integers found
-    outside of a range plus each range's endpoints; ranges is the list of
-    (a, b) string pairs, for matching a literal 'lines a-b' form. The
-    cell is cut at '; reviewed OK:' first: the lines after it are PASS
-    lines, so naming one does not describe the FAIL/WARN."""
-    text = split_reviewed_ok(str(evidence or ""))[0]
-    ranges = [(a, b) for a, b in re.findall(r"(\d+)-(\d+)", text)]
-    singles = set(re.findall(r"\d+", text))
-    return singles, ranges
 
 
 def line_named(candidates, evidence, prose):
@@ -396,79 +352,6 @@ def line_named(candidates, evidence, prose):
     return any(re.search(pat, prose) for pat in patterns)
 
 
-def tag_words(defect_key):
-    """The mechanism tag's own word sequence, in order, unfiltered: the part
-    of defect_key after the anchor (the first ':'). If that starts with
-    'other:', the words come from the remainder, hyphen-split. Otherwise, if
-    it carries a ':{qualifier}', the qualifier IS the word sequence by
-    definition — its words (split on hyphens, dots, AND underscores, e.g.
-    'custom_num_cores.help' -> custom, num, cores, help) are used instead of
-    the base tag's. With no qualifier, the tag's own words are used
-    (hyphen-split). No stopword or length filtering — see `mechanism_words`
-    for the filtered, distinctive-word version and `phrase_words` for the
-    negation-stripped version used by the sentence-window phrase fallback."""
-    key = str(defect_key or "")
-    if ":" not in key:
-        tag = key
-    else:
-        tag = key.split(":", 1)[1]
-    if tag.startswith("other:"):
-        words = re.split(r"[-]", tag[len("other:"):])
-    elif ":" in tag:
-        qualifier = tag.split(":", 1)[1]
-        words = re.split(r"[-._]", qualifier)
-    else:
-        words = re.split(r"[-]", tag)
-    return [w for w in words if w]
-
-
-def anchor_words(defect_key):
-    """Words that name the finding's anchor rather than its defect: the
-    anchor's basename stem ("changelog" for CHANGELOG.md, "script" for
-    template/script.sh.erb) and, for a pseudo-anchor, its subject words
-    ("commit" for commits, "ci"/"workflow" for .github/workflows),
-    normalized and with a trailing "s" stripped. A tag word among them
-    only repeats the file or subject rule 2 already found, so it cannot
-    describe the defect."""
-    anchor = str(defect_key or "").split(":", 1)[0]
-    base = anchor.split("/")[-1].lstrip(".")
-    words = {base.split(".", 1)[0]} if base else set()
-    if anchor in PSEUDO_SUBJECTS:
-        words.update(PSEUDO_SUBJECTS[anchor])
-    elif anchor in PSEUDO_ANCHORS and anchor != "root":
-        words.add(default_subject(anchor))
-    return {_singular(normalize(w)) for w in words if w}
-
-
-def _singular(word):
-    return word[:-1] if word.endswith("s") and len(word) > 1 else word
-
-
-def mechanism_words(defect_key):
-    """Distinctive words of the mechanism tag (see `tag_words`). Stopwords,
-    NEGATION_PREFIXES (they negate what follows rather than name it:
-    "undocumented" in "undocumented-hex-color" would match any
-    "undocumented" in the window), bare 1-2 letter fragments and words
-    that name the anchor itself (`anchor_words`) are dropped. When dropping the anchor's words is what
-    empties the list ("wrong-app-changelog" on CHANGELOG.md), the tag's
-    other words of three or more letters, stopwords included but not
-    NEGATION_PREFIXES, stand in ("wrong", "app"): the defect is then named
-    by those, never by the file name. Returns words with
-    hyphens/underscores already stripped, for comparison against
-    similarly-normalized prose."""
-    words = tag_words(defect_key)
-    named = anchor_words(defect_key)
-    # Drop stopwords and bare 1-2 letter fragments (e.g. "ci" from "no-ci")
-    # — too short to be a distinctive, recognizable word in prose.
-    distinctive = [w for w in words if w.lower() not in STOPWORDS and len(w) > 2
-                   and w.lower() not in NEGATION_PREFIXES]
-    kept = [w for w in distinctive if _singular(normalize(w)) not in named]
-    if distinctive and not kept:
-        kept = [w for w in words if len(w) > 2 and w.lower() not in NEGATION_PREFIXES
-                and _singular(normalize(w)) not in named]
-    return kept
-
-
 def names_only_anchor(defect_key):
     """True when the tag's only distinctive words name its anchor
     ("missing-license" on LICENSE, "no-changelog" on CHANGELOG.md): nothing
@@ -477,25 +360,6 @@ def names_only_anchor(defect_key):
     words = tag_words(defect_key)
     distinctive = [w for w in words if w.lower() not in STOPWORDS and len(w) > 2]
     return bool(distinctive) and not mechanism_words(defect_key) and not phrase_words(defect_key)
-
-
-def phrase_words(defect_key):
-    """The mechanism tag's own word sequence (see `tag_words`), with any
-    leading run of NEGATION_PREFIXES words dropped — "no-set-e" ->
-    ["set", "e"], "undocumented-hex-color" -> ["hex", "color"]. Unlike
-    `mechanism_words`, nothing else is filtered: short fragments like "e"
-    and words that are STOPWORDS on their own (e.g. "set") are kept,
-    because it's the consecutive phrase, not any single word of it, that
-    has to be distinctive. Returns [] if every word is a negation prefix
-    (nothing left to form a phrase) or the tag has fewer than two words
-    after stripping (a single word is already covered by
-    `mechanism_words`, not by the phrase fallback)."""
-    words = tag_words(defect_key)
-    i = 0
-    while i < len(words) and words[i].lower() in NEGATION_PREFIXES:
-        i += 1
-    words = words[i:]
-    return words if len(words) >= 2 else []
 
 
 def phrase_named(defect_key, prose):
@@ -530,69 +394,6 @@ def phrase_named(defect_key, prose):
                 pattern += r"[-_ ]*" + re.escape(w)
         pattern += r"\b"
         if re.search(pattern, prose, re.IGNORECASE):
-            return True
-    return False
-
-
-def default_subject(anchor):
-    """The default subject word for a pseudo-anchor with no PSEUDO_SUBJECTS
-    override: the anchor lowercased, with any file extension and a single
-    trailing "s" stripped (e.g. "commits" -> "commit", "CHANGELOG.md" ->
-    "changelog", "LICENSE" -> "license"). This is what makes subject_words
-    total over every entry of repo_paths.PSEUDO_ANCHORS without a table
-    entry for each one."""
-    base = anchor.split("/")[-1]
-    if "." in base:
-        base = base.rsplit(".", 1)[0]
-    base = base.lower()
-    if base.endswith("s") and len(base) > 1:
-        base = base[:-1]
-    return base
-
-
-def subject_words(defect_key):
-    """The subject of a pseudo-anchored fix-item (one whose evidence has no
-    recognizable file path): words for the defect_key's anchor (the part
-    before the first ':'). This is total over every entry of
-    repo_paths.PSEUDO_ANCHORS: PSEUDO_SUBJECTS overrides the two anchors
-    that need one ("root" has no subject word of its own, so it falls back
-    to the finding's mechanism-tag words instead; ".github/workflows" is
-    better described by "ci"/"workflow" than by its own default), and every
-    other pseudo-anchor gets `default_subject(anchor)`. An anchor that is
-    not in PSEUDO_ANCHORS at all (not a recognized pseudo-anchor) yields no
-    subject words — nothing for rule 4 to verify beyond rule 1."""
-    anchor = str(defect_key or "").split(":", 1)[0]
-    if anchor not in PSEUDO_ANCHORS:
-        return []
-    if anchor == "root":
-        return mechanism_words(defect_key)
-    if anchor in PSEUDO_SUBJECTS:
-        return PSEUDO_SUBJECTS[anchor]
-    return [default_subject(anchor)]
-
-
-def normalize(word):
-    return re.sub(r"[-_]", "", word).lower()
-
-
-def words_named(words, prose):
-    """True if at least one of `words` appears in `prose` as a whole word,
-    comparing case-insensitively with hyphens/underscores stripped from
-    both sides (so "hardcoded" matches "hard-coded" and "CI" matches
-    "ci"), and tolerating a plain trailing "s" symmetrically — the word is
-    stripped of a trailing "s" first (so "releases" -> "release"), then
-    matched against the prose allowing an optional trailing "s" there too.
-    This makes plural tolerance two-way: a singular word like "release"
-    matches prose written as "releases", AND a word like "releases" (as in
-    the "releases" pseudo-anchor's own name, before the table maps it to
-    its singular subject) matches prose written as "release". Ordinary
-    English pluralization, not a stem match."""
-    norm_prose = normalize(prose)
-    for w in words:
-        n = normalize(w)
-        if n.endswith("s") and len(n) > 1:
-            n = n[:-1]
-        if n and re.search(r"(?<![a-z0-9])" + re.escape(n) + r"s?(?![a-z0-9])", norm_prose):
             return True
     return False
 
@@ -713,12 +514,7 @@ def main(argv):
         covered = {k.strip() for k in matches[-1].group(1).split(",") if k.strip()}
     prose = strip_fences(COVERS.sub("", section))
 
-    fix_items = [
-        f for f in findings
-        if str(f.get("result", "")).upper() in FIX_RESULTS
-        and (str(f.get("severity", "")).lower() in FIX_SEVERITIES
-             or (str(f.get("result", "")).upper() == "FAIL" and is_gate_finding(f)))
-    ]
+    fix_items = [f for f in findings if is_fix_item(f)]
     missing = []
     for f in fix_items:
         key = f.get("defect_key", "")

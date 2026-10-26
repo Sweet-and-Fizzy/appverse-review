@@ -38,7 +38,7 @@ input cannot be read.
 import json
 import sys
 
-from report_parse import positional_args, is_gate_finding, DECISIONS, DECISION_NAMES, decision_rank as rank
+from report_parse import positional_args, is_gate_finding, sets_floor, DECISIONS, DECISION_NAMES, decision_rank as rank
 
 NAME = {i: DECISION_NAMES[d] for i, d in enumerate(DECISIONS)}
 FLOOR = {"high": DECISIONS.index("request changes"), "critical": DECISIONS.index("reject")}
@@ -80,7 +80,7 @@ def main(argv):
             floors[target] = (floor, reason)
 
     for f in findings:
-        if not isinstance(f, dict) or str(f.get("result", "")).strip().upper() != "FAIL":
+        if not isinstance(f, dict) or not sets_floor(f):
             continue
         rule = str(f.get("rule", "")).strip().upper()
         gate = is_gate_finding(f)
@@ -88,11 +88,7 @@ def main(argv):
         # STR-04, say) is still a gate, so it floors like one and its pill and
         # floor agree.
         security = not gate and (str(f.get("aspect", "")).strip().lower() == "security" or rule.startswith("OODT"))
-        if not (security or rule.startswith("STR")):
-            continue
-        floor = GATE_FLOOR if gate else FLOOR.get(str(f.get("severity", "")).strip().lower())
-        if floor is None:
-            continue
+        floor = GATE_FLOOR if gate else FLOOR[str(f.get("severity", "")).strip().lower()]
         repo_wide = security or f.get("app_id") not in app_ids
         reason = "%s %s FAIL at %s%s" % (
             f.get("rule", "?"), str(f.get("severity")).strip().lower(), f.get("evidence", "?"),

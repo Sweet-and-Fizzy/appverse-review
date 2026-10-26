@@ -404,5 +404,25 @@
       "default_severity": "info",
       "weight": "suggestion"
     }
-  ]
+  ],
+  "feedback_levels": {
+    "should_at_low": {
+      "QUA-01": [
+        "*"
+      ],
+      "QUA-02": [
+        "site-specific-mixin"
+      ],
+      "QUA-03": [
+        "no-error-check",
+        "no-set-e"
+      ],
+      "QUA-07": [
+        "missing-min",
+        "missing-required",
+        "zero-minimum",
+        "missing-min-max"
+      ]
+    }
+  }
 }

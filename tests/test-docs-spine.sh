@@ -283,6 +283,82 @@ has references/finding-codes.md "counts only when the service reads it" "finding
 has skills/review-structure/SKILL.md "catalog's app_type vocabulary" "structure skill: app_type is a vocabulary term"
 lacks skills/review-structure/SKILL.md "OOD needs the exact value" "structure skill no longer asks for the exact app_type value"
 
+grep -q 'sets_floor' references/check-decisions.py && ok "check-decisions uses sets_floor" || bad "check-decisions uses sets_floor"
+
+levels_problems=$(PYTHONPATH=references python3 -c '
+import json
+from feedback_terms import vocabulary_tags
+vocab = vocabulary_tags("references/finding-codes.md")
+levels = json.load(open("references/checks.json")).get("feedback_levels", {}).get("should_at_low")
+if not levels:
+    print("no feedback_levels.should_at_low in checks.json")
+else:
+    for rule, tags in levels.items():
+        for t in tags:
+            if t != "*" and t not in vocab.get(rule, []):
+                print(rule, t)
+' 2>&1)
+[ -z "$levels_problems" ] && ok "feedback_levels tags are finding-codes tags" \
+  || { bad "feedback_levels tags are finding-codes tags"; echo "$levels_problems"; }
+
+echo "Test: the draft feedback is built by script"
+WF=.github/workflows/appverse-review.yaml
+sec6=$(awk '/^## 6\. /{on=1; next} on && /^## /{exit} on' skills/review-app/SKILL.md)
+echo "$sec6" | grep -q 'prepare-feedback.py' && echo "$sec6" | grep -q 'render-feedback.py' \
+  && ok "skill names prepare-feedback and render-feedback in §6" || bad "skill names prepare-feedback and render-feedback in §6"
+tr '\n' ' ' < skills/review-app/SKILL.md | tr -s ' ' | grep -q "or any OODT FAIL" \
+  && bad "skill no longer says any OODT FAIL is Required" || ok "skill no longer says any OODT FAIL is Required"
+n=$(grep -c '"$WS/appverse-review/references/render-feedback.py"' "$WF")
+[ "$n" -ge 3 ] && ok "workflow runs render-feedback in checks, recheck and recheck2" \
+  || bad "workflow runs render-feedback in checks, recheck and recheck2 (found $n)"
+unguarded=$(grep -E '"\$WS/appverse-review/references/(prepare|render)-feedback\.py"' "$WF" | grep -vE 'review_aspects.*\|\| echo')
+[ -z "$unguarded" ] && [ "$n" -ge 3 ] && ok "workflow never lets prepare/render fail a step" \
+  || { bad "workflow never lets prepare/render fail a step"; echo "$unguarded"; }
+first_render=$(grep -n 'references/render-feedback.py' "$WF" | head -1 | cut -d: -f1)
+first_check=$(grep -n 'references/check-all.py' "$WF" | head -1 | cut -d: -f1)
+[ -n "$first_render" ] && [ "$first_render" -lt "$first_check" ] && ok "review prompt runs render before check-all" \
+  || bad "review prompt runs render before check-all"
+has "$WF" 'review-*.feedback.json' "workflow uploads feedback.json"
+
+echo "Test: the review's turn limit comes from the app count"
+WF=.github/workflows/appverse-review.yaml
+has "$WF" '--max-turns ${{ steps.params.outputs.review_turns }}' "review max-turns comes from params"
+stray=$(grep -n 'inputs.max_turns' "$WF" | grep -v 'MAX_TURNS_INPUT: ${{ inputs.max_turns }}')
+[ -z "$stray" ] && grep -q 'MAX_TURNS_INPUT: ${{ inputs.max_turns }}' "$WF" && ok "max_turns input never in a run block" \
+  || { bad "max_turns input never in a run block"; echo "$stray"; }
+has "$WF" "turns_re='^[0-9]{1,3}\$'" "params checks review_turns before writing it"
+
+echo "Test: the guarded fill steps"
+WF=.github/workflows/appverse-review.yaml
+step() { awk -v n="$1" 'index($0, "      - name: " n) == 1 {on=1; print; next} on && /^      - name: /{exit} on' "$WF"; }
+fill=$(step "Fill draft feedback")
+gate=$(step "Check draft feedback for empty sentences")
+guard=$(step "Keep or roll back the filled draft")
+echo "$fill" | grep -qF "if: \"!cancelled() && inputs.review_aspects == 'all' && steps.feedback_gate.outputs.needs_fill == 'true'\"" \
+  && ok "fill step runs only on full reviews when the gate says so" || bad "fill step runs only on full reviews when the gate says so"
+echo "$fill" | grep -q '"Bash(' && bad "fill step cannot run Bash" \
+  || { echo "$fill" | grep -q '"Bash"' && ok "fill step cannot run Bash" || bad "fill step cannot run Bash"; }
+scoped=$(echo "$fill" | grep -oE '"(Edit|Write)[^"]*"' | grep -v '\.feedback\.json)"$')
+[ -z "$scoped" ] && [ "$(echo "$fill" | grep -cE '"(Edit|Write)\(')" -eq 2 ] && ok "fill step edits only feedback.json" \
+  || { bad "fill step edits only feedback.json"; echo "$scoped"; }
+for st in "$gate" "$fill" "$guard"; do echo "$st" | grep -q 'continue-on-error: true' || nofail=1; done
+[ -z "${nofail:-}" ] && [ -n "$gate" ] && [ -n "$guard" ] && ok "new steps never fail the job" || bad "new steps never fail the job"
+fl=$(grep -n '      - name: Fill draft feedback' "$WF" | cut -d: -f1); pl=$(grep -n '      - name: Generate PDF and HTML from review' "$WF" | cut -d: -f1)
+[ -n "$fl" ] && [ "$fl" -lt "$pl" ] && ok "fill steps sit before the PDF step" || bad "fill steps sit before the PDF step"
+printf '%s\n%s\n%s\n' "$gate" "$fill" "$guard" | grep -q needs_repair && bad "the fill steps never write needs_repair" || ok "the fill steps never write needs_repair"
+echo "$fill" | grep -qF 'Never present as a strength anything' && ok "fill prompt quotes the skill's praise rule" || bad "fill prompt quotes the skill's praise rule"
+grep -qF 'Never present as a strength anything' skills/review-app/SKILL.md && ok "the quoted praise rule is still in the skill" || bad "the quoted praise rule is still in the skill"
+echo "$guard" | grep -q 'fill-guard.py" verify' && ok "guard step runs fill-guard verify" || bad "guard step runs fill-guard verify"
+
+echo "Test: the guard checks its own inputs"
+echo "$gate" | grep -q 'snapshot_digest=' && ok "gate emits the snapshot digest" || bad "gate emits the snapshot digest"
+echo "$guard" | grep -qF 'steps.feedback_gate.outputs.snapshot_digest' && ok "guard compares the digest" || bad "guard compares the digest"
+echo "$gate" | grep -qF 'plugin_status=$(python3 "$WS/appverse-review/references/fill-guard.py" plugin-status' && echo "$guard" | grep -qF '[ "$pstat" = error ]' \
+  && ok "guard checks the plugin checkout is unchanged since the gate" || bad "guard checks the plugin checkout is unchanged since the gate"
+verify_step=$(step "Verify review outputs")
+echo "$verify_step" | grep -qF 'FILL_INTEGRITY: ${{ steps.fill_guard.outputs.integrity }}' && echo "$verify_step" | grep -q '"$FILL_INTEGRITY" = fail' \
+  && ok "Verify fails a run whose guard inputs were tampered with" || bad "Verify fails a run whose guard inputs were tampered with"
+
 echo
 echo "Done: $pass passed, $fail failed."
 [ "$fail" -eq 0 ]

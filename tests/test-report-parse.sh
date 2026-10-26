@@ -195,4 +195,23 @@ check "with the optional" "prog|x|y|z" "$(pa prog x y z)"
 check "too few: exit 2" "2" "$(pa prog x)"
 check "--help: exit 0" "0" "$(pa prog --help | tail -1)"
 
+echo "Test: sets_floor matches check-decisions.py's floor condition"
+sf() { PYTHONPATH="$REFS" python3 -c 'import json, sys; from report_parse import sets_floor; print(sets_floor(json.loads(sys.argv[1])))' "$1" 2>&1 | tail -1; }
+check "gate FAIL low" "True" "$(sf '{"rule":"STR-02","defect_key":"manifest.yml:missing-field:software","result":"FAIL","severity":"low"}')"
+check "gate WARN high" "False" "$(sf '{"rule":"STR-02","defect_key":"manifest.yml:missing-field:software","result":"WARN","severity":"high"}')"
+check "OODT FAIL high" "True" "$(sf '{"rule":"OODT-01","defect_key":"a.sh:eval-exec","result":"FAIL","severity":"high"}')"
+check "OODT FAIL medium" "False" "$(sf '{"rule":"OODT-01","defect_key":"a.sh:eval-exec","result":"FAIL","severity":"medium"}')"
+check "OODT WARN critical" "False" "$(sf '{"rule":"OODT-01","defect_key":"a.sh:eval-exec","result":"WARN","severity":"critical"}')"
+check "STR other: FAIL high" "True" "$(sf '{"rule":"STR-04","defect_key":"root:other:odd-layout","result":"FAIL","severity":"high"}')"
+check "STR other: FAIL medium" "False" "$(sf '{"rule":"STR-04","defect_key":"root:other:odd-layout","result":"FAIL","severity":"medium"}')"
+check "QUA FAIL high" "False" "$(sf '{"rule":"QUA-03","defect_key":"a.sh:no-error-check","result":"FAIL","severity":"high","aspect":"quality"}')"
+check "security-aspect QUA FAIL high" "True" "$(sf '{"rule":"QUA-03","defect_key":"a.sh:no-error-check","result":"FAIL","severity":"high","aspect":"security"}')"
+
+echo "Test: is_fix_item is the inclusion floor"
+fi_() { PYTHONPATH="$REFS" python3 -c 'import json, sys; from report_parse import is_fix_item; print(is_fix_item(json.loads(sys.argv[1])))' "$1" 2>&1 | tail -1; }
+check "WARN low" "True" "$(fi_ '{"rule":"QUA-03","defect_key":"a.sh:no-error-check","result":"WARN","severity":"low"}')"
+check "FAIL info" "False" "$(fi_ '{"rule":"QUA-08","defect_key":"a.sh:magic-number","result":"FAIL","severity":"info"}')"
+check "gate FAIL info" "True" "$(fi_ '{"rule":"STR-02","defect_key":"manifest.yml:missing-field:software","result":"FAIL","severity":"info"}')"
+check "NOT CHECKED medium" "False" "$(fi_ '{"rule":"OODT-04","defect_key":"root:tier3","result":"NOT CHECKED","severity":"medium"}')"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
