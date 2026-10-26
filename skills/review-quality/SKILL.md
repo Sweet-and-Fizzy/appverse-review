@@ -251,7 +251,9 @@ These rows carry no `check:` marker.
   An unmet target for inclusion — error handling, input validation — is
   recorded as FAIL, not WARN; suggestions that are unmet are WARN. The
   manifest's `weight` says which checks are targets (`target`) and which
-  are improvement suggestions (`suggestion`).
+  are improvement suggestions (`suggestion`), and `check-rating.py` flags
+  a target recorded as WARN, a tool row under a target's rule and tag
+  included.
 
   **Severity.** Every manifest entry has a `default_severity`. A FAIL or
   WARN record for the check takes it, unless the evidence clearly warrants

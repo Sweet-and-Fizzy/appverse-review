@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Test check-rating.py: Documentation rating follows its evidence lines; Documentation signal follows the rating;
 # a suggestion-class check or an MNT-02..MNT-06 good-practice signal recorded as FAIL is a mismatch, and so is
-# a suggestion-class FAIL or WARN rated above info.
+# a suggestion-class FAIL or WARN rated above info, and a target check recorded as WARN.
 # Only Documentation is checked among ratings/signals (no security rating, design R4); the findings JSON is also
 # read for a stub README rating (QUA-01 docs-stub) and for the suggestion/good-practice FAIL scan (rule 3).
 set -uo pipefail
@@ -696,5 +696,21 @@ check "(m) a placeholder rung is not met by the facts: Strong is above the Adequ
 check "(m) the line names troubleshooting" 1 "$(grep -c "above the readme.json baseline Adequate; 'troubleshooting'" "$TMP/out")"
 check "(n) facts with no rungs (pre-real): rule 6 does nothing, exit 0" 0 "$(run "$TMP/r39c.md" "$TMP/f1.json" "$TMP/pre-real")"
 check "(o) no pre-review directory: rule 6 does nothing, exit 0" 0 "$(run "$TMP/r39c.md" "$TMP/f1.json")"
+
+echo "Test 40: a target check recorded as WARN is a MISMATCH; its FAIL, PASS and a tag it does not own are not"
+report Strong Low "$FULL" > "$TMP/r40.md"
+cat > "$TMP/f40.json" <<'EOF'
+[
+  {"app_id":"root","rule":"QUA-03","defect_key":"template/script.sh.erb:no-error-check","aspect":"quality","severity":"low","result":"WARN","summary":"SC2164: cd without || exit","evidence":"template/script.sh.erb:7"},
+  {"app_id":"root","rule":"QUA-07","defect_key":"form.yml:missing-min","aspect":"quality","severity":"low","result":"WARN","summary":"x","evidence":"form.yml:9"},
+  {"app_id":"root","rule":"QUA-03","defect_key":"template/before.sh.erb:no-error-check","aspect":"quality","severity":"low","result":"FAIL","summary":"x","evidence":"template/before.sh.erb:2"},
+  {"app_id":"root","rule":"QUA-07","defect_key":"form.yml:missing-min:bc_num_hours","aspect":"quality","severity":"info","result":"PASS","summary":"x","evidence":"form.yml:3"},
+  {"app_id":"root","rule":"QUA-07","defect_key":"form.yml:missing-pattern","aspect":"quality","severity":"low","result":"WARN","summary":"x","evidence":"form.yml:3"}
+]
+EOF
+check "exit 1" 1 "$(run "$TMP/r40.md" "$TMP/f40.json")"
+check "QUA-03 WARN" 1 "$(grep -cxF 'MISMATCH root QUA-03 template/script.sh.erb:no-error-check: target (check error-handling) recorded as WARN; an unmet target is FAIL' "$TMP/out")"
+check "QUA-07 WARN" 1 "$(grep -cxF 'MISMATCH root QUA-07 form.yml:missing-min: target (check numeric-field-bounds) recorded as WARN; an unmet target is FAIL' "$TMP/out")"
+check "only those two" "ratings: 2 mismatches" "$(tail -1 "$TMP/out")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
