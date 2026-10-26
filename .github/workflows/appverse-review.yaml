@@ -876,7 +876,7 @@ jobs:
         # the next step re-renders the section and keeps the result only if
         # nothing else changed and the draft got better.
         continue-on-error: true
-        uses: anthropics/claude-code-action@1d6de8cb0c237e7c15e9e1bdf973826ebae490cc # v1
+        uses: anthropics/claude-code-action@16f9f71ab9c490faf367f94dd294897edc25be33 # v1
         with:
           anthropic_api_key: ${{ (steps.params.outputs.backend == 'gateway' && secrets.LLM_GATEWAY_KEY) || (steps.params.outputs.backend == 'anthropic' && secrets.ANTHROPIC_API_KEY) || '' }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
