@@ -359,12 +359,14 @@ def classify_paths(findings):
 def split_findings_by_app(findings):
     by_app = defaultdict(list)
     repo_level = []
+    # Read rule and app_id as check-keys does (a null rule is no rule, an
+    # empty app_id is root), so findings that passed the checks assemble.
     for f in findings:
-        rule = f.get("rule", "")
+        rule = f.get("rule") or ""
         if rule.startswith("MNT-"):
             repo_level.append(f)
         else:
-            app_id = f.get("app_id", "root")
+            app_id = f.get("app_id") or "root"
             by_app[app_id].append(f)
     return repo_level, dict(by_app)
 

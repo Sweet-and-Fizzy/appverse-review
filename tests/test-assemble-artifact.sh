@@ -887,6 +887,29 @@ check "case19: marked findings stay in the app's findings; a pseudo-anchor is un
 check "case19: findings without an outside-install path have no path_class key" "True" "$(echo "$A19" | jget "all('path_class' not in f for f in d['apps'][0]['findings'][4:])")"
 check "case19: the tool-status word not_installed is not used" "0" "$(echo "$A19" | grep -c not_installed)"
 
+# --- Test 20: a null rule and an empty app_id read as the checkers read them ---
+# check-keys reads a missing rule as "<missing>" and an empty app_id as root,
+# so a findings file that passed the checks must assemble too.
+echo ""
+echo "Test 20: null rule and empty app_id"
+cat > "$TMP/findings20.json" << 'EOF'
+[
+  {"app_id":"root","rule":null,"defect_key":"template/before.sh.erb:shellcheck","result":"PASS","severity":"info","summary":"s","evidence":"template/before.sh.erb:1"},
+  {"app_id":"","rule":"STR-03","defect_key":"form.yml:yaml-parse-error","result":"FAIL","severity":"high","summary":"s","evidence":"form.yml:3"},
+  {"app_id":null,"rule":"STR-04","defect_key":"submit.yml.erb:form-submit-mismatch","result":"FAIL","severity":"high","summary":"s","evidence":"submit.yml.erb:2"},
+  {"rule":"QUA-03","defect_key":"template/script.sh.erb:no-set-e","result":"WARN","severity":"low","summary":"s","evidence":"template/script.sh.erb:1"}
+]
+EOF
+set +e
+A20=$(python3 "$ASSEMBLE" --meta "$TMP/meta.json" --findings "$TMP/findings20.json" --md r.md --plugin-version 0.3.0 2> "$TMP/err20")
+RC20=$?
+set -e
+check "case20: assembles" "0" "$RC20"
+check "case20: every finding is filed under the root app" "4" "$(echo "$A20" | jget "len(d['apps'][0]['findings'])")"
+check "case20: an empty app_id's FAIL sets the root app's criterion" "fail" "$(echo "$A20" | jget "d['apps'][0]['criteria']['yaml_valid']")"
+check "case20: a null app_id's FAIL sets the root app's criterion" "fail" "$(echo "$A20" | jget "d['apps'][0]['criteria']['references']")"
+check "case20: the findings themselves are not rewritten" "[None, '', None]" "$(echo "$A20" | jget "[d['apps'][0]['findings'][0]['rule'], d['apps'][0]['findings'][1]['app_id'], d['apps'][0]['findings'][2]['app_id']]")"
+
 echo ""
 echo "Done: $pass passed, $fail failed."
 [ "$fail" -eq 0 ]
