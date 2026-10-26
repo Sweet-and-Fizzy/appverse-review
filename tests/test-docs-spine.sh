@@ -359,6 +359,33 @@ verify_step=$(step "Verify review outputs")
 echo "$verify_step" | grep -qF 'FILL_INTEGRITY: ${{ steps.fill_guard.outputs.integrity }}' && echo "$verify_step" | grep -q '"$FILL_INTEGRITY" = fail' \
   && ok "Verify fails a run whose guard inputs were tampered with" || bad "Verify fails a run whose guard inputs were tampered with"
 
+echo "Test: sessions are bounded by turns and kept out of the plugin checkout"
+for pair in "Run Appverse review:180" "Repair review outputs:60" "Repair review outputs (second round):60" "Fill draft feedback:20"; do
+  name=${pair%:*}; mins=${pair##*:}
+  step "$name" | grep -qx "        timeout-minutes: $mins" && ok "$name times out at $mins minutes" || bad "$name times out at $mins minutes"
+done
+names=$(grep -E '^      - name: ' "$WF" | sed 's/^      - name: //')
+for pair in "Run Appverse review:Keep the review session's log" "Repair review outputs:Keep the repair session's log" \
+    "Repair review outputs (second round):Keep the second repair session's log" "Fill draft feedback:Keep the fill session's log"; do
+  s=${pair%%:*}; k=${pair#*:}
+  [ "$(echo "$names" | grep -A1 -xF "$s" | tail -1)" = "$k" ] && step "$k" | grep -qE 'run: [&*]keep_session' \
+    && ok "$s is followed by the restoring log step" || bad "$s is followed by the restoring log step"
+done
+ro=$(step "Make the plugin checkout read-only")
+ro_line=$(echo "$names" | grep -nxF "Make the plugin checkout read-only" | cut -d: -f1)
+rv_line=$(echo "$names" | grep -nxF "Run Appverse review" | cut -d: -f1)
+echo "$ro" | grep -q 'chmod -R a-w' && [ -n "$ro_line" ] && [ "$ro_line" -lt "$rv_line" ] \
+  && ok "the plugin checkout is read-only before the review session" || bad "the plugin checkout is read-only before the review session"
+keep=$(step "Keep the review session's log")
+echo "$keep" | grep -qF 'core.hooksPath=/dev/null reset -q --hard "${{ github.sha }}"' && echo "$keep" | grep -qF 'clean -fdxq' \
+  && ok "the log step restores the plugin checkout without running its hooks" || bad "the log step restores the plugin checkout without running its hooks"
+[ "$(echo "$keep" | grep -n 'chmod -R a-w' | cut -d: -f1)" -gt "$(echo "$keep" | grep -n 'clean -fdxq' | cut -d: -f1)" ] 2>/dev/null \
+  && ok "the log step makes the checkout read-only again after restoring it" || bad "the log step makes the checkout read-only again after restoring it"
+echo "$keep" | grep -q '::error::.*tracked' && ok "an edited plugin file is an error" || bad "an edited plugin file is an error"
+echo "$keep" | grep -q 'error_max_turns' && ok "the log step warns when a session ran out of turns" || bad "the log step warns when a session ran out of turns"
+echo "$guard" | grep -qF '"$RUNNER_TEMP/sessions/fill.plugin-changes.txt"' \
+  && ok "the guard distrusts a fill that changed the plugin checkout" || bad "the guard distrusts a fill that changed the plugin checkout"
+
 echo
 echo "Done: $pass passed, $fail failed."
 [ "$fail" -eq 0 ]

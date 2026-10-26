@@ -47,7 +47,7 @@ on:
         required: false
         default: ""
       debug:
-        description: "No longer used: the run log never shows the model session (this repo's logs are public). The full session is always in the artifact as claude-execution-output.json."
+        description: "No longer used: the run log never shows the model session (this repo's logs are public). Each session's full log is in the artifact under sessions/."
         required: false
         type: boolean
         default: false
@@ -241,11 +241,18 @@ jobs:
             echo "review_turns=$review_turns"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Make the plugin checkout read-only
+        if: inputs.review_aspects != 'dry-run'
+        # The checkers run from this checkout and no session has a reason to
+        # write into it, so a misplaced write fails where the session can
+        # see it. Each log step below restores the checkout regardless.
+        run: chmod -R a-w "${{ github.workspace }}/appverse-review"
+
       - name: Run Appverse review
         id: review
-        # A hung session must not hold the runner for GitHub's six-hour
-        # default; the longest reviews so far took under half an hour.
-        timeout-minutes: 60
+        # The turn limit bounds a review; this only stops a hung endpoint.
+        # A session the timeout kills writes no execution log.
+        timeout-minutes: 180
         if: inputs.review_aspects != 'dry-run'
         # A session that ends in an API error (a gateway refusing an oversized
         # last request, say) must not decide the job: the files it wrote are
@@ -416,18 +423,30 @@ jobs:
         env:
           SESSION: review
         # Every session writes the same claude-execution-output.json, so the
-        # next one would overwrite this one's. The plugin checkout's state goes
-        # with it: the checkers run from that checkout, and no step should
-        # change it.
+        # next one would overwrite this one's; moving it means a session that
+        # wrote none is not filed under the last one's log. Then the plugin
+        # checkout is recorded and put back to its commit, so the checks that
+        # follow run the plugin's own code whatever the session did.
         run: &keep_session |
           D="$RUNNER_TEMP/sessions"; mkdir -p "$D"
-          cp "$RUNNER_TEMP/claude-execution-output.json" "$D/$SESSION.json" 2>/dev/null \
-            || echo "No execution log for the $SESSION session"
-          P="${{ github.workspace }}/appverse-review"
-          { git -C "$P" status --porcelain; git -C "$P" diff; } > "$D/$SESSION.plugin-changes.txt" 2>&1 || true
-          if [ -s "$D/$SESSION.plugin-changes.txt" ]; then
-            echo "::warning::the plugin checkout differs from its commit after the $SESSION session; see sessions/$SESSION.plugin-changes.txt in the artifact"
+          if mv "$RUNNER_TEMP/claude-execution-output.json" "$D/$SESSION.json" 2>/dev/null; then
+            if python3 -c 'import json, sys; sys.exit(0 if any(isinstance(m, dict) and m.get("type") == "result" and m.get("subtype") == "error_max_turns" for m in json.load(open(sys.argv[1]))) else 1)' "$D/$SESSION.json" 2>/dev/null; then
+              echo "::warning::the $SESSION session ran out of turns before it finished"
+            fi
+          else
+            echo "::warning::no execution log for the $SESSION session; the step's timeout killed it, or it never started"
           fi
+          P="${{ github.workspace }}/appverse-review"
+          chmod -R u+w "$P"
+          { git -C "$P" status --porcelain; git -C "$P" diff "${{ github.sha }}"; } > "$D/$SESSION.plugin-changes.txt" 2>&1 || true
+          if ! git -C "$P" diff --quiet "${{ github.sha }}"; then
+            echo "::error::the $SESSION session changed tracked plugin files; restored them, see sessions/$SESSION.plugin-changes.txt in the artifact"
+          elif [ -s "$D/$SESSION.plugin-changes.txt" ]; then
+            echo "::warning::the $SESSION session left files in the plugin checkout; removed them, see sessions/$SESSION.plugin-changes.txt in the artifact"
+          fi
+          git -C "$P" -c core.hooksPath=/dev/null reset -q --hard "${{ github.sha }}"
+          git -C "$P" clean -fdxq
+          chmod -R a-w "$P"
 
       - name: Generate dry-run report
         if: inputs.review_aspects == 'dry-run'
@@ -598,7 +617,7 @@ jobs:
 
       - name: Repair review outputs
         id: repair
-        timeout-minutes: 25
+        timeout-minutes: 60
         if: "!cancelled() && steps.checks.outputs.needs_repair == 'true'"
         # A fresh session with a small context: the two files, the checker's
         # lines, and the rules those lines come from. It fixes what was listed
@@ -778,7 +797,7 @@ jobs:
           fi
       - name: Repair review outputs (second round)
         id: repair2
-        timeout-minutes: 25
+        timeout-minutes: 60
         if: "!cancelled() && steps.recheck.outputs.needs_repair == 'true'"
         # The same fresh, small-context session as the first round, given the
         # shorter list the re-check left. Its inputs are the first round's.
@@ -869,7 +888,7 @@ jobs:
 
       - name: Fill draft feedback
         id: fill
-        timeout-minutes: 10
+        timeout-minutes: 20
         if: "!cancelled() && inputs.review_aspects == 'all' && steps.feedback_gate.outputs.needs_fill == 'true'"
         # A fresh session whose only job is the draft's sentences. It can read
         # the workspace and edit nothing but feedback.json, and has no shell;
@@ -958,11 +977,13 @@ jobs:
           # write. If they changed, nothing here can be trusted to restore, so
           # "Verify review outputs" fails the run instead of shipping it.
           now=$(python3 "$WS/appverse-review/references/fill-guard.py" digest "$RUNNER_TEMP/fill-snapshot" "$RUNNER_TEMP/fill-before.txt" || echo error)
-          # The plugin checkout is compared with its state at the gate, not
-          # required clean, so files an earlier step left there do not count;
-          # a script the session changed, or a module it planted, does.
+          # The fill's log step has already put the plugin checkout back, so
+          # what the session did to it is in that step's record: the fill can
+          # write only feedback.json, and anything there means it got past
+          # that. The status is still compared with its state at the gate.
           pstat=$(python3 "$WS/appverse-review/references/fill-guard.py" plugin-status "$WS/appverse-review" || echo error)
-          if [ "$now" != "$SNAPSHOT_DIGEST" ] || [ "$pstat" != "$PLUGIN_STATUS" ] || [ "$pstat" = error ]; then
+          if [ "$now" != "$SNAPSHOT_DIGEST" ] || [ "$pstat" != "$PLUGIN_STATUS" ] || [ "$pstat" = error ] \
+              || [ -s "$RUNNER_TEMP/sessions/fill.plugin-changes.txt" ]; then
             echo "integrity=fail" >> "$GITHUB_OUTPUT"
             echo "::error::the fill session changed the guard's snapshot or the plugin checkout; this run's outputs are not trusted"
             git -C "$WS/appverse-review" status --porcelain || true
@@ -1048,7 +1069,7 @@ jobs:
           echo "=== Workspace root ==="
           ls -la ${{ github.workspace }}/review-*.md ${{ github.workspace }}/review-*.pdf ${{ github.workspace }}/review-*.html ${{ github.workspace }}/review-*.json 2>/dev/null || echo "No review files in workspace root"
           echo "=== Temp directory ==="
-          ls -la /home/runner/work/_temp/claude-execution-output.json 2>/dev/null || echo "No execution log"
+          ls -la /home/runner/work/_temp/sessions/ 2>/dev/null || echo "No session logs"
 
       - name: Upload review report
         if: always()
@@ -1063,7 +1084,6 @@ jobs:
             ${{ github.workspace }}/review-*.meta.json
             ${{ github.workspace }}/review-*.feedback.json
             ${{ github.workspace }}/review-*.artifact.json
-            /home/runner/work/_temp/claude-execution-output.json
             /home/runner/work/_temp/sessions/
             ${{ github.workspace }}/pre-review/
           if-no-files-found: warn
