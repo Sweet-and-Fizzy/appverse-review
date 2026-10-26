@@ -936,6 +936,12 @@ jobs:
             other file. Write plain sentences, one paragraph each. Stop when every
             item has text.
 
+      - name: Keep the fill session's log
+        if: "!cancelled() && steps.fill.outcome != 'skipped'"
+        env:
+          SESSION: fill
+        run: *keep_session
+
       - name: Keep or roll back the filled draft
         id: fill_guard
         if: "!cancelled() && inputs.review_aspects == 'all' && steps.feedback_gate.outputs.needs_fill == 'true'"
