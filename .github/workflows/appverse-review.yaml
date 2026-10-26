@@ -251,7 +251,7 @@ jobs:
         # last request, say) must not decide the job: the files it wrote are
         # checked, repaired if needed, and "Verify review outputs" decides.
         continue-on-error: true
-        uses: anthropics/claude-code-action@1d6de8cb0c237e7c15e9e1bdf973826ebae490cc # v1
+        uses: anthropics/claude-code-action@16f9f71ab9c490faf367f94dd294897edc25be33 # v1
         with:
           # On a gateway run the gateway key replaces the Anthropic key and
           # ANTHROPIC_BASE_URL (set above) points Claude Code at it. Each key is
@@ -606,7 +606,7 @@ jobs:
         # the whole review, and the main session may have run out of context
         # exactly here.
         continue-on-error: true
-        uses: anthropics/claude-code-action@1d6de8cb0c237e7c15e9e1bdf973826ebae490cc # v1
+        uses: anthropics/claude-code-action@16f9f71ab9c490faf367f94dd294897edc25be33 # v1
         # Anchored: the second round reuses this block (*repair_with) so the
         # two prompts and permission lists cannot drift apart.
         with: &repair_with
@@ -783,7 +783,7 @@ jobs:
         # The same fresh, small-context session as the first round, given the
         # shorter list the re-check left. Its inputs are the first round's.
         continue-on-error: true
-        uses: anthropics/claude-code-action@1d6de8cb0c237e7c15e9e1bdf973826ebae490cc # v1
+        uses: anthropics/claude-code-action@16f9f71ab9c490faf367f94dd294897edc25be33 # v1
         with: *repair_with
 
       - name: Keep the second repair session's log
