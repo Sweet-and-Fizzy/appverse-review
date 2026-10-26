@@ -411,6 +411,24 @@ jobs:
                it: run it once more at most, then stop. A separate repair step
                follows, so a remaining problem is not yours to chase.
 
+      - name: Keep the review session's log
+        if: "!cancelled() && steps.review.outcome != 'skipped'"
+        env:
+          SESSION: review
+        # Every session writes the same claude-execution-output.json, so the
+        # next one would overwrite this one's. The plugin checkout's state goes
+        # with it: the checkers run from that checkout, and no step should
+        # change it.
+        run: &keep_session |
+          D="$RUNNER_TEMP/sessions"; mkdir -p "$D"
+          cp "$RUNNER_TEMP/claude-execution-output.json" "$D/$SESSION.json" 2>/dev/null \
+            || echo "No execution log for the $SESSION session"
+          P="${{ github.workspace }}/appverse-review"
+          { git -C "$P" status --porcelain; git -C "$P" diff; } > "$D/$SESSION.plugin-changes.txt" 2>&1 || true
+          if [ -s "$D/$SESSION.plugin-changes.txt" ]; then
+            echo "::warning::the plugin checkout differs from its commit after the $SESSION session; see sessions/$SESSION.plugin-changes.txt in the artifact"
+          fi
+
       - name: Generate dry-run report
         if: inputs.review_aspects == 'dry-run'
         env:
@@ -705,6 +723,12 @@ jobs:
             If problems remain, fix those and run it once more, then stop
             whatever it says. Write nothing else.
 
+      - name: Keep the repair session's log
+        if: "!cancelled() && steps.repair.outcome != 'skipped'"
+        env:
+          SESSION: repair
+        run: *keep_session
+
       - name: Recompute stable finding IDs after repair
         if: "!cancelled() && steps.checks.outputs.needs_repair == 'true'"
         run: |
@@ -761,6 +785,12 @@ jobs:
         continue-on-error: true
         uses: anthropics/claude-code-action@1d6de8cb0c237e7c15e9e1bdf973826ebae490cc # v1
         with: *repair_with
+
+      - name: Keep the second repair session's log
+        if: "!cancelled() && steps.repair2.outcome != 'skipped'"
+        env:
+          SESSION: repair2
+        run: *keep_session
 
       - name: Recompute stable finding IDs after the second repair
         if: "!cancelled() && steps.recheck.outputs.needs_repair == 'true'"
@@ -1028,6 +1058,7 @@ jobs:
             ${{ github.workspace }}/review-*.feedback.json
             ${{ github.workspace }}/review-*.artifact.json
             /home/runner/work/_temp/claude-execution-output.json
+            /home/runner/work/_temp/sessions/
             ${{ github.workspace }}/pre-review/
           if-no-files-found: warn
           # The portal pulls these on its next cron and never needs them
