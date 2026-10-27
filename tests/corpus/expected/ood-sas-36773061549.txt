@@ -1,7 +1,8 @@
 [floor] feedback floor: 15/15 fix-items covered
 [keys] finding keys: 39/39 valid
+[rating] MISMATCH root QUA-03 template/script.sh.erb:no-error-check: target (check error-handling) recorded as WARN; an unmet target is FAIL
 [rating] MISMATCH root QUA-04 template/script.sh.erb:commented-out-code: suggestion (check dead-code) rated low; suggestions are info
-[rating] ratings: 1 mismatch
+[rating] ratings: 2 mismatches
 [rows] check-rows: 1 app, 19 required rows, 0 problems
 [evidence] evidence: 39/39 valid; report rows: 24/24 valid
 [catalog] catalog: not checked (no catalog-checks.md in the pre-review output)
