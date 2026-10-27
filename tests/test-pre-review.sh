@@ -1385,6 +1385,10 @@ T="$TMP/t51"; mkdir -p "$T/template"
 printf 'x: 1\n' > "$T/form.yml"
 printf '#!/bin/bash\necho hi\n' > "$T/template/a.sh"
 printf '#!/bin/bash\necho hi\n' > "$T/template/b.sh"
+# Tool findings past the end of a file are skipped (Test 61), so the files
+# are padded with comment lines to the lines the synthetic JSON names.
+pad() { for _ in $(seq "$2"); do echo '# pad'; done >> "$1"; }
+pad "$T/template/a.sh" 40; pad "$T/template/b.sh" 40
 O="$TMP/o51"; mkdir -p "$O"
 python3 - "$O/shellcheck.json" <<'PY'
 import json, sys
@@ -1416,7 +1420,7 @@ T="$TMP/t53"; mkdir -p "$T/template" "$T/lib"
 printf 'x: 1\n' > "$T/form.yml"
 printf 'export WORK_ROOT=/tmp/w\nmyvar=1\n' > "$T/template/before.sh.erb"
 printf '#!/bin/bash\necho "$port $myvar $other"\n' > "$T/template/script.sh.erb"
-printf 'echo "$host"\n' > "$T/template/after.sh"
+printf 'echo "$host"\n' > "$T/template/after.sh"; pad "$T/template/after.sh" 5
 printf 'echo "$port"\n' > "$T/lib/helper.sh"
 # ta <rel> <code> <message>: tool_artifact over the t53 target
 ta() { px "r=pr.tool_artifact(A[0], A[1], A[2], A[3])" "$T" "$1" "$2" "$3"; }
@@ -1449,8 +1453,8 @@ check "tool table: no artefacts, the result reads as before" "6 findings (SC2154
 echo "Test 54: tool paths are normalised (bandit's ./ form), for shellcheck, semgrep and bandit"
 T="$TMP/t54"; mkdir -p "$T/template"
 printf 'x: 1\n' > "$T/form.yml"
-printf 'import os\n' > "$T/template/proxy.py"
-printf '#!/bin/bash\necho hi\n' > "$T/template/a.sh"
+printf 'import os\n' > "$T/template/proxy.py"; pad "$T/template/proxy.py" 400
+printf '#!/bin/bash\necho hi\n' > "$T/template/a.sh"; pad "$T/template/a.sh" 40
 O="$TMP/o54"; mkdir -p "$O"
 # tillicum's committed bandit.json, verbatim: every filename is ./template/proxy.py
 cp "$SCRIPT_DIR/tests/corpus/tillicum-36732089153/pre-review/bandit.json" "$O/bandit.json"
@@ -1801,5 +1805,14 @@ check "an unterminated quote (EOF) is not marked" "False|None" "$(syn "$O" quote
 check "plain .sh never marked" "None" "$(syn "$O" plain.sh erb_control_line)"
 check "a passing .sh.erb is not marked" "True|None" "$(j "$O/syntax.json" "'%s|%s' % ([e for e in d if e['path']=='fine.sh.erb'][0]['ok'], [e for e in d if e['path']=='fine.sh.erb'][0]['erb_control_line'])")"
 check "every entry carries erb_control_line" "True" "$(j "$O/syntax.json" "all('erb_control_line' in e for e in d)")"
+
+echo "Test 61: a tool finding at a line past the end of its file is skipped with a note (shellcheck SC2148 on an empty before.sh.erb)"
+T="$TMP/t61"; O="$TMP/o61"; mkdir -p "$T/template" "$O"
+printf 'attributes: {}\nform: []\n' > "$T/form.yml"
+: > "$T/template/before.sh.erb"
+printf '#!/bin/bash\necho $X\n' > "$T/template/script.sh"
+printf '[{"file": "template/before.sh.erb", "line": 1, "level": "error", "code": 2148, "message": "no shebang"}, {"file": "template/script.sh", "line": 2, "level": "info", "code": 2086, "message": "q"}, {"file": "template/script.sh", "line": 5, "level": "info", "code": 2086, "message": "q"}]' > "$O/shellcheck.json"
+check "only the in-file finding is a candidate, at its line" "template/script.sh:2" "$(sco "$T" "$T" batch_connect "$O" "','.join('%s:%s' % (c['file'], c['lines']) for c in $BY'tool_finding']).replace('[', '').replace(']', '')")"
+check "the skipped items are noted" "['shellcheck.json: 2 item(s) past the end of their file skipped']" "$(sco "$T" "$T" batch_connect "$O" "d['tool_notes']")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
