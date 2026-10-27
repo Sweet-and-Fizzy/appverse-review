@@ -2,14 +2,17 @@
 """Run every report/findings checker in one pass and summarize the result.
 
     python3 references/check-all.py <report.md> <findings.json> <checks.json> \
-        <pre-review-out-dir> --target <target-dir> [--meta <meta.json>]
+        <pre-review-out-dir> --target <target-dir> [--meta <meta.json>] \\
+        [--baseline <baseline.json>]
 
 --meta names the review metadata; without it, <report minus .md>.meta.json
 beside the report (the name the review writes). The corpus keeps it as
 meta.json, so tests/run-corpus.sh passes it.
 
+--baseline is passed to the feedback floor checker only, and only when given.
+
 Runs, in order:
-  1. check-feedback-floor.py <findings.json> <report.md>
+  1. check-feedback-floor.py <findings.json> <report.md> [--baseline <path>]
   2. check-keys.py <findings.json> --target <target-dir>
   3. check-rating.py <report.md> <findings.json> <pre-review-out-dir>
   4. check-rows.py <report.md> <findings.json> <checks.json> <pre-review-out-dir>
@@ -60,7 +63,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # returns the argv list (script path excluded; main() prepends it).
 CHECKERS = [
     ("floor", "check-feedback-floor.py",
-     lambda a: [a.findings, a.report]),
+     lambda a: [a.findings, a.report] + (["--baseline", a.baseline] if a.baseline else [])),
     ("keys", "check-keys.py",
      lambda a: [a.findings, "--target", a.target]),
     ("rating", "check-rating.py",
@@ -110,6 +113,7 @@ def main(argv):
     ap.add_argument("--target", required=True,
                      help="reviewed repo checkout, passed to check-keys.py and check-evidence.py")
     ap.add_argument("--meta", help="review metadata (default: <report minus .md>.meta.json)")
+    ap.add_argument("--baseline", help="baseline.json from review_baseline.py; the feedback floor follows it")
     args = ap.parse_args(argv[1:])
     if not args.meta:
         args.meta = os.path.splitext(args.report)[0] + ".meta.json"

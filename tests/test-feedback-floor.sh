@@ -650,4 +650,80 @@ check "names the item without its file" 1 "$(grep -c 'MISSING QUA-03 template/sc
 sed 's/^4\. Add `set -e`/4. In `template\/script.sh.erb`, add `set -e`/' "$TMP/r53.md" > "$TMP/r53b.md"
 check "naming the file in that item passes" 0 "$(run "$TMP/findings.json" "$TMP/r53b.md")"
 
+echo "Test 54: with a baseline, a still-open finding an update leaves out is not required; without it, it is"
+REFS="$SCRIPT_DIR/references"
+mkbase() { REFS="$REFS" REC="$1" python3 - > "$TMP/base.json" <<'PYEOF'
+import json, os, sys
+sys.path.insert(0, os.environ["REFS"])
+import review_baseline as b
+def mk(rule, key, result, sev):
+    return dict(app_id="root", rule=rule, defect_key=key, result=result, severity=sev)
+rec = os.environ["REC"]
+entries = [dict(mk(*a), id=b.stable_id(mk(*a)), dismissed=dis)
+           for a, dis in ((("QUA-07", "form.yml:missing-pattern", "WARN", "low"), False),
+                          (("OODT-01", "b.sh:unsanitized-user-input", "FAIL", "high"), False),
+                          (("QUA-02", "c.sh:gone-and-dismissed", "WARN", "low"), True),
+                          (("QUA-03", "d.sh:gone", "WARN", "low"), False))]
+print(json.dumps(dict(sha="abc1234", sent_at=1, recommendation=rec, apps=dict(root=rec),
+                      same_commit=False, comparable=True, findings=entries)))
+PYEOF
+}
+runb() { python3 "$CHECK" "$1" "$2" --baseline "$TMP/base.json" > "$TMP/out" 2>&1; echo $?; }
+cat > "$TMP/f54.json" <<'EOF2'
+[
+ {"app_id":"root","rule":"QUA-07","defect_key":"form.yml:missing-pattern","aspect":"quality","severity":"low","result":"WARN","summary":"x","evidence":"form.yml:4"},
+ {"app_id":"root","rule":"OODT-01","defect_key":"b.sh:unsanitized-user-input","aspect":"security","severity":"high","result":"FAIL","summary":"x","evidence":"b.sh:3"},
+ {"app_id":"root","rule":"QUA-01","defect_key":"README.md:docs-minimal","aspect":"quality","severity":"low","result":"WARN","summary":"x","evidence":"README.md:1"},
+ {"app_id":"root","rule":"QUA-09","defect_key":"p:pass","aspect":"quality","severity":"low","result":"PASS","summary":"x","evidence":"n/a"}
+]
+EOF2
+cat > "$TMP/r54.md" <<'EOF2'
+# Appverse Review: x
+## Draft feedback — edit before sending
+Thank you for the update. The b.sh script passes unsanitized user input to the shell; quote and validate it. The README.md is minimal, so add usage documentation.
+<!-- feedback-covers: b.sh:unsanitized-user-input, README.md:docs-minimal -->
+EOF2
+mkbase accept
+check "baseline: exit 0" 0 "$(runb "$TMP/f54.json" "$TMP/r54.md")"
+check "baseline: reports 2/2" "feedback floor: 2/2 fix-items covered" "$(tail -1 "$TMP/out")"
+check "no baseline: exit 1" 1 "$(run "$TMP/f54.json" "$TMP/r54.md")"
+check "no baseline: A is MISSING" 1 "$(grep -c 'MISSING QUA-07 form.yml:missing-pattern' "$TMP/out")"
+
+echo "Test 55: with a baseline, a still-open finding that sets a floor stays required"
+cat > "$TMP/r55.md" <<'EOF2'
+# Appverse Review: x
+## Draft feedback — edit before sending
+Thank you for the update. The README.md is minimal, so add usage documentation.
+<!-- feedback-covers: README.md:docs-minimal -->
+EOF2
+check "exit 1" 1 "$(runb "$TMP/f54.json" "$TMP/r55.md")"
+check "names B" 1 "$(grep -c 'MISSING OODT-01 b.sh:unsanitized-user-input' "$TMP/out")"
+check "does not name A" 0 "$(grep -c 'form.yml:missing-pattern' "$TMP/out")"
+
+echo "Test 56: a resubmission's still-open prefix does not break the file-naming window"
+mkbase request_changes
+cat > "$TMP/m56.json" <<'EOF2'
+{"app_name":"SAS","not_archived":"pass","public":"pass"}
+EOF2
+cat > "$TMP/r56.md" <<'EOF2'
+# Appverse Review: x
+## Draft feedback — edit before sending
+EOF2
+python3 "$SCRIPT_DIR/references/prepare-feedback.py" --baseline "$TMP/base.json" "$TMP/f54.json" "$TMP/m56.json" "$REFS/checks.json" "$TMP/fb56.json" >/dev/null 2>&1
+python3 - "$TMP/fb56.json" <<'PYEOF'
+import json, sys
+p = sys.argv[1]
+d = json.load(open(p))
+texts = {"form.yml:missing-pattern": "The form.yml field has no input pattern, so add a pattern.",
+         "b.sh:unsanitized-user-input": "The b.sh script passes unsanitized user input to the shell; quote and validate it.",
+         "README.md:docs-minimal": "The README.md is minimal, so add usage documentation."}
+for i in d["items"]:
+    i["text"] = texts[i["defect_keys"][0]]
+json.dump(d, open(p, "w"))
+PYEOF
+env -u GITHUB_ACTIONS python3 "$SCRIPT_DIR/references/render-feedback.py" "$TMP/r56.md" "$TMP/fb56.json" >/dev/null 2>&1
+check "the still-open item is rendered with its prefix" 1 "$(grep -c 'Still open from the last review: `form.yml:4`' "$TMP/r56.md")"
+check "exit 0" 0 "$(runb "$TMP/f54.json" "$TMP/r56.md")"; grep MISSING "$TMP/out"
+check "reports 3/3" "feedback floor: 3/3 fix-items covered" "$(tail -1 "$TMP/out")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

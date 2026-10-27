@@ -147,7 +147,12 @@ Each must be represented in the feedback section of the report:
      actually a different tracked file. This is accepted for now — it
      narrows some legitimate windows but does not create a false pass.
 
-    python3 references/check-feedback-floor.py review-<slug>.findings.json review-<slug>.md
+    python3 references/check-feedback-floor.py review-<slug>.findings.json review-<slug>.md \\
+        [--baseline <baseline.json>]
+
+With --baseline, the fix-items are the ones the contributor feedback names
+(review_baseline.feedback_findings): a still-open finding of a listed app's
+update is left out, unless it sets a decision floor.
 
 Exit 0 when every fix-item is covered, 1 when any is missing, 2 when an
 input cannot be read, 3 (a malformed report) when the report has no
@@ -159,7 +164,9 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from report_parse import MALFORMED, is_fix_item, positional_args  # noqa: E402
+import review_baseline  # noqa: E402
+from report_parse import MALFORMED, positional_args  # noqa: E402
+from review_baseline import feedback_findings  # noqa: E402
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from repo_paths import CITATION_RE, PSEUDO_ANCHORS, split_reviewed_ok  # noqa: E402
@@ -489,9 +496,11 @@ def defect_named(candidates, evidence, defect_key, named_paragraphs, words=None,
 
 
 def main(argv):
-    argv = positional_args(argv, ["findings.json", "report.md"], description=(__doc__ or "").split("\n\n")[0])
-    if isinstance(argv, int):
-        return argv
+    parsed_args = positional_args(argv, ["findings.json", "report.md"],
+                                  description=(__doc__ or "").split("\n\n")[0], options=["--baseline"])
+    if isinstance(parsed_args, int):
+        return parsed_args
+    argv, options = parsed_args
     try:
         with open(argv[1]) as f:
             findings = json.load(f)
@@ -514,7 +523,7 @@ def main(argv):
         covered = {k.strip() for k in matches[-1].group(1).split(",") if k.strip()}
     prose = strip_fences(COVERS.sub("", section))
 
-    fix_items = [f for f in findings if is_fix_item(f)]
+    fix_items = feedback_findings(findings, review_baseline.load(options["--baseline"]))
     missing = []
     for f in fix_items:
         key = f.get("defect_key", "")
