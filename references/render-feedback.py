@@ -102,9 +102,10 @@ def render_section(doc, report):
                 summaries = item.get("summaries") if isinstance(item.get("summaries"), list) else []
                 text = (fallback_text(summaries) + " <!-- feedback-missing -->").strip()
                 missing.append(str(item.get("group", "?")))
+            body = (prefix + " " + text) if prefix else text
             if item.get("still_open") is True:
-                prefix = (prefix + " " if prefix else "") + "Still open from the last review:"
-            lines.append("{}. {}".format(n, (prefix + " " + text) if prefix else text))
+                body = "Still open from the last review: " + body
+            lines.append("{}. {}".format(n, body))
             keys = item.get("defect_keys") if isinstance(item.get("defect_keys"), list) else []
             covers += [str(k) for k in keys if k]
         lines.append("")

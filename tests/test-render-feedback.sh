@@ -165,7 +165,7 @@ cat > "$TMP/fb.json" <<'EOF2'
 EOF2
 report ''; render >/dev/null
 check "greeting replaces the model's thank-you" "Thank you for the update to X. It has clear docs." "$(section | sed -n '3p')"
-check "still_open item prefix" '1. `a.sh:3` Still open from the last review: Check the cd.' "$(section | grep '^1\.')"
+check "still_open item prefix leads the locations" '1. Still open from the last review: `a.sh:3` Check the cd.' "$(section | grep '^1\.')"
 check "other item unprefixed" '2. `form.yml:47` Raise the minimum.' "$(section | grep '^2\.')"
 check "reminder after the last item, before the marker" "2. \`form.yml:47\` Raise the minimum.||One finding from the last review is still open; it is listed in the full review.||<!-- feedback-generated -->" \
   "$(section | grep -A4 '^2\.' | sed -n '1,5p;' | sed '/^<!-- feedback-covers/d' | tr '\n' '|' | sed 's/|$//')"
@@ -175,6 +175,10 @@ d = json.load(open(sys.argv[1])); d["greeting"] = ""; d["reminder"] = ""
 json.dump(d, open(sys.argv[1], "w"))
 PYEOF
 report ''; render >/dev/null
+printf '{"app_name":"X","greeting":"","opening":"","items":[{"level":"should","still_open":true,"locations":[],"defect_keys":["k"],"text":"Do it."}]}' > "$TMP/fb2.json"
+cp "$TMP/fb.json" "$TMP/fb.keep"; cp "$TMP/fb2.json" "$TMP/fb.json"; report ''; render >/dev/null
+check "still_open item with no locations" "1. Still open from the last review: Do it." "$(section | grep '^1\.')"
+cp "$TMP/fb.keep" "$TMP/fb.json"; report ''; render >/dev/null
 check "empty greeting drops the thank-you" "It has clear docs." "$(section | sed -n '3p')"
 check "no reminder paragraph when empty" "0" "$(section | grep -c 'still open')"
 python3 - "$TMP/fb.json" <<'PYEOF'
