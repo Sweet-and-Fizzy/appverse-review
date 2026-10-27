@@ -16,10 +16,13 @@ Usage:
         --md    review-owner-repo.md \\
         [--pdf  review-owner-repo.pdf] \\
         [--html review-owner-repo.html] \\
+        [--baseline baseline.json] \\
         [--plugin-version 0.4.0] \\
         > review-owner-repo.artifact.json
 
 If --findings is omitted, the artifact is emitted with empty findings arrays.
+With --baseline (the file review_baseline.py wrote), the artifact also carries
+the comparison with the last review sent to the contributor (schema 1.7).
 If --plugin-version is omitted, it defaults to "unknown".
 """
 
@@ -33,9 +36,10 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from repo_paths import parse_citations, split_reviewed_ok  # noqa: E402
+import review_baseline  # noqa: E402
 
 
-SCHEMA_VERSION = "1.6"
+SCHEMA_VERSION = "1.7"
 
 SOLID = "solid"
 SOME_NOTES = "some_notes"
@@ -417,7 +421,34 @@ def attach_catalog(repo_level, apps, catalog):
     }
 
 
-def assemble(meta, findings, md_path, pdf_path, html_path, plugin_version, catalog=None):
+def attach_since_last_review(artifact, findings, baseline):
+    """Schema 1.7: how this review compares with the last one sent. Per-finding
+    keys appear only when the baseline carries findings to compare with; the
+    block always says whether it did. Looked up by stable_id, as the hub does."""
+    status = review_baseline.statuses(findings, baseline)
+    groups = [artifact["repo_level"]["findings"]] + [a["findings"] for a in artifact["apps"]]
+    for group in groups:
+        for f in group:
+            sid = review_baseline.stable_id(f)
+            if sid in status:
+                f["since_last_review"] = status[sid]
+                if review_baseline.dismissed_last_time(f, baseline):
+                    f["dismissed_last_time"] = True
+    artifact["since_last_review"] = {
+        "review": baseline["review"],
+        "sha": baseline["sha"],
+        "sent_at": baseline["sent_at"],
+        "kind": review_baseline.kind_for("root", baseline),
+        "same_commit": baseline["same_commit"],
+        "comparable": baseline["comparable"],
+        "not_found": [
+            {k: f.get(k) for k in ("id", "app_id", "rule", "defect_key")}
+            for f in review_baseline.not_found(findings, baseline)
+        ],
+    }
+
+
+def assemble(meta, findings, md_path, pdf_path, html_path, plugin_version, catalog=None, baseline=None):
     classify_paths(findings)
     repo_findings, app_findings_map = split_findings_by_app(findings)
     repo_criteria = derive_repo_criteria(findings, meta)
@@ -551,6 +582,9 @@ def assemble(meta, findings, md_path, pdf_path, html_path, plugin_version, catal
         },
     }
 
+    if baseline:
+        attach_since_last_review(artifact, findings, baseline)
+
     return artifact
 
 
@@ -563,6 +597,7 @@ def main():
     parser.add_argument("--html", help="Path to HTML report (stable anchors)")
     parser.add_argument("--plugin-version", default="unknown")
     parser.add_argument("--catalog", help="Path to the pre-review's catalog.json (optional)")
+    parser.add_argument("--baseline", help="Path to the baseline review_baseline.py wrote (optional)")
     args = parser.parse_args()
 
     with open(args.meta) as f:
@@ -588,8 +623,11 @@ def main():
         except (OSError, json.JSONDecodeError) as e:
             _warn("could not load catalog {}: {}; catalog checks omitted".format(args.catalog, e))
 
+    # A missing or malformed baseline is no baseline; load() warns.
+    baseline = review_baseline.load(args.baseline)
+
     try:
-        artifact = assemble(meta, findings, args.md, args.pdf, args.html, args.plugin_version, catalog)
+        artifact = assemble(meta, findings, args.md, args.pdf, args.html, args.plugin_version, catalog, baseline)
     except AssembleError as e:
         print("error: {}".format(e), file=sys.stderr)
         sys.exit(1)
