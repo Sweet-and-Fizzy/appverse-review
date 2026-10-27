@@ -45,6 +45,8 @@ bad "non-integer sent_at" '{"sha":"abc1234","sent_at":"1","recommendation":"acce
 bad "bad app decision" '{"sha":"abc1234","sent_at":1,"recommendation":"accept","apps":{"a":"nope"}}'
 bad "finding result PASS" "$(valid abc1234 ",\"findings\":[${FINDING/FAIL/PASS}]")"
 bad "finding dismissed not bool" "$(valid abc1234 ",\"findings\":[${FINDING/false/\"no\"}]")"
+bad "recommendation is a list" '{"sha":"abc1234","sent_at":1,"recommendation":["x"],"apps":{}}'
+bad "app decision is an object" '{"sha":"abc1234","sent_at":1,"recommendation":"accept","apps":{"a":{}}}'
 bad "findings not a list" "$(valid abc1234 ',"findings":{}')"
 
 echo "Test 5: kind_for"
@@ -76,6 +78,8 @@ check "different commit resubmission" "kind: resubmission
 exit 0" "$(cli '{"sha":"abc1234","sent_at":1,"recommendation":"reject","apps":{"root":"reject"}}' def5678)"
 rm -f "$TMP/out.json"
 check "malformed" "1|kind: plain|exit 0" "$(cli '{' abc1234 | sed -n '1s/^::warning::baseline input ignored: .*/1/p;2p;3p' | tr '\n' '|' | sed 's/|$//')"
+check "unhashable recommendation via CLI" "1|kind: plain|exit 0" "$(cli '{"sha":"abc1234","sent_at":1,"recommendation":["x"],"apps":{}}' abc1234 | sed -n '1s/^::warning::baseline input ignored: .*/1/p;2p;3p' | tr '\n' '|' | sed 's/|$//')"
+check "unhashable app decision via CLI" "1|kind: plain|exit 0" "$(cli '{"sha":"abc1234","sent_at":1,"recommendation":"accept","apps":{"a":{}}}' abc1234 | sed -n '1s/^::warning::baseline input ignored: .*/1/p;2p;3p' | tr '\n' '|' | sed 's/|$//')"
 check "malformed writes nothing" "no" "$([ -e "$TMP/out.json" ] && echo yes || echo no)"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

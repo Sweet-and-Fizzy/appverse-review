@@ -43,6 +43,11 @@ def stable_id(finding):
     return hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
 
 
+def _is_decision(value):
+    # isinstance first: a list or object value is unhashable, so `in` on the dict raises.
+    return isinstance(value, str) and value in DECISION_KIND
+
+
 def _finding_problem(i, f):
     if not isinstance(f, dict):
         return "findings[{}] is not an object".format(i)
@@ -66,11 +71,11 @@ def _problem(doc):
         return "sha is not 7-40 hex characters"
     if not isinstance(doc.get("sent_at"), int) or isinstance(doc["sent_at"], bool):
         return "sent_at is not an integer"
-    if doc.get("recommendation") not in DECISION_KIND:
+    if not _is_decision(doc.get("recommendation")):
         return "recommendation is not a decision"
     apps = doc.get("apps")
     if not isinstance(apps, dict) or any(
-        not isinstance(k, str) or v not in DECISION_KIND for k, v in apps.items()
+        not isinstance(k, str) or not _is_decision(v) for k, v in apps.items()
     ):
         return "apps is not an object mapping app ids to decisions"
     if "findings" in doc:
