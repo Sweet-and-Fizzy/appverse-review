@@ -137,13 +137,14 @@ def kind_for(app_id, baseline):
     return "plain"
 
 
+def _is_open(finding):
+    """Only FAIL and WARN findings take part in the comparison."""
+    return str(finding.get("result", "")).strip().upper() in ("FAIL", "WARN")
+
+
 def _open_ids(findings):
     """Stable IDs of the current FAIL/WARN findings (PASS rows carry none)."""
-    return {
-        stable_id(f)
-        for f in findings
-        if str(f.get("result", "")).strip().upper() in ("FAIL", "WARN")
-    }
+    return {stable_id(f) for f in findings if _is_open(f)}
 
 
 def _baseline_entries(baseline):
@@ -179,7 +180,7 @@ def not_found(findings, baseline):
 def dismissed_last_time(finding, baseline):
     """The finding is still open and the contributor dismissed it last time."""
     entry = _baseline_entries(baseline).get(stable_id(finding))
-    return bool(entry and entry["dismissed"])
+    return _is_open(finding) and bool(entry and entry["dismissed"])
 
 
 def reviewer_only(finding, baseline):
@@ -187,7 +188,8 @@ def reviewer_only(finding, baseline):
     not set a decision floor: it stays in the full review but is not
     re-sent to the contributor."""
     return (
-        stable_id(finding) in _baseline_entries(baseline)
+        _is_open(finding)
+        and stable_id(finding) in _baseline_entries(baseline)
         and kind_for(finding.get("app_id"), baseline) == "update"
         and not report_parse.sets_floor(finding)
     )
