@@ -386,6 +386,15 @@ echo "$keep" | grep -q 'error_max_turns' && ok "the log step warns when a sessio
 echo "$guard" | grep -qF '"$RUNNER_TEMP/sessions/fill.plugin-changes.txt"' \
   && ok "the guard distrusts a fill that changed the plugin checkout" || bad "the guard distrusts a fill that changed the plugin checkout"
 
+echo "Test: the review session does not run the checkers; the workflow and the repair session do"
+review=$(step "Run Appverse review")
+echo "$review" | grep -q 'python3 [^ ]*check-all\.py' && bad "the review prompt never runs check-all.py" || ok "the review prompt never runs check-all.py"
+echo "$review" | grep -qF '"Bash(python3 *check-*.py*)"' && ok "the review session's permissions deny the checkers" || bad "the review session's permissions deny the checkers"
+echo "$review" | grep -q 'the workflow does the finish step after this' && ok "the review prompt ends the session before the skill's finish step" || bad "the review prompt ends the session before the skill's finish step"
+grep -q 'A CI review stops before this step' skills/review-app/SKILL.md && ok "the skill's finish step says a CI review stops before it" || bad "the skill's finish step says a CI review stops before it"
+step "Repair review outputs" | grep -q 'check-all\.py' && ok "the repair prompt still runs check-all.py" || bad "the repair prompt still runs check-all.py"
+step "Repair review outputs" | grep -qF 'check-*.py' && bad "the repair session may run the checkers" || ok "the repair session may run the checkers"
+
 echo
 echo "Done: $pass passed, $fail failed."
 [ "$fail" -eq 0 ]

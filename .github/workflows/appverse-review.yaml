@@ -316,7 +316,8 @@ jobs:
                 ],
                 "deny": [
                   "Task(run_in_background:true)",
-                  "Agent(run_in_background:true)"
+                  "Agent(run_in_background:true)",
+                  "Bash(python3 *check-*.py*)"
                 ]
               }
             }
@@ -384,39 +385,17 @@ jobs:
             - One command per Bash call; chaining with `&&`, `;` or `|` into
               a command that is not allowed refuses the whole call.
 
-            After the review completes, in this order (the plugin is checked
-            out at ${{ github.workspace }}/appverse-review/):
-            1. Write the full report to
-               ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.md
-               For a full review, its last section is only the heading line
-               `## Draft feedback — edit before sending`; steps 4 to 6 build
-               its body (review-app/SKILL.md §4).
-            2. Write the structured findings JSON array to
-               ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.findings.json
-               Do NOT include an `id` field — IDs are computed in a later step.
-            3. Write the review metadata JSON to
-               ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.meta.json
-               (see review-app/SKILL.md §5 for the format).
-            Steps 4 to 6 are for a full review only; this run's aspects are
-            "${{ inputs.review_aspects }}", and for anything but "all" skip
-            to step 7.
-            4. Run:
-                 python3 ${{ github.workspace }}/appverse-review/references/prepare-feedback.py ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.findings.json ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.meta.json ${{ github.workspace }}/appverse-review/references/checks.json ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.feedback.json
-            5. In ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.feedback.json,
-               fill `opening` and every item's `text` as review-app/SKILL.md
-               §4 says. Each item's `text` is on the line after its unique
-               `group` line, so with the Edit tool match the two lines
-               together; or rewrite the whole file with Write. Change no
-               other field (the script regenerates them anyway).
-            6. Run:
-                 python3 ${{ github.workspace }}/appverse-review/references/render-feedback.py ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.md ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.feedback.json
-            7. Verify the report and findings against the checks manifest:
-                 python3 ${{ github.workspace }}/appverse-review/references/check-all.py ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.md ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.findings.json ${{ github.workspace }}/appverse-review/references/checks.json ${{ github.workspace }}/pre-review --target ${{ github.workspace }}/target-repo
-               and fix what it reports in one pass. A [floor] line is fixed in
-               the feedback file or the findings, then steps 4 and 6 again;
-               never edit the rendered Draft feedback section. Do not loop on
-               it: run it once more at most, then stop. A separate repair step
-               follows, so a remaining problem is not yours to chase.
+            Write the review's outputs to these paths (the plugin is
+            checked out at ${{ github.workspace }}/appverse-review/):
+            - report: ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.md
+            - findings: ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.findings.json
+            - metadata (review-app/SKILL.md §5): ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.meta.json
+            - Draft feedback items (§4): ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.feedback.json
+            This run's aspects are "${{ inputs.review_aspects }}"; build the
+            Draft feedback only when they are "all". This is a CI review, so
+            the wrap-up (review-app/SKILL.md §6) ends once the Draft feedback
+            is rendered: the workflow does the finish step after this
+            session, and the checkers are refused here.
 
       - name: Keep the review session's log
         if: "!cancelled() && steps.review.outcome != 'skipped'"

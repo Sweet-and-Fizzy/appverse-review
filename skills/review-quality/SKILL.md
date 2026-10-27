@@ -130,7 +130,9 @@ These rows carry no `check:` marker.
   `hardcoded-site-paths` row with the tag that names it
   (`hardcoded-cluster`, `hardcoded-partition`, `hardcoded-account`,
   `hardcoded-module-version`, `site-specific-mixin`) and the missed-by-facts
-  note. Then rate Not portable / Partially portable / Portable in the
+  note, and like a path it is WARN, or PASS when documented or taken from a
+  form attribute. None of them is FAIL: the `portability-rating` row is
+  where an app too site-bound to install elsewhere fails. Then rate Not portable / Partially portable / Portable in the
   `portability-rating` row: PASS when Partially portable or above, FAIL
   below. A FAIL row cites the `hardcoded-*` records that set it and adds
   no record of its own. Documented site-specific
