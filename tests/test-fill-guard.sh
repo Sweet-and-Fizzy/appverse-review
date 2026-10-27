@@ -24,7 +24,7 @@ filled() { fb "Thanks." "Fix a." "Add a pattern."; report "Thanks. 1. a 2. b"; }
 echo "Test 1: needs-fill"
 nf() { python3 "$FG" needs-fill "$1" 2>/dev/null; }
 fb "Thanks." "Fix a." ""; check "true on an empty text" true "$(nf "$FB")"
-fb "" "Fix a." "Fix b."; check "true on an empty opening" true "$(nf "$FB")"
+fb "" "Fix a." "Fix b."; check "false on an empty opening when every text is filled" false "$(nf "$FB")"
 fb "Thanks." "Fix a." "Fix b."; check "false when all filled" false "$(nf "$FB")"
 check "needs-fill on a missing file is false" false "$(nf "$TMP/nope.json")"
 echo "{broken" > "$TMP/bad.json"; check "false on malformed JSON" false "$(nf "$TMP/bad.json")"

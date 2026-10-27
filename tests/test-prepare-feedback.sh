@@ -161,4 +161,52 @@ echo "Test 9: findings that cannot be read exit 2"
 echo "nope" > "$TMP/f.json"
 check "exit 2" 2 "$(prep)"
 
+echo "Test 10: baseline (update and resubmission)"
+# mkbase <recommendation> <same_commit>: a baseline listing A and B as open last time.
+mkbase() { REFS="$REFS" REC="$1" SAME="$2" python3 - > "$TMP/base.json" <<'PYEOF'
+import json, os, sys
+sys.path.insert(0, os.environ["REFS"])
+import review_baseline as b
+def mk(rule, key, result, sev):
+    return dict(app_id="root", rule=rule, defect_key=key, result=result, severity=sev)
+rec = os.environ["REC"]
+entries = [dict(mk(*a), id=b.stable_id(mk(*a)), dismissed=False)
+           for a in (("QUA-07", "form.yml:missing-pattern", "WARN", "low"),
+                     ("OODT-01", "b.sh:unsanitized-user-input", "FAIL", "high"))]
+print(json.dumps(dict(sha="abc1234", sent_at=1, recommendation=rec, apps=dict(root=rec),
+                      same_commit=os.environ["SAME"] == "1", comparable=True, findings=entries)))
+PYEOF
+}
+prepb() { python3 "$PREP" --baseline "$TMP/base.json" "$TMP/f.json" "$TMP/m.json" "$CHECKS" "$TMP/fb.json" > "$TMP/out" 2>&1; echo $?; }
+FA="$(finding root QUA-07 form.yml:missing-pattern WARN low form.yml:4)"
+FB="$(finding root OODT-01 b.sh:unsanitized-user-input FAIL high b.sh:3 security)"
+FE="$(finding root QUA-01 README.md:docs-minimal WARN low README.md:1)"
+meta; findings "$FA" "$FB" "$FE"
+check "no baseline: plain greeting" "Thank you for submitting SAS to Appverse." "$(prep >/dev/null; q 'd["greeting"]')"
+check "no baseline: empty reminder" "" "$(q 'd["reminder"]')"
+check "no baseline: all three items" "3" "$(q 'len(items)')"
+check "no baseline: nothing still open" "False,False,False" "$(q '",".join(str(i["still_open"]) for i in items)')"
+mkbase accept 0; prepb >/dev/null
+check "update: A's key is gone" "0" "$(q 'sum("form.yml:missing-pattern" in i["defect_keys"] for i in items)')"
+check "update: B's key is named" "1" "$(q 'sum("b.sh:unsanitized-user-input" in i["defect_keys"] for i in items)')"
+check "update: reminder" "One finding from the last review is still open; it is listed in the full review." "$(q 'd["reminder"]')"
+check "update: greeting" "Thank you for the update to SAS." "$(q 'd["greeting"]')"
+check "update: no item is still_open" "False,False" "$(q '",".join(str(i["still_open"]) for i in items)')"
+mkbase accept 1; prepb >/dev/null
+check "same commit: empty greeting" "" "$(q 'd["greeting"]')"
+mkbase request_changes 0; prepb >/dev/null
+check "resubmission: greeting" "Thank you for the updates to SAS." "$(q 'd["greeting"]')"
+check "resubmission: A is still_open" "True" "$(q '[i for i in items if "form.yml:missing-pattern" in i["defect_keys"]][0]["still_open"]')"
+check "resubmission: E is not" "False" "$(q '[i for i in items if "README.md:docs-minimal" in i["defect_keys"]][0]["still_open"]')"
+check "resubmission: empty reminder" "" "$(q 'd["reminder"]')"
+TMP="$TMP" python3 - <<'PYEOF'
+import json, os
+p = os.environ["TMP"] + "/fb.json"
+d = json.load(open(p)); d["greeting"] = "Thank you for submitting SAS to Appverse."; d["reminder"] = "stale"
+json.dump(d, open(p, "w"))
+PYEOF
+mkbase accept 0; prepb >/dev/null
+check "carried-over greeting is replaced" "Thank you for the update to SAS." "$(q 'd["greeting"]')"
+check "carried-over reminder is replaced" "One finding from the last review is still open; it is listed in the full review." "$(q 'd["reminder"]')"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

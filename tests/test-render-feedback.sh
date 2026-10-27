@@ -155,4 +155,51 @@ check "every tag grouped across two files passes the floor" 0 "$(floor_case "$TM
 check "a line-less file finding passes when its summary names the defect" 0 "$(floor_case "$TMP/lineless-ok.json")"
 check "a line-less file finding with a bare summary fails (documented limit)" 1 "$(floor_case "$TMP/lineless-bad.json")"
 
+echo "Test 11: greeting, still-open items and the reminder"
+cat > "$TMP/fb.json" <<'EOF2'
+{"app_name": "X", "greeting": "Thank you for the update to X.", "opening": "Thank you for submitting X. It has clear docs.", "reminder": "One finding from the last review is still open; it is listed in the full review.",
+ "items": [
+  {"group": "should:QUA-03:no-error-check", "level": "should", "still_open": true, "locations": ["a.sh:3"], "defect_keys": ["a.sh:no-error-check"], "summaries": ["s"], "text": "Check the cd."},
+  {"group": "should:QUA-07:zero-minimum", "level": "should", "still_open": false, "locations": ["form.yml:47"], "defect_keys": ["form.yml:zero-minimum"], "summaries": ["s"], "text": "Raise the minimum."}
+ ]}
+EOF2
+report ''; render >/dev/null
+check "greeting replaces the model's thank-you" "Thank you for the update to X. It has clear docs." "$(section | sed -n '3p')"
+check "still_open item prefix" '1. `a.sh:3` Still open from the last review: Check the cd.' "$(section | grep '^1\.')"
+check "other item unprefixed" '2. `form.yml:47` Raise the minimum.' "$(section | grep '^2\.')"
+check "reminder after the last item, before the marker" "2. \`form.yml:47\` Raise the minimum.||One finding from the last review is still open; it is listed in the full review.||<!-- feedback-generated -->" \
+  "$(section | grep -A4 '^2\.' | sed -n '1,5p;' | sed '/^<!-- feedback-covers/d' | tr '\n' '|' | sed 's/|$//')"
+python3 - "$TMP/fb.json" <<'PYEOF'
+import json, sys
+d = json.load(open(sys.argv[1])); d["greeting"] = ""; d["reminder"] = ""
+json.dump(d, open(sys.argv[1], "w"))
+PYEOF
+report ''; render >/dev/null
+check "empty greeting drops the thank-you" "It has clear docs." "$(section | sed -n '3p')"
+check "no reminder paragraph when empty" "0" "$(section | grep -c 'still open')"
+python3 - "$TMP/fb.json" <<'PYEOF'
+import json, sys
+d = json.load(open(sys.argv[1])); d["opening"] = ""
+json.dump(d, open(sys.argv[1], "w"))
+PYEOF
+report ''; render >/dev/null
+check "empty greeting and opening: the list follows the heading" "**Should fix**" "$(section | sed -n '3p')"
+python3 - "$TMP/fb.json" <<'PYEOF'
+import json, sys
+d = json.load(open(sys.argv[1])); d["greeting"] = "Thank you for the update to X."; d["opening"] = ""
+json.dump(d, open(sys.argv[1], "w"))
+PYEOF
+report ''; render >/dev/null
+check "greeting alone when opening is empty" "Thank you for the update to X." "$(section | sed -n '3p')"
+cat > "$TMP/fb.json" <<'EOF2'
+{"app_name": "X", "opening": "", "items": []}
+EOF2
+report ''; render >/dev/null
+check "old file without greeting: default opening" "Thank you for submitting X to Appverse." "$(section | sed -n '3p')"
+cat > "$TMP/fb.json" <<'EOF2'
+{"app_name": "X", "opening": "Thanks for sending X. Good docs.", "items": []}
+EOF2
+report ''; render >/dev/null
+check "old file without greeting: opening kept as written" "Thanks for sending X. Good docs." "$(section | sed -n '3p')"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
