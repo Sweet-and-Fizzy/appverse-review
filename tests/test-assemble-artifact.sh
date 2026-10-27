@@ -961,6 +961,17 @@ echo "{" > "$TMP/base21-bad.json"
 A21D=$(python3 "$ASSEMBLE" --meta "$TMP/meta21.json" --findings "$TMP/findings21.json" --md r.md --baseline "$TMP/base21-bad.json" --plugin-version 0.3.0 2>"$TMP/err21d")
 check "case21: malformed baseline acts as none" "False" "$(echo "$A21D" | jget "'since_last_review' in d")"
 
+python3 -c "
+import json, sys
+d = json.load(open(sys.argv[1])); d.pop('review'); d.pop('ref', None)
+json.dump(d, open(sys.argv[2], 'w'))" "$TMP/base21.json" "$TMP/base21-noreview.json"
+set +e
+A21E=$(python3 "$ASSEMBLE" --meta "$TMP/meta21.json" --findings "$TMP/findings21.json" --md r.md --baseline "$TMP/base21-noreview.json" --plugin-version 0.3.0 2>"$TMP/err21e")
+RC21E=$?
+set -e
+check "case21: baseline without review or ref assembles" "0" "$RC21E"
+check "case21: review is null, block keeps its keys" "None 7" "$(echo "$A21E" | jget "str(d['since_last_review']['review']) + ' ' + str(len(d['since_last_review']))")"
+
 echo ""
 echo "Done: $pass passed, $fail failed."
 [ "$fail" -eq 0 ]

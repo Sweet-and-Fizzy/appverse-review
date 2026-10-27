@@ -435,7 +435,7 @@ def attach_since_last_review(artifact, findings, baseline):
                 if review_baseline.dismissed_last_time(f, baseline):
                     f["dismissed_last_time"] = True
     artifact["since_last_review"] = {
-        "review": baseline["review"],
+        "review": baseline.get("review"),
         "sha": baseline["sha"],
         "sent_at": baseline["sent_at"],
         "kind": review_baseline.kind_for("root", baseline),
