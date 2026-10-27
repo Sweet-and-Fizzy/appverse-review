@@ -218,9 +218,12 @@ jobs:
               # drops any output that contains a secret, which would leave the
               # base URL empty and send the gateway key to the Anthropic API.
               echo "ANTHROPIC_BASE_URL=$gateway_url" >> "$GITHUB_ENV"
-              # Cap the per-request output so a 32k default cannot overflow a
-              # small-context model; the pre-review facts keep prompts short.
-              echo "CLAUDE_CODE_MAX_OUTPUT_TOKENS=8192" >> "$GITHUB_ENV"
+              # A reasoning model's thinking counts against this cap: at 8192, a
+              # repair facing a long list of checker lines was cut off before
+              # its first edit. The default gateway's Qwen takes 248k tokens of
+              # input, so 32768 leaves ample room; the cap stays for a gateway
+              # whose model has a smaller context.
+              echo "CLAUDE_CODE_MAX_OUTPUT_TOKENS=32768" >> "$GITHUB_ENV"
               echo "Gateway run, model: $model_id"
             fi
           fi
@@ -655,6 +658,10 @@ jobs:
             - pre-review facts: ${{ github.workspace }}/pre-review/
             - the rules the checkers apply: ${{ github.workspace }}/appverse-review/skills/review-app/SKILL.md
               (sections 4 and 6) and ${{ github.workspace }}/appverse-review/references/finding-codes.md
+
+            Work through the lines one checker at a time, in the order they
+            appear: fix every line of one checker ([keys], say) with its edits
+            before you think about the next. Do not plan all the fixes first.
 
             Rules:
             - Change only what a listed line requires. Keep every existing
