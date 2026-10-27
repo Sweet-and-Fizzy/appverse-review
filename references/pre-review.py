@@ -2905,7 +2905,8 @@ def _tool_finding_candidates(files, out, target=None, notes=None):
     findings is a tool_artifact. A tool file that cannot be read, or is not
     the JSON shape its tool writes, gives no candidates and a note in notes;
     an item that is not an object or has no positive integer line is
-    skipped. lines holds at most TOOL_LINES_CAP entries (lines_total the
+    skipped, and so is one whose line is past the end of its file (with its
+    own note). lines holds at most TOOL_LINES_CAP entries (lines_total the
     full count when cut). out may be None (no tool-finding candidates then)."""
     notes = [] if notes is None else notes
     if not out:
@@ -2913,6 +2914,20 @@ def _tool_finding_candidates(files, out, target=None, notes=None):
     groups = {}  # (tool, code, file) -> {"lines": set, "level", "text", "artifact"}
     cache = {}
     skipped = {}
+    # shellcheck reports SC2148 at line 1 of an empty file, which has no line
+    # 1 to cite: check-rows would require the citation and check-evidence
+    # reject it, so no row could satisfy both.
+    past_end = {}
+    line_counts = {}
+
+    def n_lines(rel):
+        if rel not in line_counts:
+            try:
+                with open(files[rel], "rb") as f:
+                    line_counts[rel] = sum(1 for _ in f)
+            except OSError:
+                line_counts[rel] = None
+        return line_counts[rel]
 
     def add(tool, code, path, line, level, text, artifact=False):
         rel, line = _tool_path(path), _int_line(line)
@@ -2920,6 +2935,10 @@ def _tool_finding_candidates(files, out, target=None, notes=None):
             skipped[tool] = skipped.get(tool, 0) + 1
             return
         if rel not in files:
+            return
+        n = n_lines(rel)
+        if n is not None and line > n:
+            past_end[tool] = past_end.get(tool, 0) + 1
             return
         g = groups.setdefault((tool, code, rel), {"lines": set(), "level": level, "text": text,
                                                   "artifact": True})
@@ -2966,6 +2985,8 @@ def _tool_finding_candidates(files, out, target=None, notes=None):
     for tool in ("shellcheck", "semgrep", "bandit"):
         if skipped.get(tool):
             notes.append("%s.json: %d item(s) with no file or line skipped" % (tool, skipped[tool]))
+        if past_end.get(tool):
+            notes.append("%s.json: %d item(s) past the end of their file skipped" % (tool, past_end[tool]))
 
     def capped(cand):
         if len(cand["lines"]) > TOOL_LINES_CAP:
