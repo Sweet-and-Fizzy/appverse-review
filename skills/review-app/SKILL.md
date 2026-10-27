@@ -452,7 +452,9 @@ limit); advise rewording it.
      what is wrong and what to change, covering every location in the item
      (an item can group the same fix across several files or apps). Do not
      repeat the locations; the script prints them before your text. Use the
-     item's `summaries` for the specifics, in plain words.
+     item's `summaries` for the specifics, in plain words. In the file, each
+     item's `text` is on the line after its unique `group` line, so an Edit
+     matches the two lines together; or rewrite the whole file with Write.
 
   `render-feedback.py` then writes the section: the opening, the items
   numbered under **Must fix**, **Should fix** and **Suggestions (optional)**,
@@ -551,26 +553,13 @@ externally by the API provider.
 ## 6. Wrap up
 
 - Print the full report (Markdown + structured JSON block) in the conversation.
-- Offer to save the Markdown report as `review-<owner>-<repo>.md` and the
-  structured findings as `review-<owner>-<repo>.findings.json` in the current
-  directory. After saving the JSON, compute stable IDs:
+- Offer to save the Markdown report as `review-<owner>-<repo>.md`, the
+  structured findings as `review-<owner>-<repo>.findings.json` and the
+  metadata (§5) as `review-<owner>-<repo>.meta.json` in the current
+  directory.
+- In reviewer mode, build the Draft feedback (§4): prepare the items, fill
+  `opening` and every item's `text` in the feedback file, and render:
 
-      python3 "${CLAUDE_PLUGIN_ROOT}/references/compute-ids.py" \
-        < review-<owner>-<repo>.findings.json \
-        > review-<owner>-<repo>.findings.json.tmp \
-        && mv review-<owner>-<repo>.findings.json.tmp \
-              review-<owner>-<repo>.findings.json
-
-- Then write the Catalog checks section from the catalog read and, in
-  reviewer mode, build the Draft feedback (§4): prepare the items, fill
-  `opening` and every item's `text` in the feedback file, and render. Then
-  check the report and findings against every checker in one pass, fixing the
-  findings or the report until it passes. A `[floor]` line in reviewer mode is
-  fixed in the feedback file or the findings, followed by prepare and render
-  again, never by editing the rendered section:
-
-      python3 "${CLAUDE_PLUGIN_ROOT}/references/insert-catalog.py" \
-        review-<owner>-<repo>.md <pre-review-dir>
       python3 "${CLAUDE_PLUGIN_ROOT}/references/prepare-feedback.py" \
         review-<owner>-<repo>.findings.json review-<owner>-<repo>.meta.json \
         "${CLAUDE_PLUGIN_ROOT}/references/checks.json" \
@@ -578,6 +567,23 @@ externally by the API provider.
       # fill opening and each text in review-<owner>-<repo>.feedback.json
       python3 "${CLAUDE_PLUGIN_ROOT}/references/render-feedback.py" \
         review-<owner>-<repo>.md review-<owner>-<repo>.feedback.json
+
+- Then finish: compute stable IDs, write the Catalog checks section from the
+  catalog read, and check the report and findings against every checker in
+  one pass, fixing the findings or the report until it passes. A `[floor]`
+  line in reviewer mode is fixed in the feedback file or the findings,
+  followed by prepare and render again, never by editing the rendered
+  section. A CI review stops before this step: the workflow does all of it
+  after the session, and a separate repair session fixes what the checkers
+  report.
+
+      python3 "${CLAUDE_PLUGIN_ROOT}/references/compute-ids.py" \
+        < review-<owner>-<repo>.findings.json \
+        > review-<owner>-<repo>.findings.json.tmp \
+        && mv review-<owner>-<repo>.findings.json.tmp \
+              review-<owner>-<repo>.findings.json
+      python3 "${CLAUDE_PLUGIN_ROOT}/references/insert-catalog.py" \
+        review-<owner>-<repo>.md <pre-review-dir>
       python3 "${CLAUDE_PLUGIN_ROOT}/references/check-all.py" \
         review-<owner>-<repo>.md review-<owner>-<repo>.findings.json \
         "${CLAUDE_PLUGIN_ROOT}/references/checks.json" <pre-review-dir> \
