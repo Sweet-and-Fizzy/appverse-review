@@ -63,8 +63,10 @@ def section(findings, baseline):
         line = _line(f, f.get("summary"), status[i] == "still_open" and rb.dismissed_last_time(f, baseline))
         (new if status[i] == "new" else still).append(line)
     gone = [_line(f) for f in rb.not_found(findings, baseline)]
-    parts = _group("New", new) + _group("Still open", still) + _group("Not found this time", gone)
-    return "\n".join([heading, ""] + parts + ["", NOTE]) + "\n"
+    # Blank lines keep a label from reading as a lazy continuation of the previous bullet.
+    groups = [_group("New", new), _group("Still open", still), _group("Not found this time", gone)]
+    blocks = [heading] + ["\n".join(g) for g in groups] + [NOTE]
+    return "\n\n".join(blocks) + "\n"
 
 
 def place(text, new_section):
