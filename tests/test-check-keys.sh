@@ -219,4 +219,21 @@ echo '[]' > "$TMP/empty.json"
 check "exit 2" 2 "$(run "$TMP/empty.json" --vocabulary "$TMP/no-such-codes.md")"
 check "names the file" 1 "$(grep -c "^error: cannot read $TMP/no-such-codes.md" "$TMP/out")"
 
+echo "Test 26: a PASS record with no rule (a PASS tool row's Rule cell is —) is skipped; FAIL/WARN with no rule are not"
+cat > "$TMP/passnull.json" <<'EOF'
+[
+  {"app_id":"root","rule":null,"defect_key":"template/script.sh.erb:SC2046","aspect":"security","severity":"info","result":"PASS","summary":"SC2046: Quote this to prevent word splitting.","evidence":"template/script.sh.erb:14"},
+  {"app_id":"root","defect_key":"template/script.sh.erb:SC2148","aspect":"security","severity":"info","result":"PASS","summary":"SC2148: artefact","evidence":"template/script.sh.erb:1"},
+  {"app_id":"root","rule":"\u2014","defect_key":"template/script.sh.erb:SC2155","aspect":"security","severity":"info","result":"PASS","summary":"SC2155: x","evidence":"template/script.sh.erb:13"},
+  {"app_id":"root","rule":"QUA-02","defect_key":"template/script.sh.erb:hardcoded-path","aspect":"quality","severity":"low","result":"PASS","summary":"s","evidence":"template/script.sh.erb:3"}
+]
+EOF
+check "exit 0" 0 "$(run "$TMP/passnull.json" --target "$TMP/t")"
+check "summary counts only the checked record" "finding keys: 1/1 valid (3 PASS records with no rule not checked)" "$(tail -1 "$TMP/out")"
+printf '[%s]' "$(rec QUA-02 template/script.sh.erb:SC2046 | sed 's/"rule":"QUA-02"/"rule":null/')" > "$TMP/warnnull.json"
+check "a WARN with no rule: exit 1" 1 "$(run "$TMP/warnnull.json" --target "$TMP/t")"
+check "a WARN with no rule: still INVALID" 1 "$(grep -c "INVALID <missing> template/script.sh.erb:SC2046 (unknown rule '<missing>')" "$TMP/out")"
+printf '[%s]' "$(rec QUA-02 template/script.sh.erb:no-such-tag | sed 's/"result":"WARN"/"result":"PASS"/')" > "$TMP/passbad.json"
+check "a PASS with a rule is still checked: exit 1" 1 "$(run "$TMP/passbad.json" --target "$TMP/t")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

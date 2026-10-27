@@ -66,7 +66,12 @@ Rule 2 still applies (Minimal maps to High).
      told to fix. A suggestion FAIL rated low gets both lines. The same
      holds for an MNT-02..MNT-06 FAIL or WARN rated above info,
      `MISMATCH <app> <rule> <defect_key>: good-practice signal rated
-     <severity>; good-practice signals are info`. When checks.json cannot be read, is not
+     <severity>; good-practice signals are info`. A target check (`"weight":
+     "target"`, matched the same way) recorded as WARN is `MISMATCH <app>
+     <rule> <defect_key>: target (check <id>) recorded as WARN; an unmet
+     target is FAIL`: the rubric records an unmet target for inclusion as
+     FAIL, and a tool row that records under a target's rule and tag
+     (SC2164 under QUA-03 `no-error-check`) is the same check. When checks.json cannot be read, is not
      JSON or has no checks list, the script exits 2 with `error: cannot
      load references/checks.json (<reason>)` rather than skip the rule.
      This rule is general — it is not keyed to any particular app or run.
@@ -427,11 +432,12 @@ def matching_check(record, checks):
     return None
 
 
-def never_fail_mismatches(findings, checks):
+def weight_mismatches(findings, checks):
     """MISMATCH lines for suggestion-class checks and MNT-02..MNT-06
     good-practice signals recorded as FAIL — the rubric holds neither is
     ever a failure — and for either one's FAIL or WARN rated above info, so
-    it never becomes a fix-item. One line per problem: a suggestion or
+    it never becomes a fix-item; and for a target check recorded as WARN,
+    since an unmet target is a FAIL. One line per problem: a suggestion or
     good-practice FAIL rated low gets both lines."""
     lines = []
     for r in findings:
@@ -451,6 +457,10 @@ def never_fail_mismatches(findings, checks):
             lines.append(
                 "MISMATCH {} {} {}: good-practice signal rated {}; good-practice signals are info".format(
                     app_id, rule, r.get("defect_key"), severity))
+        if result == "WARN" and check is not None and check.get("weight") == "target":
+            lines.append(
+                "MISMATCH {} {} {}: target (check {}) recorded as WARN; an unmet target is FAIL".format(
+                    app_id, rule, r.get("defect_key"), check["id"]))
         if result != "FAIL":
             continue
         if suggestion:
@@ -711,7 +721,7 @@ def main(argv):
         print("error: no '## App:' section in report", file=sys.stderr)
         return MALFORMED
 
-    for line in never_fail_mismatches(findings, checks):
+    for line in weight_mismatches(findings, checks):
         problems += 1
         print(line)
 
