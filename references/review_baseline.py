@@ -21,6 +21,8 @@ import os
 import re
 import sys
 
+import report_parse
+
 DECISION_KIND = {
     "accept": "update",
     "accept_with_suggestions": "update",
@@ -111,7 +113,10 @@ def load(path):
         return None
     try:
         with open(path) as f:
-            return json.load(f)
+            doc = json.load(f)
+        if not isinstance(doc, dict):
+            raise ValueError("not a JSON object")
+        return doc
     except (OSError, ValueError) as e:
         print(
             "warning: baseline {} unreadable ({}); treated as none".format(path, e),
@@ -130,6 +135,93 @@ def kind_for(app_id, baseline):
     if app_id in ("root", ""):
         return DECISION_KIND[baseline["recommendation"]]
     return "plain"
+
+
+def _open_ids(findings):
+    """Stable IDs of the current FAIL/WARN findings (PASS rows carry none)."""
+    return {
+        stable_id(f)
+        for f in findings
+        if str(f.get("result", "")).strip().upper() in ("FAIL", "WARN")
+    }
+
+
+def _baseline_entries(baseline):
+    """Baseline findings by ID; empty when there is nothing to compare with."""
+    if not baseline or not baseline.get("comparable"):
+        return {}
+    return {f["id"]: f for f in baseline["findings"]}
+
+
+def statuses(findings, baseline):
+    """{stable_id: "new" | "still_open"} for each current FAIL/WARN finding.
+
+    IDs are derived from the current findings, never read from an `id` field:
+    findings written during the review session have none yet.
+    """
+    if not baseline or not baseline.get("comparable"):
+        return {}
+    known = _baseline_entries(baseline)
+    return {i: "still_open" if i in known else "new" for i in _open_ids(findings)}
+
+
+def not_found(findings, baseline):
+    """Baseline findings no longer present, in baseline order; dismissed ones
+    are left out because the contributor already answered them."""
+    if not baseline or not baseline.get("comparable"):
+        return []
+    current = _open_ids(findings)
+    return [
+        f for f in baseline["findings"] if f["id"] not in current and not f["dismissed"]
+    ]
+
+
+def dismissed_last_time(finding, baseline):
+    """The finding is still open and the contributor dismissed it last time."""
+    entry = _baseline_entries(baseline).get(stable_id(finding))
+    return bool(entry and entry["dismissed"])
+
+
+def reviewer_only(finding, baseline):
+    """A still-open finding on an app that was already accepted, which does
+    not set a decision floor: it stays in the full review but is not
+    re-sent to the contributor."""
+    return (
+        stable_id(finding) in _baseline_entries(baseline)
+        and kind_for(finding.get("app_id"), baseline) == "update"
+        and not report_parse.sets_floor(finding)
+    )
+
+
+def feedback_findings(findings, baseline):
+    """The fix-items the contributor feedback names."""
+    return [
+        f
+        for f in findings
+        if report_parse.is_fix_item(f) and not reviewer_only(f, baseline)
+    ]
+
+
+def greeting(baseline, name):
+    """Opening line of the feedback; empty when nothing changed since the last send."""
+    if baseline and baseline.get("same_commit"):
+        return ""
+    kind = kind_for("root", baseline)
+    if kind == "update":
+        return "Thank you for the update to {}.".format(name)
+    if kind == "resubmission":
+        return "Thank you for the updates to {}.".format(name)
+    return "Thank you for submitting {} to Appverse.".format(name)
+
+
+def reminder(findings, baseline):
+    """One sentence pointing at the reviewer-only findings the feedback omits."""
+    n = sum(1 for f in findings if reviewer_only(f, baseline))
+    if n == 0:
+        return ""
+    if n == 1:
+        return "One finding from the last review is still open; it is listed in the full review."
+    return "{} findings from the last review are still open; they are listed in the full review.".format(n)
 
 
 def main(argv):
