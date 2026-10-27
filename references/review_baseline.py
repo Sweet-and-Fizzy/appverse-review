@@ -1,0 +1,149 @@
+#!/usr/bin/env python3
+"""The baseline: the last review the hub sent to the contributor.
+
+The workflow passes it in as a JSON document (environment variable
+BASELINE_INPUT). This module validates it, decides what kind of review this
+is relative to it, and owns the finding-ID derivation both sides share.
+
+    BASELINE_INPUT='{...}' python3 references/review_baseline.py write \\
+        <out.json> <target-sha>
+
+`write` saves the validated baseline (plus `same_commit` and `comparable`)
+to out.json and prints the repo's kind, `kind: plain|update|resubmission`,
+followed by `, same commit` when the baseline was sent for this commit. A
+malformed input is ignored with a `::warning::` line. Always exits 0: a bad
+baseline must never fail the review.
+"""
+
+import hashlib
+import json
+import os
+import re
+import sys
+
+DECISION_KIND = {
+    "accept": "update",
+    "accept_with_suggestions": "update",
+    "request_changes": "resubmission",
+    "reject": "resubmission",
+}
+
+_SHA = re.compile(r"[0-9a-fA-F]{7,40}")
+
+
+def stable_id(finding):
+    """Finding ID: first 16 hex of SHA-256 over app_id, rule, defect_key.
+
+    `rule` may be null (the fields join as the string "None"); compute-ids.py
+    and the hub must derive the same ID, so there is one implementation.
+    """
+    key = "{}\0{}\0{}".format(
+        finding.get("app_id"), finding.get("rule"), finding.get("defect_key")
+    )
+    return hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
+
+
+def _finding_problem(i, f):
+    if not isinstance(f, dict):
+        return "findings[{}] is not an object".format(i)
+    for field in ("id", "app_id", "defect_key", "severity"):
+        if not isinstance(f.get(field), str):
+            return "findings[{}].{} is not a string".format(i, field)
+    if "rule" not in f or not (f["rule"] is None or isinstance(f["rule"], str)):
+        return "findings[{}].rule is not a string or null".format(i)
+    if f.get("result") not in ("FAIL", "WARN"):
+        return "findings[{}].result is not FAIL or WARN".format(i)
+    if not isinstance(f.get("dismissed"), bool):
+        return "findings[{}].dismissed is not a boolean".format(i)
+    return None
+
+
+def _problem(doc):
+    if not isinstance(doc, dict):
+        return "not a JSON object"
+    sha = doc.get("sha")
+    if not isinstance(sha, str) or not _SHA.fullmatch(sha):
+        return "sha is not 7-40 hex characters"
+    if not isinstance(doc.get("sent_at"), int) or isinstance(doc["sent_at"], bool):
+        return "sent_at is not an integer"
+    if doc.get("recommendation") not in DECISION_KIND:
+        return "recommendation is not a decision"
+    apps = doc.get("apps")
+    if not isinstance(apps, dict) or any(
+        not isinstance(k, str) or v not in DECISION_KIND for k, v in apps.items()
+    ):
+        return "apps is not an object mapping app ids to decisions"
+    if "findings" in doc:
+        if not isinstance(doc["findings"], list):
+            return "findings is not a list"
+        for i, f in enumerate(doc["findings"]):
+            problem = _finding_problem(i, f)
+            if problem:
+                return problem
+    return None
+
+
+def validate(raw, target_sha):
+    """Return (doc, warning). Empty input is (None, None): no baseline."""
+    if not raw or not raw.strip():
+        return None, None
+    try:
+        doc = json.loads(raw)
+    except ValueError as e:
+        return None, "not valid JSON ({})".format(e)
+    problem = _problem(doc)
+    if problem:
+        return None, problem
+    a, b = target_sha.lower(), doc["sha"].lower()
+    doc["same_commit"] = a.startswith(b) or b.startswith(a)
+    doc["comparable"] = "findings" in doc
+    return doc, None
+
+
+def load(path):
+    """Read a file `validate` wrote; None when there is no usable baseline."""
+    if not path or not os.path.exists(path):
+        return None
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except (OSError, ValueError) as e:
+        print(
+            "warning: baseline {} unreadable ({}); treated as none".format(path, e),
+            file=sys.stderr,
+        )
+        return None
+
+
+def kind_for(app_id, baseline):
+    """plain, update or resubmission for one app (or the repo, as "root")."""
+    if not baseline:
+        return "plain"
+    apps = baseline.get("apps", {})
+    if app_id in apps:
+        return DECISION_KIND[apps[app_id]]
+    if app_id in ("root", ""):
+        return DECISION_KIND[baseline["recommendation"]]
+    return "plain"
+
+
+def main(argv):
+    if len(argv) != 4 or argv[1] != "write":
+        print("usage: review_baseline.py write <out.json> <target-sha>", file=sys.stderr)
+        return 2
+    out, target_sha = argv[2], argv[3]
+    doc, warning = validate(os.environ.get("BASELINE_INPUT", ""), target_sha)
+    if warning:
+        print("::warning::baseline input ignored: {}".format(warning))
+    if doc is None:
+        print("kind: plain")
+        return 0
+    with open(out, "w") as f:
+        json.dump(doc, f, indent=2)
+        f.write("\n")
+    print("kind: {}{}".format(kind_for("root", doc), ", same commit" if doc["same_commit"] else ""))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

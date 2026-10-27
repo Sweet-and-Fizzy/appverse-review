@@ -15,9 +15,12 @@ fields joined by NUL bytes:
 See finding-codes.md for the full identity design.
 """
 
-import hashlib
 import json
+import os
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from review_baseline import stable_id  # noqa: E402
 
 IDENTITY_FIELDS = ("app_id", "rule", "defect_key")
 
@@ -32,12 +35,7 @@ def compute_id(finding, index):
                 file=sys.stderr,
             )
             sys.exit(1)
-    key = "{}\0{}\0{}".format(
-        finding["app_id"],
-        finding["rule"],
-        finding["defect_key"],
-    )
-    return hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
+    return stable_id(finding)
 
 
 def main():
