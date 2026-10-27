@@ -11,8 +11,9 @@ otherwise the section goes before "## Overall recommendation" (or
 one without findings) any existing section is removed instead, so a stale
 section never survives a rerun.
 
-Exit 0 in every case except an unreadable or unwritable report or findings
-file (2).
+Exit 0 in every case except an unreadable or unwritable report (2). A
+findings file that is unreadable or not a list is a warning, and any
+existing section is removed.
 """
 import datetime
 import json
@@ -32,7 +33,7 @@ NOTE = ("_Not found this time means this run did not record the finding: "
 
 def _line(finding, summary=None, dismissed=False):
     rule = finding.get("rule") or "—"
-    text = "- {} `{}`".format(rule, finding["defect_key"])
+    text = "- {} `{}`".format(rule, finding.get("defect_key"))
     if summary:
         text += " — " + summary
     if dismissed:
@@ -98,14 +99,24 @@ def main(argv):
     try:
         with open(report, encoding="utf-8") as f:
             text = f.read()
-        with open(findings_path, encoding="utf-8") as f:
-            findings = json.load(f)
-    except (OSError, ValueError) as e:
+    except OSError as e:
         print("error: %s" % e)
         return 2
     baseline = rb.load(opts["--baseline"])
     comparable = bool(baseline and baseline.get("comparable"))
-    new = place(text, section(findings, baseline) if comparable else None)
+    new_section = None
+    if comparable:
+        # A findings file that cannot be compared must not leave a stale section behind.
+        try:
+            with open(findings_path, encoding="utf-8") as f:
+                findings = json.load(f)
+            if not isinstance(findings, list):
+                raise ValueError("not a JSON list")
+            new_section = section([f for f in findings if isinstance(f, dict)], baseline)
+        except (OSError, ValueError) as e:
+            print("warning: findings %s unreadable (%s); no section written" % (findings_path, e), file=sys.stderr)
+            comparable = False
+    new = place(text, new_section)
     if new != text:
         try:
             tmp = report + ".tmp"

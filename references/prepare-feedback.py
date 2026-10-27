@@ -40,7 +40,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from report_parse import defect_tag, sets_floor  # noqa: E402
+from report_parse import defect_tag, positional_args, sets_floor  # noqa: E402
 import review_baseline  # noqa: E402
 from feedback_terms import evidence_locations, subject_words  # noqa: E402
 
@@ -123,9 +123,12 @@ def fold_targets(fix_items):
 
 
 def is_still_open(group_findings, states, baseline):
-    """Every finding was open in the last review and its app was a resubmission."""
+    """Every finding was open in the last review, its app was a resubmission,
+    and the reviewer had not dismissed it (a dismissal means it was never
+    asked of the contributor, so "still open from the last review" misleads)."""
     return all(
         states.get(review_baseline.stable_id(f)) == "still_open"
+        and not review_baseline.dismissed_last_time(f, baseline)
         and review_baseline.kind_for(f.get("app_id"), baseline) == "resubmission"
         for f in group_findings
     )
@@ -223,16 +226,13 @@ def load(path, what):
 
 
 def main(argv):
-    args = argv[1:]
-    baseline_path = None
-    if len(args) >= 2 and args[0] == "--baseline":
-        baseline_path, args = args[1], args[2:]
-    if len(args) != 4:
-        print("usage: prepare-feedback.py [--baseline <baseline.json>] <findings.json> <meta.json> "
-              "<checks.json> <feedback.json>", file=sys.stderr)
-        return 2
-    findings_path, meta_path, checks_path, out_path = args
-    baseline = review_baseline.load(baseline_path)
+    parsed = positional_args(
+        argv, ["findings.json", "meta.json", "checks.json", "feedback.json"], options=("--baseline",),
+        description=(__doc__ or "").split("\n\n")[0])
+    if isinstance(parsed, int):
+        return parsed
+    (_, findings_path, meta_path, checks_path, out_path), opts = parsed
+    baseline = review_baseline.load(opts["--baseline"])
     try:
         with open(findings_path, encoding="utf-8") as f:
             findings = json.load(f)

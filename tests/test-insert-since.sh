@@ -34,7 +34,8 @@ json.dump([dict(B, summary=""), dict(A, summary="A now"), G, E, dict(D, result="
 json.dump([B, A], open(tmp + "/findings-none-new.json", "w"))
 json.dump(base(), open(tmp + "/base.json", "w"))
 json.dump(base(same_commit=True), open(tmp + "/same.json", "w"))
-json.dump(base(comparable=False), open(tmp + "/nocmp.json", "w"))
+nc = base(comparable=False); del nc["findings"]
+json.dump(nc, open(tmp + "/nocmp.json", "w"))
 PYEOF
 REPORT=$'# Review\n\n## App: X (root)\n\nbody\n\n## Overall recommendation\n\nAccept.\n\n## Draft feedback\n\nHi.\n'
 run() { printf '%s' "$REPORT" > "$TMP/r.md"; python3 "$INS" "$TMP/r.md" "$TMP/findings.json" --baseline "$1" >/dev/null; echo $?; }
@@ -133,5 +134,29 @@ checkers() { # report
   python3 "$SCRIPT_DIR/references/check-feedback-floor.py" "$RUN/findings.json" "$1" 2>&1
 }
 check "same checker output" "$(checkers "$TMP/real-orig.md")" "$(checkers "$TMP/real.md")"
+
+echo "Test 8: an unreadable or non-list findings file never fails the run"
+SECTION_REPORT=$'# Review\n\n## Since the last review (sent 2023-11-14, commit abc1234)\n\nold\n\n## Overall recommendation\n\nAccept.\n'
+echo '{"not":"a list"}' > "$TMP/findings-obj.json"; echo '{' > "$TMP/findings-bad.json"
+try() { # report-text findings baseline-args...: exit code, then whether a section remains
+  local text="$1" fpath="$2"; shift 2
+  printf '%s' "$text" > "$TMP/r.md"
+  python3 "$INS" "$TMP/r.md" "$fpath" "$@" >/dev/null 2>&1; local rc=$?
+  echo "$rc $(grep -c '^## Since the last review' "$TMP/r.md")"; }
+check "no baseline, unreadable findings, no section" "0 0" "$(try "$REPORT" "$TMP/missing-findings.json")"
+check "no baseline, malformed findings, no section" "0 0" "$(try "$REPORT" "$TMP/findings-bad.json")"
+check "no baseline, non-list findings, no section" "0 0" "$(try "$REPORT" "$TMP/findings-obj.json")"
+check "no baseline, bad findings: existing section removed" "0 0" "$(try "$SECTION_REPORT" "$TMP/findings-bad.json")"
+check "comparison, unreadable findings: section removed" "0 0" "$(try "$SECTION_REPORT" "$TMP/missing-findings.json" --baseline "$TMP/base.json")"
+check "comparison, malformed findings: section removed" "0 0" "$(try "$SECTION_REPORT" "$TMP/findings-bad.json" --baseline "$TMP/base.json")"
+check "comparison, non-list findings: section removed" "0 0" "$(try "$SECTION_REPORT" "$TMP/findings-obj.json" --baseline "$TMP/base.json")"
+printf '%s' "$REPORT" > "$TMP/r.md"
+check "comparison, bad findings: one warning" "1" "$(python3 "$INS" "$TMP/r.md" "$TMP/findings-obj.json" --baseline "$TMP/base.json" 2>&1 | grep -c '^warning:')"
+python3 - "$TMP" <<'PYEOF2'
+import json, sys
+tmp = sys.argv[1]
+json.dump([{"app_id": "root", "rule": "QUA-04", "result": "WARN", "severity": "low"}], open(tmp + "/findings-nokey.json", "w"))
+PYEOF2
+check "finding without defect_key: no traceback" "0" "$(try "$REPORT" "$TMP/findings-nokey.json" --baseline "$TMP/base.json" | cut -d' ' -f1)"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

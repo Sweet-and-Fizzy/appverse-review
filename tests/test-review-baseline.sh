@@ -56,7 +56,7 @@ check "new app" "plain" "$(py "print(b.kind_for('b',dict(recommendation='request
 check "no baseline" "plain" "$(py "print(b.kind_for('a',None))")"
 
 echo "Test 6: load"
-valid abc1234 > "$TMP/ok.json"; echo '{' > "$TMP/bad.json"
+BASELINE_INPUT="$(valid abc1234)" python3 "$MOD" write "$TMP/ok.json" abc1234 >/dev/null; echo '{' > "$TMP/bad.json"
 check "no path" "None" "$(py "print(b.load(None))")"
 check "absent file" "None" "$(py "print(b.load('$TMP/none.json'))")"
 check "reads file" "accept" "$(py "print(b.load('$TMP/ok.json')['recommendation'])")"
@@ -128,5 +128,53 @@ printf '{"sha":"abc' > "$TMP/trunc.json"; echo '[]' > "$TMP/arr.json"
 check "truncated file: one warning" "1" "$(py "b.load('$TMP/trunc.json')" | grep -c '^warning: baseline .* treated as none$')"
 check "truncated file: plain feedback" "True" "$(t8 "print(b.feedback_findings(cur, b.load('$TMP/trunc.json')) == [f for f in cur if f is not PASS])" | tail -1)"
 check "array file: none with one warning" "1|None" "$(py "print(b.load('$TMP/arr.json'))" | awk '/^warning: baseline .* treated as none$/{w++} /^None$/{n="None"} END{print w"|"n}')"
+
+echo "Test 9: load rejects a hand-edited baseline file"
+# hand <name> <json>: load() gives None with exactly one warning.
+hand() { local name="$1"; printf '%s' "$2" > "$TMP/hand.json"
+  check "$name" "1|None" "$(py "print(b.load('$TMP/hand.json'))" | awk '/^warning: baseline .* treated as none$/{w++} /^None$/{n="None"} END{print w+0"|"n}')"; }
+OK='"sha":"abc1234","sent_at":1,"recommendation":"accept"'
+hand "no recommendation, sent_at or flags" '{"sha":"abc1234","apps":{}}'
+hand "comparable without findings" "{$OK,\"apps\":{},\"same_commit\":false,\"comparable\":true}"
+hand "capitalised app decision" "{$OK,\"apps\":{\"root\":\"Accept\"},\"same_commit\":false,\"comparable\":false}"
+hand "no same_commit" "{$OK,\"apps\":{},\"comparable\":false}"
+hand "comparable not a boolean" "{$OK,\"apps\":{},\"same_commit\":false,\"comparable\":\"yes\"}"
+hand "findings present but comparable false" "{$OK,\"apps\":{},\"same_commit\":false,\"comparable\":false,\"findings\":[]}"
+hand "malformed finding" "{$OK,\"apps\":{},\"same_commit\":false,\"comparable\":true,\"findings\":[{}]}"
+
+echo "Test 10: every consumer treats such a file as no baseline"
+RUN="$SCRIPT_DIR/tests/corpus/ood-sas-36773061549"; REF="$SCRIPT_DIR/references"
+printf '{"sha":"abc1234","apps":{}}' > "$TMP/hand.json"
+run_all() { # tag baseline-args...: each consumer into $TMP/<tag>-*; echoes the exit codes
+  local tag="$1"; shift
+  python3 "$REF/prepare-feedback.py" "$@" "$RUN/findings.json" "$RUN/meta.json" "$REF/checks.json" "$TMP/$tag-fb.json" >/dev/null 2>&1; local a=$?
+  python3 "$REF/check-feedback-floor.py" "$RUN/findings.json" "$RUN/report.md" "$@" >"$TMP/$tag-floor" 2>/dev/null; local b=$?
+  cp "$RUN/report.md" "$TMP/$tag-r.md"
+  python3 "$REF/insert-since.py" "$TMP/$tag-r.md" "$RUN/findings.json" "$@" >/dev/null 2>&1; local c=$?
+  python3 "$REF/assemble-artifact.py" --meta "$RUN/meta.json" --findings "$RUN/findings.json" --md "$RUN/report.md" \
+    --plugin-version 0.3.0 "$@" 2>/dev/null | python3 -c 'import json,sys; d=json.load(sys.stdin); d.pop("reviewed"); json.dump(d, open(sys.argv[1], "w"), sort_keys=True)' "$TMP/$tag-art.json"; local d=${PIPESTATUS[0]}
+  echo "$a $b $c $d"; }
+check "exit codes match the no-baseline run" "$(run_all none)" "$(run_all hand --baseline "$TMP/hand.json")"
+check "feedback.json matches" "same" "$(cmp -s "$TMP/none-fb.json" "$TMP/hand-fb.json" && echo same || echo differ)"
+check "floor output matches" "same" "$(cmp -s "$TMP/none-floor" "$TMP/hand-floor" && echo same || echo differ)"
+check "report matches" "same" "$(cmp -s "$TMP/none-r.md" "$TMP/hand-r.md" && echo same || echo differ)"
+check "artifact matches" "same" "$(cmp -s "$TMP/none-art.json" "$TMP/hand-art.json" && echo same || echo differ)"
+
+echo "Test 11: smaller fixes"
+check "same_commit needs a target sha" "False" "$(RAW="$(valid abc1234)" py "print(b.validate(raw,'')[0]['same_commit'])")"
+check "null app_id is root" "update" "$(py "print(b.kind_for(None,dict(recommendation='accept', apps=dict(root='accept'))))")"
+check "empty app_id is root" "update" "$(py "print(b.kind_for('',dict(recommendation='accept', apps=dict(root='accept'))))")"
+check "greeting without a name (update)" "Thank you for the update to this app." "$(t8 "print(b.greeting(base(), ''))")"
+check "greeting without a name (resubmission)" "Thank you for the updates to this app." "$(t8 "print(b.greeting(base('reject'), ''))")"
+check "greeting without a name (plain)" "Thank you for submitting this app to Appverse." "$(t8 "print(b.greeting(None, ''))")"
+check "reminder skips an Info finding" "One finding from the last review is still open; it is listed in the full review." \
+  "$(t8 "I = mk('QUA-05', 'i', 'WARN', 'info'); bl=base(); bl['findings'].append(entry(I)); print(b.reminder([A, I], bl))")"
+check "reminder with only an Info finding" "''" "$(t8 "I = mk('QUA-05', 'i', 'WARN', 'info'); bl=base(); bl['findings'].append(entry(I)); print(repr(b.reminder([I], bl)))")"
+mkdir -p "$TMP/ro"; chmod 555 "$TMP/ro"
+if [ "$(id -u)" != 0 ]; then
+  check "unwritable out path: warns, exits 0" "::warning::baseline not written|kind: plain|exit 0" \
+    "$(BASELINE_INPUT="$(valid abc1234)" python3 "$MOD" write "$TMP/ro/sub/out.json" abc1234 2>&1 | sed 's/\(baseline not written\):.*/\1/' | tr '\n' '|'; echo "exit ${PIPESTATUS[0]}")"
+fi
+chmod 755 "$TMP/ro"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

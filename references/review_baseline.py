@@ -102,9 +102,23 @@ def validate(raw, target_sha):
     if problem:
         return None, problem
     a, b = target_sha.lower(), doc["sha"].lower()
-    doc["same_commit"] = a.startswith(b) or b.startswith(a)
+    # An empty target would be a prefix of everything.
+    doc["same_commit"] = len(a) >= 7 and (a.startswith(b) or b.startswith(a))
     doc["comparable"] = "findings" in doc
     return doc, None
+
+
+def _file_problem(doc):
+    """What is wrong with a file `validate` wrote, or None. The file may have
+    been edited by hand, so it gets the input checks plus the derived keys."""
+    problem = _problem(doc)
+    if problem:
+        return problem
+    if not isinstance(doc.get("same_commit"), bool) or not isinstance(doc.get("comparable"), bool):
+        return "same_commit or comparable is not a boolean"
+    if doc["comparable"] != ("findings" in doc):
+        return "comparable does not match the findings"
+    return None
 
 
 def load(path):
@@ -114,8 +128,9 @@ def load(path):
     try:
         with open(path) as f:
             doc = json.load(f)
-        if not isinstance(doc, dict):
-            raise ValueError("not a JSON object")
+        problem = _file_problem(doc)
+        if problem:
+            raise ValueError(problem)
         return doc
     except (OSError, ValueError) as e:
         print(
@@ -129,10 +144,11 @@ def kind_for(app_id, baseline):
     """plain, update or resubmission for one app (or the repo, as "root")."""
     if not baseline:
         return "plain"
+    app_id = app_id or "root"
     apps = baseline.get("apps", {})
     if app_id in apps:
         return DECISION_KIND[apps[app_id]]
-    if app_id in ("root", ""):
+    if app_id == "root":
         return DECISION_KIND[baseline["recommendation"]]
     return "plain"
 
@@ -168,7 +184,7 @@ def statuses(findings, baseline):
 
 def not_found(findings, baseline):
     """Baseline findings no longer present, in baseline order; dismissed ones
-    are left out because the contributor already answered them."""
+    are left out because the reviewer already dismissed them."""
     if not baseline or not baseline.get("comparable"):
         return []
     current = _open_ids(findings)
@@ -178,7 +194,7 @@ def not_found(findings, baseline):
 
 
 def dismissed_last_time(finding, baseline):
-    """The finding is still open and the contributor dismissed it last time."""
+    """The finding is still open and the reviewer dismissed it last time."""
     entry = _baseline_entries(baseline).get(stable_id(finding))
     return _is_open(finding) and bool(entry and entry["dismissed"])
 
@@ -208,6 +224,7 @@ def greeting(baseline, name):
     """Opening line of the feedback; empty when nothing changed since the last send."""
     if baseline and baseline.get("same_commit"):
         return ""
+    name = (name or "").strip() or "this app"
     kind = kind_for("root", baseline)
     if kind == "update":
         return "Thank you for the update to {}.".format(name)
@@ -218,7 +235,7 @@ def greeting(baseline, name):
 
 def reminder(findings, baseline):
     """One sentence pointing at the reviewer-only findings the feedback omits."""
-    n = sum(1 for f in findings if reviewer_only(f, baseline))
+    n = sum(1 for f in findings if report_parse.is_fix_item(f) and reviewer_only(f, baseline))
     if n == 0:
         return ""
     if n == 1:
@@ -237,9 +254,15 @@ def main(argv):
     if doc is None:
         print("kind: plain")
         return 0
-    with open(out, "w") as f:
-        json.dump(doc, f, indent=2)
-        f.write("\n")
+    try:
+        os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
+        with open(out, "w") as f:
+            json.dump(doc, f, indent=2)
+            f.write("\n")
+    except OSError as e:
+        print("::warning::baseline not written: {}".format(e))
+        print("kind: plain")
+        return 0
     print("kind: {}{}".format(kind_for("root", doc), ", same commit" if doc["same_commit"] else ""))
     return 0
 

@@ -97,7 +97,7 @@ echo "Test 2: archived repo"
 cat > "$TMP/meta-archived.json" << 'EOF'
 {
   "repo_url": "https://github.com/test/old",
-  "sha": "def456", "ref": "main",
+  "sha": "def4567", "ref": "main",
   "repo_shape": "inferred_single",
   "not_archived": "fail",
   "recommendation": {"decision": "Reject", "note": "Archived."},
@@ -937,7 +937,7 @@ def mk(rule, key, result, sev):
 A = mk("QUA-07", "a.sh:a", "WARN", "low"); B = mk("OODT-01", "b.sh:b", "FAIL", "high")
 C = mk("QUA-02", "c.sh:c", "WARN", "low"); D = mk("QUA-03", "d.sh:d", "WARN", "low")
 entry = lambda f, dis=False: dict(f, id=b.stable_id(f), dismissed=dis)
-base = dict(review="r1", sha="def456", ref="main", sent_at="2026-10-01T00:00:00Z", recommendation="accept",
+base = dict(review="r1", sha="def4567", ref="main", sent_at=1790812800, recommendation="accept",
             apps={"root": "accept"}, same_commit=False, comparable=True,
             findings=[entry(A), entry(B, True), entry(C, True), entry(D)])
 json.dump(base, open(tmp + "/base21.json", "w"))
@@ -947,7 +947,7 @@ print(b.stable_id(D))
 EOF
 D_ID=$(python3 "$TMP/mk21.py" "$TMP" "$SCRIPT_DIR")
 A21=$(python3 "$ASSEMBLE" --meta "$TMP/meta21.json" --findings "$TMP/findings21.json" --md r.md --baseline "$TMP/base21.json" --plugin-version 0.3.0 2>"$TMP/err21")
-check "case21: block" "r1 def456 2026-10-01T00:00:00Z update False True" "$(echo "$A21" | jget "' '.join(str(d['since_last_review'][k]) for k in ('review','sha','sent_at','kind','same_commit','comparable'))")"
+check "case21: block" "r1 def4567 1790812800 update False True" "$(echo "$A21" | jget "' '.join(str(d['since_last_review'][k]) for k in ('review','sha','sent_at','kind','same_commit','comparable'))")"
 check "case21: statuses on A, B, E" "['still_open', 'still_open', 'new']" "$(echo "$A21" | jget "[f.get('since_last_review') for f in d['apps'][0]['findings'][:3]]")"
 check "case21: PASS row has no key" "False" "$(echo "$A21" | jget "'since_last_review' in d['apps'][0]['findings'][3]")"
 check "case21: dismissed_last_time only on B" "[False, True, False, False]" "$(echo "$A21" | jget "['dismissed_last_time' in f for f in d['apps'][0]['findings']]")"
