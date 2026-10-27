@@ -9,8 +9,8 @@ check() { local name="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then echo "  PASS  $name"; pass=$((pass+1)); else echo "  FAIL  $name: expected '$expected', got '$actual'"; fail=$((fail+1)); fi; }
 
 # Baseline: A (still open, WARN, dismissed), B (still open, FAIL), C (dismissed, absent now),
-# D and F (absent now; D's key also appears in a current PASS row).
-# Current, in a different order from the baseline: B (empty summary), A (new summary), E (new), PASS row on D's key.
+# F then D (absent now, non-alphabetical; D's key also appears in a current PASS row).
+# Current, in a different order from the baseline: B (empty summary), A (new summary), G and E (new, G first), PASS row on D's key.
 python3 - "$TMP" <<'PYEOF'
 import json, sys, hashlib
 tmp = sys.argv[1]
@@ -20,16 +20,16 @@ def sid(f):
     return hashlib.sha256("{}\0{}\0{}".format(f["app_id"], f["rule"], f["defect_key"]).encode()).hexdigest()[:16]
 A = mk("QUA-07", "a", "WARN", "low", "A before"); B = mk("OODT-01", "b", "FAIL", "high", "B before")
 C = mk("QUA-02", "c", "WARN", "low"); D = mk(None, "d", "WARN", "low", "D before"); F = mk("QUA-05", "f", "WARN", "low", "F before")
-E = mk("QUA-04", "e", "WARN", "low", "E summary")
+E = mk("QUA-04", "e", "WARN", "low", "E summary"); G = mk("QUA-08", "g", "WARN", "low", "G summary")
 def entry(f, dismissed=False):
     return dict(f, id=sid(f), dismissed=dismissed)
 def base(**kw):
     d = dict(sha="abc1234def0", sent_at=1700000000, recommendation="accept", apps=dict(root="accept"),
              same_commit=False, comparable=True,
-             findings=[entry(A, True), entry(B), entry(C, True), entry(D), entry(F)])
+             findings=[entry(A, True), entry(B), entry(C, True), entry(F), entry(D)])
     d.update(kw)
     return d
-json.dump([dict(B, summary=""), dict(A, summary="A now"), E, dict(D, result="PASS", summary="fine")],
+json.dump([dict(B, summary=""), dict(A, summary="A now"), G, E, dict(D, result="PASS", summary="fine")],
           open(tmp + "/findings.json", "w"))
 json.dump([B, A], open(tmp + "/findings-none-new.json", "w"))
 json.dump(base(), open(tmp + "/base.json", "w"))
@@ -42,7 +42,7 @@ run() { printf '%s' "$REPORT" > "$TMP/r.md"; python3 "$INS" "$TMP/r.md" "$TMP/fi
 echo "Test 1: section content and placement"
 check "exit 0" "0" "$(run "$TMP/base.json")"
 check "heading" "1" "$(grep -cxF '## Since the last review (sent 2023-11-14, commit abc1234)' "$TMP/r.md")"
-check "New count" "1" "$(grep -cxF '**New** (1)' "$TMP/r.md")"
+check "New count" "1" "$(grep -cxF '**New** (2)' "$TMP/r.md")"
 check "Still open count" "1" "$(grep -cxF '**Still open** (2)' "$TMP/r.md")"
 check "Not found count" "1" "$(grep -cxF '**Not found this time** (2)' "$TMP/r.md")"
 check "null rule prints a dash" "1" "$(grep -cxF -- '- — `d`' "$TMP/r.md")"
@@ -56,7 +56,8 @@ echo "Test 1b: the whole section, exactly (order, summaries, blank lines)"
 section() { awk -v h="## Since the last review" 'index($0,h)==1{p=1;print;next} p&&/^## /{exit} p' "$1"; }
 EXPECTED='## Since the last review (sent 2023-11-14, commit abc1234)
 
-**New** (1)
+**New** (2)
+- QUA-08 `g` — G summary
 - QUA-04 `e` — E summary
 
 **Still open** (2)
@@ -64,8 +65,8 @@ EXPECTED='## Since the last review (sent 2023-11-14, commit abc1234)
 - QUA-07 `a` — A now (dismissed last time)
 
 **Not found this time** (2)
-- — `d`
 - QUA-05 `f`
+- — `d`
 
 _Not found this time means this run did not record the finding: it may have been fixed, or the review may have varied._'
 check "exact section" "$EXPECTED" "$(section "$TMP/r.md")"
@@ -80,8 +81,8 @@ EXPECTED0='## Since the last review (sent 2023-11-14, commit abc1234)
 - QUA-07 `a` — A before (dismissed last time)
 
 **Not found this time** (2)
-- — `d`
 - QUA-05 `f`
+- — `d`
 
 _Not found this time means this run did not record the finding: it may have been fixed, or the review may have varied._'
 check "empty group is its label and (0)" "$EXPECTED0" "$(section "$TMP/r0.md")"
