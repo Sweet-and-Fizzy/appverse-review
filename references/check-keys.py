@@ -16,6 +16,11 @@ its anchor file (or under it, for a directory anchor; in a monorepo a
 citation relative to the app counts), is INVALID "(evidence does not cite
 the anchor file)": the key then names a different place than the evidence.
 Pseudo-anchors, absent-file tags and evidence with no citation are exempt.
+A PASS record with no rule (null, empty or "—") is not checked: the
+security skill writes a PASS tool row with Rule "—", its tag is the tool's
+code rather than a vocabulary tag, and check-rows.py already confirms from
+the report that every candidate is answered. A PASS cannot be a fix-item,
+so its key never reaches the feedback; a PASS with a rule is still checked.
 Exit 0 when every key is valid, 1 when any is not (one INVALID line each),
 2 when the input cannot be read.
 """
@@ -27,6 +32,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from repo_paths import PSEUDO_ANCHORS, exists_case_exact, parse_citations  # noqa: E402
+
+# The Rule a PASS tool row carries (null in the findings JSON, or the report's "—").
+NO_RULE = ("", "—", "-")
 
 # Absent-file tags (STR-01, STR-07, MNT-03): the file does not exist by
 # definition, so the anchor is the fixed expected path, prefixed with the
@@ -231,12 +239,16 @@ def main(argv):
         print("error: {}".format(e), file=sys.stderr)
         return 2
     bad = 0
+    unruled = [f for f in findings if f.get("result") == "PASS" and str(f.get("rule") or "").strip() in NO_RULE]
+    findings = [f for f in findings if f not in unruled]
     for f in findings:
         rule, key, reason = validate(f, vocab, args.target)
         if reason:
             bad += 1
             print("INVALID {} {} ({})".format(rule, key, reason))
-    print("finding keys: {}/{} valid".format(len(findings) - bad, len(findings)))
+    note = " ({} PASS record{} with no rule not checked)".format(
+        len(unruled), "" if len(unruled) == 1 else "s") if unruled else ""
+    print("finding keys: {}/{} valid{}".format(len(findings) - bad, len(findings), note))
     return 1 if bad else 0
 
 

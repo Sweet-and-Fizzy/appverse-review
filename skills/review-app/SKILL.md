@@ -605,7 +605,8 @@ externally by the API provider.
   cited for two rungs, the stub line and Below minimal follow
   `readme.json`'s `stub`; no suggestion-class check (any tag in its
   checks.json `tags`) or MNT-02 to MNT-06 signal is FAIL, and no
-  suggestion-class or MNT-02 to MNT-06 FAIL or WARN is rated above Info; and
+  suggestion-class or MNT-02 to MNT-06 FAIL or WARN is rated above Info; no
+  target check (checks.json `weight: target`) is WARN; and
   "No tool-detectable issues in the checked tiers." never sits under a
   FAIL or WARN Security row of any rule code.
   `check-rows.py`: every manifest check applicable to an app has a row, and
