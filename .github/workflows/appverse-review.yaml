@@ -665,8 +665,9 @@ jobs:
 
             Rules:
             - Change only what a listed line requires. Keep every existing
-              finding and its defect_key unless a line says the key is invalid
-              or the record is missing.
+              finding and its defect_key unless a line says the key is invalid,
+              the record is missing, or (a [metadata] MISMATCH) the record is
+              wrong.
             - A MISSING row or record: add it, citing a real file:line from
               the pre-review facts or the repository.
             - An UNCITED row: add the file:line the facts give for that
@@ -705,6 +706,16 @@ jobs:
               Reviewed commit: ${{ steps.params.outputs.target_sha }};
               repo: https://github.com/${{ inputs.target_repo }};
               model: ${{ steps.params.outputs.model_id }}.
+            - A [metadata] MISSING line: the pre-review's metadata.json
+              lists that required field as missing for that app; add a
+              STR-02 FAIL record with that tag and its row in the app's
+              Structure table.
+            - A [metadata] MISMATCH line: the field is present (the line
+              names the file it comes from), the catalog knows the app type,
+              or the field is not one the catalog requires; remove that STR-02 FAIL record and its row. If the app
+              has no STR-02 row left, add a STR-02 PASS row citing the file the line names
+              (the check needs a row for every app). Then recheck the app's
+              decision and the draft feedback without the FAIL.
             - A [decisions] MISMATCH line: raise the named decision to at
               least the one the line gives, in the report (the app's
               Per-app decision line, or the Overall recommendation) and in
@@ -1035,6 +1046,12 @@ jobs:
             if [ -f "${WS}/pre-review/catalog.json" ]; then
               CATALOG_ARG="--catalog ${WS}/pre-review/catalog.json"
             fi
+            # The pre-review's resolved metadata, so app names come from
+            # appverse.yml rather than the model's meta.json.
+            METADATA_ARG=""
+            if [ -f "${WS}/pre-review/metadata.json" ]; then
+              METADATA_ARG="--metadata ${WS}/pre-review/metadata.json"
+            fi
             python3 "${WS}/appverse-review/references/assemble-artifact.py" \
               --meta "$META_FILE" \
               $FINDINGS_ARG \
@@ -1042,6 +1059,7 @@ jobs:
               $PDF_ARG \
               $HTML_ARG \
               $CATALOG_ARG \
+              $METADATA_ARG \
               --plugin-version "$PLUGIN_VERSION" \
               > "$ARTIFACT_FILE"
             echo "Assembled review artifact: $(wc -c < "$ARTIFACT_FILE") bytes"

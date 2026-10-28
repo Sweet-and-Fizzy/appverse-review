@@ -1,0 +1,87 @@
+Read from the catalog's public API: 107 published apps (3 pages), 92 Software entries, 5 app types, 13 implementation tags.
+
+- **`dashboard`** — Duplicate check — No published app from another repo implements `nf-core`: `tuftsrt/tufts-ood-nfcore` (this repo, already published: 17 apps).
+  - **Duplicate-check rationale:** _<reviewer fills in — the outcome and why, per the Reviewer Process's Duplicate check; edit before pasting into the issue or email>_
+- **`dashboard`** — `software` — matches the Software entry `nf-core`.
+- **`dashboard`** — `app_type` — `dashboards` is not in the published app-type vocabulary (`dashboard`, `widget`, `companion_app`, `batch-connect-basic`, `batch-connect-VNC`). Did you mean `dashboard`?
+- **`dashboard`** — `implementation_tags` — all in the vocabulary: `containerized`.
+- **`nf-core-ampliseq-2-16-1`** — Duplicate check — No published app from another repo implements `nf-core`: `tuftsrt/tufts-ood-nfcore` (this repo, already published: 17 apps).
+  - **Duplicate-check rationale:** _<reviewer fills in — the outcome and why, per the Reviewer Process's Duplicate check; edit before pasting into the issue or email>_
+- **`nf-core-ampliseq-2-16-1`** — `software` — matches the Software entry `nf-core`.
+- **`nf-core-ampliseq-2-16-1`** — `app_type` — `batch-connect-basic` is in the app-type vocabulary.
+- **`nf-core-ampliseq-2-16-1`** — `implementation_tags` — all in the vocabulary: `containerized`.
+- **`nf-core-chipseq-2-1-0`** — Duplicate check — No published app from another repo implements `nf-core`: `tuftsrt/tufts-ood-nfcore` (this repo, already published: 17 apps).
+  - **Duplicate-check rationale:** _<reviewer fills in — the outcome and why, per the Reviewer Process's Duplicate check; edit before pasting into the issue or email>_
+- **`nf-core-chipseq-2-1-0`** — `software` — matches the Software entry `nf-core`.
+- **`nf-core-chipseq-2-1-0`** — `app_type` — `batch-connect-basic` is in the app-type vocabulary.
+- **`nf-core-chipseq-2-1-0`** — `implementation_tags` — all in the vocabulary: `containerized`.
+- **`nf-core-denovotranscript-1-2-1`** — Duplicate check — No published app from another repo implements `nf-core`: `tuftsrt/tufts-ood-nfcore` (this repo, already published: 17 apps).
+  - **Duplicate-check rationale:** _<reviewer fills in — the outcome and why, per the Reviewer Process's Duplicate check; edit before pasting into the issue or email>_
+- **`nf-core-denovotranscript-1-2-1`** — `software` — matches the Software entry `nf-core`.
+- **`nf-core-denovotranscript-1-2-1`** — `app_type` — `batch-connect-basic` is in the app-type vocabulary.
+- **`nf-core-denovotranscript-1-2-1`** — `implementation_tags` — all in the vocabulary: `containerized`.
+- **`nf-core-differentialabundance-2-0-0`** — Duplicate check — No published app from another repo implements `nf-core`: `tuftsrt/tufts-ood-nfcore` (this repo, already published: 17 apps).
+  - **Duplicate-check rationale:** _<reviewer fills in — the outcome and why, per the Reviewer Process's Duplicate check; edit before pasting into the issue or email>_
+- **`nf-core-differentialabundance-2-0-0`** — `software` — matches the Software entry `nf-core`.
+- **`nf-core-differentialabundance-2-0-0`** — `app_type` — `batch-connect-basic` is in the app-type vocabulary.
+- **`nf-core-differentialabundance-2-0-0`** — `implementation_tags` — all in the vocabulary: `containerized`.
+- **`nf-core-fetchngs-1-12-0`** — Duplicate check — No published app from another repo implements `nf-core`: `tuftsrt/tufts-ood-nfcore` (this repo, already published: 17 apps).
+  - **Duplicate-check rationale:** _<reviewer fills in — the outcome and why, per the Reviewer Process's Duplicate check; edit before pasting into the issue or email>_
+- **`nf-core-fetchngs-1-12-0`** — `software` — matches the Software entry `nf-core`.
+- **`nf-core-fetchngs-1-12-0`** — `app_type` — `batch-connect-basic` is in the app-type vocabulary.
+- **`nf-core-fetchngs-1-12-0`** — `implementation_tags` — all in the vocabulary: `containerized`.
+- **`nf-core-funcscan-3-0-0`** — Duplicate check — No published app from another repo implements `nf-core`: `tuftsrt/tufts-ood-nfcore` (this repo, already published: 17 apps).
+  - **Duplicate-check rationale:** _<reviewer fills in — the outcome and why, per the Reviewer Process's Duplicate check; edit before pasting into the issue or email>_
+- **`nf-core-funcscan-3-0-0`** — `software` — matches the Software entry `nf-core`.
+- **`nf-core-funcscan-3-0-0`** — `app_type` — `batch-connect-basic` is in the app-type vocabulary.
+- **`nf-core-funcscan-3-0-0`** — `implementation_tags` — all in the vocabulary: `containerized`.
+- **`nf-core-mag-5-4-2`** — Duplicate check — No published app from another repo implements `nf-core`: `tuftsrt/tufts-ood-nfcore` (this repo, already published: 17 apps).
+  - **Duplicate-check rationale:** _<reviewer fills in — the outcome and why, per the Reviewer Process's Duplicate check; edit before pasting into the issue or email>_
+- **`nf-core-mag-5-4-2`** — `software` — matches the Software entry `nf-core`.
+- **`nf-core-mag-5-4-2`** — `app_type` — `batch-connect-basic` is in the app-type vocabulary.
+- **`nf-core-mag-5-4-2`** — `implementation_tags` — all in the vocabulary: `containerized`.
+- **`nf-core-methylseq-4-1-0`** — Duplicate check — No published app from another repo implements `nf-core`: `tuftsrt/tufts-ood-nfcore` (this repo, already published: 17 apps).
+  - **Duplicate-check rationale:** _<reviewer fills in — the outcome and why, per the Reviewer Process's Duplicate check; edit before pasting into the issue or email>_
+- **`nf-core-methylseq-4-1-0`** — `software` — matches the Software entry `nf-core`.
+- **`nf-core-methylseq-4-1-0`** — `app_type` — `batch-connect-basic` is in the app-type vocabulary.
+- **`nf-core-methylseq-4-1-0`** — `implementation_tags` — all in the vocabulary: `containerized`.
+- **`nf-core-pathogensurveillance-1-1-0`** — Duplicate check — No published app from another repo implements `nf-core`: `tuftsrt/tufts-ood-nfcore` (this repo, already published: 17 apps).
+  - **Duplicate-check rationale:** _<reviewer fills in — the outcome and why, per the Reviewer Process's Duplicate check; edit before pasting into the issue or email>_
+- **`nf-core-pathogensurveillance-1-1-0`** — `software` — matches the Software entry `nf-core`.
+- **`nf-core-pathogensurveillance-1-1-0`** — `app_type` — `batch-connect-basic` is in the app-type vocabulary.
+- **`nf-core-pathogensurveillance-1-1-0`** — `implementation_tags` — all in the vocabulary: `containerized`.
+- **`nf-core-proteinfamilies-2-4-0`** — Duplicate check — No published app from another repo implements `nf-core`: `tuftsrt/tufts-ood-nfcore` (this repo, already published: 17 apps).
+  - **Duplicate-check rationale:** _<reviewer fills in — the outcome and why, per the Reviewer Process's Duplicate check; edit before pasting into the issue or email>_
+- **`nf-core-proteinfamilies-2-4-0`** — `software` — matches the Software entry `nf-core`.
+- **`nf-core-proteinfamilies-2-4-0`** — `app_type` — `batch-connect-basic` is in the app-type vocabulary.
+- **`nf-core-proteinfamilies-2-4-0`** — `implementation_tags` — all in the vocabulary: `containerized`.
+- **`nf-core-rnafusion-4-1-0`** — Duplicate check — No published app from another repo implements `nf-core`: `tuftsrt/tufts-ood-nfcore` (this repo, already published: 17 apps).
+  - **Duplicate-check rationale:** _<reviewer fills in — the outcome and why, per the Reviewer Process's Duplicate check; edit before pasting into the issue or email>_
+- **`nf-core-rnafusion-4-1-0`** — `software` — matches the Software entry `nf-core`.
+- **`nf-core-rnafusion-4-1-0`** — `app_type` — `batch-connect-basic` is in the app-type vocabulary.
+- **`nf-core-rnafusion-4-1-0`** — `implementation_tags` — all in the vocabulary: `containerized`.
+- **`nf-core-rnaseq-3-25-0`** — Duplicate check — No published app from another repo implements `nf-core`: `tuftsrt/tufts-ood-nfcore` (this repo, already published: 17 apps).
+  - **Duplicate-check rationale:** _<reviewer fills in — the outcome and why, per the Reviewer Process's Duplicate check; edit before pasting into the issue or email>_
+- **`nf-core-rnaseq-3-25-0`** — `software` — matches the Software entry `nf-core`.
+- **`nf-core-rnaseq-3-25-0`** — `app_type` — `batch-connect-basic` is in the app-type vocabulary.
+- **`nf-core-rnaseq-3-25-0`** — `implementation_tags` — all in the vocabulary: `containerized`.
+- **`nf-core-rnaseq-3-26-0`** — Duplicate check — No published app from another repo implements `nf-core`: `tuftsrt/tufts-ood-nfcore` (this repo, already published: 17 apps).
+  - **Duplicate-check rationale:** _<reviewer fills in — the outcome and why, per the Reviewer Process's Duplicate check; edit before pasting into the issue or email>_
+- **`nf-core-rnaseq-3-26-0`** — `software` — matches the Software entry `nf-core`.
+- **`nf-core-rnaseq-3-26-0`** — `app_type` — `batch-connect-basic` is in the app-type vocabulary.
+- **`nf-core-rnaseq-3-26-0`** — `implementation_tags` — all in the vocabulary: `containerized`.
+- **`nf-core-sarek-3-8-1`** — Duplicate check — No published app from another repo implements `nf-core`: `tuftsrt/tufts-ood-nfcore` (this repo, already published: 17 apps).
+  - **Duplicate-check rationale:** _<reviewer fills in — the outcome and why, per the Reviewer Process's Duplicate check; edit before pasting into the issue or email>_
+- **`nf-core-sarek-3-8-1`** — `software` — matches the Software entry `nf-core`.
+- **`nf-core-sarek-3-8-1`** — `app_type` — `batch-connect-basic` is in the app-type vocabulary.
+- **`nf-core-sarek-3-8-1`** — `implementation_tags` — all in the vocabulary: `containerized`.
+- **`nf-core-scrnaseq-4-1-0`** — Duplicate check — No published app from another repo implements `nf-core`: `tuftsrt/tufts-ood-nfcore` (this repo, already published: 17 apps).
+  - **Duplicate-check rationale:** _<reviewer fills in — the outcome and why, per the Reviewer Process's Duplicate check; edit before pasting into the issue or email>_
+- **`nf-core-scrnaseq-4-1-0`** — `software` — matches the Software entry `nf-core`.
+- **`nf-core-scrnaseq-4-1-0`** — `app_type` — `batch-connect-basic` is in the app-type vocabulary.
+- **`nf-core-scrnaseq-4-1-0`** — `implementation_tags` — all in the vocabulary: `containerized`.
+- **`nf-core-taxprofiler-2-0-0`** — Duplicate check — No published app from another repo implements `nf-core`: `tuftsrt/tufts-ood-nfcore` (this repo, already published: 17 apps).
+  - **Duplicate-check rationale:** _<reviewer fills in — the outcome and why, per the Reviewer Process's Duplicate check; edit before pasting into the issue or email>_
+- **`nf-core-taxprofiler-2-0-0`** — `software` — matches the Software entry `nf-core`.
+- **`nf-core-taxprofiler-2-0-0`** — `app_type` — `batch-connect-basic` is in the app-type vocabulary.
+- **`nf-core-taxprofiler-2-0-0`** — `implementation_tags` — all in the vocabulary: `containerized`.

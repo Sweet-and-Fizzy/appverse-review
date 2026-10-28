@@ -1,0 +1,7 @@
+{
+  "file": "form.yml.erb",
+  "submit_file": "submit.yml.erb",
+  "erb_sentinel": "ERBVALUE",
+  "error": "while scanning a simple key in form.yml.erb, line 35, column 1: ERBVALUE ^ could not find expected ':' in form.yml.erb, line 37, column 12: num_cores: ^",
+  "attributes": []
+}

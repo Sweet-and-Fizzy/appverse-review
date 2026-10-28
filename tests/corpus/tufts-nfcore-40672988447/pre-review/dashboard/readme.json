@@ -1,0 +1,125 @@
+{
+  "file": "dashboard/README.md",
+  "headings": [
+    {
+      "level": 1,
+      "text": "nf-core Dashboard App for Open OnDemand",
+      "line": 1
+    },
+    {
+      "level": 2,
+      "text": "Purpose",
+      "line": 7
+    },
+    {
+      "level": 2,
+      "text": "Key Features",
+      "line": 11
+    },
+    {
+      "level": 2,
+      "text": "User Interface Overview",
+      "line": 18
+    },
+    {
+      "level": 3,
+      "text": "nf-core Dashboard",
+      "line": 20
+    },
+    {
+      "level": 3,
+      "text": "Individual Pipeline App Form",
+      "line": 26
+    },
+    {
+      "level": 2,
+      "text": "How It Works",
+      "line": 32
+    },
+    {
+      "level": 2,
+      "text": "Installation",
+      "line": 46
+    },
+    {
+      "level": 2,
+      "text": "Configuration",
+      "line": 77
+    },
+    {
+      "level": 2,
+      "text": "Usage",
+      "line": 90
+    },
+    {
+      "level": 2,
+      "text": "Important Notes and Limitations",
+      "line": 97
+    },
+    {
+      "level": 2,
+      "text": "Files",
+      "line": 104
+    },
+    {
+      "level": 2,
+      "text": "Deployment Notes",
+      "line": 112
+    }
+  ],
+  "placeholders": [],
+  "screenshots": [
+    {
+      "line": 24,
+      "alt": "nf-core dashboard",
+      "target": "docs/nf-core-dashboard.png"
+    },
+    {
+      "line": 30,
+      "alt": "nf-core app form",
+      "target": "docs/nf-core-app.png"
+    }
+  ],
+  "env_vars": [],
+  "rungs": {
+    "what it launches": {
+      "heading": "User Interface Overview",
+      "line": 18,
+      "placeholder": false,
+      "match": "heading"
+    },
+    "prerequisites": null,
+    "installation": {
+      "heading": "Installation",
+      "line": 46,
+      "placeholder": false,
+      "match": "heading"
+    },
+    "configuration": {
+      "heading": "Configuration",
+      "line": 77,
+      "placeholder": false,
+      "match": "heading"
+    },
+    "known limitations": {
+      "heading": "Important Notes and Limitations",
+      "line": 97,
+      "placeholder": false,
+      "match": "heading"
+    },
+    "troubleshooting": null,
+    "screenshots": null,
+    "environment variables": null,
+    "info panel": null,
+    "architecture": {
+      "heading": "How It Works",
+      "line": 32,
+      "placeholder": false,
+      "match": "heading"
+    }
+  },
+  "stub": false,
+  "content_line_count": 55,
+  "content_chars": 5639,
+  "baseline_rating": "Below minimal"
+}

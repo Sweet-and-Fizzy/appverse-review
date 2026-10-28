@@ -1,0 +1,80 @@
+[floor] feedback floor: 150/150 fix-items covered
+[keys] INVALID STR-02 dashboard:other:app-type-not-in-vocabulary (other:app-type-not-in-vocabulary is the vocabulary tag 'app-type-not-in-vocabulary')
+[keys] INVALID STR-02 nf-core-ampliseq-2-16-1:other:app-type-not-in-vocabulary (other:app-type-not-in-vocabulary is the vocabulary tag 'app-type-not-in-vocabulary')
+[keys] INVALID STR-02 nf-core-chipseq-2-1-0:other:app-type-not-in-vocabulary (other:app-type-not-in-vocabulary is the vocabulary tag 'app-type-not-in-vocabulary')
+[keys] INVALID STR-02 nf-core-denovotranscript-1-2-1:other:app-type-not-in-vocabulary (other:app-type-not-in-vocabulary is the vocabulary tag 'app-type-not-in-vocabulary')
+[keys] INVALID STR-02 nf-core-differentialabundance-2-0-0:other:app-type-not-in-vocabulary (other:app-type-not-in-vocabulary is the vocabulary tag 'app-type-not-in-vocabulary')
+[keys] INVALID STR-02 nf-core-fetchngs-1-12-0:other:app-type-not-in-vocabulary (other:app-type-not-in-vocabulary is the vocabulary tag 'app-type-not-in-vocabulary')
+[keys] INVALID STR-02 nf-core-funcscan-3-0-0:other:app-type-not-in-vocabulary (other:app-type-not-in-vocabulary is the vocabulary tag 'app-type-not-in-vocabulary')
+[keys] INVALID STR-02 nf-core-mag-5-4-2:other:app-type-not-in-vocabulary (other:app-type-not-in-vocabulary is the vocabulary tag 'app-type-not-in-vocabulary')
+[keys] INVALID STR-02 nf-core-methylseq-4-1-0:other:app-type-not-in-vocabulary (other:app-type-not-in-vocabulary is the vocabulary tag 'app-type-not-in-vocabulary')
+[keys] INVALID STR-02 nf-core-pathogensurveillance-1-1-0:other:app-type-not-in-vocabulary (other:app-type-not-in-vocabulary is the vocabulary tag 'app-type-not-in-vocabulary')
+[keys] INVALID STR-02 nf-core-proteinfamilies-2-4-0:other:app-type-not-in-vocabulary (other:app-type-not-in-vocabulary is the vocabulary tag 'app-type-not-in-vocabulary')
+[keys] INVALID STR-02 nf-core-rnafusion-4-1-0:other:app-type-not-in-vocabulary (other:app-type-not-in-vocabulary is the vocabulary tag 'app-type-not-in-vocabulary')
+[keys] INVALID STR-02 nf-core-rnaseq-3-25-0:other:app-type-not-in-vocabulary (other:app-type-not-in-vocabulary is the vocabulary tag 'app-type-not-in-vocabulary')
+[keys] INVALID STR-02 nf-core-rnaseq-3-26-0:other:app-type-not-in-vocabulary (other:app-type-not-in-vocabulary is the vocabulary tag 'app-type-not-in-vocabulary')
+[keys] INVALID STR-02 nf-core-sarek-3-8-1:other:app-type-not-in-vocabulary (other:app-type-not-in-vocabulary is the vocabulary tag 'app-type-not-in-vocabulary')
+[keys] INVALID STR-02 nf-core-scrnaseq-4-1-0:other:app-type-not-in-vocabulary (other:app-type-not-in-vocabulary is the vocabulary tag 'app-type-not-in-vocabulary')
+[keys] INVALID STR-02 nf-core-taxprofiler-2-0-0:other:app-type-not-in-vocabulary (other:app-type-not-in-vocabulary is the vocabulary tag 'app-type-not-in-vocabulary')
+[keys] finding keys: 138/155 valid
+[rating] ratings: consistent
+[rows] check-rows: 17 apps, 297 required rows, 0 problems
+[metadata] MISMATCH dashboard missing-field:maintainer.name: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH dashboard missing-field:maintainer.support_url: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-ampliseq-2-16-1 app-type-not-in-vocabulary: FAIL, but catalog.json lists 'batch-connect-basic' as a known app type
+[metadata] MISMATCH nf-core-ampliseq-2-16-1 missing-field:maintainer.name: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-ampliseq-2-16-1 missing-field:maintainer.support_url: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-chipseq-2-1-0 app-type-not-in-vocabulary: FAIL, but catalog.json lists 'batch-connect-basic' as a known app type
+[metadata] MISMATCH nf-core-chipseq-2-1-0 missing-field:maintainer.name: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-chipseq-2-1-0 missing-field:maintainer.support_url: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-denovotranscript-1-2-1 app-type-not-in-vocabulary: FAIL, but catalog.json lists 'batch-connect-basic' as a known app type
+[metadata] MISMATCH nf-core-denovotranscript-1-2-1 missing-field:maintainer.name: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-denovotranscript-1-2-1 missing-field:maintainer.support_url: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-differentialabundance-2-0-0 app-type-not-in-vocabulary: FAIL, but catalog.json lists 'batch-connect-basic' as a known app type
+[metadata] MISMATCH nf-core-differentialabundance-2-0-0 missing-field:maintainer.name: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-differentialabundance-2-0-0 missing-field:maintainer.support_url: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-fetchngs-1-12-0 app-type-not-in-vocabulary: FAIL, but catalog.json lists 'batch-connect-basic' as a known app type
+[metadata] MISMATCH nf-core-fetchngs-1-12-0 missing-field:maintainer.name: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-fetchngs-1-12-0 missing-field:maintainer.support_url: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-funcscan-3-0-0 app-type-not-in-vocabulary: FAIL, but catalog.json lists 'batch-connect-basic' as a known app type
+[metadata] MISMATCH nf-core-funcscan-3-0-0 missing-field:maintainer.name: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-funcscan-3-0-0 missing-field:maintainer.support_url: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-mag-5-4-2 app-type-not-in-vocabulary: FAIL, but catalog.json lists 'batch-connect-basic' as a known app type
+[metadata] MISMATCH nf-core-mag-5-4-2 missing-field:maintainer.name: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-mag-5-4-2 missing-field:maintainer.support_url: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-methylseq-4-1-0 app-type-not-in-vocabulary: FAIL, but catalog.json lists 'batch-connect-basic' as a known app type
+[metadata] MISMATCH nf-core-methylseq-4-1-0 missing-field:maintainer.name: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-methylseq-4-1-0 missing-field:maintainer.support_url: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-pathogensurveillance-1-1-0 app-type-not-in-vocabulary: FAIL, but catalog.json lists 'batch-connect-basic' as a known app type
+[metadata] MISMATCH nf-core-pathogensurveillance-1-1-0 missing-field:maintainer.name: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-pathogensurveillance-1-1-0 missing-field:maintainer.support_url: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-proteinfamilies-2-4-0 app-type-not-in-vocabulary: FAIL, but catalog.json lists 'batch-connect-basic' as a known app type
+[metadata] MISMATCH nf-core-proteinfamilies-2-4-0 missing-field:maintainer.name: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-proteinfamilies-2-4-0 missing-field:maintainer.support_url: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-rnafusion-4-1-0 app-type-not-in-vocabulary: FAIL, but catalog.json lists 'batch-connect-basic' as a known app type
+[metadata] MISMATCH nf-core-rnafusion-4-1-0 missing-field:maintainer.name: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-rnafusion-4-1-0 missing-field:maintainer.support_url: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-rnaseq-3-25-0 app-type-not-in-vocabulary: FAIL, but catalog.json lists 'batch-connect-basic' as a known app type
+[metadata] MISMATCH nf-core-rnaseq-3-25-0 missing-field:maintainer.name: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-rnaseq-3-25-0 missing-field:maintainer.support_url: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-rnaseq-3-26-0 app-type-not-in-vocabulary: FAIL, but catalog.json lists 'batch-connect-basic' as a known app type
+[metadata] MISMATCH nf-core-rnaseq-3-26-0 missing-field:maintainer.name: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-rnaseq-3-26-0 missing-field:maintainer.support_url: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-sarek-3-8-1 app-type-not-in-vocabulary: FAIL, but catalog.json lists 'batch-connect-basic' as a known app type
+[metadata] MISMATCH nf-core-sarek-3-8-1 missing-field:maintainer.name: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-sarek-3-8-1 missing-field:maintainer.support_url: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-scrnaseq-4-1-0 app-type-not-in-vocabulary: FAIL, but catalog.json lists 'batch-connect-basic' as a known app type
+[metadata] MISMATCH nf-core-scrnaseq-4-1-0 missing-field:maintainer.name: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-scrnaseq-4-1-0 missing-field:maintainer.support_url: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-taxprofiler-2-0-0 app-type-not-in-vocabulary: FAIL, but catalog.json lists 'batch-connect-basic' as a known app type
+[metadata] MISMATCH nf-core-taxprofiler-2-0-0 missing-field:maintainer.name: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH nf-core-taxprofiler-2-0-0 missing-field:maintainer.support_url: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH root missing-field:maintainer.name: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] MISMATCH root missing-field:maintainer.support_url: FAIL, but metadata.json resolves it from appverse.yml
+[metadata] metadata: 17 apps, 52 problems
+[evidence] evidence: 155/155 valid; report rows: 593/593 valid
+[catalog] catalog: section matches catalog-checks.md (86 lines)
+[meta] meta: complete
+[decisions] decisions: 17 apps against 18 floors, 0 problems
+[sections] sections: complete
+exit: 1

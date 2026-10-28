@@ -234,7 +234,8 @@ consumes the password or token; OOD's per-session `password` generated in
 **STR-02:**
 `missing-field:{field_name}` (e.g., `missing-field:software`,
 `missing-field:app_type`, `missing-field:role`,
-`missing-field:maintainer.support_url`)
+`missing-field:maintainer.support_url`), `app-type-not-in-vocabulary` (a declared
+app_type the catalog does not list)
 
 **STR-03:**
 `yaml-parse-error`

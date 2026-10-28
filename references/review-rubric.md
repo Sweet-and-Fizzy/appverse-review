@@ -136,6 +136,7 @@ order above. The same fields are required for one app or several:
 
 | Check | What to Look For |
 |-------|------------------|
+| `name` | Present (from `appverse.yml`, or a member app's `manifest.yml`) |
 | `description` | Present |
 | `software` | Present. It must also match a Software entry in the catalog. If it doesn't, the reviewer works that out with you |
 | `app_type` | A term from the catalog's app-type list. A near miss, such as a misspelling, fails, and the review suggests the closest term. Each `implementation_tags` entry must also be on its list (see the [appverse.yml reference](https://github.com/Sweet-and-Fizzy/ood-appverse/blob/main/docs/appverse.yml)) |

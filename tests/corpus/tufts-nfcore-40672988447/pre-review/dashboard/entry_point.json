@@ -1,0 +1,9 @@
+{
+  "file": "dashboard/config.ru",
+  "language": "ruby",
+  "parses": true,
+  "error": null,
+  "dependency_manifest": null,
+  "consistent": null,
+  "note": "not checked: ruby dependency consistency is not judged"
+}

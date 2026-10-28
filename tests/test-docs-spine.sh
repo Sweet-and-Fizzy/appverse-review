@@ -222,6 +222,11 @@ has "$RUBRIC" "\`$CONTENT_FORM\`" "rubric writes the same content: citation form
 echo "Test 11e: search other headings' content before rating a rung none"
 has "$QUA_SKILL" "read the README for a line that delivers the rung under" "review-quality states the search-before-none rule"
 has "$RUBRIC" "other headings' content (configuration met by a line under Environment" "rubric states the search-before-none rule"
+has skills/review-structure/SKILL.md "An inferred repo still has the rubric's inferred-repo check" "structure skill keeps the inferred repo's manifest.yml fields under STR-02 (metadata.json demands nothing of them)"
+has .github/workflows/appverse-review.yaml "add a STR-02 PASS row citing the file the line names" "repair keeps a STR-02 row when a [metadata] MISMATCH removes the last FAIL"
+has references/review-rubric.md "| \`name\` | Present" "rubric's declared-repo table lists name, which the catalog requires"
+has skills/review-structure/SKILL.md "If \`<pre-review>/metadata.json\` is absent" "structure skill says what to do when the metadata fact is missing"
+has .github/workflows/appverse-review.yaml "or the field is not one the catalog requires" "repair handles the not-required [metadata] MISMATCH"
 has skills/review-structure/SKILL.md "readme-not-substantive" "review-structure records STR-01 readme-not-substantive, the record check-rating falls back to"
 STUB_N=$(checker references/pre-review.py 'STUB_CONTENT_CHARS')
 has "$RUBRIC" "fewer than $STUB_N characters of content" "rubric states pre-review's stub threshold"

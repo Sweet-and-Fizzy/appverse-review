@@ -1,0 +1,226 @@
+[
+  {
+    "path": "nf-core-ampliseq-2-16-1/template/before.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-ampliseq-2-16-1/template/script.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-chipseq-2-1-0/template/before.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-chipseq-2-1-0/template/script.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-denovotranscript-1-2-1/template/before.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-denovotranscript-1-2-1/template/script.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-differentialabundance-2-0-0/template/before.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-differentialabundance-2-0-0/template/script.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-fetchngs-1-12-0/template/before.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-fetchngs-1-12-0/template/script.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-funcscan-3-0-0/template/before.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-funcscan-3-0-0/template/script.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-mag-5-4-2/template/before.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-mag-5-4-2/template/script.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-methylseq-4-1-0/template/before.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-methylseq-4-1-0/template/script.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-pathogensurveillance-1-1-0/template/before.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-pathogensurveillance-1-1-0/template/script.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-proteinfamilies-2-4-0/template/before.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-proteinfamilies-2-4-0/template/script.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-rnafusion-4-1-0/template/before.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-rnafusion-4-1-0/template/script.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-rnaseq-3-25-0/template/before.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-rnaseq-3-25-0/template/script.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-rnaseq-3-26-0/template/before.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-rnaseq-3-26-0/template/script.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-sarek-3-8-1/template/before.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-sarek-3-8-1/template/script.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-scrnaseq-4-1-0/template/before.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-scrnaseq-4-1-0/template/script.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-taxprofiler-2-0-0/template/before.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  },
+  {
+    "path": "nf-core-taxprofiler-2-0-0/template/script.sh.erb",
+    "stripped": true,
+    "ok": true,
+    "stderr": "",
+    "erb_control_line": null
+  }
+]

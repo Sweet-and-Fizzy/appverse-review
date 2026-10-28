@@ -910,6 +910,24 @@ check "case20: an empty app_id's FAIL sets the root app's criterion" "fail" "$(e
 check "case20: a null app_id's FAIL sets the root app's criterion" "fail" "$(echo "$A20" | jget "d['apps'][0]['criteria']['references']")"
 check "case20: the findings themselves are not rewritten" "[None, '', None]" "$(echo "$A20" | jget "[d['apps'][0]['findings'][0]['rule'], d['apps'][0]['findings'][1]['app_id'], d['apps'][0]['findings'][2]['app_id']]")"
 
+# --- Test 21: app names come from the pre-review's metadata.json ---
+echo "Test 21: app names from metadata.json"
+cat > "$TMP/meta21.json" << 'EOF'
+{"recommendation": {"decision": "Accept", "note": "x"}, "apps": [{"app_id": "a", "name": "rnaseq 3.25.0"}, {"app_id": "b", "name": "From meta"}]}
+EOF
+cat > "$TMP/metadata21.json" << 'EOF'
+{"schema": "metadata/1", "shape": "monorepo", "root_maintainer": null, "apps": [
+ {"app_id": "a", "status": "declared", "note": null, "fields": {"name": {"value": "nf-core Ampliseq (v2.16.1)", "source": "appverse.yml"}}, "missing": [], "software_missing": false},
+ {"app_id": "b", "status": "declared", "note": null, "fields": {"name": {"value": null, "source": null}}, "missing": ["name"], "software_missing": false}]}
+EOF
+A21=$(python3 "$ASSEMBLE" --meta "$TMP/meta21.json" --md r.md --metadata "$TMP/metadata21.json" --plugin-version 0.3.0)
+check "case21: name from metadata" "nf-core Ampliseq (v2.16.1)" "$(echo "$A21" | jget "d['apps'][0]['name']")"
+check "case21: meta name when the fact has none" "From meta" "$(echo "$A21" | jget "d['apps'][1]['name']")"
+echo '{not json' > "$TMP/bad21.json"
+A21B=$(python3 "$ASSEMBLE" --meta "$TMP/meta21.json" --md r.md --metadata "$TMP/bad21.json" --plugin-version 0.3.0 2>"$TMP/err21b")
+check "case21b: unreadable metadata keeps meta's name" "rnaseq 3.25.0" "$(echo "$A21B" | jget "d['apps'][0]['name']")"
+check "case21b: unreadable metadata warns" "1" "$(grep -c 'could not load metadata' "$TMP/err21b")"
+
 echo ""
 echo "Done: $pass passed, $fail failed."
 [ "$fail" -eq 0 ]

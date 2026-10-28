@@ -53,6 +53,13 @@ the per-app dirs named in the previous apps.json are removed first):
                  rendered from summary.json for the security skill to paste
                  (shellcheck with artefacts: "N findings (codes), M of them
                  linted in isolation from the job-script family").
+  metadata.json  each app's catalog fields (name, description, app_type,
+                 software, implementation_tags, maintainer.name,
+                 maintainer.support_url) with the file each came from,
+                 resolved as the hub's sync resolves them, plus the
+                 required fields that are missing (metadata_facts.py).
+                 apps.json's app_type below is OOD's kind of app, not the
+                 catalog's; the catalog's is here.
   apps.json      [{app_id, path, app_type, readme}]: the app shape, resolved
                  as target-setup.md section 3 does. A root appverse.yml with
                  an apps: list is a monorepo, one app per apps[].path (app_id
@@ -282,6 +289,7 @@ from readme_lines import (  # noqa: E402,F401  (re-exported for check-evidence a
     baseline_rating,
 )
 import catalog_facts  # noqa: E402
+import metadata_facts  # noqa: E402
 
 SCHEMA = "pre-review/1"
 SKIP_DIRS = {".git", "vendor", "node_modules"}
@@ -3175,6 +3183,27 @@ def _catalog_source(args):
     return args.catalog or os.environ.get("APPVERSE_CATALOG") or catalog_facts.DEFAULT_CATALOG
 
 
+def check_metadata(target, apps, out):
+    """Write metadata.json: each app's catalog fields as the hub's sync
+    resolves them (metadata_facts.py). Needs no catalog."""
+    def load(path, rel):
+        if not os.path.lexists(path):
+            return None, "absent", None
+        try:
+            data = load_yaml(_read_fact(target, path, rel), rel)
+        except Refused as e:
+            return None, "unparsed", str(e)[:STDERR_CHARS]
+        except YamlError as e:
+            msg = str(e)
+            if any(k in msg for k in ("anchors (&)", "aliases (*)", "merge keys (<<)")):
+                return None, "refused", msg[:STDERR_CHARS]
+            return None, "unparsed", ("%s: %s" % (rel, msg))[:STDERR_CHARS]
+        return data, "ok", None
+    _write_json(out, "metadata.json", metadata_facts.resolve(target, apps, load))
+    return record("metadata", "ran", output_file="metadata.json",
+                  files_examined=len([a for a in apps if not a.get("_skip")]))
+
+
 def check_catalog(args, target, apps, out):
     """Read the catalog and compare each app's declared software, app_type and
     implementation_tags with it (references/catalog_facts.py). Writes
@@ -3345,7 +3374,8 @@ def main(argv):
              guarded("form", check_form, target, apps, out),
              guarded("template", check_template, target, apps, out),
              guarded("entry_point", check_entry_point, target, apps, out),
-             guarded("security", check_security, target, apps, out)]
+             guarded("security", check_security, target, apps, out),
+             guarded("metadata", check_metadata, target, apps, out)]
 
     _write_json(out, "summary.json", {
         "schema": SCHEMA,
