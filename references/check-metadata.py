@@ -18,7 +18,8 @@ before app-type-not-in-vocabulary joined the vocabulary):
         monorepo, one app_id "root" FAIL answers a maintainer field for every
         app when the root declares no maintainer and no app declares one.
     MISMATCH <app_id> missing-field:<field>: FAIL, but metadata.json resolves it from <source>
-        a FAIL for a field the app has (one not in its missing list); for a
+        a FAIL for a field the app has (one not in its missing list, or
+        software when software_missing is false); for a
         monorepo "root" FAIL on a maintainer field, the root declares it.
     MISMATCH <app_id> app-type-not-in-vocabulary: FAIL, but catalog.json lists '<value>' as a known app type
 
@@ -55,6 +56,14 @@ def str02_fails(findings):
     return out
 
 
+def is_missing(app, field):
+    """Whether the fact lists field as missing for app. software is reported
+    on its own (software_missing), not among the required fields."""
+    if field == "software":
+        return bool(app.get("software_missing"))
+    return field in app["missing"]
+
+
 def root_answers(fact, declared, field):
     """Whether one "root" record answers this maintainer field for every app:
     a monorepo whose root and apps declare no maintainer."""
@@ -86,7 +95,7 @@ def problems(fact, catalog, fails):
         app = by_id.get(aid)
         if tag.startswith("missing-field:"):
             field = tag[len("missing-field:"):]
-            if app is not None and app.get("status") == "declared" and field not in app["missing"]:
+            if app is not None and app.get("status") == "declared" and not is_missing(app, field):
                 source = app["fields"].get(field, {}).get("source")
                 out.append("MISMATCH {} {}: FAIL, but metadata.json resolves it from {}".format(aid, tag, source))
             elif app is None and aid == "root" and fact.get("shape") == "monorepo" and field in MAINTAINER \

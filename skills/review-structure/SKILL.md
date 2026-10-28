@@ -39,7 +39,8 @@ record is NOT CHECKED with the note "pre-review facts not found".
 
 The per-app checks are the manifest entries with `dimension: structure` in
 `${CLAUDE_PLUGIN_ROOT}/references/checks.json` whose `app_types` include the
-app's type (`app_type` in `<pre-review>/apps.json`): `str-02-metadata`,
+app's type (`app_type` in `<pre-review>/apps.json`, which is OOD's kind of
+app and never the catalog's app_type): `str-02-metadata`,
 `str-03-yaml-valid`, `str-06-syntax` and `str-07-layout` for Batch Connect,
 `entry-point-parses` in place of the last two for Passenger and companion
 apps, and `str-04-references`. Every one gets at least one row in the
@@ -57,17 +58,26 @@ a gate failure: rate it on the rubric's severity scale. NOT CHECKED and
 PASS records are Info. Anything else you notice goes after the checks, as
 its own finding with the vocabulary tag that fits or `other:`.
 
-- Required metadata fields for the repo shape, per the rubric's "Repository
-  structure" section. For declared repos that includes `description`,
-  `software`, `app_type`, `maintainer.name`, and `maintainer.support_url`; a
-  missing field is a gate failure (STR-02, `missing-field:<name>`).
+- Required metadata fields, per the rubric's "Repository structure"
+  section. Read them from `<pre-review>/metadata.json`, which resolves each
+  app's fields the way the catalog's sync does (inline `apps[]` entry over
+  `<subpath>/appverse.yml`, the root `maintainer` inherited by an app that
+  declares none, `manifest.yml` only for a member's name and description),
+  with the file each came from. Never judge them from `manifest.yml` alone.
+  Each field in an app's `missing` list is a gate failure (STR-02,
+  `missing-field:<name>`), and no other field is; when the root declares no
+  `maintainer` and no app declares one, record each maintainer field once,
+  with `app_id` `root`. A `software_missing` app is its own STR-02 FAIL
+  (`missing-field:software`). An app whose `status` is not `declared`
+  (inferred, unparsed, refused, skipped) gets no `missing-field` rows; say
+  why in the row, from its `note`.
 - `app_type` and `implementation_tags` are known values. Read the result from
   `<pre-review>/catalog.json` (per app, `checks.app_type` and
   `checks.implementation_tags`, compared with the live vocabularies, ignoring
   case); do not query the catalog yourself. An `app_type` outside the
   published vocabulary is an STR-02 FAIL (the value must be a term from the
   catalog's app_type vocabulary, so a near miss such as a misspelling still
-  fails), worded as "not in the published
+  fails), tagged `app-type-not-in-vocabulary`, worded as "not in the published
   vocabulary" (an unpublished term is invisible here); when
   `checks.app_type.closest` lists terms, the summary ends "did you mean
   `<term>`?" naming each, joined with "or"; an unknown

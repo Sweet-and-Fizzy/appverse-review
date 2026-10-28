@@ -115,6 +115,12 @@ echo "Test 16: unreadable findings is exit 2"
 echo "{" > "$TMP/f16.json"
 check "exit 2" 2 "$(run "$TMP/f16.json" "$TMP/p1")"
 
+echo "Test 17: a missing-field:software FAIL is right when software_missing is set"
+fact "$TMP/p17" monorepo null "$(an a '[]' | python3 -c 'import json,sys; a=json.load(sys.stdin); a["software_missing"]=True; a["fields"]["software"]={"value": None, "source": None}; print(json.dumps(a))')"
+echo "[$(finding a appverse.yml:missing-field:software)]" > "$TMP/f17.json"
+check "exit 0" 0 "$(run "$TMP/f17.json" "$TMP/p17")"
+check "a software FAIL where software is present is a MISMATCH" 1 "$(run "$TMP/f17.json" "$TMP/p1")"
+
 echo
 echo "check-metadata: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]
