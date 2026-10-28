@@ -6,7 +6,8 @@ fields the catalog would actually get:
 
 - An app's layer is its <path>/appverse.yml overridden by its inline apps[]
   entry (PHP array_replace), without the structural `path` key. A member
-  appverse.yml that cannot be read counts as empty.
+  appverse.yml that does not parse counts as empty; one this tool refuses for
+  YAML anchors or aliases, which the hub reads, makes the app "refused".
 - A monorepo member inherits the root `maintainer` mapping, whole, only when
   its layer has no `maintainer` or `maintainer: null` (PHP isset). An app that
   declares any maintainer of its own, even `{}` or a partial one, keeps it.
@@ -133,6 +134,10 @@ def _member(target, app, entry, root, load):
     path = app["path"]
     sub_rel = _rel(path, "appverse.yml")
     sub, sub_status, _ = load(os.path.join(target, path, "appverse.yml"), sub_rel)
+    if sub_status == "refused":
+        # The hub's parser reads anchors, so the fields in it count there;
+        # judging the app without them would report present fields missing.
+        return _undeclared(app, "refused", REFUSED_NOTE)
     if sub_status != "ok" or not isinstance(sub, dict):
         sub = {}
     layer = app_layer(entry, sub)
@@ -146,6 +151,8 @@ def _member(target, app, entry, root, load):
     if missing_from_layer:
         man_rel = _rel(path, "manifest.yml")
         man, man_status, _ = load(os.path.join(target, path, "manifest.yml"), man_rel)
+        if man_status == "refused":
+            return _undeclared(app, "refused", REFUSED_NOTE)
         if man_status == "ok" and isinstance(man, dict):
             for f in missing_from_layer:
                 if man.get(f) is not None:

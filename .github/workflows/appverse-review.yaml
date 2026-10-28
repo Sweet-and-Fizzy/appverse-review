@@ -665,8 +665,9 @@ jobs:
 
             Rules:
             - Change only what a listed line requires. Keep every existing
-              finding and its defect_key unless a line says the key is invalid
-              or the record is missing.
+              finding and its defect_key unless a line says the key is invalid,
+              the record is missing, or (a [metadata] MISMATCH) the record is
+              wrong.
             - A MISSING row or record: add it, citing a real file:line from
               the pre-review facts or the repository.
             - An UNCITED row: add the file:line the facts give for that
@@ -711,8 +712,10 @@ jobs:
               Structure table.
             - A [metadata] MISMATCH line: the field is present (the line
               names the file it comes from) or the catalog knows the app
-              type; remove that STR-02 FAIL record and its row, then
-              recheck the app's decision and the draft feedback without it.
+              type; remove that STR-02 FAIL record and its row. If the app
+              has no STR-02 row left, add a STR-02 PASS row citing the file the line names
+              (the check needs a row for every app). Then recheck the app's
+              decision and the draft feedback without the FAIL.
             - A [decisions] MISMATCH line: raise the named decision to at
               least the one the line gives, in the report (the app's
               Per-app decision line, or the Overall recommendation) and in

@@ -177,6 +177,18 @@ M=$(meta "$R")
 check "software_missing" "True" "$(app "$M" a "a['software_missing']")"
 check "not in missing" "[]" "$(app "$M" a "a['missing']")"
 
+echo "Test 17: a member appverse.yml using anchors makes that app refused, not missing fields"
+R=$(repo t17); w "$R" appverse.yml "$ROOT_M
+apps:
+  - path: a
+    software: s"; w "$R" a/appverse.yml "name: &n A
+description: D
+app_type: batch-connect-basic"
+M=$(meta "$R")
+check "status" "refused" "$(app "$M" a "a['status']")"
+check "nothing demanded" "[]" "$(app "$M" a "a['missing']")"
+check "note" "uses YAML anchors or aliases, which this tool does not read; the hub may read it" "$(app "$M" a "a['note']")"
+
 echo
 echo "metadata facts: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]
