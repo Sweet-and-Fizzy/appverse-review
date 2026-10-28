@@ -1043,6 +1043,12 @@ jobs:
             if [ -f "${WS}/pre-review/catalog.json" ]; then
               CATALOG_ARG="--catalog ${WS}/pre-review/catalog.json"
             fi
+            # The pre-review's resolved metadata, so app names come from
+            # appverse.yml rather than the model's meta.json.
+            METADATA_ARG=""
+            if [ -f "${WS}/pre-review/metadata.json" ]; then
+              METADATA_ARG="--metadata ${WS}/pre-review/metadata.json"
+            fi
             python3 "${WS}/appverse-review/references/assemble-artifact.py" \
               --meta "$META_FILE" \
               $FINDINGS_ARG \
@@ -1050,6 +1056,7 @@ jobs:
               $PDF_ARG \
               $HTML_ARG \
               $CATALOG_ARG \
+              $METADATA_ARG \
               --plugin-version "$PLUGIN_VERSION" \
               > "$ARTIFACT_FILE"
             echo "Assembled review artifact: $(wc -c < "$ARTIFACT_FILE") bytes"
