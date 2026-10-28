@@ -66,6 +66,14 @@ permissions:
   contents: read
   id-token: write
 
+# One review of a repo at a time: two runs for the same target compete for the
+# gateway and the second reviews the same commit to no purpose. A later run
+# waits for the one in progress; GitHub keeps one waiting run per group, so a
+# third replaces the second rather than queueing behind it.
+concurrency:
+  group: appverse-review-${{ inputs.target_repo }}
+  cancel-in-progress: false
+
 jobs:
   review:
     runs-on: ubuntu-latest
