@@ -74,13 +74,15 @@ def _entry_for(app, fields):
 
 def _fields(layer, sources, maintainer_source):
     """{field: {value, source}} from a resolved layer. sources maps a layer key
-    to the file it came from."""
+    to the file it came from. A maintainer field's source is the file its
+    maintainer mapping came from, set even when that sub-field is empty, so a
+    reader can tell an app's own partial maintainer from no maintainer."""
     fields = {}
     for f in FIELDS:
         if f.startswith("maintainer."):
             m = layer.get("maintainer")
             value = m.get(f.split(".", 1)[1]) if isinstance(m, dict) else None
-            source = maintainer_source if value is not None else None
+            source = maintainer_source if m is not None else None
         else:
             value = layer.get(f)
             source = sources.get(f) if value is not None else None

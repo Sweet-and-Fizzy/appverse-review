@@ -9,7 +9,7 @@
         "companion",
         "widget"
       ],
-      "fact_source": "none",
+      "fact_source": "metadata.json",
       "rule": "STR-02",
       "tag": null,
       "row_required": "always",

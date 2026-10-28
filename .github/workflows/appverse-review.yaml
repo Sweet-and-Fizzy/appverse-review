@@ -705,6 +705,14 @@ jobs:
               Reviewed commit: ${{ steps.params.outputs.target_sha }};
               repo: https://github.com/${{ inputs.target_repo }};
               model: ${{ steps.params.outputs.model_id }}.
+            - A [metadata] MISSING line: the pre-review's metadata.json
+              lists that required field as missing for that app; add a
+              STR-02 FAIL record with that tag and its row in the app's
+              Structure table.
+            - A [metadata] MISMATCH line: the field is present (the line
+              names the file it comes from) or the catalog knows the app
+              type; remove that STR-02 FAIL record and its row, then
+              recheck the app's decision and the draft feedback without it.
             - A [decisions] MISMATCH line: raise the named decision to at
               least the one the line gives, in the report (the app's
               Per-app decision line, or the Overall recommendation) and in

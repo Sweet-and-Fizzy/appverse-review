@@ -45,7 +45,9 @@ apps:
 $ENTRY
     maintainer:
       name: Own"; w "$R" a/manifest.yml "role: batch_connect"
-check "support_url missing" "['maintainer.support_url']" "$(app "$(meta "$R")" a "a['missing']")"
+M=$(meta "$R")
+check "support_url missing" "['maintainer.support_url']" "$(app "$M" a "a['missing']")"
+check "the missing sub-field names its maintainer's file" "appverse.yml" "$(app "$M" a "a['fields']['maintainer.support_url']['source']")"
 
 echo "Test 3: maintainer null inherits"
 R=$(repo t3); w "$R" appverse.yml "$ROOT_M
@@ -69,6 +71,7 @@ $ENTRY
     maintainer: T"
 M=$(meta "$R")
 check "both missing" "['maintainer.name', 'maintainer.support_url']" "$(app "$M" a "a['missing']")"
+check "the string maintainer is still the app's own" "appverse.yml" "$(app "$M" a "a['fields']['maintainer.name']['source']")"
 check "root_maintainer null" "None" "$(j "$M" "d['root_maintainer']")"
 
 echo "Test 6: name and description fall back to manifest.yml; app_type does not"
