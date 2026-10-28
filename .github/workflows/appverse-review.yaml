@@ -712,7 +712,8 @@ jobs:
               Structure table.
             - A [metadata] MISMATCH line: the field is present (the line
               names the file it comes from), the catalog knows the app type,
-              or the field is not one the catalog requires; remove that STR-02 FAIL record and its row. If the app
+              or the field is not one the catalog requires,
+              or the repo is inferred and the field is one only appverse.yml declares; remove that STR-02 FAIL record and its row. If the app
               has no STR-02 row left, add a STR-02 PASS row citing the file the line names
               (the check needs a row for every app). Then recheck the app's
               decision and the draft feedback without the FAIL.
