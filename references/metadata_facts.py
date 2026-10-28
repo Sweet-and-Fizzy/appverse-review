@@ -18,6 +18,12 @@ fields the catalog would actually get:
 - A repo with no root appverse.yml (inferred), or one that cannot be read,
   declares nothing, so nothing is demanded of its apps.
 
+One deliberate difference: the hub creates no app for a single declared repo
+whose appverse.yml sets none of software, app_type, title or description
+(rootDeclaresSingleApp in AddRepoForm and AppverseHubController); this
+module still lists that app's required fields as missing, since a review of
+such a repo should say what it lacks.
+
 resolve() returns the metadata.json document (schema metadata/1).
 """
 import os

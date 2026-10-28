@@ -71,6 +71,9 @@ its own finding with the vocabulary tag that fits or `other:`.
   (`missing-field:software`). An app whose `status` is not `declared`
   (inferred, unparsed, refused, skipped) gets no `missing-field` rows for
   these catalog fields; say why in the row, from its `note`.
+  If `<pre-review>/metadata.json` is absent (the pre-review's metadata step
+  did not run), record `str-02-metadata` as NOT CHECKED with that reason
+  rather than judging the fields from the files.
   An inferred repo still has the rubric's inferred-repo check: its root `manifest.yml` needs
   `name`, `category`, `role` and `description`, each one absent recorded as
   STR-02 `missing-field:<name>` as before (a missing `role` is a WARN).

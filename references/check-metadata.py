@@ -21,6 +21,9 @@ before app-type-not-in-vocabulary joined the vocabulary):
         a FAIL for a field the app has (one not in its missing list, or
         software when software_missing is false); for a
         monorepo "root" FAIL on a maintainer field, the root declares it.
+    MISMATCH <app_id> missing-field:<field>: FAIL, but <field> is not a field the catalog requires
+        a declared app's FAIL for a field outside the required set (role,
+        implementation_tags): the catalog rejects nothing for it.
     MISMATCH <app_id> app-type-not-in-vocabulary: FAIL, but catalog.json lists '<value>' as a known app type
 
 Apps whose status is not "declared" (inferred, unparsed, refused, skipped)
@@ -36,6 +39,9 @@ import os
 import sys
 
 MAINTAINER = ("maintainer.name", "maintainer.support_url")
+# The fields the hub rejects an app without (metadata_facts.REQUIRED, plus
+# software, which it reports on its own).
+CATALOG_REQUIRED = ("name", "description", "app_type", "software", "maintainer.name", "maintainer.support_url")
 APP_TYPE_TAG = "app-type-not-in-vocabulary"
 
 
@@ -96,8 +102,12 @@ def problems(fact, catalog, fails):
         if tag.startswith("missing-field:"):
             field = tag[len("missing-field:"):]
             if app is not None and app.get("status") == "declared" and not is_missing(app, field):
-                source = app["fields"].get(field, {}).get("source")
-                out.append("MISMATCH {} {}: FAIL, but metadata.json resolves it from {}".format(aid, tag, source))
+                if field not in CATALOG_REQUIRED:
+                    out.append("MISMATCH {} {}: FAIL, but {} is not a field the catalog requires".format(
+                        aid, tag, field))
+                else:
+                    source = app["fields"].get(field, {}).get("source")
+                    out.append("MISMATCH {} {}: FAIL, but metadata.json resolves it from {}".format(aid, tag, source))
             elif app is None and aid == "root" and fact.get("shape") == "monorepo" and field in MAINTAINER \
                     and root_maintainer.get(field.split(".", 1)[1]):
                 out.append("MISMATCH root {}: FAIL, but metadata.json resolves it from appverse.yml".format(tag))

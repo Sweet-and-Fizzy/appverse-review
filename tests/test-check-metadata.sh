@@ -121,6 +121,11 @@ echo "[$(finding a appverse.yml:missing-field:software)]" > "$TMP/f17.json"
 check "exit 0" 0 "$(run "$TMP/f17.json" "$TMP/p17")"
 check "a software FAIL where software is present is a MISMATCH" 1 "$(run "$TMP/f17.json" "$TMP/p1")"
 
+echo "Test 18: a FAIL on a field the catalog does not require names that, not a source"
+echo "[$(finding a appverse.yml:missing-field:implementation_tags)]" > "$TMP/f18.json"
+check "exit 1" 1 "$(run "$TMP/f18.json" "$TMP/p1")"
+check "line" 1 "$(grep -cxF 'MISMATCH a missing-field:implementation_tags: FAIL, but implementation_tags is not a field the catalog requires' "$TMP/out")"
+
 echo
 echo "check-metadata: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]
