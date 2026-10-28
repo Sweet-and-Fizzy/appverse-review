@@ -518,7 +518,7 @@ echo "Test 32: end-to-end, vnc-stale-debugger and broken-app"
 O="$TMP/vnc"
 check "exit 0" 0 "$(e2e "$FIX/vnc-stale-debugger" "$O")"
 check "apps.json" "root|.|batch_connect|README.md" "$(j "$O/apps.json" "'|'.join(str(d[0][k]) for k in ('app_id','path','app_type','readme'))")"
-check "summary facts in order" "readme,form,template,entry_point,security" "$(j "$O/summary.json" "','.join(c['name'] for c in d['facts'])")"
+check "summary facts in order" "readme,form,template,entry_point,security,metadata" "$(j "$O/summary.json" "','.join(c['name'] for c in d['facts'])")"
 check "checks unchanged" "syntax,shellcheck,semgrep,bandit,trivy,catalog" "$(j "$O/summary.json" "','.join(c['name'] for c in d['checks'])")"
 check "readme ran" "ran|{'root': 'ran'}" "$(fct "$O" readme status)|$(fct "$O" readme per_app)"
 check "form ran, note names the parser" "ran|{'root': 'ran'}|$E2E_PARSER_NOTE" "$(fct "$O" form status)|$(fct "$O" form per_app)|$(fct "$O" form note)"
@@ -1505,7 +1505,7 @@ try:
     pr.load_placeholders(A[0]); r='returned'
 except pr.PlaceholdersMissing as e:
     r=type(e).__name__" "$TMP/no-such-placeholders.txt")"
-mkdir -p "$TMP/t57"; cp "$PR" "$TMP/t57/pre-review.py"; cp "$(dirname "$PR")/catalog_facts.py" "$(dirname "$PR")/readme_lines.py" "$TMP/t57/"
+mkdir -p "$TMP/t57"; cp "$PR" "$TMP/t57/pre-review.py"; cp "$(dirname "$PR")/catalog_facts.py" "$(dirname "$PR")/metadata_facts.py" "$(dirname "$PR")/readme_lines.py" "$TMP/t57/"
 check "pre-review exits 2 without readme-placeholders.txt beside it" "2" "$(python3 "$TMP/t57/pre-review.py" "$FIX/broken-app" "$TMP/o57" > "$TMP/stdout" 2> "$TMP/stderr"; echo $?)"
 check "the error names the file" "True" "$(grep -q '^error: cannot read placeholder list .*readme-placeholders.txt (No such file or directory)$' "$TMP/stderr" && echo True || echo False)"
 

@@ -28,6 +28,8 @@ import time
 import urllib.parse
 import urllib.request
 
+import metadata_facts
+
 DEFAULT_CATALOG = "https://openondemand.connectci.org"
 ACCEPT = "application/vnd.api+json"
 TIMEOUT = 20
@@ -180,8 +182,7 @@ def declared_values(root_meta, entry, sub_meta, shape):
         return {"status": shape, "software": None, "app_type": None, "implementation_tags": [],
                 "tags_note": None}
     if shape == "monorepo":
-        merged = dict(sub_meta or {})
-        merged.update(entry or {})
+        merged = metadata_facts.app_layer(entry, sub_meta)
     else:
         merged = dict(root_meta or {})
 
