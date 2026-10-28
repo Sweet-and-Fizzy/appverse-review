@@ -1,0 +1,639 @@
+{
+  "schema": "metadata/1",
+  "shape": "monorepo",
+  "root_maintainer": {
+    "name": "Tufts Research Technology",
+    "support_url": "https://it.tufts.edu/researchtechnology.tufts.edu"
+  },
+  "apps": [
+    {
+      "app_id": "dashboard",
+      "status": "declared",
+      "note": null,
+      "fields": {
+        "name": {
+          "value": "nf-core Pipelines Dashboard",
+          "source": "appverse.yml"
+        },
+        "description": {
+          "value": "Landing page that groups nf-core pipelines by category, collapses versions, and links to each launch form.",
+          "source": "appverse.yml"
+        },
+        "app_type": {
+          "value": "dashboards",
+          "source": "appverse.yml"
+        },
+        "software": {
+          "value": "nf-core",
+          "source": "appverse.yml"
+        },
+        "implementation_tags": {
+          "value": null,
+          "source": null
+        },
+        "maintainer.name": {
+          "value": "Tufts Research Technology",
+          "source": "appverse.yml"
+        },
+        "maintainer.support_url": {
+          "value": "https://it.tufts.edu/researchtechnology.tufts.edu",
+          "source": "appverse.yml"
+        }
+      },
+      "missing": [],
+      "software_missing": false
+    },
+    {
+      "app_id": "nf-core-ampliseq-2-16-1",
+      "status": "declared",
+      "note": null,
+      "fields": {
+        "name": {
+          "value": "nf-core Ampliseq (v2.16.1)",
+          "source": "appverse.yml"
+        },
+        "description": {
+          "value": "Amplicon sequencing (16S/ITS) taxonomic profiling \u2014 nf-core/ampliseq.",
+          "source": "appverse.yml"
+        },
+        "app_type": {
+          "value": "batch-connect-basic",
+          "source": "appverse.yml"
+        },
+        "software": {
+          "value": "nf-core",
+          "source": "appverse.yml"
+        },
+        "implementation_tags": {
+          "value": null,
+          "source": null
+        },
+        "maintainer.name": {
+          "value": "Tufts Research Technology",
+          "source": "appverse.yml"
+        },
+        "maintainer.support_url": {
+          "value": "https://it.tufts.edu/researchtechnology.tufts.edu",
+          "source": "appverse.yml"
+        }
+      },
+      "missing": [],
+      "software_missing": false
+    },
+    {
+      "app_id": "nf-core-chipseq-2-1-0",
+      "status": "declared",
+      "note": null,
+      "fields": {
+        "name": {
+          "value": "nf-core ChIP-seq (v2.1.0)",
+          "source": "appverse.yml"
+        },
+        "description": {
+          "value": "ChIP-seq peak-calling and QC \u2014 nf-core/chipseq.",
+          "source": "appverse.yml"
+        },
+        "app_type": {
+          "value": "batch-connect-basic",
+          "source": "appverse.yml"
+        },
+        "software": {
+          "value": "nf-core",
+          "source": "appverse.yml"
+        },
+        "implementation_tags": {
+          "value": null,
+          "source": null
+        },
+        "maintainer.name": {
+          "value": "Tufts Research Technology",
+          "source": "appverse.yml"
+        },
+        "maintainer.support_url": {
+          "value": "https://it.tufts.edu/researchtechnology.tufts.edu",
+          "source": "appverse.yml"
+        }
+      },
+      "missing": [],
+      "software_missing": false
+    },
+    {
+      "app_id": "nf-core-denovotranscript-1-2-1",
+      "status": "declared",
+      "note": null,
+      "fields": {
+        "name": {
+          "value": "nf-core De Novo Transcript (v1.2.1)",
+          "source": "appverse.yml"
+        },
+        "description": {
+          "value": "De novo transcriptome assembly \u2014 nf-core/denovotranscript.",
+          "source": "appverse.yml"
+        },
+        "app_type": {
+          "value": "batch-connect-basic",
+          "source": "appverse.yml"
+        },
+        "software": {
+          "value": "nf-core",
+          "source": "appverse.yml"
+        },
+        "implementation_tags": {
+          "value": null,
+          "source": null
+        },
+        "maintainer.name": {
+          "value": "Tufts Research Technology",
+          "source": "appverse.yml"
+        },
+        "maintainer.support_url": {
+          "value": "https://it.tufts.edu/researchtechnology.tufts.edu",
+          "source": "appverse.yml"
+        }
+      },
+      "missing": [],
+      "software_missing": false
+    },
+    {
+      "app_id": "nf-core-differentialabundance-2-0-0",
+      "status": "declared",
+      "note": null,
+      "fields": {
+        "name": {
+          "value": "nf-core Differential Abundance (v2.0.0)",
+          "source": "appverse.yml"
+        },
+        "description": {
+          "value": "Differential abundance / expression analysis \u2014 nf-core/differentialabundance.",
+          "source": "appverse.yml"
+        },
+        "app_type": {
+          "value": "batch-connect-basic",
+          "source": "appverse.yml"
+        },
+        "software": {
+          "value": "nf-core",
+          "source": "appverse.yml"
+        },
+        "implementation_tags": {
+          "value": null,
+          "source": null
+        },
+        "maintainer.name": {
+          "value": "Tufts Research Technology",
+          "source": "appverse.yml"
+        },
+        "maintainer.support_url": {
+          "value": "https://it.tufts.edu/researchtechnology.tufts.edu",
+          "source": "appverse.yml"
+        }
+      },
+      "missing": [],
+      "software_missing": false
+    },
+    {
+      "app_id": "nf-core-fetchngs-1-12-0",
+      "status": "declared",
+      "note": null,
+      "fields": {
+        "name": {
+          "value": "nf-core FetchNGS (v1.12.0)",
+          "source": "appverse.yml"
+        },
+        "description": {
+          "value": "Download and prepare public sequencing data from SRA/ENA/GEO \u2014 nf-core/fetchngs.",
+          "source": "appverse.yml"
+        },
+        "app_type": {
+          "value": "batch-connect-basic",
+          "source": "appverse.yml"
+        },
+        "software": {
+          "value": "nf-core",
+          "source": "appverse.yml"
+        },
+        "implementation_tags": {
+          "value": null,
+          "source": null
+        },
+        "maintainer.name": {
+          "value": "Tufts Research Technology",
+          "source": "appverse.yml"
+        },
+        "maintainer.support_url": {
+          "value": "https://it.tufts.edu/researchtechnology.tufts.edu",
+          "source": "appverse.yml"
+        }
+      },
+      "missing": [],
+      "software_missing": false
+    },
+    {
+      "app_id": "nf-core-funcscan-3-0-0",
+      "status": "declared",
+      "note": null,
+      "fields": {
+        "name": {
+          "value": "nf-core Funcscan (v3.0.0)",
+          "source": "appverse.yml"
+        },
+        "description": {
+          "value": "Screen for functional genes (AMR, BGCs) in (meta)genomes \u2014 nf-core/funcscan.",
+          "source": "appverse.yml"
+        },
+        "app_type": {
+          "value": "batch-connect-basic",
+          "source": "appverse.yml"
+        },
+        "software": {
+          "value": "nf-core",
+          "source": "appverse.yml"
+        },
+        "implementation_tags": {
+          "value": null,
+          "source": null
+        },
+        "maintainer.name": {
+          "value": "Tufts Research Technology",
+          "source": "appverse.yml"
+        },
+        "maintainer.support_url": {
+          "value": "https://it.tufts.edu/researchtechnology.tufts.edu",
+          "source": "appverse.yml"
+        }
+      },
+      "missing": [],
+      "software_missing": false
+    },
+    {
+      "app_id": "nf-core-mag-5-4-2",
+      "status": "declared",
+      "note": null,
+      "fields": {
+        "name": {
+          "value": "nf-core MAG (v5.4.2)",
+          "source": "appverse.yml"
+        },
+        "description": {
+          "value": "Metagenome assembly and binning \u2014 nf-core/mag.",
+          "source": "appverse.yml"
+        },
+        "app_type": {
+          "value": "batch-connect-basic",
+          "source": "appverse.yml"
+        },
+        "software": {
+          "value": "nf-core",
+          "source": "appverse.yml"
+        },
+        "implementation_tags": {
+          "value": null,
+          "source": null
+        },
+        "maintainer.name": {
+          "value": "Tufts Research Technology",
+          "source": "appverse.yml"
+        },
+        "maintainer.support_url": {
+          "value": "https://it.tufts.edu/researchtechnology.tufts.edu",
+          "source": "appverse.yml"
+        }
+      },
+      "missing": [],
+      "software_missing": false
+    },
+    {
+      "app_id": "nf-core-methylseq-4-1-0",
+      "status": "declared",
+      "note": null,
+      "fields": {
+        "name": {
+          "value": "nf-core Methylseq (v4.1.0)",
+          "source": "appverse.yml"
+        },
+        "description": {
+          "value": "Bisulfite sequencing / DNA methylation analysis \u2014 nf-core/methylseq.",
+          "source": "appverse.yml"
+        },
+        "app_type": {
+          "value": "batch-connect-basic",
+          "source": "appverse.yml"
+        },
+        "software": {
+          "value": "nf-core",
+          "source": "appverse.yml"
+        },
+        "implementation_tags": {
+          "value": null,
+          "source": null
+        },
+        "maintainer.name": {
+          "value": "Tufts Research Technology",
+          "source": "appverse.yml"
+        },
+        "maintainer.support_url": {
+          "value": "https://it.tufts.edu/researchtechnology.tufts.edu",
+          "source": "appverse.yml"
+        }
+      },
+      "missing": [],
+      "software_missing": false
+    },
+    {
+      "app_id": "nf-core-pathogensurveillance-1-1-0",
+      "status": "declared",
+      "note": null,
+      "fields": {
+        "name": {
+          "value": "nf-core Pathogen Surveillance (v1.1.0)",
+          "source": "appverse.yml"
+        },
+        "description": {
+          "value": "Pathogen identification, variant calling, and surveillance \u2014 nf-core/pathogensurveillance.",
+          "source": "appverse.yml"
+        },
+        "app_type": {
+          "value": "batch-connect-basic",
+          "source": "appverse.yml"
+        },
+        "software": {
+          "value": "nf-core",
+          "source": "appverse.yml"
+        },
+        "implementation_tags": {
+          "value": null,
+          "source": null
+        },
+        "maintainer.name": {
+          "value": "Tufts Research Technology",
+          "source": "appverse.yml"
+        },
+        "maintainer.support_url": {
+          "value": "https://it.tufts.edu/researchtechnology.tufts.edu",
+          "source": "appverse.yml"
+        }
+      },
+      "missing": [],
+      "software_missing": false
+    },
+    {
+      "app_id": "nf-core-proteinfamilies-2-4-0",
+      "status": "declared",
+      "note": null,
+      "fields": {
+        "name": {
+          "value": "nf-core Protein Families (v2.4.0)",
+          "source": "appverse.yml"
+        },
+        "description": {
+          "value": "Protein family generation and annotation \u2014 nf-core/proteinfamilies.",
+          "source": "appverse.yml"
+        },
+        "app_type": {
+          "value": "batch-connect-basic",
+          "source": "appverse.yml"
+        },
+        "software": {
+          "value": "nf-core",
+          "source": "appverse.yml"
+        },
+        "implementation_tags": {
+          "value": null,
+          "source": null
+        },
+        "maintainer.name": {
+          "value": "Tufts Research Technology",
+          "source": "appverse.yml"
+        },
+        "maintainer.support_url": {
+          "value": "https://it.tufts.edu/researchtechnology.tufts.edu",
+          "source": "appverse.yml"
+        }
+      },
+      "missing": [],
+      "software_missing": false
+    },
+    {
+      "app_id": "nf-core-rnafusion-4-1-0",
+      "status": "declared",
+      "note": null,
+      "fields": {
+        "name": {
+          "value": "nf-core RNA Fusion (v4.1.0)",
+          "source": "appverse.yml"
+        },
+        "description": {
+          "value": "Detection of gene fusions from RNA-seq \u2014 nf-core/rnafusion.",
+          "source": "appverse.yml"
+        },
+        "app_type": {
+          "value": "batch-connect-basic",
+          "source": "appverse.yml"
+        },
+        "software": {
+          "value": "nf-core",
+          "source": "appverse.yml"
+        },
+        "implementation_tags": {
+          "value": null,
+          "source": null
+        },
+        "maintainer.name": {
+          "value": "Tufts Research Technology",
+          "source": "appverse.yml"
+        },
+        "maintainer.support_url": {
+          "value": "https://it.tufts.edu/researchtechnology.tufts.edu",
+          "source": "appverse.yml"
+        }
+      },
+      "missing": [],
+      "software_missing": false
+    },
+    {
+      "app_id": "nf-core-rnaseq-3-25-0",
+      "status": "declared",
+      "note": null,
+      "fields": {
+        "name": {
+          "value": "nf-core RNA-seq (v3.25.0)",
+          "source": "appverse.yml"
+        },
+        "description": {
+          "value": "Bulk RNA-seq quantification and QC \u2014 nf-core/rnaseq.",
+          "source": "appverse.yml"
+        },
+        "app_type": {
+          "value": "batch-connect-basic",
+          "source": "appverse.yml"
+        },
+        "software": {
+          "value": "nf-core",
+          "source": "appverse.yml"
+        },
+        "implementation_tags": {
+          "value": null,
+          "source": null
+        },
+        "maintainer.name": {
+          "value": "Tufts Research Technology",
+          "source": "appverse.yml"
+        },
+        "maintainer.support_url": {
+          "value": "https://it.tufts.edu/researchtechnology.tufts.edu",
+          "source": "appverse.yml"
+        }
+      },
+      "missing": [],
+      "software_missing": false
+    },
+    {
+      "app_id": "nf-core-rnaseq-3-26-0",
+      "status": "declared",
+      "note": null,
+      "fields": {
+        "name": {
+          "value": "nf-core RNA-seq (v3.26.0)",
+          "source": "appverse.yml"
+        },
+        "description": {
+          "value": "Bulk RNA-seq quantification and QC \u2014 nf-core/rnaseq.",
+          "source": "appverse.yml"
+        },
+        "app_type": {
+          "value": "batch-connect-basic",
+          "source": "appverse.yml"
+        },
+        "software": {
+          "value": "nf-core",
+          "source": "appverse.yml"
+        },
+        "implementation_tags": {
+          "value": null,
+          "source": null
+        },
+        "maintainer.name": {
+          "value": "Tufts Research Technology",
+          "source": "appverse.yml"
+        },
+        "maintainer.support_url": {
+          "value": "https://it.tufts.edu/researchtechnology.tufts.edu",
+          "source": "appverse.yml"
+        }
+      },
+      "missing": [],
+      "software_missing": false
+    },
+    {
+      "app_id": "nf-core-sarek-3-8-1",
+      "status": "declared",
+      "note": null,
+      "fields": {
+        "name": {
+          "value": "nf-core Sarek (v3.8.1)",
+          "source": "appverse.yml"
+        },
+        "description": {
+          "value": "Germline and somatic variant calling (WGS/WES) \u2014 nf-core/sarek.",
+          "source": "appverse.yml"
+        },
+        "app_type": {
+          "value": "batch-connect-basic",
+          "source": "appverse.yml"
+        },
+        "software": {
+          "value": "nf-core",
+          "source": "appverse.yml"
+        },
+        "implementation_tags": {
+          "value": null,
+          "source": null
+        },
+        "maintainer.name": {
+          "value": "Tufts Research Technology",
+          "source": "appverse.yml"
+        },
+        "maintainer.support_url": {
+          "value": "https://it.tufts.edu/researchtechnology.tufts.edu",
+          "source": "appverse.yml"
+        }
+      },
+      "missing": [],
+      "software_missing": false
+    },
+    {
+      "app_id": "nf-core-scrnaseq-4-1-0",
+      "status": "declared",
+      "note": null,
+      "fields": {
+        "name": {
+          "value": "nf-core scRNA-seq (v4.1.0)",
+          "source": "appverse.yml"
+        },
+        "description": {
+          "value": "Single-cell RNA-seq pre-processing and quantification \u2014 nf-core/scrnaseq.",
+          "source": "appverse.yml"
+        },
+        "app_type": {
+          "value": "batch-connect-basic",
+          "source": "appverse.yml"
+        },
+        "software": {
+          "value": "nf-core",
+          "source": "appverse.yml"
+        },
+        "implementation_tags": {
+          "value": null,
+          "source": null
+        },
+        "maintainer.name": {
+          "value": "Tufts Research Technology",
+          "source": "appverse.yml"
+        },
+        "maintainer.support_url": {
+          "value": "https://it.tufts.edu/researchtechnology.tufts.edu",
+          "source": "appverse.yml"
+        }
+      },
+      "missing": [],
+      "software_missing": false
+    },
+    {
+      "app_id": "nf-core-taxprofiler-2-0-0",
+      "status": "declared",
+      "note": null,
+      "fields": {
+        "name": {
+          "value": "nf-core Taxprofiler (v2.0.0)",
+          "source": "appverse.yml"
+        },
+        "description": {
+          "value": "Taxonomic profiling of metagenomic samples \u2014 nf-core/taxprofiler.",
+          "source": "appverse.yml"
+        },
+        "app_type": {
+          "value": "batch-connect-basic",
+          "source": "appverse.yml"
+        },
+        "software": {
+          "value": "nf-core",
+          "source": "appverse.yml"
+        },
+        "implementation_tags": {
+          "value": null,
+          "source": null
+        },
+        "maintainer.name": {
+          "value": "Tufts Research Technology",
+          "source": "appverse.yml"
+        },
+        "maintainer.support_url": {
+          "value": "https://it.tufts.edu/researchtechnology.tufts.edu",
+          "source": "appverse.yml"
+        }
+      },
+      "missing": [],
+      "software_missing": false
+    }
+  ]
+}

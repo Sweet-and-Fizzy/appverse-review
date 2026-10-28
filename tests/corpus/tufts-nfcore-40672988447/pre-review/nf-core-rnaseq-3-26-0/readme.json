@@ -1,0 +1,65 @@
+{
+  "file": "nf-core-rnaseq-3-26-0/README.md",
+  "headings": [
+    {
+      "level": 1,
+      "text": "nf-core/rnaseq Open OnDemand App",
+      "line": 1
+    },
+    {
+      "level": 2,
+      "text": "Overview",
+      "line": 6
+    },
+    {
+      "level": 2,
+      "text": "Included files",
+      "line": 16
+    },
+    {
+      "level": 2,
+      "text": "Local review before deployment",
+      "line": 24
+    },
+    {
+      "level": 2,
+      "text": "Appverse readiness notes",
+      "line": 38
+    }
+  ],
+  "placeholders": [],
+  "screenshots": [],
+  "env_vars": [
+    {
+      "line": 41,
+      "text": "isolated to environment variables, documented defaults, or deploy-time config.",
+      "match": "phrase"
+    }
+  ],
+  "rungs": {
+    "what it launches": {
+      "heading": "Overview",
+      "line": 6,
+      "placeholder": false,
+      "match": "heading"
+    },
+    "prerequisites": null,
+    "installation": {
+      "heading": "Local review before deployment",
+      "line": 24,
+      "placeholder": false,
+      "match": "heading"
+    },
+    "configuration": null,
+    "known limitations": null,
+    "troubleshooting": null,
+    "screenshots": null,
+    "environment variables": null,
+    "info panel": null,
+    "architecture": null
+  },
+  "stub": false,
+  "content_line_count": 27,
+  "content_chars": 1715,
+  "baseline_rating": "Below minimal"
+}
