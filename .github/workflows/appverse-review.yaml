@@ -653,7 +653,7 @@ jobs:
             - feedback: ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.feedback.json
             - checker output to fix: ${{ github.workspace }}/check-output.txt
               (the lines starting [floor], [keys], [rating], [rows],
-              [evidence], [findings], [meta], [decisions] or [sections] and containing MISSING, INVALID,
+              [metadata], [form], [evidence], [findings], [meta], [decisions] or [sections] and containing MISSING, INVALID,
               MISMATCH, UNCITED or BAD; everything else there is context)
             - pre-review facts: ${{ github.workspace }}/pre-review/
             - the rules the checkers apply: ${{ github.workspace }}/appverse-review/skills/review-app/SKILL.md
@@ -716,11 +716,14 @@ jobs:
               has no STR-02 row left, add a STR-02 PASS row citing the file the line names
               (the check needs a row for every app). Then recheck the app's
               decision and the draft feedback without the FAIL.
-            - A [form] MISMATCH line: the attribute is one OOD defines, or
-              OOD renders it as a widget that takes no free text or gives it a
-              floor (the line says which). Remove that record and its row. If
-              it was the check's only STR-04 row, add a STR-04 PASS row. Then
-              recheck the decision and the draft feedback without it.
+            - A [form] MISMATCH line: the attribute is listed under form:, so
+              OOD builds it, or it is one OOD defines and bounds itself. Do
+              what the line says: remove the record, or drop the attributes it
+              names from the record and from its row (summary and citations),
+              keeping the rest. A row shared with other records keeps their
+              part. If the check has no row left, add a PASS row for it
+              (every check needs a row). Then recheck the decision and the
+              draft feedback.
             - A [decisions] MISMATCH line: raise the named decision to at
               least the one the line gives, in the report (the app's
               Per-app decision line, or the Overall recommendation) and in

@@ -94,11 +94,13 @@ its own finding with the vocabulary tag that fits or `other:`.
   ERB is not valid YAML) — check that it exists and has balanced ERB tags
   instead.
 - References resolve (`check: str-04-references`): an attribute the submit
-  file or a template uses must be one the form defines. One that the app's
-  `<pre-review>/<app_id>/form.json` lists with `ood` set (`auto_*`, `bc_*`,
-  a site's `global_*`) is one OOD's dashboard defines itself, listed under
-  `form:` with or without an `attributes:` entry, and never an
-  `undefined-variable` or `undefined-attribute`.
+  file or a template uses must be one OOD builds, which is every name under
+  the form's `form:` list (`in_form` true in the app's
+  `<pre-review>/<app_id>/form.json`). An entry there with no `attributes:`
+  block is still built (as a text field, or as OOD's own attribute when
+  `ood` is set: `auto_*`, `bc_*`, a site's `global_*`), so it is never an
+  `undefined-variable` or `undefined-attribute`. A name only under
+  `attributes:`, or in neither, is.
 - ERB templates look renderable (balanced `<%= %>` tags). STR-06 comes from
   the pre-review facts, never from running `bash -n` yourself: read
   `<pre-review>/syntax.json` and record one STR-06 record per shell file,

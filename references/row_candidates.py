@@ -95,11 +95,13 @@ def form_candidates(check_id, form, prefix):
             continue
         cites = site(prefix, ffile, a.get("line"))
         if check_id == "numeric-field-bounds":
-            # An attribute OOD defines carries OOD's widget and floor in the
-            # fact, so it is judged like the form's own; a global_ one is site
-            # config, and an undeclared one of the form's own is a broken
-            # reference (STR-04), not a field to bound.
-            if a.get("ood") == "global" or (a.get("defined") is False and not a.get("ood")):
+            # OOD's own attributes (auto_*, bc_*, a site's global_*) are
+            # OOD's to bound, not the app's. A form: entry with no
+            # attributes: block is still one of the form's own: OOD builds it
+            # as a text_field. A fact from before `ood` existed cannot tell
+            # OOD's attributes from the form's, so its undeclared ones are
+            # skipped as they were then. A fixed attribute takes no input.
+            if a.get("ood") or a.get("fixed") or ("ood" not in a and a.get("defined") is False):
                 continue
             if not a.get("reaches_scheduler"):
                 continue
