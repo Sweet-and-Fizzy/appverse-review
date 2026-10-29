@@ -26,7 +26,15 @@ before app-type-not-in-vocabulary joined the vocabulary):
         implementation_tags): the catalog rejects nothing for it.
     MISMATCH <app_id> app-type-not-in-vocabulary: FAIL, but catalog.json lists '<value>' as a known app type
 
-Apps whose status is not "declared" (inferred, unparsed, refused, skipped)
+For an inferred app (no appverse.yml), a FAIL for a catalog-only field
+(software, app_type, maintainer.name, maintainer.support_url) or an
+app-type-not-in-vocabulary FAIL is a MISMATCH:
+
+    MISMATCH <app_id> missing-field:<field>: FAIL, but the repo is inferred (no appverse.yml), and the catalog requires no <field> of it
+    MISMATCH <app_id> app-type-not-in-vocabulary: FAIL, but the repo is inferred (no appverse.yml) and declares no catalog app_type
+
+Its manifest.yml fields (name, category, role, description) stay the
+rubric's to judge. Apps whose status is unparsed, refused or skipped
 declare nothing to judge. Without catalog.json, or with no entry for an app,
 the app_type rule is skipped. Without metadata.json (a pre-review from before
 this check) nothing is judged.
@@ -41,6 +49,9 @@ import sys
 MAINTAINER = ("maintainer.name", "maintainer.support_url")
 # The fields the hub rejects an app without (metadata_facts.REQUIRED, plus
 # software, which it reports on its own).
+# Fields only appverse.yml declares. An inferred repo has none, and the hub
+# lists its app without them (RepoSyncService::syncInferredMemberApp).
+CATALOG_ONLY = ("software", "app_type", "maintainer.name", "maintainer.support_url")
 CATALOG_REQUIRED = ("name", "description", "app_type", "software", "maintainer.name", "maintainer.support_url")
 APP_TYPE_TAG = "app-type-not-in-vocabulary"
 
@@ -99,6 +110,17 @@ def problems(fact, catalog, fails):
     root_maintainer = fact.get("root_maintainer") or {}
     for aid, tag in sorted(fails, key=lambda t: (str(t[0]), t[1])):
         app = by_id.get(aid)
+        if app is not None and app.get("status") == "inferred":
+            # The hub lists an inferred repo's app with no catalog fields of its
+            # own; only the rubric's manifest.yml fields apply to it.
+            if tag.startswith("missing-field:") and tag[len("missing-field:"):] in CATALOG_ONLY:
+                field = tag[len("missing-field:"):]
+                out.append("MISMATCH {} {}: FAIL, but the repo is inferred (no appverse.yml), and the catalog "
+                           "requires no {} of it".format(aid, tag, field))
+            elif tag == APP_TYPE_TAG:
+                out.append("MISMATCH {} {}: FAIL, but the repo is inferred (no appverse.yml) and declares no "
+                           "catalog app_type".format(aid, tag))
+            continue
         if tag.startswith("missing-field:"):
             field = tag[len("missing-field:"):]
             if app is not None and app.get("status") == "declared" and not is_missing(app, field):
