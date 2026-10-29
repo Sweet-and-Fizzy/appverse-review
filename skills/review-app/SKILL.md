@@ -620,6 +620,10 @@ externally by the API provider.
   record names an attribute listed under the form's `form:`, and no
   numeric-field-bounds record names one OOD defines and bounds itself
   (`ood` set in `form.json`).
+  `check-tools.py`: a FAIL or WARN record whose only evidence is a
+  static-tool result uses the rule and tag `security-tools.md`'s "Tool
+  finding codes: rule and tag" table gives its code, and an unlisted
+  shellcheck code is never filed under an OODT rule.
   `check-evidence.py`: every `file:line` citation names a real file and
   line, every `content:` citation names a README content line, and a
   literal value the summary asserts is on the cited line is there (within
@@ -642,7 +646,7 @@ externally by the API provider.
   recommendation that states its decision, every app of a monorepo has a
   Per-app decision line, and those decisions match the meta.json.
   Its output groups each checker's problem lines under a `[floor]`/`[keys]`/
-  `[rating]`/`[rows]`/`[metadata]`/`[license]`/`[form]`/`[evidence]`/`[catalog]`/`[meta]`/`[decisions]`/`[sections]` prefix, followed by that checker's
+  `[rating]`/`[rows]`/`[metadata]`/`[license]`/`[form]`/`[tools]`/`[evidence]`/`[catalog]`/`[meta]`/`[decisions]`/`[sections]` prefix, followed by that checker's
   summary line. It exits 1 if any checker failed, including a report
   missing a section a checker needs (`MISSING section: ...`), and 2 if any
   could not run, including a checker that crashed (`crashed: ...`).

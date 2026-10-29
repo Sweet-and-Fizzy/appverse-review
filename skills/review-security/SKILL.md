@@ -166,7 +166,10 @@ candidate sites, not verdicts. Security has no rating: the rows are the output.
      finding codes: rule and tag" table gives the code. A security code
      records under its OODT rule; a hygiene code records under the QUA-xx
      (or STR-xx) rule that table names, and that rule goes in the row's
-     Rule cell. The Rule cell of a PASS tool row is `—`. Tool rows always
+     Rule cell. A shellcheck code the table does not list is never an OODT
+     record on its own: file it under the QUA rule its defect belongs to,
+     unless it corroborates an OODT finding you make on other evidence.
+     The Rule cell of a PASS tool row is `—`. Tool rows always
      stay in the Security tables, never moved to Code Quality, so the
      sentence rule below sees them. The row's Summary always starts with
      the code (`SC2164: ...`, `B602: ...`, the semgrep check_id as a whole
@@ -226,8 +229,10 @@ candidate sites, not verdicts. Security has no rating: the rows are the output.
    unintentional or potentially malicious. A PASS row has severity `info`
    and `—` in the Tag column; its PASS record's `tag` field is
    `unintentional`, since the record schema requires one.
-   Use the OODT mapping from the tool lookup table to classify
-   tool-originated findings.
+   A tool row is the exception to the OODT classification: it takes
+   the rule and tag that `security-tools.md`'s "Tool finding codes: rule
+   and tag" table gives its code (step 6), which for a hygiene code is a
+   QUA or STR rule, not the tool's OODT mapping row.
 8. **Capability profile.** Last, summarize what the code does (system
    access, network calls, file reads and writes, spawned processes, dynamic
    code loading, authentication posture), drawing on the rows above. It is a
