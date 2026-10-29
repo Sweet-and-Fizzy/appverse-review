@@ -126,6 +126,29 @@ echo "[$(finding a appverse.yml:missing-field:implementation_tags)]" > "$TMP/f18
 check "exit 1" 1 "$(run "$TMP/f18.json" "$TMP/p1")"
 check "line" 1 "$(grep -cxF 'MISMATCH a missing-field:implementation_tags: FAIL, but implementation_tags is not a field the catalog requires' "$TMP/out")"
 
+echo "Test 19: an inferred repo FAILed for a catalog-only field"
+for f in software app_type maintainer.name maintainer.support_url; do
+  echo "[$(finding root manifest.yml:missing-field:$f)]" > "$TMP/f19.json"
+  check "$f: exit 1" 1 "$(run "$TMP/f19.json" "$TMP/p12")"
+  check "$f: line" 1 "$(grep -cxF "MISMATCH root missing-field:$f: FAIL, but the repo is inferred (no appverse.yml), and the catalog requires no $f of it" "$TMP/out")"
+done
+
+echo "Test 20: an inferred repo FAILed for an unknown app type"
+echo "[$(finding root manifest.yml:app-type-not-in-vocabulary)]" > "$TMP/f20.json"
+check "exit 1" 1 "$(run "$TMP/f20.json" "$TMP/p12")"
+check "line" 1 "$(grep -cxF "MISMATCH root app-type-not-in-vocabulary: FAIL, but the repo is inferred (no appverse.yml) and declares no catalog app_type" "$TMP/out")"
+
+echo "Test 21: an inferred repo's own manifest.yml fields are still the rubric's to FAIL"
+echo "[$(finding root manifest.yml:missing-field:name),$(finding root manifest.yml:missing-field:category),$(finding root manifest.yml:missing-field:description),$(finding root manifest.yml:missing-field:role)]" > "$TMP/f21.json"
+check "exit 0" 0 "$(run "$TMP/f21.json" "$TMP/p12")"
+
+echo "Test 22: unparsed, refused and skipped apps are still not judged"
+for st in unparsed refused skipped; do
+  fact "$TMP/p22$st" "$st" null "{\"app_id\": \"root\", \"status\": \"$st\", \"note\": \"n\", \"fields\": {}, \"missing\": [], \"software_missing\": false}"
+  echo "[$(finding root manifest.yml:missing-field:software)]" > "$TMP/f22.json"
+  check "$st: exit 0" 0 "$(run "$TMP/f22.json" "$TMP/p22$st")"
+done
+
 echo
 echo "check-metadata: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]
