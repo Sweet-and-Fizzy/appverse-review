@@ -1642,6 +1642,58 @@ def _num(value):
     return str(value)
 
 
+# Form attributes OOD's dashboard defines itself (apps/dashboard/app/lib/
+# smart_attributes in OSC/ondemand): name -> (widget, min). Each hard-codes
+# its widget except those in OOD_FORM_WIDGET, which read the form's; the
+# min is a default the form's own min replaces. auto_modules_<m>,
+# auto_environment_variable_<v> and global_<x> are matched as
+# attribute_factory.rb matches them. A global_ attribute comes from the
+# site's global_bc_form_items, so its widget and bounds are unknown here,
+# except that global_bc_<x> is built as bc_<x>.
+OOD_ATTRIBUTES = {
+    "auto_accounts": ("select", None), "auto_batch_clusters": ("select", None),
+    "auto_cores": ("number_field", 1), "auto_groups": ("select", None),
+    "auto_job_name": ("text_field", None), "auto_log_location": ("text_field", None),
+    "auto_primary_group": ("hidden_field", None), "auto_qos": ("select", None),
+    "auto_queues": ("select", None), "auto_scripts": ("select", None),
+    "bc_account": ("text_field", None), "bc_email_on_started": ("check_box", None),
+    "bc_num_hours": ("number_field", 1), "bc_num_nodes": ("number_field", 1),
+    "bc_num_slots": ("number_field", 1), "bc_queue": ("text_field", None),
+    "bc_vnc_idle": ("number_field", None), "bc_vnc_resolution": ("resolution_field", None),
+}
+OOD_FORM_WIDGET = {"bc_account"}
+_AUTO_MODULES = re.compile(r"auto_modules_[\w\-/]+")
+_AUTO_ENV = re.compile(r"auto_environment_variable_[\w-]+")
+_GLOBAL = re.compile(r"global_([\w-]+)")
+
+
+def ood_attribute(name):
+    """(kind, widget, min) for an attribute OOD defines, kind "auto" (auto_*),
+    "builtin" (bc_*) or "global"; None for the form's own."""
+    if _AUTO_MODULES.fullmatch(name):
+        return "auto", "select", None
+    if _AUTO_ENV.fullmatch(name):
+        return "auto", "text_field", None
+    m = _GLOBAL.fullmatch(name)
+    if m:
+        built = m.group(1)
+        return ("global",) + (OOD_ATTRIBUTES[built] if built.startswith("bc_") and built in OOD_ATTRIBUTES
+                              else (None, None))
+    if name in OOD_ATTRIBUTES:
+        return ("auto" if name.startswith("auto_") else "builtin",) + OOD_ATTRIBUTES[name]
+    return None
+
+
+def _form_widget(name, spec, ood):
+    """The widget OOD renders: its own for an attribute that hard-codes one,
+    else the form's, else OOD's generic text_field (unknown for a site's
+    global_ attribute)."""
+    kind, widget, _ = ood or (None, None, None)
+    if widget and name not in OOD_FORM_WIDGET:
+        return widget
+    return spec.get("widget") or widget or (None if kind == "global" else "text_field")
+
+
 def scan_form(target, app_dir):
     """form.json for one app directory, or None when it has no form file. A
     parse failure is returned as {"error": ...}; a form or submit file that
@@ -1676,18 +1728,24 @@ def scan_form(target, app_dir):
     refs = _submit_refs(submit_text, names) if submit else {}
     for name in names:
         spec = attrs.get(name)
+        # OOD makes a plain value under attributes: a fixed one (app.rb).
+        fixed = name in attrs and not isinstance(spec, dict)
         spec = spec if isinstance(spec, dict) else {}
         html = spec.get("html_options") if isinstance(spec.get("html_options"), dict) else {}
         lines, reaches = refs.get(name, ([], False))
+        ood = ood_attribute(name)
+        ood_kind, _, ood_min = ood or (None, None, None)
         result["attributes"].append({
             "name": name,
-            "widget": spec.get("widget"),
-            "min": _num(spec.get("min", html.get("min"))),
+            "widget": _form_widget(name, spec, ood),
+            "min": _num(spec.get("min", html.get("min", ood_min))),
             "max": _num(spec.get("max", html.get("max"))),
             "pattern": spec.get("pattern", html.get("pattern")),
             "required": bool(spec.get("required", html.get("required", False))),
             "line": attr_lines.get(name) if name in attrs else form_lines.get(name),
             "defined": name in attrs,
+            "ood": ood_kind,
+            "fixed": fixed,
             "in_form": name in form,
             "interpolated_in_submit": bool(lines),
             "submit_lines": lines,
