@@ -7,6 +7,7 @@
 [metadata] metadata: not judged (no metadata.json in tests/corpus/ood-sas-36773061549/pre-review)
 [license] license: LICENSE.txt, 0 problems
 [form] form: 0 problems
+[tools] tools: 0 problems
 [evidence] evidence: 39/39 valid; report rows: 24/24 valid
 [catalog] catalog: not checked (no catalog-checks.md in the pre-review output)
 [meta] meta: complete

@@ -114,7 +114,7 @@ the strip itself.
 
 **Key finding codes:**
 - SC2086: unquoted variable (injection risk in scripts that handle form values)
-- SC2091: unquoted command substitution
+- SC2091: `$(...)` whose output is run as a command
 - SC2046: unquoted `$(...)` — word splitting
 - SC2006: use `$(...)` instead of legacy backticks
 
@@ -349,6 +349,7 @@ own row: a PASS that names the covering row.
 | Code | What it flags | Rule | Tag | Artefact |
 |---|---|---|---|---|
 | SC2086 | Unquoted variable expansion (word splitting, globbing) | OODT-01 | `unquoted-variable` | no |
+| SC2046 | Unquoted command substitution `$(...)` (word splitting, globbing) | OODT-01 | `unquoted-variable` | no |
 | SC2164 | `cd` without `\|\| exit`, so a failed `cd` runs the rest in the wrong directory | QUA-03 | `no-error-check` | no |
 | SC2155 | `local`/`export` and assignment in one statement, masking the command's exit status | QUA-03 | `no-error-check` | no |
 | SC2054 | Comma inside an array element (often Apptainer `--bind a,b` syntax, which is correct) | QUA-06 | `other:array-element-comma` | no |
@@ -367,10 +368,18 @@ own row: a PASS that names the covering row.
 
 Tool findings arrive with tool-native severity (shellcheck levels, bandit
 confidence/severity, semgrep severity, CVE CVSS scores). **Do not pass these
-through as-is.** Map each finding to the OODT taxonomy using the OODT mapping
-column above, then rate severity (High / Medium / Low) using the rubric's blast
-radius criteria — the same way manual findings are rated. Tool severity scores are
-useful context but OODT classification is what goes in the report.
+through as-is.** A tool finding's rule and tag come from the "Tool finding
+codes: rule and tag" table above. The per-tool OODT mapping rows say which
+OODT categories a tool can surface, not where each of its findings goes. A
+tool finding is a security finding only when the table files its code under
+an OODT rule, or when it corroborates an OODT finding the review makes on
+evidence of its own. A code the table files under a QUA or STR rule is a
+code-quality finding whatever the tool's own level, and a shellcheck code the
+table does not list goes under the QUA rule its defect belongs to. Then rate
+severity (High / Medium / Low) using the rubric's blast radius criteria, the
+same way manual findings are rated; the tool's own score is context, not the
+rating. `check-tools.py` checks the rule and tag of every FAIL or WARN record
+whose only evidence is a tool result.
 
 Expect false positives, especially:
 - shellcheck on OOD job-script files (the artefact codes in the table
