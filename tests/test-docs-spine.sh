@@ -227,6 +227,9 @@ has .github/workflows/appverse-review.yaml "add a STR-02 PASS row citing the fil
 has references/review-rubric.md "| \`name\` | Present" "rubric's declared-repo table lists name, which the catalog requires"
 has skills/review-structure/SKILL.md "If \`<pre-review>/metadata.json\` is absent" "structure skill says what to do when the metadata fact is missing"
 has .github/workflows/appverse-review.yaml "or the field is not one the catalog requires" "repair handles the not-required [metadata] MISMATCH"
+has skills/review-structure/SKILL.md "is one OOD's dashboard defines itself" "structure skill: an attribute form.json marks as OOD's is never undefined (STR-04)"
+has skills/review-quality/SKILL.md "Never call such an attribute free text or unbounded" "quality skill reads OOD's widget and floor from form.json"
+has .github/workflows/appverse-review.yaml "A [form] MISMATCH line: the attribute is one OOD defines" "repair handles a [form] MISMATCH"
 has skills/review-structure/SKILL.md "readme-not-substantive" "review-structure records STR-01 readme-not-substantive, the record check-rating falls back to"
 STUB_N=$(checker references/pre-review.py 'STUB_CONTENT_CHARS')
 has "$RUBRIC" "fewer than $STUB_N characters of content" "rubric states pre-review's stub threshold"

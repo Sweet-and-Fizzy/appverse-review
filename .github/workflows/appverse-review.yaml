@@ -666,8 +666,8 @@ jobs:
             Rules:
             - Change only what a listed line requires. Keep every existing
               finding and its defect_key unless a line says the key is invalid,
-              the record is missing, or (a [metadata] MISMATCH) the record is
-              wrong.
+              the record is missing, or (a [metadata] or [form] MISMATCH) the
+              record is wrong.
             - A MISSING row or record: add it, citing a real file:line from
               the pre-review facts or the repository.
             - An UNCITED row: add the file:line the facts give for that
@@ -716,6 +716,11 @@ jobs:
               has no STR-02 row left, add a STR-02 PASS row citing the file the line names
               (the check needs a row for every app). Then recheck the app's
               decision and the draft feedback without the FAIL.
+            - A [form] MISMATCH line: the attribute is one OOD defines, or
+              OOD renders it as a widget that takes no free text or gives it a
+              floor (the line says which). Remove that record and its row. If
+              it was the check's only STR-04 row, add a STR-04 PASS row. Then
+              recheck the decision and the draft feedback without it.
             - A [decisions] MISMATCH line: raise the named decision to at
               least the one the line gives, in the report (the app's
               Per-app decision line, or the Overall recommendation) and in
@@ -1128,7 +1133,7 @@ jobs:
             echo "A second repair pass ran; its re-check decides: $final"
           fi
           if [ "$final" = "failure" ]; then
-            echo "::error::Review produced its outputs but check-all.py failed after repair; see the re-check step's [floor]/[keys]/[rating]/[rows]/[evidence]/[catalog] INVALID/MISSING/MISMATCH/UNCITED/BAD lines"
+            echo "::error::Review produced its outputs but check-all.py failed after repair; see the re-check step's [floor]/[keys]/[rating]/[rows]/[metadata]/[form]/[evidence]/[catalog] INVALID/MISSING/MISMATCH/UNCITED/BAD lines"
             check_failed=1
           fi
           required="md"

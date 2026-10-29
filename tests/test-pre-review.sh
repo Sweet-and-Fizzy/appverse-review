@@ -842,7 +842,7 @@ check "num_cores reaches the scheduler via ppn" "True|[2]|True" "$(fm "$D" "'|'.
 check "node_type referenced twice, reaches the scheduler" "True|[12, 24]|True" "$(fm "$D" "'|'.join(str(x[k]) for x in $A'node_type'] for k in ('interpolated_in_submit','submit_lines','reaches_scheduler'))")"
 check "version not referenced" "False|[]|False" "$(fm "$D" "'|'.join(str(x[k]) for x in $A'version'] for k in ('interpolated_in_submit','submit_lines','reaches_scheduler'))")"
 check "input_file defined, not in form" "text_field|37|True|False" "$(fm "$D" "'|'.join(str(x[k]) for x in $A'input_file'] for k in ('widget','line','defined','in_form'))")"
-check "bc_num_hours in form only" "None|12|False|True" "$(fm "$D" "'|'.join(str(x[k]) for x in $A'bc_num_hours'] for k in ('widget','line','defined','in_form'))")"
+check "bc_num_hours in form only: OOD's number_field" "number_field|12|False|True" "$(fm "$D" "'|'.join(str(x[k]) for x in $A'bc_num_hours'] for k in ('widget','line','defined','in_form'))")"
 
 echo "Test 37: form facts, YAML form.yml, references, bounds, unparseable forms, Passenger"
 check "good-app hours bounds" "hours|number_field|1|48|3" "$(fm "$FIX/monorepo/apps/good-app" "'|'.join(str(d['attributes'][0][k]) for k in ('name','widget','min','max','line'))")"
@@ -1814,5 +1814,41 @@ printf '#!/bin/bash\necho $X\n' > "$T/template/script.sh"
 printf '[{"file": "template/before.sh.erb", "line": 1, "level": "error", "code": 2148, "message": "no shebang"}, {"file": "template/script.sh", "line": 2, "level": "info", "code": 2086, "message": "q"}, {"file": "template/script.sh", "line": 5, "level": "info", "code": 2086, "message": "q"}]' > "$O/shellcheck.json"
 check "only the in-file finding is a candidate, at its line" "template/script.sh:2" "$(sco "$T" "$T" batch_connect "$O" "','.join('%s:%s' % (c['file'], c['lines']) for c in $BY'tool_finding']).replace('[', '').replace(']', '')")"
 check "the skipped items are noted" "['shellcheck.json: 2 item(s) past the end of their file skipped']" "$(sco "$T" "$T" batch_connect "$O" "d['tool_notes']")"
+
+echo "Test 63: form.json marks the attributes OOD defines, with OOD's widget and floor (the tillicum auto_accounts case)"
+T="$TMP/t63"; mkdir -p "$T"
+cat > "$T/form.yml" <<'YML'
+---
+attributes:
+  auto_qos:
+    label: "QoS"
+  bc_num_hours:
+    value: 1
+  bc_num_slots:
+    widget: text_field
+  num_gpus:
+    widget: hidden_field
+  custom_text:
+    widget: text_field
+form:
+  - auto_accounts
+  - auto_qos
+  - auto_modules_python
+  - global_gpus
+  - bc_num_hours
+  - bc_num_slots
+  - bc_vnc_resolution
+  - num_gpus
+  - custom_text
+  - custom_thing
+YML
+printf -- '---\nscript:\n  accounting_id: <%%= auto_accounts %%>\n  qos: <%%= auto_qos %%>\n  native: ["<%%= bc_num_hours %%>", "<%%= global_gpus %%>", "<%%= custom_thing %%>", "<%%= custom_text %%>", "<%%= bc_vnc_resolution %%>"]\n' > "$T/submit.yml.erb"
+OOD="'|'.join('%s:%s:%s:%s' % (a['name'], a['ood'], a['widget'], a['min']) for a in d['attributes'])"
+check "auto_, bc_ and global_ attributes are OOD's; a form widget overrides OOD's, a form value keeps OOD's floor" \
+  "auto_qos:auto:select:None|bc_num_hours:builtin:number_field:1|bc_num_slots:builtin:text_field:1|num_gpus:None:hidden_field:None|custom_text:None:text_field:None|auto_accounts:auto:select:None|auto_modules_python:auto:select:None|global_gpus:global:None:None|bc_vnc_resolution:builtin:resolution_field:None|custom_thing:None:None:None" \
+  "$(fm "$T" "$OOD")"
+check "defined still means declared under attributes:" "False|True" "$(fm "$T" "'%s|%s' % ($A'auto_accounts'][0]['defined'], $A'auto_qos'][0]['defined'])")"
+check "OOD's attributes get OOD's widget and floor as candidates; global ones are site config and an undeclared one is STR-04's, so neither is a candidate" "form.yml:11" \
+  "$(px "import sys; sys.path.insert(0, A[1]); import row_candidates as rc; d=pr.scan_form(A[0], A[0]); r=','.join(c[0] for c in rc.form_candidates('numeric-field-bounds', d, ''))" "$T" "$SCRIPT_DIR/references")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

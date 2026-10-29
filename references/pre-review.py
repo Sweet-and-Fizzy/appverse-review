@@ -1639,6 +1639,38 @@ def _num(value):
     return str(value)
 
 
+# Form attributes OOD's dashboard defines itself (apps/dashboard/app/lib/
+# smart_attributes in OSC/ondemand): name -> (widget, min) it gives one the
+# form does not override. auto_modules_<m>, auto_environment_variable_<v> and
+# global_<x> are matched by prefix; a global_ attribute comes from the site's
+# global_bc_form_items, so its widget and bounds are unknown here.
+OOD_ATTRIBUTES = {
+    "auto_accounts": ("select", None), "auto_batch_clusters": ("select", None),
+    "auto_cores": ("number_field", 1), "auto_groups": ("select", None),
+    "auto_job_name": ("text_field", None), "auto_log_location": ("text_field", None),
+    "auto_primary_group": ("hidden_field", None), "auto_qos": ("select", None),
+    "auto_queues": ("select", None), "auto_scripts": ("select", None),
+    "bc_account": ("text_field", None), "bc_email_on_started": ("check_box", None),
+    "bc_num_hours": ("number_field", 1), "bc_num_nodes": ("number_field", 1),
+    "bc_num_slots": ("number_field", 1), "bc_queue": ("text_field", None),
+    "bc_vnc_idle": ("number_field", None), "bc_vnc_resolution": ("resolution_field", None),
+}
+
+
+def ood_attribute(name):
+    """(kind, widget, min) for an attribute OOD defines, kind "auto" (auto_*),
+    "builtin" (bc_*) or "global"; None for the form's own."""
+    if name in OOD_ATTRIBUTES:
+        return ("auto" if name.startswith("auto_") else "builtin",) + OOD_ATTRIBUTES[name]
+    if name.startswith("auto_modules_"):
+        return "auto", "select", None
+    if name.startswith("auto_environment_variable_"):
+        return "auto", "text_field", None
+    if name.startswith("global_"):
+        return "global", None, None
+    return None
+
+
 def scan_form(target, app_dir):
     """form.json for one app directory, or None when it has no form file. A
     parse failure is returned as {"error": ...}; a form or submit file that
@@ -1676,15 +1708,17 @@ def scan_form(target, app_dir):
         spec = spec if isinstance(spec, dict) else {}
         html = spec.get("html_options") if isinstance(spec.get("html_options"), dict) else {}
         lines, reaches = refs.get(name, ([], False))
+        ood_kind, ood_widget, ood_min = ood_attribute(name) or (None, None, None)
         result["attributes"].append({
             "name": name,
-            "widget": spec.get("widget"),
-            "min": _num(spec.get("min", html.get("min"))),
+            "widget": spec.get("widget") or ood_widget,
+            "min": _num(spec.get("min", html.get("min", ood_min))),
             "max": _num(spec.get("max", html.get("max"))),
             "pattern": spec.get("pattern", html.get("pattern")),
             "required": bool(spec.get("required", html.get("required", False))),
             "line": attr_lines.get(name) if name in attrs else form_lines.get(name),
             "defined": name in attrs,
+            "ood": ood_kind,
             "in_form": name in form,
             "interpolated_in_submit": bool(lines),
             "submit_lines": lines,

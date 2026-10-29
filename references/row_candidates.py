@@ -34,7 +34,8 @@ TEMPLATE_KEYS = {
 }
 
 
-CONSTRAINED_WIDGETS = {"select", "radio_button", "radio", "check_box", "checkbox", "hidden_field"}
+CONSTRAINED_WIDGETS = {"select", "radio_button", "radio", "check_box", "checkbox", "hidden_field",
+                      "resolution_field"}
 
 
 # sec-tool-finding: a candidate's label carries its code after the last ':',
@@ -90,10 +91,16 @@ def form_candidates(check_id, form, prefix):
     sfile = form.get("submit_file") or "submit.yml.erb"
     out = []
     for a in form.get("attributes") or []:
-        if not a.get("in_form", True) or a.get("defined") is False:
+        if not a.get("in_form", True):
             continue
         cites = site(prefix, ffile, a.get("line"))
         if check_id == "numeric-field-bounds":
+            # An attribute OOD defines carries OOD's widget and floor in the
+            # fact, so it is judged like the form's own; a global_ one is site
+            # config, and an undeclared one of the form's own is a broken
+            # reference (STR-04), not a field to bound.
+            if a.get("ood") == "global" or (a.get("defined") is False and not a.get("ood")):
+                continue
             if not a.get("reaches_scheduler"):
                 continue
             widget = a.get("widget")
@@ -112,7 +119,7 @@ def form_candidates(check_id, form, prefix):
                 continue
             out.append((label(cites[0][0], a.get("line")), cites, None))
         elif check_id == "erb-missing-value":
-            if not a.get("interpolated_in_submit") or a.get("guarded") is True:
+            if a.get("defined") is False or not a.get("interpolated_in_submit") or a.get("guarded") is True:
                 continue
             lines = a.get("submit_lines") or []
             for n in lines:
