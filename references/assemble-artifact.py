@@ -448,7 +448,7 @@ def attach_since_last_review(artifact, findings, baseline):
     }
 
 
-def assemble(meta, findings, md_path, pdf_path, html_path, plugin_version, catalog=None, baseline=None):
+def assemble(meta, findings, md_path, pdf_path, html_path, plugin_version, catalog=None, metadata=None, baseline=None):
     classify_paths(findings)
     repo_findings, app_findings_map = split_findings_by_app(findings)
     repo_criteria = derive_repo_criteria(findings, meta)
@@ -457,6 +457,16 @@ def assemble(meta, findings, md_path, pdf_path, html_path, plugin_version, catal
     if isinstance(recommendation.get("decision"), str):
         recommendation["decision"] = normalize_decision(recommendation["decision"])
 
+    # The pre-review resolved each app's name from appverse.yml (and the
+    # manifest fallback) the way the hub does; the model's meta.json name is
+    # the fallback, since on a large monorepo it has named the wrong app.
+    resolved_names = {}
+    for a in (metadata or {}).get("apps") or []:
+        if isinstance(a, dict):
+            value = ((a.get("fields") or {}).get("name") or {}).get("value")
+            if isinstance(value, str) and value.strip():
+                resolved_names[a.get("app_id")] = value
+
     apps = []
     apps_without_assessments = []
     for app_index, app_meta in enumerate(meta.get("apps", [])):
@@ -464,7 +474,7 @@ def assemble(meta, findings, md_path, pdf_path, html_path, plugin_version, catal
         app_f = app_findings_map.get(app_id, [])
         app_entry = {
             "app_id": app_id,
-            "name": app_meta.get("name", app_id),
+            "name": resolved_names.get(app_id) or app_meta.get("name", app_id),
             "findings": app_f,
             "criteria": derive_app_criteria(app_f),
         }
@@ -598,6 +608,7 @@ def main():
     parser.add_argument("--plugin-version", default="unknown")
     parser.add_argument("--catalog", help="Path to the pre-review's catalog.json (optional)")
     parser.add_argument("--baseline", help="Path to the baseline review_baseline.py wrote (optional)")
+    parser.add_argument("--metadata", help="Path to the pre-review's metadata.json (optional): app names")
     args = parser.parse_args()
 
     with open(args.meta) as f:
@@ -626,8 +637,17 @@ def main():
     # A missing or malformed baseline is no baseline; load() warns.
     baseline = review_baseline.load(args.baseline)
 
+    metadata = None
+    if args.metadata:
+        try:
+            with open(args.metadata) as f:
+                metadata = json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            _warn("could not load metadata {}: {}; app names from meta.json".format(args.metadata, e))
+
     try:
-        artifact = assemble(meta, findings, args.md, args.pdf, args.html, args.plugin_version, catalog, baseline)
+        artifact = assemble(meta, findings, args.md, args.pdf, args.html, args.plugin_version,
+                            catalog=catalog, metadata=metadata, baseline=baseline)
     except AssembleError as e:
         print("error: {}".format(e), file=sys.stderr)
         sys.exit(1)

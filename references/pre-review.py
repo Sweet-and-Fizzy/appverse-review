@@ -53,6 +53,16 @@ the per-app dirs named in the previous apps.json are removed first):
                  rendered from summary.json for the security skill to paste
                  (shellcheck with artefacts: "N findings (codes), M of them
                  linted in isolation from the job-script family").
+  metadata.json  each app's catalog fields (name, description, app_type,
+                 software, implementation_tags, maintainer.name,
+                 maintainer.support_url) with the file each came from,
+                 resolved as the hub's sync resolves them, plus the
+                 required fields that are missing (metadata_facts.py).
+                 apps.json's app_type below is OOD's kind of app, not the
+                 catalog's; the catalog's is here.
+  license.json   the repo's root license files as GitHub's license
+                 detection (licensee) names and ranks them, best first,
+                 and the best of them (or null).
   apps.json      [{app_id, path, app_type, readme}]: the app shape, resolved
                  as target-setup.md section 3 does. A root appverse.yml with
                  an apps: list is a monorepo, one app per apps[].path (app_id
@@ -282,6 +292,7 @@ from readme_lines import (  # noqa: E402,F401  (re-exported for check-evidence a
     baseline_rating,
 )
 import catalog_facts  # noqa: E402
+import metadata_facts  # noqa: E402
 
 SCHEMA = "pre-review/1"
 SKIP_DIRS = {".git", "vendor", "node_modules"}
@@ -1631,6 +1642,58 @@ def _num(value):
     return str(value)
 
 
+# Form attributes OOD's dashboard defines itself (apps/dashboard/app/lib/
+# smart_attributes in OSC/ondemand): name -> (widget, min). Each hard-codes
+# its widget except those in OOD_FORM_WIDGET, which read the form's; the
+# min is a default the form's own min replaces. auto_modules_<m>,
+# auto_environment_variable_<v> and global_<x> are matched as
+# attribute_factory.rb matches them. A global_ attribute comes from the
+# site's global_bc_form_items, so its widget and bounds are unknown here,
+# except that global_bc_<x> is built as bc_<x>.
+OOD_ATTRIBUTES = {
+    "auto_accounts": ("select", None), "auto_batch_clusters": ("select", None),
+    "auto_cores": ("number_field", 1), "auto_groups": ("select", None),
+    "auto_job_name": ("text_field", None), "auto_log_location": ("text_field", None),
+    "auto_primary_group": ("hidden_field", None), "auto_qos": ("select", None),
+    "auto_queues": ("select", None), "auto_scripts": ("select", None),
+    "bc_account": ("text_field", None), "bc_email_on_started": ("check_box", None),
+    "bc_num_hours": ("number_field", 1), "bc_num_nodes": ("number_field", 1),
+    "bc_num_slots": ("number_field", 1), "bc_queue": ("text_field", None),
+    "bc_vnc_idle": ("number_field", None), "bc_vnc_resolution": ("resolution_field", None),
+}
+OOD_FORM_WIDGET = {"bc_account"}
+_AUTO_MODULES = re.compile(r"auto_modules_[\w\-/]+")
+_AUTO_ENV = re.compile(r"auto_environment_variable_[\w-]+")
+_GLOBAL = re.compile(r"global_([\w-]+)")
+
+
+def ood_attribute(name):
+    """(kind, widget, min) for an attribute OOD defines, kind "auto" (auto_*),
+    "builtin" (bc_*) or "global"; None for the form's own."""
+    if _AUTO_MODULES.fullmatch(name):
+        return "auto", "select", None
+    if _AUTO_ENV.fullmatch(name):
+        return "auto", "text_field", None
+    m = _GLOBAL.fullmatch(name)
+    if m:
+        built = m.group(1)
+        return ("global",) + (OOD_ATTRIBUTES[built] if built.startswith("bc_") and built in OOD_ATTRIBUTES
+                              else (None, None))
+    if name in OOD_ATTRIBUTES:
+        return ("auto" if name.startswith("auto_") else "builtin",) + OOD_ATTRIBUTES[name]
+    return None
+
+
+def _form_widget(name, spec, ood):
+    """The widget OOD renders: its own for an attribute that hard-codes one,
+    else the form's, else OOD's generic text_field (unknown for a site's
+    global_ attribute)."""
+    kind, widget, _ = ood or (None, None, None)
+    if widget and name not in OOD_FORM_WIDGET:
+        return widget
+    return spec.get("widget") or widget or (None if kind == "global" else "text_field")
+
+
 def scan_form(target, app_dir):
     """form.json for one app directory, or None when it has no form file. A
     parse failure is returned as {"error": ...}; a form or submit file that
@@ -1665,18 +1728,24 @@ def scan_form(target, app_dir):
     refs = _submit_refs(submit_text, names) if submit else {}
     for name in names:
         spec = attrs.get(name)
+        # OOD makes a plain value under attributes: a fixed one (app.rb).
+        fixed = name in attrs and not isinstance(spec, dict)
         spec = spec if isinstance(spec, dict) else {}
         html = spec.get("html_options") if isinstance(spec.get("html_options"), dict) else {}
         lines, reaches = refs.get(name, ([], False))
+        ood = ood_attribute(name)
+        ood_kind, _, ood_min = ood or (None, None, None)
         result["attributes"].append({
             "name": name,
-            "widget": spec.get("widget"),
-            "min": _num(spec.get("min", html.get("min"))),
+            "widget": _form_widget(name, spec, ood),
+            "min": _num(spec.get("min", html.get("min", ood_min))),
             "max": _num(spec.get("max", html.get("max"))),
             "pattern": spec.get("pattern", html.get("pattern")),
             "required": bool(spec.get("required", html.get("required", False))),
             "line": attr_lines.get(name) if name in attrs else form_lines.get(name),
             "defined": name in attrs,
+            "ood": ood_kind,
+            "fixed": fixed,
             "in_form": name in form,
             "interpolated_in_submit": bool(lines),
             "submit_lines": lines,
@@ -3175,6 +3244,68 @@ def _catalog_source(args):
     return args.catalog or os.environ.get("APPVERSE_CATALOG") or catalog_facts.DEFAULT_CATALOG
 
 
+def check_metadata(target, apps, out):
+    """Write metadata.json: each app's catalog fields as the hub's sync
+    resolves them (metadata_facts.py). Needs no catalog."""
+    def load(path, rel):
+        if not os.path.lexists(path):
+            return None, "absent", None
+        try:
+            data = load_yaml(_read_fact(target, path, rel), rel)
+        except Refused as e:
+            return None, "unparsed", str(e)[:STDERR_CHARS]
+        except YamlError as e:
+            msg = str(e)
+            if any(k in msg for k in ("anchors (&)", "aliases (*)", "merge keys (<<)")):
+                return None, "refused", msg[:STDERR_CHARS]
+            return None, "unparsed", ("%s: %s" % (rel, msg))[:STDERR_CHARS]
+        return data, "ok", None
+    _write_json(out, "metadata.json", metadata_facts.resolve(target, apps, load))
+    return record("metadata", "ran", output_file="metadata.json",
+                  files_examined=len([a for a in apps if not a.get("_skip")]))
+
+
+# The file names GitHub's license detection reads, as licensee scores them
+# (lib/licensee/project_files/license_file.rb FILENAME_REGEXES): the first
+# pattern a name fully matches gives its score, case-insensitively.
+_LIC, _COPYING = r"(un)?licen[sc]e", r"copying"
+_PREFERRED_EXT = r"\.(md|markdown|txt|html)"
+_LICENSE_EXT = r"\.(?!spdx|header)([^./]|\.\d)+"
+_OTHER_EXT = r"\.(?!xml|sh|go|gemspec)([^./]|\.\d)+"
+_ANY_EXT = r"\.([^./]|\.\d)+"
+LICENSE_FILENAMES = [(re.compile(p, re.I), score) for p, score in [
+    (_LIC, 1.00), (_LIC + _PREFERRED_EXT, 0.95), (_COPYING, 0.90), (_COPYING + _PREFERRED_EXT, 0.85),
+    (_LIC + _LICENSE_EXT, 0.80), (_COPYING + _ANY_EXT, 0.75),
+    (_LIC + r"[-_][^.]*(%s)?" % _OTHER_EXT, 0.70), (_COPYING + r"[-_][^.]*(%s)?" % _OTHER_EXT, 0.65),
+    (r"\w+[-_]" + _LIC + r"[^.]*(%s)?" % _OTHER_EXT, 0.60),
+    (r"\w+[-_]" + _COPYING + r"[^.]*(%s)?" % _OTHER_EXT, 0.55),
+    (r"ofl" + _PREFERRED_EXT, 0.50), (r"ofl" + _OTHER_EXT, 0.45), (r"ofl", 0.40),
+    (r"copyright", 0.35), (r"copyright" + _PREFERRED_EXT, 0.30), (r"copyright" + _OTHER_EXT, 0.25),
+    (r"copyright[-_][^.]*(%s)?" % _OTHER_EXT, 0.20), (r"patents", 0.15), (r"patents" + _OTHER_EXT, 0.10),
+]]
+
+
+def license_files(names):
+    """The names licensee would read as license files, best score first,
+    ties by name."""
+    scored = []
+    for n in names:
+        score = next((s for rx, s in LICENSE_FILENAMES if rx.fullmatch(n)), 0)
+        if score:
+            scored.append((-score, n))
+    return [n for _, n in sorted(scored)]
+
+
+def check_license(target, out):
+    """Write license.json: the repo's root license files, best first, and
+    the best of them (or null). Whether one holds an open-source license
+    is the review's to judge."""
+    names = license_files(n for n in os.listdir(target) if not os.path.isdir(os.path.join(target, n)))
+    _write_json(out, "license.json", {"schema": "license/1", "file": names[0] if names else None,
+                                      "found": names})
+    return record("license", "ran", output_file="license.json", files_examined=len(names))
+
+
 def check_catalog(args, target, apps, out):
     """Read the catalog and compare each app's declared software, app_type and
     implementation_tags with it (references/catalog_facts.py). Writes
@@ -3345,7 +3476,9 @@ def main(argv):
              guarded("form", check_form, target, apps, out),
              guarded("template", check_template, target, apps, out),
              guarded("entry_point", check_entry_point, target, apps, out),
-             guarded("security", check_security, target, apps, out)]
+             guarded("security", check_security, target, apps, out),
+             guarded("metadata", check_metadata, target, apps, out),
+             guarded("license", check_license, target, out)]
 
     _write_json(out, "summary.json", {
         "schema": SCHEMA,

@@ -1,0 +1,344 @@
+{
+  "counts": {
+    "interpolation": 12,
+    "unquoted_expansion": 0,
+    "eval_exec": 1,
+    "network_call": 0,
+    "file_write_outside_job": 0,
+    "permission_change": 0,
+    "credential_string": 0,
+    "config_flag": 0,
+    "binary_in_template": 0,
+    "tool_finding": 3
+  },
+  "scope": "batch_connect",
+  "files": [
+    "nf-core-scrnaseq-4-1-0/form.yml.erb",
+    "nf-core-scrnaseq-4-1-0/submit.yml.erb",
+    "nf-core-scrnaseq-4-1-0/template/before.sh.erb",
+    "nf-core-scrnaseq-4-1-0/template/nf-params.json.erb",
+    "nf-core-scrnaseq-4-1-0/template/script.sh.erb"
+  ],
+  "attributes": [
+    "bc_num_hours",
+    "bc_email_on_started",
+    "nextflow_version",
+    "executor",
+    "partition",
+    "num_cores",
+    "num_memory",
+    "workdir",
+    "input_output_options",
+    "input",
+    "outdir",
+    "multiqc_title",
+    "mandatory_arguments",
+    "barcode_whitelist",
+    "aligner",
+    "protocol",
+    "skip_tools",
+    "skip_multiqc",
+    "skip_fastqc",
+    "skip_cellbender",
+    "skip_emptydrops",
+    "reference_genome_options",
+    "genome",
+    "fasta",
+    "igenomes_ignore",
+    "transcript_fasta",
+    "gtf",
+    "save_reference",
+    "save_align_intermeds",
+    "igenomes_base",
+    "txpgene2",
+    "simpleaf_options",
+    "simpleaf_index",
+    "simpleaf_umi_resolution",
+    "starsolo_options",
+    "star_index",
+    "star_ignore_sjdbgtf",
+    "seq_center",
+    "star_feature",
+    "kallisto_bus_options",
+    "kallisto_index",
+    "kb_tc1",
+    "kb_tc2",
+    "kb_workflow",
+    "cellranger_options",
+    "cellranger_index",
+    "skip_cellranger_renaming",
+    "cellrangerarc_options",
+    "motifs",
+    "cellrangerarc_config",
+    "cellrangerarc_reference",
+    "cellranger_multi_options",
+    "cellranger_vdj_index",
+    "skip_cellrangermulti_vdjref",
+    "gex_frna_probe_set",
+    "gex_target_panel",
+    "gex_cmo_set",
+    "fb_reference",
+    "vdj_inner_enrichment_primers",
+    "gex_barcode_sample_assignment",
+    "cellranger_multi_barcodes",
+    "resume"
+  ],
+  "candidates": [
+    {
+      "kind": "interpolation",
+      "check": "sec-interpolation",
+      "rule": "OODT-01",
+      "tag": "unsanitized-user-input",
+      "file": "nf-core-scrnaseq-4-1-0/submit.yml.erb",
+      "line": 9,
+      "text": "email_on_started: <%= bc_email_on_started.to_s == \"1\" %>",
+      "note": "bc_email_on_started; under script.email_on_started; unquoted",
+      "attributes": [
+        "bc_email_on_started"
+      ],
+      "guarded": true,
+      "presence_checked": false,
+      "quoted": false
+    },
+    {
+      "kind": "interpolation",
+      "check": "sec-interpolation",
+      "rule": "OODT-01",
+      "tag": "unsanitized-user-input",
+      "file": "nf-core-scrnaseq-4-1-0/submit.yml.erb",
+      "line": 14,
+      "text": "- \"<%= bc_num_hours %>:00:00\"",
+      "note": "bc_num_hours; under script.native; no sanitiser (shellescape/to_i/to_f/Integer/Float/Shellwords.escape) on this line; quoted (YAML)",
+      "attributes": [
+        "bc_num_hours"
+      ],
+      "guarded": false,
+      "presence_checked": false,
+      "quoted": true
+    },
+    {
+      "kind": "interpolation",
+      "check": "sec-interpolation",
+      "rule": "OODT-01",
+      "tag": "unsanitized-user-input",
+      "file": "nf-core-scrnaseq-4-1-0/submit.yml.erb",
+      "line": 24,
+      "text": "- \"<%= num_cores %>\"",
+      "note": "num_cores; under script.native; no sanitiser (shellescape/to_i/to_f/Integer/Float/Shellwords.escape) on this line; quoted (YAML)",
+      "attributes": [
+        "num_cores"
+      ],
+      "guarded": false,
+      "presence_checked": false,
+      "quoted": true
+    },
+    {
+      "kind": "interpolation",
+      "check": "sec-interpolation",
+      "rule": "OODT-01",
+      "tag": "unsanitized-user-input",
+      "file": "nf-core-scrnaseq-4-1-0/submit.yml.erb",
+      "line": 26,
+      "text": "- \"<%= num_memory %>G\"",
+      "note": "num_memory; under script.native; no sanitiser (shellescape/to_i/to_f/Integer/Float/Shellwords.escape) on this line; quoted (YAML)",
+      "attributes": [
+        "num_memory"
+      ],
+      "guarded": false,
+      "presence_checked": false,
+      "quoted": true
+    },
+    {
+      "kind": "interpolation",
+      "check": "sec-interpolation",
+      "rule": "OODT-01",
+      "tag": "unsanitized-user-input",
+      "file": "nf-core-scrnaseq-4-1-0/submit.yml.erb",
+      "line": 29,
+      "text": "- \"<%= partition %>\"",
+      "note": "partition; under script.native; no sanitiser (shellescape/to_i/to_f/Integer/Float/Shellwords.escape) on this line; quoted (YAML)",
+      "attributes": [
+        "partition"
+      ],
+      "guarded": false,
+      "presence_checked": true,
+      "quoted": true
+    },
+    {
+      "kind": "interpolation",
+      "check": "sec-interpolation",
+      "rule": "OODT-01",
+      "tag": "unsanitized-user-input",
+      "file": "nf-core-scrnaseq-4-1-0/template/before.sh.erb",
+      "line": 10,
+      "text": "WORKING_DIR=\"<%= context.workdir %>\"",
+      "note": "workdir; no sanitiser (shellescape/to_i/to_f/Integer/Float/Shellwords.escape) on this line; quoted (shell), still expands $(...)",
+      "attributes": [
+        "workdir"
+      ],
+      "guarded": false,
+      "presence_checked": false,
+      "quoted": true
+    },
+    {
+      "kind": "interpolation",
+      "check": "sec-interpolation",
+      "rule": "OODT-01",
+      "tag": "unsanitized-user-input",
+      "file": "nf-core-scrnaseq-4-1-0/template/script.sh.erb",
+      "line": 9,
+      "text": "workdir=\"<%= context.workdir %>\"",
+      "note": "workdir; no sanitiser (shellescape/to_i/to_f/Integer/Float/Shellwords.escape) on this line; quoted (shell), still expands $(...)",
+      "attributes": [
+        "workdir"
+      ],
+      "guarded": false,
+      "presence_checked": false,
+      "quoted": true
+    },
+    {
+      "kind": "interpolation",
+      "check": "sec-interpolation",
+      "rule": "OODT-01",
+      "tag": "unsanitized-user-input",
+      "file": "nf-core-scrnaseq-4-1-0/template/script.sh.erb",
+      "line": 19,
+      "text": "if [[ \"<%= context.resume %>\" == \"1\" ]]; then",
+      "note": "resume; no sanitiser (shellescape/to_i/to_f/Integer/Float/Shellwords.escape) on this line; quoted (shell), still expands $(...)",
+      "attributes": [
+        "resume"
+      ],
+      "guarded": false,
+      "presence_checked": false,
+      "quoted": true
+    },
+    {
+      "kind": "eval_exec",
+      "check": "sec-eval-exec",
+      "rule": "OODT-01",
+      "tag": "eval-exec",
+      "file": "nf-core-scrnaseq-4-1-0/template/script.sh.erb",
+      "line": 28,
+      "text": "source \"${nf2ood_env_file}\"",
+      "note": "source of a variable path"
+    },
+    {
+      "kind": "interpolation",
+      "check": "sec-interpolation",
+      "rule": "OODT-01",
+      "tag": "unsanitized-user-input",
+      "file": "nf-core-scrnaseq-4-1-0/template/script.sh.erb",
+      "line": 36,
+      "text": "nextflow_version=\"<%= context.nextflow_version.to_s.strip %>\"",
+      "note": "nextflow_version; no sanitiser (shellescape/to_i/to_f/Integer/Float/Shellwords.escape) on this line; quoted (shell), still expands $(...)",
+      "attributes": [
+        "nextflow_version"
+      ],
+      "guarded": false,
+      "presence_checked": false,
+      "quoted": true
+    },
+    {
+      "kind": "interpolation",
+      "check": "sec-interpolation",
+      "rule": "OODT-01",
+      "tag": "unsanitized-user-input",
+      "file": "nf-core-scrnaseq-4-1-0/template/script.sh.erb",
+      "line": 64,
+      "text": "if [[ \"<%= context.executor %>\" == \"slurm\" ]]; then",
+      "note": "executor; no sanitiser (shellescape/to_i/to_f/Integer/Float/Shellwords.escape) on this line; quoted (shell), still expands $(...)",
+      "attributes": [
+        "executor"
+      ],
+      "guarded": false,
+      "presence_checked": false,
+      "quoted": true
+    },
+    {
+      "kind": "interpolation",
+      "check": "sec-interpolation",
+      "rule": "OODT-01",
+      "tag": "unsanitized-user-input",
+      "file": "nf-core-scrnaseq-4-1-0/template/script.sh.erb",
+      "line": 72,
+      "text": "cpus: <%= context.num_cores %>,",
+      "note": "num_cores; no sanitiser (shellescape/to_i/to_f/Integer/Float/Shellwords.escape) on this line; unquoted",
+      "attributes": [
+        "num_cores"
+      ],
+      "guarded": false,
+      "presence_checked": false,
+      "quoted": false
+    },
+    {
+      "kind": "interpolation",
+      "check": "sec-interpolation",
+      "rule": "OODT-01",
+      "tag": "unsanitized-user-input",
+      "file": "nf-core-scrnaseq-4-1-0/template/script.sh.erb",
+      "line": 73,
+      "text": "memory: \"<%= context.num_memory %> GB\"",
+      "note": "num_memory; no sanitiser (shellescape/to_i/to_f/Integer/Float/Shellwords.escape) on this line; quoted (shell), still expands $(...)",
+      "attributes": [
+        "num_memory"
+      ],
+      "guarded": false,
+      "presence_checked": false,
+      "quoted": true
+    },
+    {
+      "kind": "tool_finding",
+      "check": "sec-tool-finding",
+      "rule": null,
+      "tag": null,
+      "tool": "shellcheck",
+      "code": "SC2148",
+      "file": "nf-core-scrnaseq-4-1-0/template/before.sh.erb",
+      "lines": [
+        1
+      ],
+      "line": 1,
+      "level": "error",
+      "text": "Tips depend on target shell and yours is unknown. Add a shebang or a 'shell' directive.",
+      "note": "",
+      "artifact": true
+    },
+    {
+      "kind": "tool_finding",
+      "check": "sec-tool-finding",
+      "rule": null,
+      "tag": null,
+      "tool": "shellcheck",
+      "code": "SC2155",
+      "file": "nf-core-scrnaseq-4-1-0/template/before.sh.erb",
+      "lines": [
+        5
+      ],
+      "line": 5,
+      "level": "warning",
+      "text": "Declare and assign separately to avoid masking return values.",
+      "note": "",
+      "artifact": false
+    },
+    {
+      "kind": "tool_finding",
+      "check": "sec-tool-finding",
+      "rule": null,
+      "tag": null,
+      "tool": "shellcheck",
+      "code": "SC2050",
+      "file": "nf-core-scrnaseq-4-1-0/template/script.sh.erb",
+      "lines": [
+        19,
+        64
+      ],
+      "line": 19,
+      "level": "warning",
+      "text": "This expression is constant. Did you forget the $ on a variable?",
+      "note": "",
+      "artifact": false
+    }
+  ],
+  "tool_notes": [],
+  "skipped_files": []
+}

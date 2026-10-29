@@ -1,0 +1,487 @@
+{
+  "repo_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+  "sha": "80fa18723b9cdf3decb9c7630bfe26c3a02b77a6",
+  "ref": "80fa18723b9cdf3decb9c7630bfe26c3a02b77a6",
+  "repo_shape": "declared_monorepo",
+  "not_archived": "pass",
+  "public": "pass",
+  "model": "ccs/Qwen/Qwen3.6-35B-A3B-FP8",
+  "recommendation": {
+    "decision": "Request changes",
+    "note": "**Request changes.** All 17 apps fail the STR-02 gate: per-app manifest.yml files are missing the required fields maintainer.name and maintainer.support_url, and the dashboard's app_type \"dashboards\" is not in the published catalog vocabulary (did you mean \"dashboard\"?). The 16 batch_connect apps also declare app_type \"batch_connect\" which is not in the vocabulary (did you mean \"batch-connect-basic\"?). These are straightforward structural fixes. Additionally, all 17 apps fail the documentation gate (QUA-01: Below minimal) and the portability gate for 16 of 17 apps (QUA-02: Not portable). Since the STR-02 gate failure sets the floor at Request changes, the documentation and portability gaps are improvement areas to address alongside the structural fixes."
+  },
+  "apps": [
+    {
+      "app_id": "dashboard",
+      "name": "nf-core pipelines",
+      "decision": "Request changes",
+      "assessments": {
+        "documentation": "minimal",
+        "documentation_summary": "Below minimal \u2014 has What it launches, Installation, Configuration, Known limitations, and Architecture sections but missing Prerequisites, Troubleshooting, Environment variables, and Info panel",
+        "portability": "partially_portable",
+        "portability_summary": "Partially portable \u2014 uses standard OOD installation paths for controller/view symlinks but the dashboard integration approach is site-specific"
+      },
+      "reported_signals": {
+        "portability": "Low",
+        "documentation": "High",
+        "maintenance": "High"
+      },
+      "maintenance_assessment": {
+        "active_within_12mo": true,
+        "signals": {
+          "releases": true,
+          "changelog": false,
+          "ci": false,
+          "multiple_contributors": false,
+          "issues_responded": null
+        },
+        "summary": "Last change 2026-06-26; one contributor; no per-app CHANGELOG"
+      }
+    },
+    {
+      "app_id": "nf-core-ampliseq-2-16-1",
+      "name": "rnaseq 3.25.0",
+      "decision": "Request changes",
+      "assessments": {
+        "documentation": "minimal",
+        "documentation_summary": "Below minimal \u2014 only Overview and Local review sections; no prerequisites, installation, configuration, or troubleshooting",
+        "portability": "not_portable",
+        "portability_summary": "Not portable \u2014 cluster pax, partition file, port 1234, nf2ood.env path, pipeline root, singularity cache, and slurm profile are all Tufts-specific and undocumented"
+      },
+      "reported_signals": {
+        "portability": "High",
+        "documentation": "High",
+        "maintenance": "High"
+      },
+      "maintenance_assessment": {
+        "active_within_12mo": true,
+        "signals": {
+          "releases": true,
+          "changelog": true,
+          "ci": false,
+          "multiple_contributors": false,
+          "issues_responded": null
+        },
+        "summary": "Last change 2026-06-26; one contributor; has per-app CHANGELOG"
+      }
+    },
+    {
+      "app_id": "nf-core-chipseq-2-1-0",
+      "name": "chipseq 2.1.0",
+      "decision": "Request changes",
+      "assessments": {
+        "documentation": "minimal",
+        "documentation_summary": "Below minimal \u2014 identical template README to other batch_connect apps",
+        "portability": "not_portable",
+        "portability_summary": "Not portable \u2014 identical Tufts-specific hardcoded values"
+      },
+      "reported_signals": {
+        "portability": "High",
+        "documentation": "High",
+        "maintenance": "High"
+      },
+      "maintenance_assessment": {
+        "active_within_12mo": true,
+        "signals": {
+          "releases": true,
+          "changelog": true,
+          "ci": false,
+          "multiple_contributors": true,
+          "issues_responded": null
+        },
+        "summary": "Last change 2026-06-26; two contributors; has per-app CHANGELOG"
+      }
+    },
+    {
+      "app_id": "nf-core-denovotranscript-1-2-1",
+      "name": "denovotranscript 1.2.1",
+      "decision": "Request changes",
+      "assessments": {
+        "documentation": "minimal",
+        "documentation_summary": "Below minimal \u2014 identical template README across all batch_connect apps",
+        "portability": "not_portable",
+        "portability_summary": "Not portable \u2014 all site-specific values are Tufts-pax-cluster-bound"
+      },
+      "reported_signals": {
+        "portability": "High",
+        "documentation": "High",
+        "maintenance": "High"
+      },
+      "maintenance_assessment": {
+        "active_within_12mo": true,
+        "signals": {
+          "releases": true,
+          "changelog": true,
+          "ci": false,
+          "multiple_contributors": false,
+          "issues_responded": null
+        },
+        "summary": "Last change 2026-06-26; one contributor; has per-app CHANGELOG"
+      }
+    },
+    {
+      "app_id": "nf-core-differentialabundance-2-0-0",
+      "name": "differentialabundance 2.0.0",
+      "decision": "Request changes",
+      "assessments": {
+        "documentation": "minimal",
+        "documentation_summary": "Below minimal \u2014 identical template README across all batch_connect apps",
+        "portability": "not_portable",
+        "portability_summary": "Not portable \u2014 all site-specific values are Tufts-pax-cluster-bound"
+      },
+      "reported_signals": {
+        "portability": "High",
+        "documentation": "High",
+        "maintenance": "High"
+      },
+      "maintenance_assessment": {
+        "active_within_12mo": true,
+        "signals": {
+          "releases": true,
+          "changelog": true,
+          "ci": false,
+          "multiple_contributors": false,
+          "issues_responded": null
+        },
+        "summary": "Last change 2026-06-26; one contributor; has per-app CHANGELOG"
+      }
+    },
+    {
+      "app_id": "nf-core-fetchngs-1-12-0",
+      "name": "fetchngs 1.12.0",
+      "decision": "Request changes",
+      "assessments": {
+        "documentation": "minimal",
+        "documentation_summary": "Below minimal \u2014 identical template README",
+        "portability": "not_portable",
+        "portability_summary": "Not portable \u2014 Tufts-specific cluster, paths, and config"
+      },
+      "reported_signals": {
+        "portability": "High",
+        "documentation": "High",
+        "maintenance": "High"
+      },
+      "maintenance_assessment": {
+        "active_within_12mo": true,
+        "signals": {
+          "releases": true,
+          "changelog": true,
+          "ci": false,
+          "multiple_contributors": true,
+          "issues_responded": null
+        },
+        "summary": "Last change 2026-06-26; two contributors; has per-app CHANGELOG"
+      }
+    },
+    {
+      "app_id": "nf-core-funcscan-3-0-0",
+      "name": "funcscan 3.0.0",
+      "decision": "Request changes",
+      "assessments": {
+        "documentation": "minimal",
+        "documentation_summary": "Below minimal \u2014 identical template README",
+        "portability": "not_portable",
+        "portability_summary": "Not portable \u2014 Tufts-specific cluster, paths, and config"
+      },
+      "reported_signals": {
+        "portability": "High",
+        "documentation": "High",
+        "maintenance": "High"
+      },
+      "maintenance_assessment": {
+        "active_within_12mo": true,
+        "signals": {
+          "releases": true,
+          "changelog": true,
+          "ci": false,
+          "multiple_contributors": false,
+          "issues_responded": null
+        },
+        "summary": "Last change 2026-06-26; one contributor; has per-app CHANGELOG"
+      }
+    },
+    {
+      "app_id": "nf-core-mag-5-4-2",
+      "name": "mag 5.4.2",
+      "decision": "Request changes",
+      "assessments": {
+        "documentation": "minimal",
+        "documentation_summary": "Below minimal \u2014 identical template README",
+        "portability": "not_portable",
+        "portability_summary": "Not portable \u2014 Tufts-specific cluster, paths, and config"
+      },
+      "reported_signals": {
+        "portability": "High",
+        "documentation": "High",
+        "maintenance": "High"
+      },
+      "maintenance_assessment": {
+        "active_within_12mo": true,
+        "signals": {
+          "releases": true,
+          "changelog": true,
+          "ci": false,
+          "multiple_contributors": false,
+          "issues_responded": null
+        },
+        "summary": "Last change 2026-06-26; one contributor; has per-app CHANGELOG"
+      }
+    },
+    {
+      "app_id": "nf-core-methylseq-4-1-0",
+      "name": "methylseq 4.1.0",
+      "decision": "Request changes",
+      "assessments": {
+        "documentation": "minimal",
+        "documentation_summary": "Below minimal \u2014 identical template README",
+        "portability": "not_portable",
+        "portability_summary": "Not portable \u2014 Tufts-specific cluster, paths, and config"
+      },
+      "reported_signals": {
+        "portability": "High",
+        "documentation": "High",
+        "maintenance": "High"
+      },
+      "maintenance_assessment": {
+        "active_within_12mo": true,
+        "signals": {
+          "releases": true,
+          "changelog": true,
+          "ci": false,
+          "multiple_contributors": false,
+          "issues_responded": null
+        },
+        "summary": "Last change 2026-06-26; one contributor; has per-app CHANGELOG"
+      }
+    },
+    {
+      "app_id": "nf-core-pathogensurveillance-1-1-0",
+      "name": "pathogensurveillance 1.1.0",
+      "decision": "Request changes",
+      "assessments": {
+        "documentation": "minimal",
+        "documentation_summary": "Below minimal \u2014 identical template README",
+        "portability": "not_portable",
+        "portability_summary": "Not portable \u2014 Tufts-specific cluster, paths, and config"
+      },
+      "reported_signals": {
+        "portability": "High",
+        "documentation": "High",
+        "maintenance": "High"
+      },
+      "maintenance_assessment": {
+        "active_within_12mo": true,
+        "signals": {
+          "releases": true,
+          "changelog": true,
+          "ci": false,
+          "multiple_contributors": false,
+          "issues_responded": null
+        },
+        "summary": "Last change 2026-06-26; one contributor; has per-app CHANGELOG"
+      }
+    },
+    {
+      "app_id": "nf-core-proteinfamilies-2-4-0",
+      "name": "proteinfamilies 2.4.0",
+      "decision": "Request changes",
+      "assessments": {
+        "documentation": "minimal",
+        "documentation_summary": "Below minimal \u2014 identical template README",
+        "portability": "not_portable",
+        "portability_summary": "Not portable \u2014 Tufts-specific cluster, paths, and config"
+      },
+      "reported_signals": {
+        "portability": "High",
+        "documentation": "High",
+        "maintenance": "High"
+      },
+      "maintenance_assessment": {
+        "active_within_12mo": true,
+        "signals": {
+          "releases": true,
+          "changelog": true,
+          "ci": false,
+          "multiple_contributors": false,
+          "issues_responded": null
+        },
+        "summary": "Last change 2026-06-26; one contributor; has per-app CHANGELOG"
+      }
+    },
+    {
+      "app_id": "nf-core-rnafusion-4-1-0",
+      "name": "rnafusion 4.1.0",
+      "decision": "Request changes",
+      "assessments": {
+        "documentation": "minimal",
+        "documentation_summary": "Below minimal \u2014 identical template README",
+        "portability": "not_portable",
+        "portability_summary": "Not portable \u2014 Tufts-specific cluster, paths, and config"
+      },
+      "reported_signals": {
+        "portability": "High",
+        "documentation": "High",
+        "maintenance": "High"
+      },
+      "maintenance_assessment": {
+        "active_within_12mo": true,
+        "signals": {
+          "releases": true,
+          "changelog": true,
+          "ci": false,
+          "multiple_contributors": false,
+          "issues_responded": null
+        },
+        "summary": "Last change 2026-06-26; one contributor; has per-app CHANGELOG"
+      }
+    },
+    {
+      "app_id": "nf-core-rnaseq-3-25-0",
+      "name": "rnaseq 3.25.0",
+      "decision": "Request changes",
+      "assessments": {
+        "documentation": "minimal",
+        "documentation_summary": "Below minimal \u2014 identical template README",
+        "portability": "not_portable",
+        "portability_summary": "Not portable \u2014 Tufts-specific cluster, paths, and config"
+      },
+      "reported_signals": {
+        "portability": "High",
+        "documentation": "High",
+        "maintenance": "High"
+      },
+      "maintenance_assessment": {
+        "active_within_12mo": true,
+        "signals": {
+          "releases": true,
+          "changelog": true,
+          "ci": false,
+          "multiple_contributors": false,
+          "issues_responded": null
+        },
+        "summary": "Last change 2026-06-26; one contributor; has per-app CHANGELOG"
+      }
+    },
+    {
+      "app_id": "nf-core-rnaseq-3-26-0",
+      "name": "rnaseq 3.26.0",
+      "decision": "Request changes",
+      "assessments": {
+        "documentation": "minimal",
+        "documentation_summary": "Below minimal \u2014 identical template README",
+        "portability": "not_portable",
+        "portability_summary": "Not portable \u2014 Tufts-specific cluster, paths, and config"
+      },
+      "reported_signals": {
+        "portability": "High",
+        "documentation": "High",
+        "maintenance": "High"
+      },
+      "maintenance_assessment": {
+        "active_within_12mo": true,
+        "signals": {
+          "releases": true,
+          "changelog": true,
+          "ci": false,
+          "multiple_contributors": false,
+          "issues_responded": null
+        },
+        "summary": "Last change 2026-06-26; one contributor; has per-app CHANGELOG"
+      }
+    },
+    {
+      "app_id": "nf-core-sarek-3-8-1",
+      "name": "sarek 3.8.1",
+      "decision": "Request changes",
+      "assessments": {
+        "documentation": "minimal",
+        "documentation_summary": "Below minimal \u2014 identical template README",
+        "portability": "not_portable",
+        "portability_summary": "Not portable \u2014 Tufts-specific cluster, paths, and config"
+      },
+      "reported_signals": {
+        "portability": "High",
+        "documentation": "High",
+        "maintenance": "High"
+      },
+      "maintenance_assessment": {
+        "active_within_12mo": true,
+        "signals": {
+          "releases": true,
+          "changelog": true,
+          "ci": false,
+          "multiple_contributors": false,
+          "issues_responded": null
+        },
+        "summary": "Last change 2026-06-26; one contributor; has per-app CHANGELOG"
+      }
+    },
+    {
+      "app_id": "nf-core-scrnaseq-4-1-0",
+      "name": "scrnaseq 4.1.0",
+      "decision": "Request changes",
+      "assessments": {
+        "documentation": "minimal",
+        "documentation_summary": "Below minimal \u2014 identical template README",
+        "portability": "not_portable",
+        "portability_summary": "Not portable \u2014 Tufts-specific cluster, paths, and config"
+      },
+      "reported_signals": {
+        "portability": "High",
+        "documentation": "High",
+        "maintenance": "High"
+      },
+      "maintenance_assessment": {
+        "active_within_12mo": true,
+        "signals": {
+          "releases": true,
+          "changelog": true,
+          "ci": false,
+          "multiple_contributors": false,
+          "issues_responded": null
+        },
+        "summary": "Last change 2026-06-26; one contributor; has per-app CHANGELOG"
+      }
+    },
+    {
+      "app_id": "nf-core-taxprofiler-2-0-0",
+      "name": "taxprofiler 2.0.0",
+      "decision": "Request changes",
+      "assessments": {
+        "documentation": "minimal",
+        "documentation_summary": "Below minimal \u2014 identical template README",
+        "portability": "not_portable",
+        "portability_summary": "Not portable \u2014 Tufts-specific cluster, paths, and config"
+      },
+      "reported_signals": {
+        "portability": "High",
+        "documentation": "High",
+        "maintenance": "High"
+      },
+      "maintenance_assessment": {
+        "active_within_12mo": true,
+        "signals": {
+          "releases": true,
+          "changelog": true,
+          "ci": false,
+          "multiple_contributors": false,
+          "issues_responded": null
+        },
+        "summary": "Last change 2026-06-26; one contributor; has per-app CHANGELOG"
+      }
+    }
+  ],
+  "maintenance_assessment": {
+    "active_within_12mo": true,
+    "waiver_brand_new": true,
+    "signals": {
+      "releases": true,
+      "changelog": false,
+      "ci": false,
+      "multiple_contributors": true,
+      "issues_responded": null
+    },
+    "summary": "Active, 1 release, 2 contributors, no CHANGELOG or CI at root",
+    "reported_signal": "Medium"
+  }
+}

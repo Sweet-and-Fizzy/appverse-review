@@ -1,0 +1,2390 @@
+{
+  "schema": "catalog/1",
+  "source": "https://openondemand.connectci.org",
+  "pages": {
+    "software": 2,
+    "app_types": 1,
+    "implementation_tags": 1,
+    "apps": 3
+  },
+  "this_repo": "tuftsrt/tufts-ood-nfcore",
+  "counts": {
+    "software": 92,
+    "app_types": 5,
+    "implementation_tags": 13,
+    "apps": 107
+  },
+  "app_types": [
+    "dashboard",
+    "widget",
+    "companion_app",
+    "batch-connect-basic",
+    "batch-connect-VNC"
+  ],
+  "implementation_tags": [
+    "docker",
+    "containerized",
+    "apptainer",
+    "classroom",
+    "gpu-enabled",
+    "modules",
+    "source install",
+    "passenger",
+    "batch connect",
+    "api",
+    "mcp",
+    "kubernetes",
+    "multitenant"
+  ],
+  "apps": [
+    {
+      "app_id": "dashboard",
+      "declared": {
+        "status": "declared",
+        "software": "nf-core",
+        "app_type": "dashboards",
+        "implementation_tags": [
+          "containerized"
+        ],
+        "tags_note": null
+      },
+      "checks": {
+        "shape": "declared",
+        "software": {
+          "status": "match",
+          "value": "nf-core",
+          "entry": "nf-core"
+        },
+        "app_type": {
+          "status": "unknown",
+          "value": "dashboards",
+          "closest": [
+            "dashboard"
+          ]
+        },
+        "implementation_tags": {
+          "declared": [
+            "containerized"
+          ],
+          "known": [
+            "containerized"
+          ],
+          "unknown": [],
+          "note": null
+        },
+        "same_software_apps": [
+          {
+            "title": "nf-core Pipelines Dashboard",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "dashboard",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Ampliseq (v2.16.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-ampliseq-2-16-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core ChIP-seq (v2.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-chipseq-2-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core De Novo Transcript (v1.2.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-denovotranscript-1-2-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Differential Abundance (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-differentialabundance-2-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core FetchNGS (v1.12.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-fetchngs-1-12-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Funcscan (v3.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-funcscan-3-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core MAG (v5.4.2)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-mag-5-4-2",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Methylseq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-methylseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Pathogen Surveillance (v1.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-pathogensurveillance-1-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Protein Families (v2.4.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-proteinfamilies-2-4-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA Fusion (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnafusion-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.25.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-25-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.26.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-26-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Sarek (v3.8.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-sarek-3-8-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core scRNA-seq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-scrnaseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Taxprofiler (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-taxprofiler-2-0-0",
+            "this_repo": true
+          }
+        ]
+      }
+    },
+    {
+      "app_id": "nf-core-ampliseq-2-16-1",
+      "declared": {
+        "status": "declared",
+        "software": "nf-core",
+        "app_type": "batch-connect-basic",
+        "implementation_tags": [
+          "containerized"
+        ],
+        "tags_note": null
+      },
+      "checks": {
+        "shape": "declared",
+        "software": {
+          "status": "match",
+          "value": "nf-core",
+          "entry": "nf-core"
+        },
+        "app_type": {
+          "status": "known",
+          "value": "batch-connect-basic"
+        },
+        "implementation_tags": {
+          "declared": [
+            "containerized"
+          ],
+          "known": [
+            "containerized"
+          ],
+          "unknown": [],
+          "note": null
+        },
+        "same_software_apps": [
+          {
+            "title": "nf-core Pipelines Dashboard",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "dashboard",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Ampliseq (v2.16.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-ampliseq-2-16-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core ChIP-seq (v2.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-chipseq-2-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core De Novo Transcript (v1.2.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-denovotranscript-1-2-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Differential Abundance (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-differentialabundance-2-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core FetchNGS (v1.12.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-fetchngs-1-12-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Funcscan (v3.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-funcscan-3-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core MAG (v5.4.2)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-mag-5-4-2",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Methylseq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-methylseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Pathogen Surveillance (v1.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-pathogensurveillance-1-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Protein Families (v2.4.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-proteinfamilies-2-4-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA Fusion (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnafusion-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.25.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-25-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.26.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-26-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Sarek (v3.8.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-sarek-3-8-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core scRNA-seq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-scrnaseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Taxprofiler (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-taxprofiler-2-0-0",
+            "this_repo": true
+          }
+        ]
+      }
+    },
+    {
+      "app_id": "nf-core-chipseq-2-1-0",
+      "declared": {
+        "status": "declared",
+        "software": "nf-core",
+        "app_type": "batch-connect-basic",
+        "implementation_tags": [
+          "containerized"
+        ],
+        "tags_note": null
+      },
+      "checks": {
+        "shape": "declared",
+        "software": {
+          "status": "match",
+          "value": "nf-core",
+          "entry": "nf-core"
+        },
+        "app_type": {
+          "status": "known",
+          "value": "batch-connect-basic"
+        },
+        "implementation_tags": {
+          "declared": [
+            "containerized"
+          ],
+          "known": [
+            "containerized"
+          ],
+          "unknown": [],
+          "note": null
+        },
+        "same_software_apps": [
+          {
+            "title": "nf-core Pipelines Dashboard",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "dashboard",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Ampliseq (v2.16.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-ampliseq-2-16-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core ChIP-seq (v2.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-chipseq-2-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core De Novo Transcript (v1.2.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-denovotranscript-1-2-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Differential Abundance (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-differentialabundance-2-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core FetchNGS (v1.12.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-fetchngs-1-12-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Funcscan (v3.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-funcscan-3-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core MAG (v5.4.2)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-mag-5-4-2",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Methylseq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-methylseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Pathogen Surveillance (v1.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-pathogensurveillance-1-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Protein Families (v2.4.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-proteinfamilies-2-4-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA Fusion (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnafusion-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.25.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-25-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.26.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-26-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Sarek (v3.8.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-sarek-3-8-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core scRNA-seq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-scrnaseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Taxprofiler (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-taxprofiler-2-0-0",
+            "this_repo": true
+          }
+        ]
+      }
+    },
+    {
+      "app_id": "nf-core-denovotranscript-1-2-1",
+      "declared": {
+        "status": "declared",
+        "software": "nf-core",
+        "app_type": "batch-connect-basic",
+        "implementation_tags": [
+          "containerized"
+        ],
+        "tags_note": null
+      },
+      "checks": {
+        "shape": "declared",
+        "software": {
+          "status": "match",
+          "value": "nf-core",
+          "entry": "nf-core"
+        },
+        "app_type": {
+          "status": "known",
+          "value": "batch-connect-basic"
+        },
+        "implementation_tags": {
+          "declared": [
+            "containerized"
+          ],
+          "known": [
+            "containerized"
+          ],
+          "unknown": [],
+          "note": null
+        },
+        "same_software_apps": [
+          {
+            "title": "nf-core Pipelines Dashboard",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "dashboard",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Ampliseq (v2.16.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-ampliseq-2-16-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core ChIP-seq (v2.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-chipseq-2-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core De Novo Transcript (v1.2.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-denovotranscript-1-2-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Differential Abundance (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-differentialabundance-2-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core FetchNGS (v1.12.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-fetchngs-1-12-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Funcscan (v3.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-funcscan-3-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core MAG (v5.4.2)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-mag-5-4-2",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Methylseq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-methylseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Pathogen Surveillance (v1.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-pathogensurveillance-1-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Protein Families (v2.4.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-proteinfamilies-2-4-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA Fusion (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnafusion-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.25.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-25-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.26.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-26-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Sarek (v3.8.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-sarek-3-8-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core scRNA-seq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-scrnaseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Taxprofiler (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-taxprofiler-2-0-0",
+            "this_repo": true
+          }
+        ]
+      }
+    },
+    {
+      "app_id": "nf-core-differentialabundance-2-0-0",
+      "declared": {
+        "status": "declared",
+        "software": "nf-core",
+        "app_type": "batch-connect-basic",
+        "implementation_tags": [
+          "containerized"
+        ],
+        "tags_note": null
+      },
+      "checks": {
+        "shape": "declared",
+        "software": {
+          "status": "match",
+          "value": "nf-core",
+          "entry": "nf-core"
+        },
+        "app_type": {
+          "status": "known",
+          "value": "batch-connect-basic"
+        },
+        "implementation_tags": {
+          "declared": [
+            "containerized"
+          ],
+          "known": [
+            "containerized"
+          ],
+          "unknown": [],
+          "note": null
+        },
+        "same_software_apps": [
+          {
+            "title": "nf-core Pipelines Dashboard",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "dashboard",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Ampliseq (v2.16.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-ampliseq-2-16-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core ChIP-seq (v2.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-chipseq-2-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core De Novo Transcript (v1.2.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-denovotranscript-1-2-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Differential Abundance (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-differentialabundance-2-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core FetchNGS (v1.12.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-fetchngs-1-12-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Funcscan (v3.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-funcscan-3-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core MAG (v5.4.2)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-mag-5-4-2",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Methylseq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-methylseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Pathogen Surveillance (v1.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-pathogensurveillance-1-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Protein Families (v2.4.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-proteinfamilies-2-4-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA Fusion (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnafusion-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.25.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-25-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.26.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-26-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Sarek (v3.8.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-sarek-3-8-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core scRNA-seq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-scrnaseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Taxprofiler (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-taxprofiler-2-0-0",
+            "this_repo": true
+          }
+        ]
+      }
+    },
+    {
+      "app_id": "nf-core-fetchngs-1-12-0",
+      "declared": {
+        "status": "declared",
+        "software": "nf-core",
+        "app_type": "batch-connect-basic",
+        "implementation_tags": [
+          "containerized"
+        ],
+        "tags_note": null
+      },
+      "checks": {
+        "shape": "declared",
+        "software": {
+          "status": "match",
+          "value": "nf-core",
+          "entry": "nf-core"
+        },
+        "app_type": {
+          "status": "known",
+          "value": "batch-connect-basic"
+        },
+        "implementation_tags": {
+          "declared": [
+            "containerized"
+          ],
+          "known": [
+            "containerized"
+          ],
+          "unknown": [],
+          "note": null
+        },
+        "same_software_apps": [
+          {
+            "title": "nf-core Pipelines Dashboard",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "dashboard",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Ampliseq (v2.16.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-ampliseq-2-16-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core ChIP-seq (v2.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-chipseq-2-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core De Novo Transcript (v1.2.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-denovotranscript-1-2-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Differential Abundance (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-differentialabundance-2-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core FetchNGS (v1.12.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-fetchngs-1-12-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Funcscan (v3.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-funcscan-3-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core MAG (v5.4.2)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-mag-5-4-2",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Methylseq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-methylseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Pathogen Surveillance (v1.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-pathogensurveillance-1-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Protein Families (v2.4.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-proteinfamilies-2-4-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA Fusion (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnafusion-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.25.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-25-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.26.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-26-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Sarek (v3.8.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-sarek-3-8-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core scRNA-seq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-scrnaseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Taxprofiler (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-taxprofiler-2-0-0",
+            "this_repo": true
+          }
+        ]
+      }
+    },
+    {
+      "app_id": "nf-core-funcscan-3-0-0",
+      "declared": {
+        "status": "declared",
+        "software": "nf-core",
+        "app_type": "batch-connect-basic",
+        "implementation_tags": [
+          "containerized"
+        ],
+        "tags_note": null
+      },
+      "checks": {
+        "shape": "declared",
+        "software": {
+          "status": "match",
+          "value": "nf-core",
+          "entry": "nf-core"
+        },
+        "app_type": {
+          "status": "known",
+          "value": "batch-connect-basic"
+        },
+        "implementation_tags": {
+          "declared": [
+            "containerized"
+          ],
+          "known": [
+            "containerized"
+          ],
+          "unknown": [],
+          "note": null
+        },
+        "same_software_apps": [
+          {
+            "title": "nf-core Pipelines Dashboard",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "dashboard",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Ampliseq (v2.16.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-ampliseq-2-16-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core ChIP-seq (v2.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-chipseq-2-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core De Novo Transcript (v1.2.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-denovotranscript-1-2-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Differential Abundance (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-differentialabundance-2-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core FetchNGS (v1.12.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-fetchngs-1-12-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Funcscan (v3.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-funcscan-3-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core MAG (v5.4.2)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-mag-5-4-2",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Methylseq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-methylseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Pathogen Surveillance (v1.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-pathogensurveillance-1-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Protein Families (v2.4.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-proteinfamilies-2-4-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA Fusion (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnafusion-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.25.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-25-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.26.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-26-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Sarek (v3.8.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-sarek-3-8-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core scRNA-seq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-scrnaseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Taxprofiler (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-taxprofiler-2-0-0",
+            "this_repo": true
+          }
+        ]
+      }
+    },
+    {
+      "app_id": "nf-core-mag-5-4-2",
+      "declared": {
+        "status": "declared",
+        "software": "nf-core",
+        "app_type": "batch-connect-basic",
+        "implementation_tags": [
+          "containerized"
+        ],
+        "tags_note": null
+      },
+      "checks": {
+        "shape": "declared",
+        "software": {
+          "status": "match",
+          "value": "nf-core",
+          "entry": "nf-core"
+        },
+        "app_type": {
+          "status": "known",
+          "value": "batch-connect-basic"
+        },
+        "implementation_tags": {
+          "declared": [
+            "containerized"
+          ],
+          "known": [
+            "containerized"
+          ],
+          "unknown": [],
+          "note": null
+        },
+        "same_software_apps": [
+          {
+            "title": "nf-core Pipelines Dashboard",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "dashboard",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Ampliseq (v2.16.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-ampliseq-2-16-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core ChIP-seq (v2.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-chipseq-2-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core De Novo Transcript (v1.2.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-denovotranscript-1-2-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Differential Abundance (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-differentialabundance-2-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core FetchNGS (v1.12.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-fetchngs-1-12-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Funcscan (v3.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-funcscan-3-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core MAG (v5.4.2)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-mag-5-4-2",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Methylseq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-methylseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Pathogen Surveillance (v1.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-pathogensurveillance-1-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Protein Families (v2.4.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-proteinfamilies-2-4-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA Fusion (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnafusion-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.25.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-25-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.26.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-26-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Sarek (v3.8.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-sarek-3-8-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core scRNA-seq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-scrnaseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Taxprofiler (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-taxprofiler-2-0-0",
+            "this_repo": true
+          }
+        ]
+      }
+    },
+    {
+      "app_id": "nf-core-methylseq-4-1-0",
+      "declared": {
+        "status": "declared",
+        "software": "nf-core",
+        "app_type": "batch-connect-basic",
+        "implementation_tags": [
+          "containerized"
+        ],
+        "tags_note": null
+      },
+      "checks": {
+        "shape": "declared",
+        "software": {
+          "status": "match",
+          "value": "nf-core",
+          "entry": "nf-core"
+        },
+        "app_type": {
+          "status": "known",
+          "value": "batch-connect-basic"
+        },
+        "implementation_tags": {
+          "declared": [
+            "containerized"
+          ],
+          "known": [
+            "containerized"
+          ],
+          "unknown": [],
+          "note": null
+        },
+        "same_software_apps": [
+          {
+            "title": "nf-core Pipelines Dashboard",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "dashboard",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Ampliseq (v2.16.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-ampliseq-2-16-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core ChIP-seq (v2.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-chipseq-2-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core De Novo Transcript (v1.2.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-denovotranscript-1-2-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Differential Abundance (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-differentialabundance-2-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core FetchNGS (v1.12.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-fetchngs-1-12-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Funcscan (v3.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-funcscan-3-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core MAG (v5.4.2)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-mag-5-4-2",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Methylseq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-methylseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Pathogen Surveillance (v1.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-pathogensurveillance-1-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Protein Families (v2.4.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-proteinfamilies-2-4-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA Fusion (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnafusion-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.25.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-25-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.26.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-26-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Sarek (v3.8.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-sarek-3-8-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core scRNA-seq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-scrnaseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Taxprofiler (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-taxprofiler-2-0-0",
+            "this_repo": true
+          }
+        ]
+      }
+    },
+    {
+      "app_id": "nf-core-pathogensurveillance-1-1-0",
+      "declared": {
+        "status": "declared",
+        "software": "nf-core",
+        "app_type": "batch-connect-basic",
+        "implementation_tags": [
+          "containerized"
+        ],
+        "tags_note": null
+      },
+      "checks": {
+        "shape": "declared",
+        "software": {
+          "status": "match",
+          "value": "nf-core",
+          "entry": "nf-core"
+        },
+        "app_type": {
+          "status": "known",
+          "value": "batch-connect-basic"
+        },
+        "implementation_tags": {
+          "declared": [
+            "containerized"
+          ],
+          "known": [
+            "containerized"
+          ],
+          "unknown": [],
+          "note": null
+        },
+        "same_software_apps": [
+          {
+            "title": "nf-core Pipelines Dashboard",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "dashboard",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Ampliseq (v2.16.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-ampliseq-2-16-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core ChIP-seq (v2.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-chipseq-2-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core De Novo Transcript (v1.2.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-denovotranscript-1-2-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Differential Abundance (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-differentialabundance-2-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core FetchNGS (v1.12.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-fetchngs-1-12-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Funcscan (v3.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-funcscan-3-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core MAG (v5.4.2)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-mag-5-4-2",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Methylseq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-methylseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Pathogen Surveillance (v1.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-pathogensurveillance-1-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Protein Families (v2.4.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-proteinfamilies-2-4-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA Fusion (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnafusion-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.25.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-25-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.26.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-26-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Sarek (v3.8.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-sarek-3-8-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core scRNA-seq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-scrnaseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Taxprofiler (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-taxprofiler-2-0-0",
+            "this_repo": true
+          }
+        ]
+      }
+    },
+    {
+      "app_id": "nf-core-proteinfamilies-2-4-0",
+      "declared": {
+        "status": "declared",
+        "software": "nf-core",
+        "app_type": "batch-connect-basic",
+        "implementation_tags": [
+          "containerized"
+        ],
+        "tags_note": null
+      },
+      "checks": {
+        "shape": "declared",
+        "software": {
+          "status": "match",
+          "value": "nf-core",
+          "entry": "nf-core"
+        },
+        "app_type": {
+          "status": "known",
+          "value": "batch-connect-basic"
+        },
+        "implementation_tags": {
+          "declared": [
+            "containerized"
+          ],
+          "known": [
+            "containerized"
+          ],
+          "unknown": [],
+          "note": null
+        },
+        "same_software_apps": [
+          {
+            "title": "nf-core Pipelines Dashboard",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "dashboard",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Ampliseq (v2.16.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-ampliseq-2-16-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core ChIP-seq (v2.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-chipseq-2-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core De Novo Transcript (v1.2.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-denovotranscript-1-2-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Differential Abundance (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-differentialabundance-2-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core FetchNGS (v1.12.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-fetchngs-1-12-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Funcscan (v3.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-funcscan-3-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core MAG (v5.4.2)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-mag-5-4-2",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Methylseq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-methylseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Pathogen Surveillance (v1.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-pathogensurveillance-1-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Protein Families (v2.4.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-proteinfamilies-2-4-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA Fusion (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnafusion-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.25.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-25-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.26.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-26-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Sarek (v3.8.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-sarek-3-8-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core scRNA-seq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-scrnaseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Taxprofiler (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-taxprofiler-2-0-0",
+            "this_repo": true
+          }
+        ]
+      }
+    },
+    {
+      "app_id": "nf-core-rnafusion-4-1-0",
+      "declared": {
+        "status": "declared",
+        "software": "nf-core",
+        "app_type": "batch-connect-basic",
+        "implementation_tags": [
+          "containerized"
+        ],
+        "tags_note": null
+      },
+      "checks": {
+        "shape": "declared",
+        "software": {
+          "status": "match",
+          "value": "nf-core",
+          "entry": "nf-core"
+        },
+        "app_type": {
+          "status": "known",
+          "value": "batch-connect-basic"
+        },
+        "implementation_tags": {
+          "declared": [
+            "containerized"
+          ],
+          "known": [
+            "containerized"
+          ],
+          "unknown": [],
+          "note": null
+        },
+        "same_software_apps": [
+          {
+            "title": "nf-core Pipelines Dashboard",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "dashboard",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Ampliseq (v2.16.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-ampliseq-2-16-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core ChIP-seq (v2.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-chipseq-2-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core De Novo Transcript (v1.2.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-denovotranscript-1-2-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Differential Abundance (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-differentialabundance-2-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core FetchNGS (v1.12.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-fetchngs-1-12-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Funcscan (v3.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-funcscan-3-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core MAG (v5.4.2)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-mag-5-4-2",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Methylseq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-methylseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Pathogen Surveillance (v1.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-pathogensurveillance-1-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Protein Families (v2.4.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-proteinfamilies-2-4-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA Fusion (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnafusion-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.25.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-25-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.26.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-26-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Sarek (v3.8.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-sarek-3-8-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core scRNA-seq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-scrnaseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Taxprofiler (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-taxprofiler-2-0-0",
+            "this_repo": true
+          }
+        ]
+      }
+    },
+    {
+      "app_id": "nf-core-rnaseq-3-25-0",
+      "declared": {
+        "status": "declared",
+        "software": "nf-core",
+        "app_type": "batch-connect-basic",
+        "implementation_tags": [
+          "containerized"
+        ],
+        "tags_note": null
+      },
+      "checks": {
+        "shape": "declared",
+        "software": {
+          "status": "match",
+          "value": "nf-core",
+          "entry": "nf-core"
+        },
+        "app_type": {
+          "status": "known",
+          "value": "batch-connect-basic"
+        },
+        "implementation_tags": {
+          "declared": [
+            "containerized"
+          ],
+          "known": [
+            "containerized"
+          ],
+          "unknown": [],
+          "note": null
+        },
+        "same_software_apps": [
+          {
+            "title": "nf-core Pipelines Dashboard",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "dashboard",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Ampliseq (v2.16.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-ampliseq-2-16-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core ChIP-seq (v2.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-chipseq-2-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core De Novo Transcript (v1.2.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-denovotranscript-1-2-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Differential Abundance (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-differentialabundance-2-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core FetchNGS (v1.12.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-fetchngs-1-12-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Funcscan (v3.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-funcscan-3-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core MAG (v5.4.2)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-mag-5-4-2",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Methylseq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-methylseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Pathogen Surveillance (v1.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-pathogensurveillance-1-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Protein Families (v2.4.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-proteinfamilies-2-4-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA Fusion (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnafusion-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.25.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-25-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.26.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-26-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Sarek (v3.8.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-sarek-3-8-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core scRNA-seq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-scrnaseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Taxprofiler (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-taxprofiler-2-0-0",
+            "this_repo": true
+          }
+        ]
+      }
+    },
+    {
+      "app_id": "nf-core-rnaseq-3-26-0",
+      "declared": {
+        "status": "declared",
+        "software": "nf-core",
+        "app_type": "batch-connect-basic",
+        "implementation_tags": [
+          "containerized"
+        ],
+        "tags_note": null
+      },
+      "checks": {
+        "shape": "declared",
+        "software": {
+          "status": "match",
+          "value": "nf-core",
+          "entry": "nf-core"
+        },
+        "app_type": {
+          "status": "known",
+          "value": "batch-connect-basic"
+        },
+        "implementation_tags": {
+          "declared": [
+            "containerized"
+          ],
+          "known": [
+            "containerized"
+          ],
+          "unknown": [],
+          "note": null
+        },
+        "same_software_apps": [
+          {
+            "title": "nf-core Pipelines Dashboard",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "dashboard",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Ampliseq (v2.16.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-ampliseq-2-16-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core ChIP-seq (v2.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-chipseq-2-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core De Novo Transcript (v1.2.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-denovotranscript-1-2-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Differential Abundance (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-differentialabundance-2-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core FetchNGS (v1.12.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-fetchngs-1-12-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Funcscan (v3.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-funcscan-3-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core MAG (v5.4.2)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-mag-5-4-2",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Methylseq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-methylseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Pathogen Surveillance (v1.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-pathogensurveillance-1-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Protein Families (v2.4.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-proteinfamilies-2-4-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA Fusion (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnafusion-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.25.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-25-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.26.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-26-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Sarek (v3.8.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-sarek-3-8-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core scRNA-seq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-scrnaseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Taxprofiler (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-taxprofiler-2-0-0",
+            "this_repo": true
+          }
+        ]
+      }
+    },
+    {
+      "app_id": "nf-core-sarek-3-8-1",
+      "declared": {
+        "status": "declared",
+        "software": "nf-core",
+        "app_type": "batch-connect-basic",
+        "implementation_tags": [
+          "containerized"
+        ],
+        "tags_note": null
+      },
+      "checks": {
+        "shape": "declared",
+        "software": {
+          "status": "match",
+          "value": "nf-core",
+          "entry": "nf-core"
+        },
+        "app_type": {
+          "status": "known",
+          "value": "batch-connect-basic"
+        },
+        "implementation_tags": {
+          "declared": [
+            "containerized"
+          ],
+          "known": [
+            "containerized"
+          ],
+          "unknown": [],
+          "note": null
+        },
+        "same_software_apps": [
+          {
+            "title": "nf-core Pipelines Dashboard",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "dashboard",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Ampliseq (v2.16.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-ampliseq-2-16-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core ChIP-seq (v2.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-chipseq-2-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core De Novo Transcript (v1.2.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-denovotranscript-1-2-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Differential Abundance (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-differentialabundance-2-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core FetchNGS (v1.12.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-fetchngs-1-12-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Funcscan (v3.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-funcscan-3-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core MAG (v5.4.2)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-mag-5-4-2",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Methylseq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-methylseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Pathogen Surveillance (v1.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-pathogensurveillance-1-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Protein Families (v2.4.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-proteinfamilies-2-4-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA Fusion (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnafusion-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.25.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-25-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.26.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-26-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Sarek (v3.8.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-sarek-3-8-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core scRNA-seq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-scrnaseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Taxprofiler (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-taxprofiler-2-0-0",
+            "this_repo": true
+          }
+        ]
+      }
+    },
+    {
+      "app_id": "nf-core-scrnaseq-4-1-0",
+      "declared": {
+        "status": "declared",
+        "software": "nf-core",
+        "app_type": "batch-connect-basic",
+        "implementation_tags": [
+          "containerized"
+        ],
+        "tags_note": null
+      },
+      "checks": {
+        "shape": "declared",
+        "software": {
+          "status": "match",
+          "value": "nf-core",
+          "entry": "nf-core"
+        },
+        "app_type": {
+          "status": "known",
+          "value": "batch-connect-basic"
+        },
+        "implementation_tags": {
+          "declared": [
+            "containerized"
+          ],
+          "known": [
+            "containerized"
+          ],
+          "unknown": [],
+          "note": null
+        },
+        "same_software_apps": [
+          {
+            "title": "nf-core Pipelines Dashboard",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "dashboard",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Ampliseq (v2.16.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-ampliseq-2-16-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core ChIP-seq (v2.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-chipseq-2-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core De Novo Transcript (v1.2.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-denovotranscript-1-2-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Differential Abundance (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-differentialabundance-2-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core FetchNGS (v1.12.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-fetchngs-1-12-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Funcscan (v3.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-funcscan-3-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core MAG (v5.4.2)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-mag-5-4-2",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Methylseq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-methylseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Pathogen Surveillance (v1.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-pathogensurveillance-1-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Protein Families (v2.4.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-proteinfamilies-2-4-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA Fusion (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnafusion-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.25.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-25-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.26.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-26-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Sarek (v3.8.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-sarek-3-8-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core scRNA-seq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-scrnaseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Taxprofiler (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-taxprofiler-2-0-0",
+            "this_repo": true
+          }
+        ]
+      }
+    },
+    {
+      "app_id": "nf-core-taxprofiler-2-0-0",
+      "declared": {
+        "status": "declared",
+        "software": "nf-core",
+        "app_type": "batch-connect-basic",
+        "implementation_tags": [
+          "containerized"
+        ],
+        "tags_note": null
+      },
+      "checks": {
+        "shape": "declared",
+        "software": {
+          "status": "match",
+          "value": "nf-core",
+          "entry": "nf-core"
+        },
+        "app_type": {
+          "status": "known",
+          "value": "batch-connect-basic"
+        },
+        "implementation_tags": {
+          "declared": [
+            "containerized"
+          ],
+          "known": [
+            "containerized"
+          ],
+          "unknown": [],
+          "note": null
+        },
+        "same_software_apps": [
+          {
+            "title": "nf-core Pipelines Dashboard",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "dashboard",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Ampliseq (v2.16.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-ampliseq-2-16-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core ChIP-seq (v2.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-chipseq-2-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core De Novo Transcript (v1.2.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-denovotranscript-1-2-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Differential Abundance (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-differentialabundance-2-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core FetchNGS (v1.12.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-fetchngs-1-12-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Funcscan (v3.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-funcscan-3-0-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core MAG (v5.4.2)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-mag-5-4-2",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Methylseq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-methylseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Pathogen Surveillance (v1.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-pathogensurveillance-1-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Protein Families (v2.4.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-proteinfamilies-2-4-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA Fusion (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnafusion-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.25.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-25-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core RNA-seq (v3.26.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-rnaseq-3-26-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Sarek (v3.8.1)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-sarek-3-8-1",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core scRNA-seq (v4.1.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-scrnaseq-4-1-0",
+            "this_repo": true
+          },
+          {
+            "title": "nf-core Taxprofiler (v2.0.0)",
+            "github_url": "https://github.com/TuftsRT/tufts-ood-nfcore",
+            "subpath": "nf-core-taxprofiler-2-0-0",
+            "this_repo": true
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -518,7 +518,7 @@ echo "Test 32: end-to-end, vnc-stale-debugger and broken-app"
 O="$TMP/vnc"
 check "exit 0" 0 "$(e2e "$FIX/vnc-stale-debugger" "$O")"
 check "apps.json" "root|.|batch_connect|README.md" "$(j "$O/apps.json" "'|'.join(str(d[0][k]) for k in ('app_id','path','app_type','readme'))")"
-check "summary facts in order" "readme,form,template,entry_point,security" "$(j "$O/summary.json" "','.join(c['name'] for c in d['facts'])")"
+check "summary facts in order" "readme,form,template,entry_point,security,metadata,license" "$(j "$O/summary.json" "','.join(c['name'] for c in d['facts'])")"
 check "checks unchanged" "syntax,shellcheck,semgrep,bandit,trivy,catalog" "$(j "$O/summary.json" "','.join(c['name'] for c in d['checks'])")"
 check "readme ran" "ran|{'root': 'ran'}" "$(fct "$O" readme status)|$(fct "$O" readme per_app)"
 check "form ran, note names the parser" "ran|{'root': 'ran'}|$E2E_PARSER_NOTE" "$(fct "$O" form status)|$(fct "$O" form per_app)|$(fct "$O" form note)"
@@ -842,7 +842,7 @@ check "num_cores reaches the scheduler via ppn" "True|[2]|True" "$(fm "$D" "'|'.
 check "node_type referenced twice, reaches the scheduler" "True|[12, 24]|True" "$(fm "$D" "'|'.join(str(x[k]) for x in $A'node_type'] for k in ('interpolated_in_submit','submit_lines','reaches_scheduler'))")"
 check "version not referenced" "False|[]|False" "$(fm "$D" "'|'.join(str(x[k]) for x in $A'version'] for k in ('interpolated_in_submit','submit_lines','reaches_scheduler'))")"
 check "input_file defined, not in form" "text_field|37|True|False" "$(fm "$D" "'|'.join(str(x[k]) for x in $A'input_file'] for k in ('widget','line','defined','in_form'))")"
-check "bc_num_hours in form only" "None|12|False|True" "$(fm "$D" "'|'.join(str(x[k]) for x in $A'bc_num_hours'] for k in ('widget','line','defined','in_form'))")"
+check "bc_num_hours in form only: OOD's number_field" "number_field|12|False|True" "$(fm "$D" "'|'.join(str(x[k]) for x in $A'bc_num_hours'] for k in ('widget','line','defined','in_form'))")"
 
 echo "Test 37: form facts, YAML form.yml, references, bounds, unparseable forms, Passenger"
 check "good-app hours bounds" "hours|number_field|1|48|3" "$(fm "$FIX/monorepo/apps/good-app" "'|'.join(str(d['attributes'][0][k]) for k in ('name','widget','min','max','line'))")"
@@ -888,7 +888,7 @@ YML
 FL="'|'.join(str(x[k]) for x in"
 check "account" "text_field|^[a-z]+\$|True|11|True|[7]|True" "$(fm "$T" "$FL $A'account'] for k in ('widget','pattern','required','line','interpolated_in_submit','submit_lines','reaches_scheduler'))")"
 check "env_name interpolated outside script" "False|True|[3]|False" "$(fm "$T" "$FL $A'env_name'] for k in ('required','interpolated_in_submit','submit_lines','reaches_scheduler'))")"
-check "hours (scalar attribute) reaches batch_connect.template" "None|17|True|[5]|True" "$(fm "$T" "$FL $A'hours'] for k in ('widget','line','interpolated_in_submit','submit_lines','reaches_scheduler'))")"
+check "hours (scalar attribute) reaches batch_connect.template" "text_field|17|True|[5]|True" "$(fm "$T" "$FL $A'hours'] for k in ('widget','line','interpolated_in_submit','submit_lines','reaches_scheduler'))")"
 check "html_options bounds; context.cores reaches" "1|8|18|[8]|True" "$(fm "$T" "$FL $A'cores'] for k in ('min','max','line','submit_lines','reaches_scheduler'))")"
 check "@partition reaches" "[9]|True" "$(fm "$T" "$FL $A'partition'] for k in ('submit_lines','reaches_scheduler'))")"
 check "taint through a ;-joined statement" "[1]|True" "$(fm "$T" "$FL $A'mem'] for k in ('submit_lines','reaches_scheduler'))")"
@@ -1505,7 +1505,7 @@ try:
     pr.load_placeholders(A[0]); r='returned'
 except pr.PlaceholdersMissing as e:
     r=type(e).__name__" "$TMP/no-such-placeholders.txt")"
-mkdir -p "$TMP/t57"; cp "$PR" "$TMP/t57/pre-review.py"; cp "$(dirname "$PR")/catalog_facts.py" "$(dirname "$PR")/readme_lines.py" "$TMP/t57/"
+mkdir -p "$TMP/t57"; cp "$PR" "$TMP/t57/pre-review.py"; cp "$(dirname "$PR")/catalog_facts.py" "$(dirname "$PR")/metadata_facts.py" "$(dirname "$PR")/readme_lines.py" "$TMP/t57/"
 check "pre-review exits 2 without readme-placeholders.txt beside it" "2" "$(python3 "$TMP/t57/pre-review.py" "$FIX/broken-app" "$TMP/o57" > "$TMP/stdout" 2> "$TMP/stderr"; echo $?)"
 check "the error names the file" "True" "$(grep -q '^error: cannot read placeholder list .*readme-placeholders.txt (No such file or directory)$' "$TMP/stderr" && echo True || echo False)"
 
@@ -1814,5 +1814,71 @@ printf '#!/bin/bash\necho $X\n' > "$T/template/script.sh"
 printf '[{"file": "template/before.sh.erb", "line": 1, "level": "error", "code": 2148, "message": "no shebang"}, {"file": "template/script.sh", "line": 2, "level": "info", "code": 2086, "message": "q"}, {"file": "template/script.sh", "line": 5, "level": "info", "code": 2086, "message": "q"}]' > "$O/shellcheck.json"
 check "only the in-file finding is a candidate, at its line" "template/script.sh:2" "$(sco "$T" "$T" batch_connect "$O" "','.join('%s:%s' % (c['file'], c['lines']) for c in $BY'tool_finding']).replace('[', '').replace(']', '')")"
 check "the skipped items are noted" "['shellcheck.json: 2 item(s) past the end of their file skipped']" "$(sco "$T" "$T" batch_connect "$O" "d['tool_notes']")"
+
+echo "Test 62: license.json names the root license file under any name GitHub recognises"
+T="$TMP/t62"; mkdir -p "$T"; printf 'MIT\n' > "$T/LICENSE.txt"
+check "exit 0" 0 "$(run "$T" "$TMP/o62")"
+check "LICENSE.txt is found" "LICENSE.txt|['LICENSE.txt']" "$(j "$TMP/o62/license.json" "'%s|%s' % (d['file'], d['found'])")"
+check "the fact is listed" "ran" "$(j "$TMP/o62/summary.json" "[c for c in d['facts'] if c['name']=='license'][0]['status']")"
+T="$TMP/t62b"; mkdir -p "$T/LICENSE"; printf 'x\n' > "$T/copying"; printf 'x\n' > "$T/License.md"; printf 'x\n' > "$T/NOTICE"; printf 'x\n' > "$T/LICENSE.spdx"
+run "$T" "$TMP/o62b" >/dev/null
+check "a directory, NOTICE and LICENSE.spdx are not licenses; both files listed in licensee's order" "License.md|['License.md', 'copying']" "$(j "$TMP/o62b/license.json" "'%s|%s' % (d['file'], d['found'])")"
+T="$TMP/t62c"; mkdir -p "$T/apps/a"; printf 'x\n' > "$T/apps/a/LICENSE"
+run "$T" "$TMP/o62c" >/dev/null
+check "no root license: file is null (an app directory's own is not the repo's)" "None|[]" "$(j "$TMP/o62c/license.json" "'%s|%s' % (d['file'], d['found'])")"
+
+echo "Test 62b: license file names and their order follow GitHub's licensee (lib/licensee/project_files/license_file.rb)"
+LN="r='|'.join(pr.license_files(A))"
+check "every name licensee scores, best first" \
+  "LICENSE|LICENCE.md|LICENSE.txt|COPYING|COPYING.md|LICENSE.rst|UNLICENSE.textile|COPYING.textile|LICENSE-MIT|COPYING-GPL|MIT-LICENSE|MIT-COPYING|OFL.md|OFL.textile|OFL|COPYRIGHT|COPYRIGHT.txt|COPYRIGHT.textile|COPYRIGHT-MIT|PATENTS|PATENTS.txt" \
+  "$(px "$LN" PATENTS.txt COPYRIGHT-MIT MIT-COPYING LICENSE.rst OFL COPYING-GPL COPYRIGHT.textile MIT-LICENSE LICENSE-MIT COPYING.textile COPYING.md COPYRIGHT.txt OFL.textile LICENSE.txt UNLICENSE.textile COPYRIGHT PATENTS OFL.md COPYING LICENCE.md LICENSE)"
+check "names licensee does not score are left out" "" "$(px "$LN" README.md NOTICE LICENSE.spdx LICENSE.header license.xml.bak licenses AUTHORS)"
+check "case does not matter" "license|Copying" "$(px "$LN" Copying license)"
+
+echo "Test 63: form.json marks the attributes OOD defines, with the widget and floor OOD gives them (the tillicum auto_accounts case)"
+T="$TMP/t63"; mkdir -p "$T"
+cat > "$T/form.yml" <<'YML'
+---
+attributes:
+  auto_qos:
+    label: "QoS"
+  bc_num_hours:
+    value: 1
+  bc_num_slots:
+    widget: text_field
+  bc_account:
+    widget: select
+  num_gpus:
+    widget: hidden_field
+  custom_text:
+    widget: text_field
+  not_in_form:
+    widget: text_field
+  fixed_hours: 4
+form:
+  - auto_accounts
+  - auto_qos
+  - auto_modules_python
+  - auto_modules_
+  - global_gpus
+  - global_bc_num_hours
+  - bc_num_hours
+  - bc_num_slots
+  - bc_account
+  - bc_vnc_resolution
+  - num_gpus
+  - custom_text
+  - custom_thing
+  - fixed_hours
+YML
+printf -- '---\nscript:\n  accounting_id: <%%= auto_accounts %%>\n  qos: <%%= auto_qos %%>\n  native: ["<%%= bc_num_hours %%>", "<%%= bc_num_slots %%>", "<%%= global_gpus %%>", "<%%= custom_thing %%>", "<%%= custom_text %%>", "<%%= bc_vnc_resolution %%>", "<%%= not_in_form %%>", "<%%= fixed_hours %%>"]\n' > "$T/submit.yml.erb"
+OOD="'|'.join('%s:%s:%s:%s' % (a['name'], a['ood'], a['widget'], a['min']) for a in d['attributes'])"
+check "OOD's widget wins except where OOD reads the form's (bc_account, a plain attribute); an attribute only in form: is a text field; prefixes match as OOD's factory does" \
+  "auto_qos:auto:select:None|bc_num_hours:builtin:number_field:1|bc_num_slots:builtin:number_field:1|bc_account:builtin:select:None|num_gpus:None:hidden_field:None|custom_text:None:text_field:None|not_in_form:None:text_field:None|fixed_hours:None:text_field:None|auto_accounts:auto:select:None|auto_modules_python:auto:select:None|auto_modules_:None:text_field:None|global_gpus:global:None:None|global_bc_num_hours:global:number_field:1|bc_vnc_resolution:builtin:resolution_field:None|custom_thing:None:text_field:None" \
+  "$(fm "$T" "$OOD")"
+check "defined still means declared under attributes:" "False|True" "$(fm "$T" "'%s|%s' % ($A'auto_accounts'][0]['defined'], $A'auto_qos'][0]['defined'])")"
+check "a plain value under attributes: is fixed, as OOD makes it; others are not" "True|False|False" "$(fm "$T" "'%s|%s|%s' % ($A'fixed_hours'][0]['fixed'], $A'custom_text'][0]['fixed'], $A'custom_thing'][0]['fixed'])")"
+check "numeric-field-bounds: the form's own free-text fields in form: (declared or not) are candidates; OOD's, a fixed one and one not in form: are not" "custom_text,custom_thing" \
+  "$(px "import sys; sys.path.insert(0, A[1]); import row_candidates as rc; d=pr.scan_form(A[0], A[0]); c=[x[0] for x in rc.form_candidates('numeric-field-bounds', d, '')]; r=','.join(a['name'] for a in d['attributes'] if 'form.yml:%s' % a['line'] in c)" "$T" "$SCRIPT_DIR/references")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

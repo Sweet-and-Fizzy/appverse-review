@@ -31,7 +31,16 @@ record is NOT CHECKED with the note "pre-review facts not found".
   Record STR-01 `readme-not-substantive` FAIL when `stub` is true and PASS
   when it is false; with no such `readme.json`, NOT CHECKED with the
   reason.
-- `LICENSE` exists and contains an open-source license.
+- A license file exists and contains an open-source license. Any name
+  GitHub's license detection reads counts, in any case (`LICENSE`,
+  `LICENCE`, `UNLICENSE` or `COPYING`, bare or with an extension, or
+  suffixed like `LICENSE-MIT` or `MIT-LICENSE`), and
+  `<pre-review>/license.json` lists the ones at the repo root, best first
+  (`found`; `file` is the first, or null). Read them in that order. Record
+  STR-01 `missing-license` PASS citing the first that holds an open-source
+  license; when none does, FAIL keyed on `file`'s path. When `file` is null,
+  record the FAIL keyed `LICENSE:missing-license`. If `license.json` is
+  absent, look for those names at the repo root yourself.
 - Repo shape identifiable: `appverse.yml` or `manifest.yml` at root.
 - Repo is not archived on GitHub.
 
@@ -39,7 +48,8 @@ record is NOT CHECKED with the note "pre-review facts not found".
 
 The per-app checks are the manifest entries with `dimension: structure` in
 `${CLAUDE_PLUGIN_ROOT}/references/checks.json` whose `app_types` include the
-app's type (`app_type` in `<pre-review>/apps.json`): `str-02-metadata`,
+app's type (`app_type` in `<pre-review>/apps.json`, which is OOD's kind of
+app and never the catalog's app_type): `str-02-metadata`,
 `str-03-yaml-valid`, `str-06-syntax` and `str-07-layout` for Batch Connect,
 `entry-point-parses` in place of the last two for Passenger and companion
 apps, and `str-04-references`. Every one gets at least one row in the
@@ -57,17 +67,32 @@ a gate failure: rate it on the rubric's severity scale. NOT CHECKED and
 PASS records are Info. Anything else you notice goes after the checks, as
 its own finding with the vocabulary tag that fits or `other:`.
 
-- Required metadata fields for the repo shape, per the rubric's "Repository
-  structure" section. For declared repos that includes `description`,
-  `software`, `app_type`, `maintainer.name`, and `maintainer.support_url`; a
-  missing field is a gate failure (STR-02, `missing-field:<name>`).
+- Required metadata fields, per the rubric's "Repository structure"
+  section. Read them from `<pre-review>/metadata.json`, which resolves each
+  app's fields the way the catalog's sync does (inline `apps[]` entry over
+  `<subpath>/appverse.yml`, the root `maintainer` inherited by an app that
+  declares none, `manifest.yml` only for a member's name and description),
+  with the file each came from. Never judge them from `manifest.yml` alone.
+  Each field in an app's `missing` list is a gate failure (STR-02,
+  `missing-field:<name>`), and no other catalog field is; when the root declares no
+  `maintainer` and no app declares one, record each maintainer field once,
+  with `app_id` `root`. A `software_missing` app is its own STR-02 FAIL
+  (`missing-field:software`). An app whose `status` is not `declared`
+  (inferred, unparsed, refused, skipped) gets no `missing-field` rows for
+  these catalog fields; say why in the row, from its `note`.
+  If `<pre-review>/metadata.json` is absent (the pre-review's metadata step
+  did not run), record `str-02-metadata` as NOT CHECKED with that reason
+  rather than judging the fields from the files.
+  An inferred repo still has the rubric's inferred-repo check: its root `manifest.yml` needs
+  `name`, `category`, `role` and `description`, each one absent recorded as
+  STR-02 `missing-field:<name>` as before (a missing `role` is a WARN).
 - `app_type` and `implementation_tags` are known values. Read the result from
   `<pre-review>/catalog.json` (per app, `checks.app_type` and
   `checks.implementation_tags`, compared with the live vocabularies, ignoring
   case); do not query the catalog yourself. An `app_type` outside the
   published vocabulary is an STR-02 FAIL (the value must be a term from the
   catalog's app_type vocabulary, so a near miss such as a misspelling still
-  fails), worded as "not in the published
+  fails), tagged `app-type-not-in-vocabulary`, worded as "not in the published
   vocabulary" (an unpublished term is invisible here); when
   `checks.app_type.closest` lists terms, the summary ends "did you mean
   `<term>`?" naming each, joined with "or"; an unknown
@@ -77,6 +102,14 @@ its own finding with the vocabulary tag that fits or `other:`.
   errors verbatim. A `form.yml.erb` cannot be YAML-parsed directly (unrendered
   ERB is not valid YAML) — check that it exists and has balanced ERB tags
   instead.
+- References resolve (`check: str-04-references`): an attribute the submit
+  file or a template uses must be one OOD builds, which is every name under
+  the form's `form:` list (`in_form` true in the app's
+  `<pre-review>/<app_id>/form.json`). An entry there with no `attributes:`
+  block is still built (as a text field, or as OOD's own attribute when
+  `ood` is set: `auto_*`, `bc_*`, a site's `global_*`), so it is never an
+  `undefined-variable` or `undefined-attribute`. A name only under
+  `attributes:`, or in neither, is.
 - ERB templates look renderable (balanced `<%= %>` tags). STR-06 comes from
   the pre-review facts, never from running `bash -n` yourself: read
   `<pre-review>/syntax.json` and record one STR-06 record per shell file,

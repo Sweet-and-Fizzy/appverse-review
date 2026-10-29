@@ -910,15 +910,33 @@ check "case20: an empty app_id's FAIL sets the root app's criterion" "fail" "$(e
 check "case20: a null app_id's FAIL sets the root app's criterion" "fail" "$(echo "$A20" | jget "d['apps'][0]['criteria']['references']")"
 check "case20: the findings themselves are not rewritten" "[None, '', None]" "$(echo "$A20" | jget "[d['apps'][0]['findings'][0]['rule'], d['apps'][0]['findings'][1]['app_id'], d['apps'][0]['findings'][2]['app_id']]")"
 
-# --- Test 21: the comparison with the last sent review (schema 1.7) ---
-echo ""
-echo "Test 21: since_last_review"
+# --- Test 21: app names come from the pre-review's metadata.json ---
+echo "Test 21: app names from metadata.json"
 cat > "$TMP/meta21.json" << 'EOF'
+{"recommendation": {"decision": "Accept", "note": "x"}, "apps": [{"app_id": "a", "name": "rnaseq 3.25.0"}, {"app_id": "b", "name": "From meta"}]}
+EOF
+cat > "$TMP/metadata21.json" << 'EOF'
+{"schema": "metadata/1", "shape": "monorepo", "root_maintainer": null, "apps": [
+ {"app_id": "a", "status": "declared", "note": null, "fields": {"name": {"value": "nf-core Ampliseq (v2.16.1)", "source": "appverse.yml"}}, "missing": [], "software_missing": false},
+ {"app_id": "b", "status": "declared", "note": null, "fields": {"name": {"value": null, "source": null}}, "missing": ["name"], "software_missing": false}]}
+EOF
+A21=$(python3 "$ASSEMBLE" --meta "$TMP/meta21.json" --md r.md --metadata "$TMP/metadata21.json" --plugin-version 0.3.0)
+check "case21: name from metadata" "nf-core Ampliseq (v2.16.1)" "$(echo "$A21" | jget "d['apps'][0]['name']")"
+check "case21: meta name when the fact has none" "From meta" "$(echo "$A21" | jget "d['apps'][1]['name']")"
+echo '{not json' > "$TMP/bad21.json"
+A21B=$(python3 "$ASSEMBLE" --meta "$TMP/meta21.json" --md r.md --metadata "$TMP/bad21.json" --plugin-version 0.3.0 2>"$TMP/err21b")
+check "case21b: unreadable metadata keeps meta's name" "rnaseq 3.25.0" "$(echo "$A21B" | jget "d['apps'][0]['name']")"
+check "case21b: unreadable metadata warns" "1" "$(grep -c 'could not load metadata' "$TMP/err21b")"
+
+# --- Test 22: the comparison with the last sent review (schema 1.7) ---
+echo ""
+echo "Test 22: since_last_review"
+cat > "$TMP/meta22.json" << 'EOF'
 {"repo_url": "https://github.com/test/app", "sha": "abc123", "ref": "main", "repo_shape": "inferred_single",
  "recommendation": {"decision": "Accept", "note": "n"},
  "apps": [{"app_id": "root", "name": "Test App", "decision": "Accept"}]}
 EOF
-cat > "$TMP/findings21.json" << 'EOF'
+cat > "$TMP/findings22.json" << 'EOF'
 [
   {"app_id":"root","rule":"QUA-07","defect_key":"a.sh:a","result":"WARN","severity":"low","summary":"A","evidence":"a.sh:1"},
   {"app_id":"root","rule":"OODT-01","defect_key":"b.sh:b","result":"FAIL","severity":"high","summary":"B","evidence":"b.sh:1"},
@@ -927,7 +945,7 @@ cat > "$TMP/findings21.json" << 'EOF'
 ]
 EOF
 # Baseline: A and B still open (B dismissed), C dismissed and absent, D absent.
-cat > "$TMP/mk21.py" << 'EOF'
+cat > "$TMP/mk22.py" << 'EOF'
 import json, sys
 tmp, root = sys.argv[1:]
 sys.path.insert(0, root + "/references")
@@ -940,37 +958,37 @@ entry = lambda f, dis=False: dict(f, id=b.stable_id(f), dismissed=dis)
 base = dict(review="r1", sha="def4567", ref="main", sent_at=1790812800, recommendation="accept",
             apps={"root": "accept"}, same_commit=False, comparable=True,
             findings=[entry(A), entry(B, True), entry(C, True), entry(D)])
-json.dump(base, open(tmp + "/base21.json", "w"))
+json.dump(base, open(tmp + "/base22.json", "w"))
 del base["findings"]; base["comparable"] = False
-json.dump(base, open(tmp + "/base21-nc.json", "w"))
+json.dump(base, open(tmp + "/base22-nc.json", "w"))
 print(b.stable_id(D))
 EOF
-D_ID=$(python3 "$TMP/mk21.py" "$TMP" "$SCRIPT_DIR")
-A21=$(python3 "$ASSEMBLE" --meta "$TMP/meta21.json" --findings "$TMP/findings21.json" --md r.md --baseline "$TMP/base21.json" --plugin-version 0.3.0 2>"$TMP/err21")
-check "case21: block" "r1 def4567 1790812800 update False True" "$(echo "$A21" | jget "' '.join(str(d['since_last_review'][k]) for k in ('review','sha','sent_at','kind','same_commit','comparable'))")"
-check "case21: statuses on A, B, E" "['still_open', 'still_open', 'new']" "$(echo "$A21" | jget "[f.get('since_last_review') for f in d['apps'][0]['findings'][:3]]")"
-check "case21: PASS row has no key" "False" "$(echo "$A21" | jget "'since_last_review' in d['apps'][0]['findings'][3]")"
-check "case21: a dismissal is reviewer data, never published (B was dismissed)" "[False, False, False, False]" "$(echo "$A21" | jget "['dismissed_last_time' in f for f in d['apps'][0]['findings']]")"
-check "case21: not_found holds D only" "[{'id': '$D_ID', 'app_id': 'root', 'rule': 'QUA-03', 'defect_key': 'd.sh:d'}]" "$(echo "$A21" | jget "d['since_last_review']['not_found']")"
-A21B=$(python3 "$ASSEMBLE" --meta "$TMP/meta21.json" --findings "$TMP/findings21.json" --md r.md --baseline "$TMP/base21-nc.json" --plugin-version 0.3.0 2>"$TMP/err21b")
-check "case21: not comparable block" "False []" "$(echo "$A21B" | jget "str(d['since_last_review']['comparable']) + ' ' + str(d['since_last_review']['not_found'])")"
-check "case21: not comparable, no per-finding key" "True" "$(echo "$A21B" | jget "all('since_last_review' not in f and 'dismissed_last_time' not in f for f in d['apps'][0]['findings'])")"
-A21C=$(python3 "$ASSEMBLE" --meta "$TMP/meta21.json" --findings "$TMP/findings21.json" --md r.md --plugin-version 0.3.0 2>"$TMP/err21c")
-check "case21: no baseline, no keys" "False 0" "$(echo "$A21C" | jget "str('since_last_review' in d) + ' ' + str(sum('since_last_review' in f or 'dismissed_last_time' in f for f in d['apps'][0]['findings']))")"
-echo "{" > "$TMP/base21-bad.json"
-A21D=$(python3 "$ASSEMBLE" --meta "$TMP/meta21.json" --findings "$TMP/findings21.json" --md r.md --baseline "$TMP/base21-bad.json" --plugin-version 0.3.0 2>"$TMP/err21d")
-check "case21: malformed baseline acts as none" "False" "$(echo "$A21D" | jget "'since_last_review' in d")"
+D_ID=$(python3 "$TMP/mk22.py" "$TMP" "$SCRIPT_DIR")
+A22=$(python3 "$ASSEMBLE" --meta "$TMP/meta22.json" --findings "$TMP/findings22.json" --md r.md --baseline "$TMP/base22.json" --plugin-version 0.3.0 2>"$TMP/err22")
+check "case22: block" "r1 def4567 1790812800 update False True" "$(echo "$A22" | jget "' '.join(str(d['since_last_review'][k]) for k in ('review','sha','sent_at','kind','same_commit','comparable'))")"
+check "case22: statuses on A, B, E" "['still_open', 'still_open', 'new']" "$(echo "$A22" | jget "[f.get('since_last_review') for f in d['apps'][0]['findings'][:3]]")"
+check "case22: PASS row has no key" "False" "$(echo "$A22" | jget "'since_last_review' in d['apps'][0]['findings'][3]")"
+check "case22: a dismissal is reviewer data, never published (B was dismissed)" "[False, False, False, False]" "$(echo "$A22" | jget "['dismissed_last_time' in f for f in d['apps'][0]['findings']]")"
+check "case22: not_found holds D only" "[{'id': '$D_ID', 'app_id': 'root', 'rule': 'QUA-03', 'defect_key': 'd.sh:d'}]" "$(echo "$A22" | jget "d['since_last_review']['not_found']")"
+A22B=$(python3 "$ASSEMBLE" --meta "$TMP/meta22.json" --findings "$TMP/findings22.json" --md r.md --baseline "$TMP/base22-nc.json" --plugin-version 0.3.0 2>"$TMP/err22b")
+check "case22: not comparable block" "False []" "$(echo "$A22B" | jget "str(d['since_last_review']['comparable']) + ' ' + str(d['since_last_review']['not_found'])")"
+check "case22: not comparable, no per-finding key" "True" "$(echo "$A22B" | jget "all('since_last_review' not in f and 'dismissed_last_time' not in f for f in d['apps'][0]['findings'])")"
+A22C=$(python3 "$ASSEMBLE" --meta "$TMP/meta22.json" --findings "$TMP/findings22.json" --md r.md --plugin-version 0.3.0 2>"$TMP/err22c")
+check "case22: no baseline, no keys" "False 0" "$(echo "$A22C" | jget "str('since_last_review' in d) + ' ' + str(sum('since_last_review' in f or 'dismissed_last_time' in f for f in d['apps'][0]['findings']))")"
+echo "{" > "$TMP/base22-bad.json"
+A22D=$(python3 "$ASSEMBLE" --meta "$TMP/meta22.json" --findings "$TMP/findings22.json" --md r.md --baseline "$TMP/base22-bad.json" --plugin-version 0.3.0 2>"$TMP/err22d")
+check "case22: malformed baseline acts as none" "False" "$(echo "$A22D" | jget "'since_last_review' in d")"
 
 python3 -c "
 import json, sys
 d = json.load(open(sys.argv[1])); d.pop('review'); d.pop('ref', None)
-json.dump(d, open(sys.argv[2], 'w'))" "$TMP/base21.json" "$TMP/base21-noreview.json"
+json.dump(d, open(sys.argv[2], 'w'))" "$TMP/base22.json" "$TMP/base22-noreview.json"
 set +e
-A21E=$(python3 "$ASSEMBLE" --meta "$TMP/meta21.json" --findings "$TMP/findings21.json" --md r.md --baseline "$TMP/base21-noreview.json" --plugin-version 0.3.0 2>"$TMP/err21e")
-RC21E=$?
+A22E=$(python3 "$ASSEMBLE" --meta "$TMP/meta22.json" --findings "$TMP/findings22.json" --md r.md --baseline "$TMP/base22-noreview.json" --plugin-version 0.3.0 2>"$TMP/err22e")
+RC22E=$?
 set -e
-check "case21: baseline without review or ref assembles" "0" "$RC21E"
-check "case21: review is null, block keeps its keys" "None 7" "$(echo "$A21E" | jget "str(d['since_last_review']['review']) + ' ' + str(len(d['since_last_review']))")"
+check "case22: baseline without review or ref assembles" "0" "$RC22E"
+check "case22: review is null, block keeps its keys" "None 7" "$(echo "$A22E" | jget "str(d['since_last_review']['review']) + ' ' + str(len(d['since_last_review']))")"
 
 echo ""
 echo "Done: $pass passed, $fail failed."

@@ -137,6 +137,8 @@ defect_key = "{anchor}:{mechanism_tag}"
     `RELEASES` and `github/commits` are invalid. `missing-license` and
     `missing-readme` use `LICENSE` and `README.md` from this set, or the path
     of an insufficient file that exists under another name (`LICENSE.txt`).
+    When the pre-review's license.json lists license files, `missing-license`
+    uses the path of one of them.
     `missing-readme` is repo-level only, even in a monorepo: a per-app README
     is never a finding on its own, since a subpath app falls back to the root
     README and the Documentation rating covers what it lacks, so the anchor
@@ -215,7 +217,7 @@ consumes the password or token; OOD's per-session `password` generated in
 
 | Code | Criterion |
 |---|---|
-| STR-01 | Missing or insufficient required file (`LICENSE`, `README.md`, `manifest.yml`, `appverse.yml`) |
+| STR-01 | Missing or insufficient required file (a license file, `README.md`, `manifest.yml`, `appverse.yml`) |
 | STR-02 | Missing or invalid required metadata field |
 | STR-03 | YAML parse error |
 | STR-04 | Broken reference (variable, attribute, or module not defined where expected) |
@@ -234,7 +236,8 @@ consumes the password or token; OOD's per-session `password` generated in
 **STR-02:**
 `missing-field:{field_name}` (e.g., `missing-field:software`,
 `missing-field:app_type`, `missing-field:role`,
-`missing-field:maintainer.support_url`)
+`missing-field:maintainer.support_url`), `app-type-not-in-vocabulary` (a declared
+app_type the catalog does not list)
 
 **STR-03:**
 `yaml-parse-error`

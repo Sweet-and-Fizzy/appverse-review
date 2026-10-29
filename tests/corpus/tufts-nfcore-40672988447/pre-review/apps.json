@@ -1,0 +1,104 @@
+[
+  {
+    "app_id": "dashboard",
+    "path": "dashboard",
+    "app_type": "passenger",
+    "readme": "dashboard/README.md"
+  },
+  {
+    "app_id": "nf-core-ampliseq-2-16-1",
+    "path": "nf-core-ampliseq-2-16-1",
+    "app_type": "batch_connect",
+    "readme": "nf-core-ampliseq-2-16-1/README.md"
+  },
+  {
+    "app_id": "nf-core-chipseq-2-1-0",
+    "path": "nf-core-chipseq-2-1-0",
+    "app_type": "batch_connect",
+    "readme": "nf-core-chipseq-2-1-0/README.md"
+  },
+  {
+    "app_id": "nf-core-denovotranscript-1-2-1",
+    "path": "nf-core-denovotranscript-1-2-1",
+    "app_type": "batch_connect",
+    "readme": "nf-core-denovotranscript-1-2-1/README.md"
+  },
+  {
+    "app_id": "nf-core-differentialabundance-2-0-0",
+    "path": "nf-core-differentialabundance-2-0-0",
+    "app_type": "batch_connect",
+    "readme": "nf-core-differentialabundance-2-0-0/README.md"
+  },
+  {
+    "app_id": "nf-core-fetchngs-1-12-0",
+    "path": "nf-core-fetchngs-1-12-0",
+    "app_type": "batch_connect",
+    "readme": "nf-core-fetchngs-1-12-0/README.md"
+  },
+  {
+    "app_id": "nf-core-funcscan-3-0-0",
+    "path": "nf-core-funcscan-3-0-0",
+    "app_type": "batch_connect",
+    "readme": "nf-core-funcscan-3-0-0/README.md"
+  },
+  {
+    "app_id": "nf-core-mag-5-4-2",
+    "path": "nf-core-mag-5-4-2",
+    "app_type": "batch_connect",
+    "readme": "nf-core-mag-5-4-2/README.md"
+  },
+  {
+    "app_id": "nf-core-methylseq-4-1-0",
+    "path": "nf-core-methylseq-4-1-0",
+    "app_type": "batch_connect",
+    "readme": "nf-core-methylseq-4-1-0/README.md"
+  },
+  {
+    "app_id": "nf-core-pathogensurveillance-1-1-0",
+    "path": "nf-core-pathogensurveillance-1-1-0",
+    "app_type": "batch_connect",
+    "readme": "nf-core-pathogensurveillance-1-1-0/README.md"
+  },
+  {
+    "app_id": "nf-core-proteinfamilies-2-4-0",
+    "path": "nf-core-proteinfamilies-2-4-0",
+    "app_type": "batch_connect",
+    "readme": "nf-core-proteinfamilies-2-4-0/README.md"
+  },
+  {
+    "app_id": "nf-core-rnafusion-4-1-0",
+    "path": "nf-core-rnafusion-4-1-0",
+    "app_type": "batch_connect",
+    "readme": "nf-core-rnafusion-4-1-0/README.md"
+  },
+  {
+    "app_id": "nf-core-rnaseq-3-25-0",
+    "path": "nf-core-rnaseq-3-25-0",
+    "app_type": "batch_connect",
+    "readme": "nf-core-rnaseq-3-25-0/README.md"
+  },
+  {
+    "app_id": "nf-core-rnaseq-3-26-0",
+    "path": "nf-core-rnaseq-3-26-0",
+    "app_type": "batch_connect",
+    "readme": "nf-core-rnaseq-3-26-0/README.md"
+  },
+  {
+    "app_id": "nf-core-sarek-3-8-1",
+    "path": "nf-core-sarek-3-8-1",
+    "app_type": "batch_connect",
+    "readme": "nf-core-sarek-3-8-1/README.md"
+  },
+  {
+    "app_id": "nf-core-scrnaseq-4-1-0",
+    "path": "nf-core-scrnaseq-4-1-0",
+    "app_type": "batch_connect",
+    "readme": "nf-core-scrnaseq-4-1-0/README.md"
+  },
+  {
+    "app_id": "nf-core-taxprofiler-2-0-0",
+    "path": "nf-core-taxprofiler-2-0-0",
+    "app_type": "batch_connect",
+    "readme": "nf-core-taxprofiler-2-0-0/README.md"
+  }
+]

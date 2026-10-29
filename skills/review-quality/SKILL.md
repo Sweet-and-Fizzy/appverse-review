@@ -40,12 +40,17 @@ For each app, and for each manifest entry above in manifest order:
    | `magic-numbers` | `template.json` `numeric_literals` and `hex_colors` |
    | `dead-code` | `template.json` `commented_code` (a block of `count` lines from `line`) |
    | `icon-matches-target-os` | `template.json` `icons`, against the OS the README (`readme.json`) says the app was tested on |
-   | `numeric-field-bounds` | `form.json` attributes with `in_form` true, `defined` not false, `reaches_scheduler` true, and no floor: a `number_field` with neither `min` nor `required`, or a free-text widget (anything but select, radio button, check box, hidden field) with no `pattern`. `required` or a `min` does not bound a free-text field: it still takes any string. A missing `max` alone does not make a candidate |
+   | `numeric-field-bounds` | `form.json` attributes with `in_form` true, `ood` not set, `reaches_scheduler` true, and no floor: a `number_field` with neither `min` nor `required`, or a free-text widget (anything but select, radio button, check box, hidden field) with no `pattern`. `required` or a `min` does not bound a free-text field: it still takes any string. A missing `max` alone does not make a candidate |
    | `erb-missing-value` | `form.json` attributes with `in_form` true, `defined` not false and `interpolated_in_submit` true (at `submit_lines`) |
    | `documentation-rating` | `readme.json` `rungs` and `stub` (see Documentation below) |
 
-   An attribute with `defined: false` is an OOD built-in or a site mixin
-   (`bc_num_hours`); OOD bounds it, so it is not a candidate. `template.json`
+   `ood` marks an attribute OOD's dashboard defines itself (`auto` for
+   `auto_*`, `builtin` for `bc_*`, `global` for a site's `global_*`). OOD
+   bounds those itself, so they are never candidates: never call one free
+   text or unbounded. `widget` is the one OOD renders (it hard-codes its
+   own: `auto_accounts` and `auto_qos` are selects, `bc_num_hours` a number
+   field with min 1, whatever the form says), and a `form:` entry with no
+   `attributes:` block is a `text_field`. `template.json`
    paths are repo-relative; `form.json`'s `file` and `submit_file` are
    app-relative, so prefix the app `path` for a monorepo anchor.
 2. **Answer every candidate**: FAIL, WARN or PASS with a one-line reason.

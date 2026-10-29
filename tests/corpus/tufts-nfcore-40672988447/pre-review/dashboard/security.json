@@ -1,0 +1,60 @@
+{
+  "counts": {
+    "interpolation": 0,
+    "unquoted_expansion": 0,
+    "eval_exec": 0,
+    "network_call": 3,
+    "file_write_outside_job": 0,
+    "permission_change": 0,
+    "credential_string": 0,
+    "config_flag": 0,
+    "binary_in_template": 0,
+    "tool_finding": 0
+  },
+  "scope": "all_source",
+  "files": [
+    "dashboard/app.rb",
+    "dashboard/config.ru",
+    "dashboard/config/pipelines.yml",
+    "dashboard/controllers/nf_pipelines_controller.rb",
+    "dashboard/initializers/nf_core_dashboard_route.rb",
+    "dashboard/manifest.yml",
+    "dashboard/manifest.yml.erb",
+    "dashboard/views/index.html.erb"
+  ],
+  "attributes": [],
+  "candidates": [
+    {
+      "kind": "network_call",
+      "check": "sec-network-call",
+      "rule": "OODT-04",
+      "tag": "unexpected-network-call",
+      "file": "dashboard/config/pipelines.yml",
+      "line": 12,
+      "text": "docs_url: https://nf-co.re/rnaseq",
+      "note": "URL https://nf-co.re/rnaseq"
+    },
+    {
+      "kind": "network_call",
+      "check": "sec-network-call",
+      "rule": "OODT-04",
+      "tag": "unexpected-network-call",
+      "file": "dashboard/config/pipelines.yml",
+      "line": 22,
+      "text": "docs_url: https://nf-co.re/sarek",
+      "note": "URL https://nf-co.re/sarek"
+    },
+    {
+      "kind": "network_call",
+      "check": "sec-network-call",
+      "rule": "OODT-04",
+      "tag": "unexpected-network-call",
+      "file": "dashboard/config/pipelines.yml",
+      "line": 30,
+      "text": "docs_url: https://nf-co.re/taxprofiler",
+      "note": "URL https://nf-co.re/taxprofiler"
+    }
+  ],
+  "tool_notes": [],
+  "skipped_files": []
+}

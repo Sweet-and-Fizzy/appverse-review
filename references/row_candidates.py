@@ -34,7 +34,8 @@ TEMPLATE_KEYS = {
 }
 
 
-CONSTRAINED_WIDGETS = {"select", "radio_button", "radio", "check_box", "checkbox", "hidden_field"}
+CONSTRAINED_WIDGETS = {"select", "radio_button", "radio", "check_box", "checkbox", "hidden_field",
+                      "resolution_field"}
 
 
 # sec-tool-finding: a candidate's label carries its code after the last ':',
@@ -90,10 +91,18 @@ def form_candidates(check_id, form, prefix):
     sfile = form.get("submit_file") or "submit.yml.erb"
     out = []
     for a in form.get("attributes") or []:
-        if not a.get("in_form", True) or a.get("defined") is False:
+        if not a.get("in_form", True):
             continue
         cites = site(prefix, ffile, a.get("line"))
         if check_id == "numeric-field-bounds":
+            # OOD's own attributes (auto_*, bc_*, a site's global_*) are
+            # OOD's to bound, not the app's. A form: entry with no
+            # attributes: block is still one of the form's own: OOD builds it
+            # as a text_field. A fact from before `ood` existed cannot tell
+            # OOD's attributes from the form's, so its undeclared ones are
+            # skipped as they were then. A fixed attribute takes no input.
+            if a.get("ood") or a.get("fixed") or ("ood" not in a and a.get("defined") is False):
+                continue
             if not a.get("reaches_scheduler"):
                 continue
             widget = a.get("widget")
@@ -112,7 +121,7 @@ def form_candidates(check_id, form, prefix):
                 continue
             out.append((label(cites[0][0], a.get("line")), cites, None))
         elif check_id == "erb-missing-value":
-            if not a.get("interpolated_in_submit") or a.get("guarded") is True:
+            if a.get("defined") is False or not a.get("interpolated_in_submit") or a.get("guarded") is True:
                 continue
             lines = a.get("submit_lines") or []
             for n in lines:

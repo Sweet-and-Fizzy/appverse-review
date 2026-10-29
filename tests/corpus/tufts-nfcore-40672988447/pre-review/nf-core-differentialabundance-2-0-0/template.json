@@ -1,0 +1,14 @@
+{
+  "dir": "nf-core-differentialabundance-2-0-0/template",
+  "files": [
+    "nf-core-differentialabundance-2-0-0/template/before.sh.erb",
+    "nf-core-differentialabundance-2-0-0/template/nf-params.json.erb",
+    "nf-core-differentialabundance-2-0-0/template/script.sh.erb"
+  ],
+  "icons": [],
+  "absolute_paths": [],
+  "numeric_literals": [],
+  "hex_colors": [],
+  "commented_code": [],
+  "skipped_files": []
+}

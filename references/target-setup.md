@@ -71,7 +71,11 @@ cached schema was used.
 - Root `appverse.yml` parses → **declared repo**. If it has an `apps:` list, it is
   a **monorepo**: the app list is every `apps[].path`, with each app's fields
   resolved by precedence — inline `apps[]` entry → `<subpath>/appverse.yml` →
-  `<subpath>/manifest.yml` (name/description fallback only). Record any
+  `<subpath>/manifest.yml` (name/description fallback only). A member app
+  with no `maintainer` (or `maintainer: null`) inherits the root
+  `maintainer` mapping whole; one that declares any maintainer of its own,
+  even a partial one, keeps it. The pre-review resolves all of this, as the
+  catalog's sync does, in `<pre-review>/metadata.json`. Record any
   `shared_paths` for repo-level review.
 - Root `manifest.yml` only → **inferred repo**, one app at the repo root.
 - Neither, or root appverse.yml fails to parse → record as a gate-criterion
@@ -110,7 +114,7 @@ Field definitions:
 
 | Field | Required | Identity (hashed) | Description |
 |---|---|---|---|
-| `app_id` | Yes | Yes | `"root"` for single-app repos; subpath for monorepos. Same value as `apps.json`'s `app_id` for the app; the per-app pre-review fact directory is `<pre-review>/<app_id>/` |
+| `app_id` | Yes | Yes | `"root"` for single-app repos; subpath for monorepos. Same value as `apps.json`'s `app_id` for the app; the per-app pre-review fact directory is `<pre-review>/<app_id>/`. (`apps.json`'s `app_type` is OOD's kind of app, which chooses the checks; the catalog's `app_type` and other fields are in `<pre-review>/metadata.json`.) |
 | `rule` | Yes | Yes | Code from `finding-codes.md` (OODT-XX, STR-XX, QUA-XX, MNT-XX) |
 | `defect_key` | Yes | Yes | `{anchor}:{mechanism_tag}` per `finding-codes.md`. The anchor is relative to the repo root, so a monorepo app's anchor includes its subpath (`apps/good-app/form.yml:missing-min`) |
 | `aspect` | Yes | No | `security`, `structure`, `quality`, or `maintenance` |

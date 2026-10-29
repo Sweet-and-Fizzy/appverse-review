@@ -1,0 +1,14 @@
+{
+  "dir": "nf-core-denovotranscript-1-2-1/template",
+  "files": [
+    "nf-core-denovotranscript-1-2-1/template/before.sh.erb",
+    "nf-core-denovotranscript-1-2-1/template/nf-params.json.erb",
+    "nf-core-denovotranscript-1-2-1/template/script.sh.erb"
+  ],
+  "icons": [],
+  "absolute_paths": [],
+  "numeric_literals": [],
+  "hex_colors": [],
+  "commented_code": [],
+  "skipped_files": []
+}

@@ -117,7 +117,7 @@ Every repo, whatever its shape:
 | Check | What to look for |
 |-------|------------------|
 | `README.md` exists and is substantive | Not the unfilled template (placeholder text like "Key feature 1"), and not just a title and contact line. Depth is rated separately as the Documentation signal |
-| `LICENSE` exists | An open source license (MIT recommended) |
+| A license file exists (any name GitHub's license detection reads: `LICENSE`, `LICENSE.txt`, `LICENSE.md`, `LICENSE.rst`, `LICENCE`, `COPYING`, `LICENSE-MIT` and the like, any case) | An open source license (MIT recommended) |
 | Repo shape is identifiable | A root `appverse.yml` (declared) or root `manifest.yml` (inferred). See Repo shapes |
 | Repo is not archived on GitHub | An archived repo cannot be maintained |
 | Repository is public and accessible | A private or unreachable repo cannot be listed, since the catalog links to it |
@@ -136,6 +136,7 @@ order above. The same fields are required for one app or several:
 
 | Check | What to Look For |
 |-------|------------------|
+| `name` | Present (from `appverse.yml`, or a member app's `manifest.yml`) |
 | `description` | Present |
 | `software` | Present. It must also match a Software entry in the catalog. If it doesn't, the reviewer works that out with you |
 | `app_type` | A term from the catalog's app-type list. A near miss, such as a misspelling, fails, and the review suggests the closest term. Each `implementation_tags` entry must also be on its list (see the [appverse.yml reference](https://github.com/Sweet-and-Fizzy/ood-appverse/blob/main/docs/appverse.yml)) |
