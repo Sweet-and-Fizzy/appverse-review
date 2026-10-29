@@ -1,16 +1,24 @@
 #!/usr/bin/env python3
 """Decide the Draft feedback's items and write them as stubs for the model.
 
-    python3 references/prepare-feedback.py <findings.json> <meta.json> \\
-        <checks.json> <feedback.json>
+    python3 references/prepare-feedback.py [--baseline <baseline.json>] \\
+        <findings.json> <meta.json> <checks.json> <feedback.json>
 
-Writes feedback.json: {"app_name", "opening", "items": [...]}, one item per
-group of fix-items (report_parse.is_fix_item) with the same level, rule and
-base tag. Each item has group, level, locations, defect_keys, summaries and
-text. The model fills `opening` and each `text`; render-feedback.py builds
-the section from the file. Everything else is regenerated on every run, so
-the model never decides which findings get a sentence, how they group or
-what level they are.
+Writes feedback.json: {"app_name", "greeting", "opening", "reminder",
+"items": [...]}, one item per group of the findings the contributor feedback
+names (review_baseline.feedback_findings: the fix-items, minus the
+reviewer-only ones when a baseline is given) with the same level, rule and
+base tag. Each item has group, level, still_open, locations, defect_keys,
+summaries and text. The model fills `opening` (the sentences on what the app
+does well; the thank-you is the `greeting`) and each `text`;
+render-feedback.py builds the section from the file. Everything else is
+regenerated on every run, so the model never decides which findings get a
+sentence, how they group or what level they are. Without a baseline the
+output is the plain first-review draft.
+
+An item is `still_open` when every finding in it was already open in the
+last review and its app was a resubmission, so the feedback can say it was
+raised before.
 
 Level: Must fix when the finding sets a decision floor
 (report_parse.sets_floor); otherwise Should fix at High or Medium and a
@@ -21,6 +29,7 @@ adds a Must fix item with fixed text, since it sets a floor with no finding.
 Re-running merges with an existing feedback.json: `opening` carries over,
 and an item's `text` carries over only when its group and its defect keys
 are unchanged, so a sentence never names files its item no longer has.
+`greeting` and `reminder` never carry over; they follow the baseline.
 
 Degraded input (unreadable meta, checks or feedback.json, non-string text)
 prints a warning and still writes the file. Exit 2 only when the findings
@@ -31,7 +40,8 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from report_parse import defect_tag, is_fix_item, sets_floor  # noqa: E402
+from report_parse import defect_tag, positional_args, sets_floor  # noqa: E402
+import review_baseline  # noqa: E402
 from feedback_terms import evidence_locations, subject_words  # noqa: E402
 
 LEVELS = ("must", "should", "suggestion")
@@ -112,8 +122,22 @@ def fold_targets(fix_items):
     return folded
 
 
-def build_items(findings, meta, should_at_low):
-    fix_items = [f for f in findings if isinstance(f, dict) and is_fix_item(f)]
+def is_still_open(group_findings, states, baseline):
+    """Every finding was open in the last review, its app was a resubmission,
+    and the reviewer had not dismissed it (a dismissal means it was never
+    asked of the contributor, so "still open from the last review" misleads)."""
+    return all(
+        states.get(review_baseline.stable_id(f)) == "still_open"
+        and not review_baseline.dismissed_last_time(f, baseline)
+        and review_baseline.kind_for(f.get("app_id"), baseline) == "resubmission"
+        for f in group_findings
+    )
+
+
+def build_items(findings, meta, should_at_low, baseline=None):
+    findings = [f for f in findings if isinstance(f, dict)]
+    fix_items = review_baseline.feedback_findings(findings, baseline)
+    states = review_baseline.statuses(findings, baseline)
     folded = fold_targets(fix_items)
     groups = {}
     for f in fix_items:
@@ -144,6 +168,7 @@ def build_items(findings, meta, should_at_low):
             "group": key,
             "text": "",
             "level": g["level"],
+            "still_open": is_still_open(g["findings"], states, baseline),
             "locations": [p + (":" + ",".join(ls) if ls else "") for p, ls in merged],
             "defect_keys": [str(f.get("defect_key") or "") for f in g["findings"]],
             "summaries": [str(f.get("summary", "")) for f in g["findings"]],
@@ -153,7 +178,7 @@ def build_items(findings, meta, should_at_low):
         })
     for gate, text in META_GATES:
         if str(meta.get(gate, "")).strip().lower() == "fail":
-            items.append({"group": "must:meta:" + gate, "text": text, "level": "must", "locations": [],
+            items.append({"group": "must:meta:" + gate, "text": text, "level": "must", "still_open": False, "locations": [],
                           "defect_keys": [], "summaries": [],
                           "_rank": (0, SEVERITY_RANK["high"], "META", gate)})
     items.sort(key=lambda i: i["_rank"])
@@ -201,10 +226,13 @@ def load(path, what):
 
 
 def main(argv):
-    if len(argv) != 5:
-        print("usage: prepare-feedback.py <findings.json> <meta.json> <checks.json> <feedback.json>", file=sys.stderr)
-        return 2
-    findings_path, meta_path, checks_path, out_path = argv[1:]
+    parsed = positional_args(
+        argv, ["findings.json", "meta.json", "checks.json", "feedback.json"], options=("--baseline",),
+        description=(__doc__ or "").split("\n\n")[0])
+    if isinstance(parsed, int):
+        return parsed
+    (_, findings_path, meta_path, checks_path, out_path), opts = parsed
+    baseline = review_baseline.load(opts["--baseline"])
     try:
         with open(findings_path, encoding="utf-8") as f:
             findings = json.load(f)
@@ -224,8 +252,11 @@ def main(argv):
     if old is not None and not (isinstance(old, dict) and isinstance(old.get("items"), list)):
         warn("feedback {} is not an object with an items list; treated as absent".format(out_path))
         old = None
-    doc = merge(build_items(findings, meta, should_at_low), old)
-    doc = {"app_name": app_name(meta), "opening": doc["opening"], "items": doc["items"]}
+    doc = merge(build_items(findings, meta, should_at_low, baseline), old)
+    name = app_name(meta)
+    doc = {"app_name": name, "greeting": review_baseline.greeting(baseline, name), "opening": doc["opening"],
+           "reminder": review_baseline.reminder([f for f in findings if isinstance(f, dict)], baseline),
+           "items": doc["items"]}
     try:
         tmp = out_path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:

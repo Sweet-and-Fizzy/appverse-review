@@ -230,16 +230,21 @@ def section(text, title, level=2):
     return m.group(1) if m else None
 
 
-def positional_args(argv, required, optional=(), description=None):
+def positional_args(argv, required, optional=(), description=None, options=()):
     """Parse a checker's positional arguments with argparse, so every checker
     takes --help and reports a bad call the same way. Returns argv with the
     given values ([prog, *required, *optional present]), or an exit code:
-    0 after --help, 2 for a bad call (argparse prints the usage)."""
+    0 after --help, 2 for a bad call (argparse prints the usage). With
+    `options` (flag names such as "--baseline", each taking a value), the
+    result is instead ([prog, ...], {flag: value or None}), unless it is
+    an exit code."""
     ap = argparse.ArgumentParser(prog=os.path.basename(argv[0]), description=description)
     for name in required:
         ap.add_argument(name)
     for name in optional:
         ap.add_argument(name, nargs="?")
+    for flag in options:
+        ap.add_argument(flag)
     try:
         ns = ap.parse_args(argv[1:])
     except SystemExit as e:
@@ -247,4 +252,7 @@ def positional_args(argv, required, optional=(), description=None):
     values = [getattr(ns, n) for n in list(required) + list(optional)]
     while values and values[-1] is None:
         values.pop()
-    return [argv[0]] + values
+    result = [argv[0]] + values
+    if options:
+        return result, {f: getattr(ns, f.lstrip("-").replace("-", "_")) for f in options}
+    return result
