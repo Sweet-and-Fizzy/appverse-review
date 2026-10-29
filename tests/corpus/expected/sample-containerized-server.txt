@@ -16,6 +16,7 @@
 [license] license: not judged (no license.json in tests/corpus/sample-containerized-server/pre-review)
 [form] form: 0 problems
 [tools] tools: 0 problems
+[records] row-records: 1 app, 9 FAIL/WARN rows, 0 problems
 [evidence] evidence: 17/17 valid; report rows: 29/29 valid
 [catalog] catalog: not checked (no catalog-checks.md in the pre-review output)
 [meta] meta: not checked (no meta.json beside the report)

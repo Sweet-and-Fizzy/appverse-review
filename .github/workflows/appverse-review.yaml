@@ -670,7 +670,7 @@ jobs:
             - feedback: ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.feedback.json
             - checker output to fix: ${{ github.workspace }}/check-output.txt
               (the lines starting [floor], [keys], [rating], [rows],
-              [metadata], [license], [form], [tools], [evidence], [findings], [meta], [decisions] or [sections] and containing MISSING, INVALID,
+              [metadata], [license], [form], [tools], [records], [evidence], [findings], [meta], [decisions] or [sections] and containing MISSING, INVALID,
               MISMATCH, UNCITED or BAD; everything else there is context)
             - pre-review facts: ${{ github.workspace }}/pre-review/
             - the rules the checkers apply: ${{ github.workspace }}/appverse-review/skills/review-app/SKILL.md
@@ -761,6 +761,17 @@ jobs:
               becomes one record per code. If a re-keyed record then has the
               same defect_key as another record, merge them into one record
               and one row. Then recheck the decision and the draft feedback.
+            - A [records] MISMATCH line: no record backs a FAIL or WARN row: no
+              record of its rule, at its result or worse, cites the line the
+              row cites. (A WARN row whose line a FAIL record cites is fine:
+              a merged record takes the worst result.) The records are what
+              the other checkers verify, so change the row to match them:
+              give it the result of the record that cites its line, or, when
+              no record carries that line any more (a repair removed it), make
+              the row PASS with the reason, or remove it if the check keeps
+              another row. Add a record instead only when the row reports a
+              real problem no checker line asked you to remove. Then recheck
+              the decision and the draft feedback.
             - A [decisions] MISMATCH line: raise the named decision to at
               least the one the line gives, in the report (the app's
               Per-app decision line, or the Overall recommendation) and in
@@ -1173,7 +1184,7 @@ jobs:
             echo "A second repair pass ran; its re-check decides: $final"
           fi
           if [ "$final" = "failure" ]; then
-            echo "::error::Review produced its outputs but check-all.py failed after repair; see the re-check step's [floor]/[keys]/[rating]/[rows]/[metadata]/[license]/[form]/[tools]/[evidence]/[catalog] INVALID/MISSING/MISMATCH/UNCITED/BAD lines"
+            echo "::error::Review produced its outputs but check-all.py failed after repair; see the re-check step's [floor]/[keys]/[rating]/[rows]/[metadata]/[license]/[form]/[tools]/[records]/[evidence]/[catalog] INVALID/MISSING/MISMATCH/UNCITED/BAD lines"
             check_failed=1
           fi
           required="md"
