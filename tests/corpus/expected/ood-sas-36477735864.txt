@@ -69,6 +69,7 @@
 [license] license: LICENSE.txt, 0 problems
 [form] form: 0 problems
 [tools] tools: 0 problems
+[records] row-records: 1 app, 12 FAIL/WARN rows, 0 problems
 [evidence] evidence: 27/27 valid; report rows: 0/0 valid
 [catalog] catalog: not checked (no catalog-checks.md in the pre-review output)
 [meta] meta: complete

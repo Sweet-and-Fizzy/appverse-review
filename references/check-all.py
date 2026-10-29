@@ -17,19 +17,20 @@ Runs, in order:
   6. check-license.py <findings.json> <pre-review-out-dir>
   7. check-form.py <findings.json> <pre-review-out-dir>
   8. check-tools.py <findings.json> <pre-review-out-dir>
-  9. check-evidence.py <findings.json> --target <target-dir> --report <report.md>
+  9. check-row-records.py <report.md> <findings.json> <pre-review-out-dir>
+  10. check-evidence.py <findings.json> --target <target-dir> --report <report.md>
          --pre-review <pre-review-out-dir>   (only when that directory exists)
-  10. check-catalog.py <report.md> <pre-review-out-dir>
-  11. check-meta.py <report minus .md>.meta.json   (only when that file exists;
+  11. check-catalog.py <report.md> <pre-review-out-dir>
+  12. check-meta.py <report minus .md>.meta.json   (only when that file exists;
          the workflow reports a missing one itself)
-  12. check-decisions.py <report minus .md>.meta.json <findings.json>
+  13. check-decisions.py <report minus .md>.meta.json <findings.json>
          (only when that file exists)
-  13. check-sections.py <report.md> [<report minus .md>.meta.json]
+  14. check-sections.py <report.md> [<report minus .md>.meta.json]
          (the meta.json only when that file exists)
 
 Each checker's problem lines (MISSING, INVALID, MISMATCH, UNCITED, BAD) are
 printed as-is, prefixed with the checker's short name in brackets
-([floor], [keys], [rating], [rows], [metadata], [license], [form], [tools], [evidence], [catalog], [meta],
+([floor], [keys], [rating], [rows], [metadata], [license], [form], [tools], [records], [evidence], [catalog], [meta],
 [decisions], [sections]) so a mixed failure is easy
 to scan. Each checker's own summary line follows its block, also prefixed.
 
@@ -79,6 +80,8 @@ CHECKERS = [
      lambda a: [a.findings, a.pre_review_dir]),
     ("tools", "check-tools.py",
      lambda a: [a.findings, a.pre_review_dir]),
+    ("records", "check-row-records.py",
+     lambda a: [a.report, a.findings, a.pre_review_dir]),
     ("evidence", "check-evidence.py",
      lambda a: [a.findings, "--target", a.target, "--report", a.report]
      + (["--pre-review", a.pre_review_dir] if os.path.isdir(a.pre_review_dir) else [])),

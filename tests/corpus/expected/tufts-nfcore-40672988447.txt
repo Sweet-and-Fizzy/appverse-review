@@ -75,6 +75,7 @@
 [license] license: LICENSE, 0 problems
 [form] form: 0 problems
 [tools] tools: 0 problems
+[records] row-records: 17 apps, 146 FAIL/WARN rows, 0 problems
 [evidence] evidence: 155/155 valid; report rows: 593/593 valid
 [catalog] catalog: section matches catalog-checks.md (86 lines)
 [meta] meta: complete

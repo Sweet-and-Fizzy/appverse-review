@@ -624,6 +624,10 @@ externally by the API provider.
   static-tool result uses the rule and tag `security-tools.md`'s "Tool
   finding codes: rule and tag" table gives its code, and an unlisted
   shellcheck code is never filed under an OODT rule.
+  `check-row-records.py`: every FAIL or WARN row in an app's section is
+  backed by a record for that app (or a repo-level one) of its rule, at its
+  result or worse, whose evidence cites a line the row cites; a
+  `portability-rating` row, which adds no record of its own, is exempt.
   `check-evidence.py`: every `file:line` citation names a real file and
   line, every `content:` citation names a README content line, and a
   literal value the summary asserts is on the cited line is there (within
@@ -646,7 +650,7 @@ externally by the API provider.
   recommendation that states its decision, every app of a monorepo has a
   Per-app decision line, and those decisions match the meta.json.
   Its output groups each checker's problem lines under a `[floor]`/`[keys]`/
-  `[rating]`/`[rows]`/`[metadata]`/`[license]`/`[form]`/`[tools]`/`[evidence]`/`[catalog]`/`[meta]`/`[decisions]`/`[sections]` prefix, followed by that checker's
+  `[rating]`/`[rows]`/`[metadata]`/`[license]`/`[form]`/`[tools]`/`[records]`/`[evidence]`/`[catalog]`/`[meta]`/`[decisions]`/`[sections]` prefix, followed by that checker's
   summary line. It exits 1 if any checker failed, including a report
   missing a section a checker needs (`MISSING section: ...`), and 2 if any
   could not run, including a checker that crashed (`crashed: ...`).
