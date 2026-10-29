@@ -842,7 +842,7 @@ check "num_cores reaches the scheduler via ppn" "True|[2]|True" "$(fm "$D" "'|'.
 check "node_type referenced twice, reaches the scheduler" "True|[12, 24]|True" "$(fm "$D" "'|'.join(str(x[k]) for x in $A'node_type'] for k in ('interpolated_in_submit','submit_lines','reaches_scheduler'))")"
 check "version not referenced" "False|[]|False" "$(fm "$D" "'|'.join(str(x[k]) for x in $A'version'] for k in ('interpolated_in_submit','submit_lines','reaches_scheduler'))")"
 check "input_file defined, not in form" "text_field|37|True|False" "$(fm "$D" "'|'.join(str(x[k]) for x in $A'input_file'] for k in ('widget','line','defined','in_form'))")"
-check "bc_num_hours in form only" "None|12|False|True" "$(fm "$D" "'|'.join(str(x[k]) for x in $A'bc_num_hours'] for k in ('widget','line','defined','in_form'))")"
+check "bc_num_hours in form only: OOD's number_field" "number_field|12|False|True" "$(fm "$D" "'|'.join(str(x[k]) for x in $A'bc_num_hours'] for k in ('widget','line','defined','in_form'))")"
 
 echo "Test 37: form facts, YAML form.yml, references, bounds, unparseable forms, Passenger"
 check "good-app hours bounds" "hours|number_field|1|48|3" "$(fm "$FIX/monorepo/apps/good-app" "'|'.join(str(d['attributes'][0][k]) for k in ('name','widget','min','max','line'))")"
@@ -888,7 +888,7 @@ YML
 FL="'|'.join(str(x[k]) for x in"
 check "account" "text_field|^[a-z]+\$|True|11|True|[7]|True" "$(fm "$T" "$FL $A'account'] for k in ('widget','pattern','required','line','interpolated_in_submit','submit_lines','reaches_scheduler'))")"
 check "env_name interpolated outside script" "False|True|[3]|False" "$(fm "$T" "$FL $A'env_name'] for k in ('required','interpolated_in_submit','submit_lines','reaches_scheduler'))")"
-check "hours (scalar attribute) reaches batch_connect.template" "None|17|True|[5]|True" "$(fm "$T" "$FL $A'hours'] for k in ('widget','line','interpolated_in_submit','submit_lines','reaches_scheduler'))")"
+check "hours (scalar attribute) reaches batch_connect.template" "text_field|17|True|[5]|True" "$(fm "$T" "$FL $A'hours'] for k in ('widget','line','interpolated_in_submit','submit_lines','reaches_scheduler'))")"
 check "html_options bounds; context.cores reaches" "1|8|18|[8]|True" "$(fm "$T" "$FL $A'cores'] for k in ('min','max','line','submit_lines','reaches_scheduler'))")"
 check "@partition reaches" "[9]|True" "$(fm "$T" "$FL $A'partition'] for k in ('submit_lines','reaches_scheduler'))")"
 check "taint through a ;-joined statement" "[1]|True" "$(fm "$T" "$FL $A'mem'] for k in ('submit_lines','reaches_scheduler'))")"
@@ -1834,5 +1834,51 @@ check "every name licensee scores, best first" \
   "$(px "$LN" PATENTS.txt COPYRIGHT-MIT MIT-COPYING LICENSE.rst OFL COPYING-GPL COPYRIGHT.textile MIT-LICENSE LICENSE-MIT COPYING.textile COPYING.md COPYRIGHT.txt OFL.textile LICENSE.txt UNLICENSE.textile COPYRIGHT PATENTS OFL.md COPYING LICENCE.md LICENSE)"
 check "names licensee does not score are left out" "" "$(px "$LN" README.md NOTICE LICENSE.spdx LICENSE.header license.xml.bak licenses AUTHORS)"
 check "case does not matter" "license|Copying" "$(px "$LN" Copying license)"
+
+echo "Test 63: form.json marks the attributes OOD defines, with the widget and floor OOD gives them (the tillicum auto_accounts case)"
+T="$TMP/t63"; mkdir -p "$T"
+cat > "$T/form.yml" <<'YML'
+---
+attributes:
+  auto_qos:
+    label: "QoS"
+  bc_num_hours:
+    value: 1
+  bc_num_slots:
+    widget: text_field
+  bc_account:
+    widget: select
+  num_gpus:
+    widget: hidden_field
+  custom_text:
+    widget: text_field
+  not_in_form:
+    widget: text_field
+  fixed_hours: 4
+form:
+  - auto_accounts
+  - auto_qos
+  - auto_modules_python
+  - auto_modules_
+  - global_gpus
+  - global_bc_num_hours
+  - bc_num_hours
+  - bc_num_slots
+  - bc_account
+  - bc_vnc_resolution
+  - num_gpus
+  - custom_text
+  - custom_thing
+  - fixed_hours
+YML
+printf -- '---\nscript:\n  accounting_id: <%%= auto_accounts %%>\n  qos: <%%= auto_qos %%>\n  native: ["<%%= bc_num_hours %%>", "<%%= bc_num_slots %%>", "<%%= global_gpus %%>", "<%%= custom_thing %%>", "<%%= custom_text %%>", "<%%= bc_vnc_resolution %%>", "<%%= not_in_form %%>", "<%%= fixed_hours %%>"]\n' > "$T/submit.yml.erb"
+OOD="'|'.join('%s:%s:%s:%s' % (a['name'], a['ood'], a['widget'], a['min']) for a in d['attributes'])"
+check "OOD's widget wins except where OOD reads the form's (bc_account, a plain attribute); an attribute only in form: is a text field; prefixes match as OOD's factory does" \
+  "auto_qos:auto:select:None|bc_num_hours:builtin:number_field:1|bc_num_slots:builtin:number_field:1|bc_account:builtin:select:None|num_gpus:None:hidden_field:None|custom_text:None:text_field:None|not_in_form:None:text_field:None|fixed_hours:None:text_field:None|auto_accounts:auto:select:None|auto_modules_python:auto:select:None|auto_modules_:None:text_field:None|global_gpus:global:None:None|global_bc_num_hours:global:number_field:1|bc_vnc_resolution:builtin:resolution_field:None|custom_thing:None:text_field:None" \
+  "$(fm "$T" "$OOD")"
+check "defined still means declared under attributes:" "False|True" "$(fm "$T" "'%s|%s' % ($A'auto_accounts'][0]['defined'], $A'auto_qos'][0]['defined'])")"
+check "a plain value under attributes: is fixed, as OOD makes it; others are not" "True|False|False" "$(fm "$T" "'%s|%s|%s' % ($A'fixed_hours'][0]['fixed'], $A'custom_text'][0]['fixed'], $A'custom_thing'][0]['fixed'])")"
+check "numeric-field-bounds: the form's own free-text fields in form: (declared or not) are candidates; OOD's, a fixed one and one not in form: are not" "custom_text,custom_thing" \
+  "$(px "import sys; sys.path.insert(0, A[1]); import row_candidates as rc; d=pr.scan_form(A[0], A[0]); c=[x[0] for x in rc.form_candidates('numeric-field-bounds', d, '')]; r=','.join(a['name'] for a in d['attributes'] if 'form.yml:%s' % a['line'] in c)" "$T" "$SCRIPT_DIR/references")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
