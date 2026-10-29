@@ -1820,11 +1820,19 @@ T="$TMP/t62"; mkdir -p "$T"; printf 'MIT\n' > "$T/LICENSE.txt"
 check "exit 0" 0 "$(run "$T" "$TMP/o62")"
 check "LICENSE.txt is found" "LICENSE.txt|['LICENSE.txt']" "$(j "$TMP/o62/license.json" "'%s|%s' % (d['file'], d['found'])")"
 check "the fact is listed" "ran" "$(j "$TMP/o62/summary.json" "[c for c in d['facts'] if c['name']=='license'][0]['status']")"
-T="$TMP/t62b"; mkdir -p "$T/LICENSE"; printf 'x\n' > "$T/copying"; printf 'x\n' > "$T/License.md"; printf 'x\n' > "$T/LICENSE-THIRD-PARTY"
+T="$TMP/t62b"; mkdir -p "$T/LICENSE"; printf 'x\n' > "$T/copying"; printf 'x\n' > "$T/License.md"; printf 'x\n' > "$T/NOTICE"; printf 'x\n' > "$T/LICENSE.spdx"
 run "$T" "$TMP/o62b" >/dev/null
-check "a directory and other names are not licenses; both files listed in the preferred order" "License.md|['License.md', 'copying']" "$(j "$TMP/o62b/license.json" "'%s|%s' % (d['file'], d['found'])")"
+check "a directory, NOTICE and LICENSE.spdx are not licenses; both files listed in licensee's order" "License.md|['License.md', 'copying']" "$(j "$TMP/o62b/license.json" "'%s|%s' % (d['file'], d['found'])")"
 T="$TMP/t62c"; mkdir -p "$T/apps/a"; printf 'x\n' > "$T/apps/a/LICENSE"
 run "$T" "$TMP/o62c" >/dev/null
 check "no root license: file is null (an app directory's own is not the repo's)" "None|[]" "$(j "$TMP/o62c/license.json" "'%s|%s' % (d['file'], d['found'])")"
+
+echo "Test 62b: license file names and their order follow GitHub's licensee (lib/licensee/project_files/license_file.rb)"
+LN="r='|'.join(pr.license_files(A))"
+check "every name licensee scores, best first" \
+  "LICENSE|LICENCE.md|LICENSE.txt|COPYING|COPYING.md|LICENSE.rst|UNLICENSE.textile|COPYING.textile|LICENSE-MIT|COPYING-GPL|MIT-LICENSE|MIT-COPYING|OFL.md|OFL.textile|OFL|COPYRIGHT|COPYRIGHT.txt|COPYRIGHT.textile|COPYRIGHT-MIT|PATENTS|PATENTS.txt" \
+  "$(px "$LN" PATENTS.txt COPYRIGHT-MIT MIT-COPYING LICENSE.rst OFL COPYING-GPL COPYRIGHT.textile MIT-LICENSE LICENSE-MIT COPYING.textile COPYING.md COPYRIGHT.txt OFL.textile LICENSE.txt UNLICENSE.textile COPYRIGHT PATENTS OFL.md COPYING LICENCE.md LICENSE)"
+check "names licensee does not score are left out" "" "$(px "$LN" README.md NOTICE LICENSE.spdx LICENSE.header license.xml.bak licenses AUTHORS)"
+check "case does not matter" "license|Copying" "$(px "$LN" Copying license)"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
