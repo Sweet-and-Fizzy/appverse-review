@@ -66,6 +66,14 @@ permissions:
   contents: read
   id-token: write
 
+# One review of a repo at a time: two runs for the same target compete for the
+# gateway and the second reviews the same commit to no purpose. A later run
+# waits for the one in progress; GitHub keeps one waiting run per group, so a
+# third replaces the second rather than queueing behind it.
+concurrency:
+  group: appverse-review-${{ inputs.target_repo }}
+  cancel-in-progress: false
+
 jobs:
   review:
     runs-on: ubuntu-latest
@@ -712,7 +720,8 @@ jobs:
               Structure table.
             - A [metadata] MISMATCH line: the field is present (the line
               names the file it comes from), the catalog knows the app type,
-              or the field is not one the catalog requires; remove that STR-02 FAIL record and its row. If the app
+              or the field is not one the catalog requires,
+              or the repo is inferred and the field is one only appverse.yml declares; remove that STR-02 FAIL record and its row. If the app
               has no STR-02 row left, add a STR-02 PASS row citing the file the line names
               (the check needs a row for every app). Then recheck the app's
               decision and the draft feedback without the FAIL.

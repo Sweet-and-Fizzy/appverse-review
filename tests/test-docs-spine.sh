@@ -187,6 +187,8 @@ has references/target-setup.md "Same value as \`apps.json\`'s \`app_id\`" "targe
 has .github/workflows/appverse-review.yaml "references/check-all.py \${{ github.workspace }}/review-\${{ steps.params.outputs.repo_slug }}.md \${{ github.workspace }}/review-\${{ steps.params.outputs.repo_slug }}.findings.json \${{ github.workspace }}/appverse-review/references/checks.json \${{ github.workspace }}/pre-review --target" "workflow prompt gives check-all.py a resolvable plugin path, report path and findings path"
 has skills/review-app/SKILL.md "check-all.py" "review-app SKILL.md wrap-up step names check-all.py"
 has .github/workflows/appverse-review.yaml "references/checks.json" "workflow prompt names checks.json"
+has .github/workflows/appverse-review.yaml "group: appverse-review-\${{ inputs.target_repo }}" "one review run at a time per target repo (#106)"
+has .github/workflows/appverse-review.yaml "cancel-in-progress: false" "a second run for the same repo waits rather than cancelling the first"
 has .github/workflows/appverse-review.yaml "INVALID/MISSING/MISMATCH/UNCITED/BAD" "verify step lists UNCITED and BAD"
 lacks "$SEC_SKILL" "tag may be null" "security skill has no stale tag-may-be-null text"
 lacks "$SEC_SKILL" "config_flag\` candidate with no tag" "security skill has no config_flag no-tag fallback"
@@ -231,6 +233,7 @@ has skills/review-structure/SKILL.md "which is every name under" "structure skil
 has skills/review-quality/SKILL.md "bounds those itself, so they are never candidates" "quality skill never makes OOD's own attributes bounds candidates"
 has .github/workflows/appverse-review.yaml "[metadata], [form], [evidence], [findings]" "repair prompt names [metadata] and [form] among the lines to fix"
 has .github/workflows/appverse-review.yaml "A [form] MISMATCH line: the attribute is listed under form:, so" "repair handles a [form] MISMATCH"
+has .github/workflows/appverse-review.yaml "or the repo is inferred and the field is one only appverse.yml declares" "repair handles the inferred-repo [metadata] MISMATCH"
 has skills/review-structure/SKILL.md "readme-not-substantive" "review-structure records STR-01 readme-not-substantive, the record check-rating falls back to"
 STUB_N=$(checker references/pre-review.py 'STUB_CONTENT_CHARS')
 has "$RUBRIC" "fewer than $STUB_N characters of content" "rubric states pre-review's stub threshold"
