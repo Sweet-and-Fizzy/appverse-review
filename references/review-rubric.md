@@ -117,7 +117,7 @@ Every repo, whatever its shape:
 | Check | What to look for |
 |-------|------------------|
 | `README.md` exists and is substantive | Not the unfilled template (placeholder text like "Key feature 1"), and not just a title and contact line. Depth is rated separately as the Documentation signal |
-| `LICENSE` exists | An open source license (MIT recommended) |
+| A license file exists (`LICENSE`, `LICENSE.txt`, `LICENSE.md`, `LICENSE.rst` or `COPYING`, any case) | An open source license (MIT recommended) |
 | Repo shape is identifiable | A root `appverse.yml` (declared) or root `manifest.yml` (inferred). See Repo shapes |
 | Repo is not archived on GitHub | An archived repo cannot be maintained |
 | Repository is public and accessible | A private or unreachable repo cannot be listed, since the catalog links to it |

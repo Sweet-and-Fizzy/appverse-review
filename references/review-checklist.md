@@ -188,7 +188,7 @@ Check the findings against the repo. "What a review is, and what we ask of
 you" says which ones. As you go, check that:
 
 1. Required files and metadata are as the gates state: `appverse.yml` or
-   `manifest.yml`, `README.md`, `LICENSE`, and the standard OOD layout. A gate
+   `manifest.yml`, `README.md`, a license file, and the standard OOD layout. A gate
    that warned or was not checked has not passed. Confirm it from the cited
    evidence, record what you found in an internal note, and add a finding if
    the gate fails.

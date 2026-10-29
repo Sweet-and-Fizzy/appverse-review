@@ -227,6 +227,9 @@ has .github/workflows/appverse-review.yaml "add a STR-02 PASS row citing the fil
 has references/review-rubric.md "| \`name\` | Present" "rubric's declared-repo table lists name, which the catalog requires"
 has skills/review-structure/SKILL.md "If \`<pre-review>/metadata.json\` is absent" "structure skill says what to do when the metadata fact is missing"
 has .github/workflows/appverse-review.yaml "or the field is not one the catalog requires" "repair handles the not-required [metadata] MISMATCH"
+has skills/review-structure/SKILL.md "\`<pre-review>/license.json\` names the one the repo has" "structure skill reads the license file from license.json"
+has references/review-rubric.md "\`LICENSE.txt\`, \`LICENSE.md\`, \`LICENSE.rst\` or \`COPYING\`, any case" "rubric accepts the license file names GitHub recognises"
+has .github/workflows/appverse-review.yaml "A [license] MISMATCH line: the repo has the license file the" "repair handles a [license] MISMATCH"
 has skills/review-structure/SKILL.md "readme-not-substantive" "review-structure records STR-01 readme-not-substantive, the record check-rating falls back to"
 STUB_N=$(checker references/pre-review.py 'STUB_CONTENT_CHARS')
 has "$RUBRIC" "fewer than $STUB_N characters of content" "rubric states pre-review's stub threshold"

@@ -3204,6 +3204,22 @@ def check_metadata(target, apps, out):
                   files_examined=len([a for a in apps if not a.get("_skip")]))
 
 
+# The root license file names GitHub's license detection accepts, in the
+# order one is preferred when a repo has several. Matched case-insensitively.
+LICENSE_NAMES = ("license", "license.txt", "license.md", "license.rst", "copying")
+
+
+def check_license(target, out):
+    """Write license.json: the repo's root license file, or null. Whether
+    its text is an open-source license is the review's to judge."""
+    names = [n for n in os.listdir(target)
+             if n.lower() in LICENSE_NAMES and not os.path.isdir(os.path.join(target, n))]
+    names.sort(key=lambda n: (LICENSE_NAMES.index(n.lower()), n))
+    _write_json(out, "license.json", {"schema": "license/1", "file": names[0] if names else None,
+                                      "found": names})
+    return record("license", "ran", output_file="license.json", files_examined=len(names))
+
+
 def check_catalog(args, target, apps, out):
     """Read the catalog and compare each app's declared software, app_type and
     implementation_tags with it (references/catalog_facts.py). Writes
@@ -3375,7 +3391,8 @@ def main(argv):
              guarded("template", check_template, target, apps, out),
              guarded("entry_point", check_entry_point, target, apps, out),
              guarded("security", check_security, target, apps, out),
-             guarded("metadata", check_metadata, target, apps, out)]
+             guarded("metadata", check_metadata, target, apps, out),
+             guarded("license", check_license, target, out)]
 
     _write_json(out, "summary.json", {
         "schema": SCHEMA,
