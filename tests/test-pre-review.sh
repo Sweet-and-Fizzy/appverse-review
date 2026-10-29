@@ -518,7 +518,7 @@ echo "Test 32: end-to-end, vnc-stale-debugger and broken-app"
 O="$TMP/vnc"
 check "exit 0" 0 "$(e2e "$FIX/vnc-stale-debugger" "$O")"
 check "apps.json" "root|.|batch_connect|README.md" "$(j "$O/apps.json" "'|'.join(str(d[0][k]) for k in ('app_id','path','app_type','readme'))")"
-check "summary facts in order" "readme,form,template,entry_point,security,metadata" "$(j "$O/summary.json" "','.join(c['name'] for c in d['facts'])")"
+check "summary facts in order" "readme,form,template,entry_point,security,metadata,license" "$(j "$O/summary.json" "','.join(c['name'] for c in d['facts'])")"
 check "checks unchanged" "syntax,shellcheck,semgrep,bandit,trivy,catalog" "$(j "$O/summary.json" "','.join(c['name'] for c in d['checks'])")"
 check "readme ran" "ran|{'root': 'ran'}" "$(fct "$O" readme status)|$(fct "$O" readme per_app)"
 check "form ran, note names the parser" "ran|{'root': 'ran'}|$E2E_PARSER_NOTE" "$(fct "$O" form status)|$(fct "$O" form per_app)|$(fct "$O" form note)"
@@ -1814,5 +1814,25 @@ printf '#!/bin/bash\necho $X\n' > "$T/template/script.sh"
 printf '[{"file": "template/before.sh.erb", "line": 1, "level": "error", "code": 2148, "message": "no shebang"}, {"file": "template/script.sh", "line": 2, "level": "info", "code": 2086, "message": "q"}, {"file": "template/script.sh", "line": 5, "level": "info", "code": 2086, "message": "q"}]' > "$O/shellcheck.json"
 check "only the in-file finding is a candidate, at its line" "template/script.sh:2" "$(sco "$T" "$T" batch_connect "$O" "','.join('%s:%s' % (c['file'], c['lines']) for c in $BY'tool_finding']).replace('[', '').replace(']', '')")"
 check "the skipped items are noted" "['shellcheck.json: 2 item(s) past the end of their file skipped']" "$(sco "$T" "$T" batch_connect "$O" "d['tool_notes']")"
+
+echo "Test 62: license.json names the root license file under any name GitHub recognises"
+T="$TMP/t62"; mkdir -p "$T"; printf 'MIT\n' > "$T/LICENSE.txt"
+check "exit 0" 0 "$(run "$T" "$TMP/o62")"
+check "LICENSE.txt is found" "LICENSE.txt|['LICENSE.txt']" "$(j "$TMP/o62/license.json" "'%s|%s' % (d['file'], d['found'])")"
+check "the fact is listed" "ran" "$(j "$TMP/o62/summary.json" "[c for c in d['facts'] if c['name']=='license'][0]['status']")"
+T="$TMP/t62b"; mkdir -p "$T/LICENSE"; printf 'x\n' > "$T/copying"; printf 'x\n' > "$T/License.md"; printf 'x\n' > "$T/NOTICE"; printf 'x\n' > "$T/LICENSE.spdx"
+run "$T" "$TMP/o62b" >/dev/null
+check "a directory, NOTICE and LICENSE.spdx are not licenses; both files listed in licensee's order" "License.md|['License.md', 'copying']" "$(j "$TMP/o62b/license.json" "'%s|%s' % (d['file'], d['found'])")"
+T="$TMP/t62c"; mkdir -p "$T/apps/a"; printf 'x\n' > "$T/apps/a/LICENSE"
+run "$T" "$TMP/o62c" >/dev/null
+check "no root license: file is null (an app directory's own is not the repo's)" "None|[]" "$(j "$TMP/o62c/license.json" "'%s|%s' % (d['file'], d['found'])")"
+
+echo "Test 62b: license file names and their order follow GitHub's licensee (lib/licensee/project_files/license_file.rb)"
+LN="r='|'.join(pr.license_files(A))"
+check "every name licensee scores, best first" \
+  "LICENSE|LICENCE.md|LICENSE.txt|COPYING|COPYING.md|LICENSE.rst|UNLICENSE.textile|COPYING.textile|LICENSE-MIT|COPYING-GPL|MIT-LICENSE|MIT-COPYING|OFL.md|OFL.textile|OFL|COPYRIGHT|COPYRIGHT.txt|COPYRIGHT.textile|COPYRIGHT-MIT|PATENTS|PATENTS.txt" \
+  "$(px "$LN" PATENTS.txt COPYRIGHT-MIT MIT-COPYING LICENSE.rst OFL COPYING-GPL COPYRIGHT.textile MIT-LICENSE LICENSE-MIT COPYING.textile COPYING.md COPYRIGHT.txt OFL.textile LICENSE.txt UNLICENSE.textile COPYRIGHT PATENTS OFL.md COPYING LICENCE.md LICENSE)"
+check "names licensee does not score are left out" "" "$(px "$LN" README.md NOTICE LICENSE.spdx LICENSE.header license.xml.bak licenses AUTHORS)"
+check "case does not matter" "license|Copying" "$(px "$LN" Copying license)"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

@@ -60,6 +60,9 @@ the per-app dirs named in the previous apps.json are removed first):
                  required fields that are missing (metadata_facts.py).
                  apps.json's app_type below is OOD's kind of app, not the
                  catalog's; the catalog's is here.
+  license.json   the repo's root license files as GitHub's license
+                 detection (licensee) names and ranks them, best first,
+                 and the best of them (or null).
   apps.json      [{app_id, path, app_type, readme}]: the app shape, resolved
                  as target-setup.md section 3 does. A root appverse.yml with
                  an apps: list is a monorepo, one app per apps[].path (app_id
@@ -3204,6 +3207,47 @@ def check_metadata(target, apps, out):
                   files_examined=len([a for a in apps if not a.get("_skip")]))
 
 
+# The file names GitHub's license detection reads, as licensee scores them
+# (lib/licensee/project_files/license_file.rb FILENAME_REGEXES): the first
+# pattern a name fully matches gives its score, case-insensitively.
+_LIC, _COPYING = r"(un)?licen[sc]e", r"copying"
+_PREFERRED_EXT = r"\.(md|markdown|txt|html)"
+_LICENSE_EXT = r"\.(?!spdx|header)([^./]|\.\d)+"
+_OTHER_EXT = r"\.(?!xml|sh|go|gemspec)([^./]|\.\d)+"
+_ANY_EXT = r"\.([^./]|\.\d)+"
+LICENSE_FILENAMES = [(re.compile(p, re.I), score) for p, score in [
+    (_LIC, 1.00), (_LIC + _PREFERRED_EXT, 0.95), (_COPYING, 0.90), (_COPYING + _PREFERRED_EXT, 0.85),
+    (_LIC + _LICENSE_EXT, 0.80), (_COPYING + _ANY_EXT, 0.75),
+    (_LIC + r"[-_][^.]*(%s)?" % _OTHER_EXT, 0.70), (_COPYING + r"[-_][^.]*(%s)?" % _OTHER_EXT, 0.65),
+    (r"\w+[-_]" + _LIC + r"[^.]*(%s)?" % _OTHER_EXT, 0.60),
+    (r"\w+[-_]" + _COPYING + r"[^.]*(%s)?" % _OTHER_EXT, 0.55),
+    (r"ofl" + _PREFERRED_EXT, 0.50), (r"ofl" + _OTHER_EXT, 0.45), (r"ofl", 0.40),
+    (r"copyright", 0.35), (r"copyright" + _PREFERRED_EXT, 0.30), (r"copyright" + _OTHER_EXT, 0.25),
+    (r"copyright[-_][^.]*(%s)?" % _OTHER_EXT, 0.20), (r"patents", 0.15), (r"patents" + _OTHER_EXT, 0.10),
+]]
+
+
+def license_files(names):
+    """The names licensee would read as license files, best score first,
+    ties by name."""
+    scored = []
+    for n in names:
+        score = next((s for rx, s in LICENSE_FILENAMES if rx.fullmatch(n)), 0)
+        if score:
+            scored.append((-score, n))
+    return [n for _, n in sorted(scored)]
+
+
+def check_license(target, out):
+    """Write license.json: the repo's root license files, best first, and
+    the best of them (or null). Whether one holds an open-source license
+    is the review's to judge."""
+    names = license_files(n for n in os.listdir(target) if not os.path.isdir(os.path.join(target, n)))
+    _write_json(out, "license.json", {"schema": "license/1", "file": names[0] if names else None,
+                                      "found": names})
+    return record("license", "ran", output_file="license.json", files_examined=len(names))
+
+
 def check_catalog(args, target, apps, out):
     """Read the catalog and compare each app's declared software, app_type and
     implementation_tags with it (references/catalog_facts.py). Writes
@@ -3375,7 +3419,8 @@ def main(argv):
              guarded("template", check_template, target, apps, out),
              guarded("entry_point", check_entry_point, target, apps, out),
              guarded("security", check_security, target, apps, out),
-             guarded("metadata", check_metadata, target, apps, out)]
+             guarded("metadata", check_metadata, target, apps, out),
+             guarded("license", check_license, target, out)]
 
     _write_json(out, "summary.json", {
         "schema": SCHEMA,

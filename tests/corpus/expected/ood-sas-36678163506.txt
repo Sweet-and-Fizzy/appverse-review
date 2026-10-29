@@ -22,6 +22,7 @@
 [rows]   candidate template/script.sh.erb:SC2164
 [rows] check-rows: 1 app, 19 required rows, 1 problem
 [metadata] metadata: not judged (no metadata.json in tests/corpus/ood-sas-36678163506/pre-review)
+[license] license: LICENSE.txt, 0 problems
 [evidence] NOTE report:dead-code dead-code template/script.sh.erb:33,39,78 (`SINGULARITYENV_MATLAB_PREFDIR` is not on template/script.sh.erb:33)
 [evidence] evidence: 36/36 valid; report rows: 20/20 valid
 [catalog] catalog: not checked (no catalog-checks.md in the pre-review output)
