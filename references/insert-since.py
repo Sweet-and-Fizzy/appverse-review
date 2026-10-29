@@ -31,13 +31,11 @@ NOTE = ("_Not found this time means this run did not record the finding: "
         "it may have been fixed, or the review may have varied._")
 
 
-def _line(finding, summary=None, dismissed=False):
+def _line(finding, summary=None):
     rule = finding.get("rule") or "—"
     text = "- {} `{}`".format(rule, finding.get("defect_key"))
     if summary:
         text += " — " + summary
-    if dismissed:
-        text += " (dismissed last time)"
     return text
 
 
@@ -61,7 +59,7 @@ def section(findings, baseline):
         if i in seen or i not in status:
             continue
         seen.add(i)
-        line = _line(f, f.get("summary"), status[i] == "still_open" and rb.dismissed_last_time(f, baseline))
+        line = _line(f, f.get("summary"))
         (new if status[i] == "new" else still).append(line)
     gone = [_line(f) for f in rb.not_found(findings, baseline)]
     # Blank lines keep a label from reading as a lazy continuation of the previous bullet.

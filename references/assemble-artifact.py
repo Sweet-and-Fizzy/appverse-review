@@ -424,7 +424,9 @@ def attach_catalog(repo_level, apps, catalog):
 def attach_since_last_review(artifact, findings, baseline):
     """Schema 1.7: how this review compares with the last one sent. Per-finding
     keys appear only when the baseline carries findings to compare with; the
-    block always says whether it did. Looked up by stable_id, as the hub does."""
+    block always says whether it did. Looked up by stable_id, as the hub does.
+    A reviewer's dismissal is never written here: the artifact is public, and
+    the hub shows its own dismissals."""
     status = review_baseline.statuses(findings, baseline)
     groups = [artifact["repo_level"]["findings"]] + [a["findings"] for a in artifact["apps"]]
     for group in groups:
@@ -432,8 +434,6 @@ def attach_since_last_review(artifact, findings, baseline):
             sid = review_baseline.stable_id(f)
             if sid in status:
                 f["since_last_review"] = status[sid]
-                if review_baseline.dismissed_last_time(f, baseline):
-                    f["dismissed_last_time"] = True
     artifact["since_last_review"] = {
         "review": baseline.get("review"),
         "sha": baseline["sha"],

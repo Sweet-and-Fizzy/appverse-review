@@ -950,7 +950,7 @@ A21=$(python3 "$ASSEMBLE" --meta "$TMP/meta21.json" --findings "$TMP/findings21.
 check "case21: block" "r1 def4567 1790812800 update False True" "$(echo "$A21" | jget "' '.join(str(d['since_last_review'][k]) for k in ('review','sha','sent_at','kind','same_commit','comparable'))")"
 check "case21: statuses on A, B, E" "['still_open', 'still_open', 'new']" "$(echo "$A21" | jget "[f.get('since_last_review') for f in d['apps'][0]['findings'][:3]]")"
 check "case21: PASS row has no key" "False" "$(echo "$A21" | jget "'since_last_review' in d['apps'][0]['findings'][3]")"
-check "case21: dismissed_last_time only on B" "[False, True, False, False]" "$(echo "$A21" | jget "['dismissed_last_time' in f for f in d['apps'][0]['findings']]")"
+check "case21: a dismissal is reviewer data, never published (B was dismissed)" "[False, False, False, False]" "$(echo "$A21" | jget "['dismissed_last_time' in f for f in d['apps'][0]['findings']]")"
 check "case21: not_found holds D only" "[{'id': '$D_ID', 'app_id': 'root', 'rule': 'QUA-03', 'defect_key': 'd.sh:d'}]" "$(echo "$A21" | jget "d['since_last_review']['not_found']")"
 A21B=$(python3 "$ASSEMBLE" --meta "$TMP/meta21.json" --findings "$TMP/findings21.json" --md r.md --baseline "$TMP/base21-nc.json" --plugin-version 0.3.0 2>"$TMP/err21b")
 check "case21: not comparable block" "False []" "$(echo "$A21B" | jget "str(d['since_last_review']['comparable']) + ' ' + str(d['since_last_review']['not_found'])")"

@@ -47,6 +47,7 @@ check "New count" "1" "$(grep -cxF '**New** (2)' "$TMP/r.md")"
 check "Still open count" "1" "$(grep -cxF '**Still open** (2)' "$TMP/r.md")"
 check "Not found count" "1" "$(grep -cxF '**Not found this time** (2)' "$TMP/r.md")"
 check "null rule prints a dash" "1" "$(grep -cxF -- '- — `d`' "$TMP/r.md")"
+check "no dismissal mark in the published section" "0" "$(grep -c 'dismissed last time' "$TMP/r.md")"
 check "dismissed absent finding left out" "0" "$(grep -c '`c`' "$TMP/r.md")"
 check "PASS row on a baseline key is not listed as current" "1" "$(grep -c '`d`' "$TMP/r.md")"
 check "note" "1" "$(grep -c '^_Not found this time means this run did not record the finding' "$TMP/r.md")"
@@ -63,7 +64,7 @@ EXPECTED='## Since the last review (sent 2023-11-14, commit abc1234)
 
 **Still open** (2)
 - OODT-01 `b`
-- QUA-07 `a` — A now (dismissed last time)
+- QUA-07 `a` — A now
 
 **Not found this time** (2)
 - QUA-05 `f`
@@ -79,7 +80,7 @@ EXPECTED0='## Since the last review (sent 2023-11-14, commit abc1234)
 
 **Still open** (2)
 - OODT-01 `b` — B before
-- QUA-07 `a` — A before (dismissed last time)
+- QUA-07 `a` — A before
 
 **Not found this time** (2)
 - QUA-05 `f`
