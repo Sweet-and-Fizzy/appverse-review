@@ -11,6 +11,7 @@
 [rating] ratings: 6 mismatches
 [rows] check-rows: 1 app, 19 required rows, 0 problems
 [metadata] metadata: not judged (no metadata.json in tests/corpus/tillicum-36778298320/pre-review)
+[license] license: none, 0 problems
 [form] MISMATCH root form.yml:missing-min-max: WARN, but bc_num_hours is an attribute OOD defines and bounds itself (numeric-field-bounds does not judge it); remove the record
 [form] form: 1 problems
 [evidence] NOTE report:str-02-metadata str-02-metadata manifest.yml:1 (`category` is not on manifest.yml:1)

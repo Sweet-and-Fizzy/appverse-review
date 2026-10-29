@@ -72,6 +72,7 @@
 [metadata] MISMATCH root missing-field:maintainer.name: FAIL, but metadata.json resolves it from appverse.yml
 [metadata] MISMATCH root missing-field:maintainer.support_url: FAIL, but metadata.json resolves it from appverse.yml
 [metadata] metadata: 17 apps, 52 problems
+[license] license: LICENSE, 0 problems
 [form] form: 0 problems
 [evidence] evidence: 155/155 valid; report rows: 593/593 valid
 [catalog] catalog: section matches catalog-checks.md (86 lines)

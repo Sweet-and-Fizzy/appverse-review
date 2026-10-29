@@ -661,7 +661,7 @@ jobs:
             - feedback: ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.feedback.json
             - checker output to fix: ${{ github.workspace }}/check-output.txt
               (the lines starting [floor], [keys], [rating], [rows],
-              [metadata], [form], [evidence], [findings], [meta], [decisions] or [sections] and containing MISSING, INVALID,
+              [metadata], [license], [form], [evidence], [findings], [meta], [decisions] or [sections] and containing MISSING, INVALID,
               MISMATCH, UNCITED or BAD; everything else there is context)
             - pre-review facts: ${{ github.workspace }}/pre-review/
             - the rules the checkers apply: ${{ github.workspace }}/appverse-review/skills/review-app/SKILL.md
@@ -674,8 +674,8 @@ jobs:
             Rules:
             - Change only what a listed line requires. Keep every existing
               finding and its defect_key unless a line says the key is invalid,
-              the record is missing, or (a [metadata] or [form] MISMATCH) the
-              record is wrong.
+              the record is missing, or (a [metadata], [license] or [form]
+              MISMATCH) the record is wrong.
             - A MISSING row or record: add it, citing a real file:line from
               the pre-review facts or the repository.
             - An UNCITED row: add the file:line the facts give for that
@@ -725,6 +725,15 @@ jobs:
               has no STR-02 row left, add a STR-02 PASS row citing the file the line names
               (the check needs a row for every app). Then recheck the app's
               decision and the draft feedback without the FAIL.
+            - A [license] MISMATCH line: the repo has the license files the
+              line names, best first. Read them in that order. If one holds an
+              open-source license, replace the STR-01 missing-license FAIL
+              record and its row with a PASS citing that file; otherwise
+              re-key the FAIL on the first file's path. Then recheck the
+              decision and the draft feedback.
+            - A [license] MISSING line: the repo has no license file. Replace
+              any STR-01 PASS keyed LICENSE:missing-license, and its row, with
+              a FAIL with that key, or add one.
             - A [form] MISMATCH line: the attribute is listed under form:, so
               OOD builds it, or it is one OOD defines and bounds itself. Do
               what the line says: remove the record, or drop the attributes it
@@ -1145,7 +1154,7 @@ jobs:
             echo "A second repair pass ran; its re-check decides: $final"
           fi
           if [ "$final" = "failure" ]; then
-            echo "::error::Review produced its outputs but check-all.py failed after repair; see the re-check step's [floor]/[keys]/[rating]/[rows]/[metadata]/[form]/[evidence]/[catalog] INVALID/MISSING/MISMATCH/UNCITED/BAD lines"
+            echo "::error::Review produced its outputs but check-all.py failed after repair; see the re-check step's [floor]/[keys]/[rating]/[rows]/[metadata]/[license]/[form]/[evidence]/[catalog] INVALID/MISSING/MISMATCH/UNCITED/BAD lines"
             check_failed=1
           fi
           required="md"

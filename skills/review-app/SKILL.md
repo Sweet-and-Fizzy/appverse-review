@@ -103,7 +103,7 @@ string; if unavailable, write `unknown`.
 |---|---|---|
 | — | PASS/FAIL | Repository public and accessible (the clone succeeded) |
 | STR-01 | PASS/FAIL | README.md — ... |
-| STR-01 | PASS/FAIL | LICENSE — ... |
+| STR-01 | PASS/FAIL | LICENSE (or the license file `license.json` names) — ... |
 | — | PASS/FAIL/NOT CHECKED | Repo not archived |
 <!-- Result values everywhere are exactly PASS, FAIL, WARN, NOT CHECKED. "Info" is a severity, never a result. -->
 
@@ -611,6 +611,15 @@ externally by the API provider.
   FAIL or WARN Security row of any rule code.
   `check-rows.py`: every manifest check applicable to an app has a row, and
   every pre-review candidate is cited.
+  `check-metadata.py`: every STR-02 FAIL is for a field `metadata.json`
+  lists as missing (or an app_type `catalog.json` does not know), and
+  every missing required field has one.
+  `check-license.py`: a STR-01 `missing-license` FAIL is keyed on a
+  license file `license.json` lists, and a repo with none has that FAIL.
+  `check-form.py`: no STR-04 undefined-variable or undefined-attribute
+  record names an attribute listed under the form's `form:`, and no
+  numeric-field-bounds record names one OOD defines and bounds itself
+  (`ood` set in `form.json`).
   `check-evidence.py`: every `file:line` citation names a real file and
   line, every `content:` citation names a README content line, and a
   literal value the summary asserts is on the cited line is there (within
@@ -633,7 +642,7 @@ externally by the API provider.
   recommendation that states its decision, every app of a monorepo has a
   Per-app decision line, and those decisions match the meta.json.
   Its output groups each checker's problem lines under a `[floor]`/`[keys]`/
-  `[rating]`/`[rows]`/`[evidence]`/`[catalog]`/`[meta]`/`[decisions]`/`[sections]` prefix, followed by that checker's
+  `[rating]`/`[rows]`/`[metadata]`/`[license]`/`[form]`/`[evidence]`/`[catalog]`/`[meta]`/`[decisions]`/`[sections]` prefix, followed by that checker's
   summary line. It exits 1 if any checker failed, including a report
   missing a section a checker needs (`MISSING section: ...`), and 2 if any
   could not run, including a checker that crashed (`crashed: ...`).

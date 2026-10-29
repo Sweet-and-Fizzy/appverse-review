@@ -31,7 +31,16 @@ record is NOT CHECKED with the note "pre-review facts not found".
   Record STR-01 `readme-not-substantive` FAIL when `stub` is true and PASS
   when it is false; with no such `readme.json`, NOT CHECKED with the
   reason.
-- `LICENSE` exists and contains an open-source license.
+- A license file exists and contains an open-source license. Any name
+  GitHub's license detection reads counts, in any case (`LICENSE`,
+  `LICENCE`, `UNLICENSE` or `COPYING`, bare or with an extension, or
+  suffixed like `LICENSE-MIT` or `MIT-LICENSE`), and
+  `<pre-review>/license.json` lists the ones at the repo root, best first
+  (`found`; `file` is the first, or null). Read them in that order. Record
+  STR-01 `missing-license` PASS citing the first that holds an open-source
+  license; when none does, FAIL keyed on `file`'s path. When `file` is null,
+  record the FAIL keyed `LICENSE:missing-license`. If `license.json` is
+  absent, look for those names at the repo root yourself.
 - Repo shape identifiable: `appverse.yml` or `manifest.yml` at root.
 - Repo is not archived on GitHub.
 
