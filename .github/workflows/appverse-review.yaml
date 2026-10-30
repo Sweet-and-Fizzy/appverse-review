@@ -30,13 +30,15 @@ on:
           - dry-run
         default: "all"
       model:
-        description: "Model: qwen runs on the on-prem gateway (default); sonnet or opus run the newest Claude model of that tier on the Anthropic API"
+        description: "Model: qwen runs on the on-prem gateway (default); sonnet or opus run the newest Claude model of that tier on the Anthropic API; sonnet-subscription or opus-subscription run it on the Claude subscription token"
         required: false
         type: choice
         options:
           - qwen
           - sonnet
           - opus
+          - sonnet-subscription
+          - opus-subscription
         default: "qwen"
       gateway_base_url:
         description: "Another Anthropic-format gateway (e.g. a LiteLLM proxy) instead of the default on-prem one; implies a gateway run"
@@ -162,6 +164,7 @@ jobs:
           EXTRA_GATEWAY_HOSTS: ${{ secrets.LLM_GATEWAY_ALLOWED_HOSTS }}
           HAS_GATEWAY_KEY: ${{ secrets.LLM_GATEWAY_KEY != '' }}
           HAS_ANTHROPIC_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+          HAS_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
           # Only ever read here, as an argument; never interpolated into a
           # script, so a dispatcher cannot inject shell through it.
           MAX_TURNS_INPUT: ${{ inputs.max_turns }}
@@ -193,6 +196,10 @@ jobs:
             # The default repair model pairs only with the default model, so a
             # run on any other gateway model repairs on that model.
             if [ "$model_id" = "$DEFAULT_GATEWAY_MODEL" ]; then default_repair="$DEFAULT_GATEWAY_REPAIR_MODEL"; else default_repair="$model_id"; fi
+          elif [[ "$MODEL" == *-subscription ]]; then
+            backend=subscription
+            model_id="${MODEL_ID_INPUT:-${MODEL%-subscription}}"
+            default_repair="$model_id"
           else
             backend=anthropic
             model_id="${MODEL_ID_INPUT:-$MODEL}"
@@ -212,6 +219,10 @@ jobs:
           if [ "$REVIEW_ASPECTS" != "dry-run" ]; then
             if [ "$backend" = anthropic ] && [ "$HAS_ANTHROPIC_KEY" != true ]; then
               echo "::error::ANTHROPIC_API_KEY secret is not set"
+              exit 1
+            fi
+            if [ "$backend" = subscription ] && [ "$HAS_OAUTH_TOKEN" != true ]; then
+              echo "::error::CLAUDE_CODE_OAUTH_TOKEN secret is not set"
               exit 1
             fi
             if [ "$backend" = gateway ]; then
@@ -294,8 +305,11 @@ jobs:
           # On a gateway run the gateway key replaces the Anthropic key and
           # ANTHROPIC_BASE_URL (set above) points Claude Code at it. Each key is
           # gated on its own backend: a plain `a && x || y` would hand the
-          # Anthropic key to the gateway whenever the gateway key is empty.
+          # Anthropic key to the gateway whenever the gateway key is empty. A
+          # subscription run passes no API key, which would take precedence
+          # over the subscription token.
           anthropic_api_key: ${{ (steps.params.outputs.backend == 'gateway' && secrets.LLM_GATEWAY_KEY) || (steps.params.outputs.backend == 'anthropic' && secrets.ANTHROPIC_API_KEY) || '' }}
+          claude_code_oauth_token: ${{ (steps.params.outputs.backend == 'subscription' && secrets.CLAUDE_CODE_OAUTH_TOKEN) || '' }}
           # With a token supplied the action skips its OIDC app-token exchange.
           # That exchange refuses any workflow file that differs from the
           # default branch and the action then exits "success" without running,
@@ -657,6 +671,7 @@ jobs:
         # two prompts and permission lists cannot drift apart.
         with: &repair_with
           anthropic_api_key: ${{ (steps.params.outputs.backend == 'gateway' && secrets.LLM_GATEWAY_KEY) || (steps.params.outputs.backend == 'anthropic' && secrets.ANTHROPIC_API_KEY) || '' }}
+          claude_code_oauth_token: ${{ (steps.params.outputs.backend == 'subscription' && secrets.CLAUDE_CODE_OAUTH_TOKEN) || '' }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           plugin_marketplaces: "./appverse-review/"
           plugins: "appverse-review"
@@ -874,6 +889,7 @@ jobs:
         uses: anthropics/claude-code-action@16f9f71ab9c490faf367f94dd294897edc25be33 # v1
         with:
           anthropic_api_key: ${{ (steps.params.outputs.backend == 'gateway' && secrets.LLM_GATEWAY_KEY) || (steps.params.outputs.backend == 'anthropic' && secrets.ANTHROPIC_API_KEY) || '' }}
+          claude_code_oauth_token: ${{ (steps.params.outputs.backend == 'subscription' && secrets.CLAUDE_CODE_OAUTH_TOKEN) || '' }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: "--max-turns 25 --model ${{ steps.params.outputs.model_id }}"
           settings: |
