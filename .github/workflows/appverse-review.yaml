@@ -85,9 +85,12 @@ jobs:
     runs-on: ubuntu-latest
     # The sessions run commands while reading an untrusted repo, so Claude Code
     # strips credentials (the gateway key, the Anthropic key, the subscription
-    # token) from those commands' environments and runs them in their own PID
-    # namespace, where they cannot read its environment through /proc. The
-    # namespace needs bubblewrap, installed with the static tools.
+    # token) from those commands' environments and runs them sandboxed: in
+    # their own PID namespace, where they cannot read its environment through
+    # /proc, and with the runner's files, $GITHUB_ENV among them, read-only.
+    # The sandbox needs bubblewrap, installed with the static tools. The
+    # sessions' own file tools are kept to the workspace and /tmp by their
+    # permission rules.
     env:
       CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
     steps:
@@ -368,12 +371,15 @@ jobs:
                   "Bash(touch:*)",
                   "WebFetch(domain:raw.githubusercontent.com)",
                   "Read",
-                  "Write",
-                  "Edit",
+                  "Write(/${{ github.workspace }}/**)",
+                  "Edit(/${{ github.workspace }}/**)",
+                  "Write(//tmp/**)",
+                  "Edit(//tmp/**)",
                   "Agent",
                   "Task"
                 ],
                 "deny": [
+                  "Read(//proc/**)",
                   "Task(run_in_background:true)",
                   "Agent(run_in_background:true)",
                   "Agent(fork)",
@@ -700,10 +706,13 @@ jobs:
                   "Bash(wc:*)",
                   "Bash(sed:*)",
                   "Read",
-                  "Write",
-                  "Edit"
+                  "Write(/${{ github.workspace }}/**)",
+                  "Edit(/${{ github.workspace }}/**)",
+                  "Write(//tmp/**)",
+                  "Edit(//tmp/**)"
                 ],
                 "deny": [
+                  "Read(//proc/**)",
                   "Agent",
                   "Task",
                   "Read(./appverse-review/references/**/*.py)",
@@ -912,6 +921,7 @@ jobs:
                   "Write(/${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.feedback.json)"
                 ],
                 "deny": [
+                  "Read(//proc/**)",
                   "Bash",
                   "Agent",
                   "Task",
@@ -1080,6 +1090,27 @@ jobs:
           ls -la ${{ github.workspace }}/review-*.md ${{ github.workspace }}/review-*.pdf ${{ github.workspace }}/review-*.html ${{ github.workspace }}/review-*.json 2>/dev/null || echo "No review files in workspace root"
           echo "=== Temp directory ==="
           ls -la /home/runner/work/_temp/sessions/ 2>/dev/null || echo "No session logs"
+
+      # The artifact is public and holds the sessions' full logs, and GitHub
+      # masks secrets only in run logs. A file holding a secret is removed
+      # before upload and the run fails; paths are printed, never values.
+      - name: Keep secrets out of the artifact
+        if: always()
+        env:
+          S1: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          S2: ${{ secrets.LLM_GATEWAY_KEY }}
+          S3: ${{ secrets.ANTHROPIC_API_KEY }}
+          WS: ${{ github.workspace }}
+        run: |
+          found=0
+          for s in "$S1" "$S2" "$S3"; do
+            [ -n "$s" ] || continue
+            while IFS= read -r f; do
+              echo "::error::A secret was found in $f; removed it from the artifact"
+              rm -f "$f"; found=1
+            done < <(grep -rlF -e "$s" "$WS"/review-* "$RUNNER_TEMP/sessions" "$WS/pre-review" 2>/dev/null)
+          done
+          exit $found
 
       - name: Upload review report
         if: always()
