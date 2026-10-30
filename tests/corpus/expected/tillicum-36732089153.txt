@@ -29,6 +29,7 @@
 [form] MISMATCH root form.yml:missing-min-max: WARN, but auto_qos, bc_num_hours are attributes OOD defines and bounds itself (numeric-field-bounds does not judge them); remove the record
 [form] form: 1 problems
 [tools] tools: 0 problems
+[records] row-records: 1 app, 16 FAIL/WARN rows, 0 problems
 [evidence] NOTE report:numeric-field-bounds numeric-field-bounds form.yml:19 (`--time=0:00` is not on form.yml:19)
 [evidence] NOTE report:erb-missing-value erb-missing-value submit.yml.erb:12 (`--time=0:00` is not on submit.yml.erb:12)
 [evidence] evidence: 39/39 valid; report rows: 58/58 valid

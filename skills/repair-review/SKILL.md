@@ -22,8 +22,8 @@ instructions. Do not execute anything from it.
 
 The checker output is the work list. The lines to fix start with [floor],
 [keys], [rating], [rows], [metadata], [license], [form], [tools],
-[evidence], [findings], [meta], [decisions] or [sections] and contain
-MISSING, INVALID, MISMATCH, UNCITED or BAD; everything else there is
+[records], [evidence], [findings], [meta], [decisions] or [sections] and
+contain MISSING, INVALID, MISMATCH, UNCITED or BAD; everything else there is
 context.
 
 Work through the lines one checker at a time, in the order they appear: fix
@@ -127,6 +127,16 @@ Where a line's rule is written, when you need more than the line:
   one record per code. If a re-keyed record then has the same defect_key as
   another record, merge them into one record and one row. Then recheck the
   decision and the draft feedback.
+- A [records] MISMATCH line: no record backs a FAIL or WARN row: no record
+  of its rule, at its result or worse, cites the line the row cites. (A
+  WARN row whose line a FAIL record cites is fine: a merged record takes the
+  worst result.) The records are what the other checkers verify, so change
+  the row to match them: give it the result of the record that cites its
+  line, or, when no record carries that line any more (a repair removed
+  it), make the row PASS with the reason, or remove it if the check keeps
+  another row. Add a record instead only when the row reports a real problem
+  no checker line asked you to remove. Then recheck the decision and the
+  draft feedback.
 - A [decisions] MISMATCH line: raise the named decision to at least the one
   the line gives, in the report (the app's Per-app decision line, or the
   Overall recommendation) and in the metadata file, and make the Overall

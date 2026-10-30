@@ -1101,7 +1101,7 @@ jobs:
             echo "A second repair pass ran; its re-check decides: $final"
           fi
           if [ "$final" = "failure" ]; then
-            echo "::error::Review produced its outputs but check-all.py failed after repair; see the re-check step's [floor]/[keys]/[rating]/[rows]/[metadata]/[license]/[form]/[tools]/[evidence]/[catalog] INVALID/MISSING/MISMATCH/UNCITED/BAD lines"
+            echo "::error::Review produced its outputs but check-all.py failed after repair; see the re-check step's [floor]/[keys]/[rating]/[rows]/[metadata]/[license]/[form]/[tools]/[records]/[evidence]/[catalog] INVALID/MISSING/MISMATCH/UNCITED/BAD lines"
             check_failed=1
           fi
           required="md"
