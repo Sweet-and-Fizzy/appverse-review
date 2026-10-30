@@ -83,6 +83,13 @@ concurrency:
 jobs:
   review:
     runs-on: ubuntu-latest
+    # The sessions run commands while reading an untrusted repo, so Claude Code
+    # strips credentials (the gateway key, the Anthropic key, the subscription
+    # token) from those commands' environments and runs them in their own PID
+    # namespace, where they cannot read its environment through /proc. The
+    # namespace needs bubblewrap, installed with the static tools.
+    env:
+      CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
     steps:
       - name: Validate inputs
         env:
@@ -116,7 +123,11 @@ jobs:
         if: inputs.review_aspects != 'dry-run'
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq shellcheck > /dev/null 2>&1
+          sudo apt-get install -y -qq shellcheck bubblewrap socat > /dev/null 2>&1
+          # Ubuntu 24.04 blocks the unprivileged user namespaces bubblewrap uses.
+          if [ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -q -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
           pip install --quiet bandit semgrep==1.178.0 2>/dev/null || true
 
       - name: Run pre-review checks
