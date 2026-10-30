@@ -17,7 +17,9 @@ the entries with `dimension` `portability`, `documentation` or
 list; do not add or drop a check from memory of the rubric.
 
 **Setup:** Use the orchestrator's prepared target if provided; otherwise follow
-`${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` first. The pre-review
+`${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` first.
+When the orchestrator dispatched you, return your results to it: dispatch
+no agent and write none of the review's output files. The pre-review
 directory holds `apps.json` (each app's `app_id`, `path`, `app_type`,
 `readme`) and, per app, `<app_id>/readme.json`, `form.json` and
 `template.json`. `apps.json`'s `app_id` is the same `app_id` a finding

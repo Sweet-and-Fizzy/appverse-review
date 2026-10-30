@@ -244,6 +244,14 @@ has skills/review-app/SKILL.md "\`check-form.py\`: no STR-04" "review-app sectio
 has skills/review-app/SKILL.md "\`check-tools.py\`: a FAIL or WARN record whose only evidence is a" "review-app section 6 describes check-tools"
 has skills/repair-review/SKILL.md "A [tools] MISMATCH line: the record rests only on the static-tool" "repair handles a [tools] MISMATCH"
 has skills/repair-review/SKILL.md "[records], [evidence], [findings]" "repair skill names [records] among the lines to fix"
+has skills/review-app/SKILL.md "sets \`subagent_type\` to \`general-purpose\`, never \`fork\`: a fork inherits" "review-app dispatches each aspect as a fresh subagent, never a fork (#123)"
+has skills/review-app/SKILL.md "not dispatch any agent, and do not write the report, findings, metadata or" "the aspect prompt says an aspect dispatches nothing and writes none of the review's files"
+for a in structure security quality maintenance; do
+  has skills/review-$a/SKILL.md "no agent and write none of the review's output files." "$a skill: a dispatched aspect returns its results and writes no review file"
+done
+has .github/workflows/appverse-review.yaml '"Agent(fork)",' "the review step denies forks"
+has .github/workflows/appverse-review.yaml "Agent calls, each with subagent_type general-purpose (forks are" "the review prompt names the aspect subagent type"
+has skills/review-structure/SKILL.md "from the repo root, so a monorepo app's path starts with its subpath." "structure skill cites paths from the repo root"
 has skills/repair-review/SKILL.md "A [records] MISMATCH line: no record backs a FAIL or WARN row: no record" "repair handles a [records] MISMATCH"
 has skills/repair-review/SKILL.md "WARN row whose line a FAIL record cites is fine: a merged record takes the" "repair leaves a WARN row inside a merged FAIL record alone"
 has skills/review-app/SKILL.md "\`check-row-records.py\`: every FAIL or WARN row in an app's section is" "review-app section 6 describes check-row-records"

@@ -16,6 +16,8 @@ can look up a code.
 
 **Setup:** Use the orchestrator's prepared target if provided; otherwise follow
 `${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` first.
+When the orchestrator dispatched you, return your results to it: dispatch
+no agent and write none of the review's output files.
 
 ## Check tiers
 

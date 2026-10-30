@@ -36,10 +36,13 @@ setup. The subagents read everything else.
 
 Your next action after setup is a single message containing four Agent tool
 calls, one per aspect, in this order: review-structure, review-security,
-review-quality, review-maintenance. Run them in the foreground. Do not start
-any aspect's work yourself first, and do not read anything between setup and
-this message. Each call's description is "Review <aspect> aspect" and its
-prompt is:
+review-quality, review-maintenance. Run them in the foreground. Each call
+sets `subagent_type` to `general-purpose`, never `fork`: a fork inherits
+this conversation, these instructions with it, so it acts as the
+orchestrator and writes the review's files itself. Do not start any aspect's
+work yourself first, and do not read anything between setup and this
+message. Each call's description is "Review <aspect> aspect" and its prompt
+is:
 
 > Read `${CLAUDE_PLUGIN_ROOT}/skills/<aspect>/SKILL.md` and follow it exactly.
 > Read `${CLAUDE_PLUGIN_ROOT}/references/finding-codes.md` for rule codes and
@@ -73,7 +76,9 @@ prompt is:
 > fenced JSON block the skill's Output section specifies (the quality aspect's
 > assessments block, the maintenance aspect's maintenance assessment block and,
 > for a declared monorepo, its per-app `app_maintenance` block).
-> Do not make accept or reject judgments.
+> Do not make accept or reject judgments. You are one aspect reviewer: do
+> not dispatch any agent, and do not write the report, findings, metadata or
+> feedback file; the orchestrator builds those from what you return.
 
 Only if your tool list has no Agent (or Task) tool at all, run the four
 aspect skill files yourself, one at a time, in the order above. When the tool

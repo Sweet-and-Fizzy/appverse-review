@@ -11,7 +11,9 @@ Criteria: `${CLAUDE_PLUGIN_ROOT}/references/review-rubric.md` — sections
 yours; README depth is review-quality's job.
 
 **Setup:** Use the orchestrator's prepared target if provided; otherwise follow
-`${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` first. The orchestrator (or
+`${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` first.
+When the orchestrator dispatched you, return your results to it: dispatch
+no agent and write none of the review's output files. The orchestrator (or
 target-setup.md) names the pre-review directory; if it is absent, every STR-06
 record is NOT CHECKED with the note "pre-review facts not found".
 
@@ -197,7 +199,8 @@ its own finding with the vocabulary tag that fits or `other:`.
 The Structure table (orchestrator template): Rule / Check / Result /
 Severity / Summary / Evidence, one row per manifest check with its
 `` `check: <id>` `` marker, then any other structure rows without a marker.
-Evidence is `path:N`, `path:N-M` or `path:N,M`, never prose.
+Evidence is `path:N`, `path:N-M` or `path:N,M`, never prose, with the path
+from the repo root, so a monorepo app's path starts with its subpath.
 A structure finding is never Critical: a gate failure can always be fixed, so
 High is the most any STR row is rated (review-rubric.md, Floors).
 

@@ -306,6 +306,9 @@ jobs:
           plugin_marketplaces: "./appverse-review/"
           plugins: "appverse-review"
           claude_args: "--max-turns ${{ steps.params.outputs.review_turns }} --model ${{ steps.params.outputs.model_id }}"
+          # Agent(fork) is denied: a fork inherits the orchestrator's context,
+          # so each one acted as the orchestrator and wrote the review's files,
+          # and whichever wrote last decided the report (#123).
           settings: |
             {
               "permissions": {
@@ -348,6 +351,8 @@ jobs:
                 "deny": [
                   "Task(run_in_background:true)",
                   "Agent(run_in_background:true)",
+                  "Agent(fork)",
+                  "Task(fork)",
                   "Bash(python3 *check-*.py*)"
                 ]
               }
@@ -392,7 +397,8 @@ jobs:
 
             The review-app skill runs the four aspects as subagents, and the
             Agent tool is available here: dispatch them, one message with four
-            Agent calls, rather than doing the aspects yourself. The gateway
+            Agent calls, each with subagent_type general-purpose (forks are
+            not allowed), rather than doing the aspects yourself. The gateway
             models have a smaller context than Claude, and a review done in
             one context runs out before the files are written.
 
