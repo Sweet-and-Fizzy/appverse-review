@@ -31,7 +31,7 @@ either way: a stub README takes the stub line below, not Below minimal.
 A stub README. The rating line `Minimal — not supported (stub README; see
 QUA-01)` is accepted in place of rule 1 when the findings JSON has a QUA-01
 FAIL record for that app (its app_id is the section heading's parenthesised
-id) whose defect_key tag is `docs-stub`, and the README is a stub by the
+id, with "." and "root" the same app) whose defect_key tag is `docs-stub`, and the README is a stub by the
 facts. With a pre-review directory, the facts are
 <pre-review-dir>/<app_id>/readme.json's `stub` (app_id "root" when the
 heading has none, or has "."): false is a MISMATCH naming readme.json. When
@@ -280,10 +280,16 @@ def has_record(findings, rule, tag, results, app_ids, single):
     return False
 
 
+def record_app_ids(app_id):
+    """The app_ids a record for a heading's app may carry: a repo-root app's
+    heading may say (.) while its records say root, or the reverse."""
+    return {app_id or "", fact_app_id(app_id)}
+
+
 def has_stub_record(findings, app_id, single):
     """Whether findings hold a QUA-01 FAIL docs-stub record for app_id (or,
     in a single-app report, a record with no app_id)."""
-    return has_record(findings, "QUA-01", "docs-stub", ("FAIL",), {app_id or ""}, single)
+    return has_record(findings, "QUA-01", "docs-stub", ("FAIL",), record_app_ids(app_id), single)
 
 
 def fact_app_id(app_id):
@@ -331,7 +337,7 @@ def stub_problem(findings, app_id, single, pre_review_dir):
         return None
     if fact is False:
         return STUB_NOT_STUB
-    ids = {app_id or "", fact_app_id(app_id), "root"}
+    ids = record_app_ids(app_id) | {"root"}
     if has_record(findings, "STR-01", "readme-not-substantive", ("FAIL",), ids, True):
         return None
     return STUB_NO_RECORD
@@ -674,7 +680,7 @@ def main(argv):
                 problems += 1
                 print("MISMATCH {} documentation: {}".format(fact_app_id(app_id), reason))
         elif rating == BELOW_MINIMAL:
-            if not has_record(findings, "QUA-01", "docs-minimal", ("FAIL",), {app_id or ""}, single):
+            if not has_record(findings, "QUA-01", "docs-minimal", ("FAIL",), record_app_ids(app_id), single):
                 problems += 1
                 print("MISMATCH {} documentation: {}".format(fact_app_id(app_id), BELOW_NO_RECORD))
             try:

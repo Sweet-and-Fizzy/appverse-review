@@ -279,6 +279,11 @@ check "Minimal with zero supported rungs: exit 1" 1 "$(run "$TMP/r22k.md" "$TMP/
 check "reason" "MISMATCH Documentation rating (Minimal claimed but 'prerequisites' evidence is none; highest supported rung is none)" "$(head -1 "$TMP/out")"
 report "Below Minimal" High "$NONE" > "$TMP/r22l.md"
 check "the rating word's case does not matter: exit 0" 0 "$(run "$TMP/r22l.md" "$TMP/f22h.json")"
+sed 's/## App: X (root)/## App: X (.)/' "$TMP/r22h.md" > "$TMP/r22hdot.md"
+check "an app written as (.) is backed by its root docs-minimal record: exit 0" 0 "$(run "$TMP/r22hdot.md" "$TMP/f22h.json" "$TMP/pre-real")"
+sed 's/"app_id":"root"/"app_id":"apps\/other"/' "$TMP/f22h.json" > "$TMP/f22hother.json"
+check "an app written as (.) is not backed by another app's record: exit 1" 1 "$(run "$TMP/r22hdot.md" "$TMP/f22hother.json" "$TMP/pre-real")"
+check "an app written as (.) is backed by its root docs-stub record: exit 0" 0 "$(run "$TMP/r22dot.md" "$TMP/f22s.json" "$TMP/pre-stub")"
 
 echo "Test 22d: a rung met by cited content counts as evidence"
 CONTENT='  - what it launches: "Llama.cpp WebUI" (intro), README.md:3
