@@ -30,13 +30,15 @@ on:
           - dry-run
         default: "all"
       model:
-        description: "Model: qwen runs on the on-prem gateway (default); sonnet or opus run the newest Claude model of that tier on the Anthropic API"
+        description: "Model: qwen runs on the on-prem gateway (default); sonnet or opus run the newest Claude model of that tier on the Anthropic API; sonnet-subscription or opus-subscription run it on the Claude subscription token"
         required: false
         type: choice
         options:
           - qwen
           - sonnet
           - opus
+          - sonnet-subscription
+          - opus-subscription
         default: "qwen"
       gateway_base_url:
         description: "Another Anthropic-format gateway (e.g. a LiteLLM proxy) instead of the default on-prem one; implies a gateway run"
@@ -81,6 +83,16 @@ concurrency:
 jobs:
   review:
     runs-on: ubuntu-latest
+    # The sessions run commands while reading an untrusted repo, so Claude Code
+    # strips credentials (the gateway key, the Anthropic key, the subscription
+    # token) from those commands' environments and runs them sandboxed: in
+    # their own PID namespace, where they cannot read its environment through
+    # /proc, and with the runner's files, $GITHUB_ENV among them, read-only.
+    # The sandbox needs bubblewrap, installed with the static tools. The
+    # sessions' own file tools are kept to the workspace and /tmp by their
+    # permission rules.
+    env:
+      CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
     steps:
       - name: Validate inputs
         env:
@@ -114,7 +126,11 @@ jobs:
         if: inputs.review_aspects != 'dry-run'
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq shellcheck > /dev/null 2>&1
+          sudo apt-get install -y -qq shellcheck bubblewrap socat > /dev/null 2>&1
+          # Ubuntu 24.04 blocks the unprivileged user namespaces bubblewrap uses.
+          if [ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -q -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
           pip install --quiet bandit semgrep==1.178.0 2>/dev/null || true
 
       - name: Run pre-review checks
@@ -162,6 +178,7 @@ jobs:
           EXTRA_GATEWAY_HOSTS: ${{ secrets.LLM_GATEWAY_ALLOWED_HOSTS }}
           HAS_GATEWAY_KEY: ${{ secrets.LLM_GATEWAY_KEY != '' }}
           HAS_ANTHROPIC_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+          HAS_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
           # Only ever read here, as an argument; never interpolated into a
           # script, so a dispatcher cannot inject shell through it.
           MAX_TURNS_INPUT: ${{ inputs.max_turns }}
@@ -193,6 +210,10 @@ jobs:
             # The default repair model pairs only with the default model, so a
             # run on any other gateway model repairs on that model.
             if [ "$model_id" = "$DEFAULT_GATEWAY_MODEL" ]; then default_repair="$DEFAULT_GATEWAY_REPAIR_MODEL"; else default_repair="$model_id"; fi
+          elif [[ "$MODEL" == *-subscription ]]; then
+            backend=subscription
+            model_id="${MODEL_ID_INPUT:-${MODEL%-subscription}}"
+            default_repair="$model_id"
           else
             backend=anthropic
             model_id="${MODEL_ID_INPUT:-$MODEL}"
@@ -212,6 +233,10 @@ jobs:
           if [ "$REVIEW_ASPECTS" != "dry-run" ]; then
             if [ "$backend" = anthropic ] && [ "$HAS_ANTHROPIC_KEY" != true ]; then
               echo "::error::ANTHROPIC_API_KEY secret is not set"
+              exit 1
+            fi
+            if [ "$backend" = subscription ] && [ "$HAS_OAUTH_TOKEN" != true ]; then
+              echo "::error::CLAUDE_CODE_OAUTH_TOKEN secret is not set"
               exit 1
             fi
             if [ "$backend" = gateway ]; then
@@ -294,8 +319,11 @@ jobs:
           # On a gateway run the gateway key replaces the Anthropic key and
           # ANTHROPIC_BASE_URL (set above) points Claude Code at it. Each key is
           # gated on its own backend: a plain `a && x || y` would hand the
-          # Anthropic key to the gateway whenever the gateway key is empty.
+          # Anthropic key to the gateway whenever the gateway key is empty. A
+          # subscription run passes no API key, which would take precedence
+          # over the subscription token.
           anthropic_api_key: ${{ (steps.params.outputs.backend == 'gateway' && secrets.LLM_GATEWAY_KEY) || (steps.params.outputs.backend == 'anthropic' && secrets.ANTHROPIC_API_KEY) || '' }}
+          claude_code_oauth_token: ${{ (steps.params.outputs.backend == 'subscription' && secrets.CLAUDE_CODE_OAUTH_TOKEN) || '' }}
           # With a token supplied the action skips its OIDC app-token exchange.
           # That exchange refuses any workflow file that differs from the
           # default branch and the action then exits "success" without running,
@@ -343,12 +371,15 @@ jobs:
                   "Bash(touch:*)",
                   "WebFetch(domain:raw.githubusercontent.com)",
                   "Read",
-                  "Write",
-                  "Edit",
+                  "Write(/${{ github.workspace }}/**)",
+                  "Edit(/${{ github.workspace }}/**)",
+                  "Write(//tmp/**)",
+                  "Edit(//tmp/**)",
                   "Agent",
                   "Task"
                 ],
                 "deny": [
+                  "Read(//proc/**)",
                   "Task(run_in_background:true)",
                   "Agent(run_in_background:true)",
                   "Agent(fork)",
@@ -657,6 +688,7 @@ jobs:
         # two prompts and permission lists cannot drift apart.
         with: &repair_with
           anthropic_api_key: ${{ (steps.params.outputs.backend == 'gateway' && secrets.LLM_GATEWAY_KEY) || (steps.params.outputs.backend == 'anthropic' && secrets.ANTHROPIC_API_KEY) || '' }}
+          claude_code_oauth_token: ${{ (steps.params.outputs.backend == 'subscription' && secrets.CLAUDE_CODE_OAUTH_TOKEN) || '' }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           plugin_marketplaces: "./appverse-review/"
           plugins: "appverse-review"
@@ -674,10 +706,13 @@ jobs:
                   "Bash(wc:*)",
                   "Bash(sed:*)",
                   "Read",
-                  "Write",
-                  "Edit"
+                  "Write(/${{ github.workspace }}/**)",
+                  "Edit(/${{ github.workspace }}/**)",
+                  "Write(//tmp/**)",
+                  "Edit(//tmp/**)"
                 ],
                 "deny": [
+                  "Read(//proc/**)",
                   "Agent",
                   "Task",
                   "Read(./appverse-review/references/**/*.py)",
@@ -874,6 +909,7 @@ jobs:
         uses: anthropics/claude-code-action@16f9f71ab9c490faf367f94dd294897edc25be33 # v1
         with:
           anthropic_api_key: ${{ (steps.params.outputs.backend == 'gateway' && secrets.LLM_GATEWAY_KEY) || (steps.params.outputs.backend == 'anthropic' && secrets.ANTHROPIC_API_KEY) || '' }}
+          claude_code_oauth_token: ${{ (steps.params.outputs.backend == 'subscription' && secrets.CLAUDE_CODE_OAUTH_TOKEN) || '' }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: "--max-turns 25 --model ${{ steps.params.outputs.model_id }}"
           settings: |
@@ -885,6 +921,7 @@ jobs:
                   "Write(/${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.feedback.json)"
                 ],
                 "deny": [
+                  "Read(//proc/**)",
                   "Bash",
                   "Agent",
                   "Task",
@@ -1053,6 +1090,27 @@ jobs:
           ls -la ${{ github.workspace }}/review-*.md ${{ github.workspace }}/review-*.pdf ${{ github.workspace }}/review-*.html ${{ github.workspace }}/review-*.json 2>/dev/null || echo "No review files in workspace root"
           echo "=== Temp directory ==="
           ls -la /home/runner/work/_temp/sessions/ 2>/dev/null || echo "No session logs"
+
+      # The artifact is public and holds the sessions' full logs, and GitHub
+      # masks secrets only in run logs. A file holding a secret is removed
+      # before upload and the run fails; paths are printed, never values.
+      - name: Keep secrets out of the artifact
+        if: always()
+        env:
+          S1: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          S2: ${{ secrets.LLM_GATEWAY_KEY }}
+          S3: ${{ secrets.ANTHROPIC_API_KEY }}
+          WS: ${{ github.workspace }}
+        run: |
+          found=0
+          for s in "$S1" "$S2" "$S3"; do
+            [ -n "$s" ] || continue
+            while IFS= read -r f; do
+              echo "::error::A secret was found in $f; removed it from the artifact"
+              rm -f "$f"; found=1
+            done < <(grep -rlF -e "$s" "$WS"/review-* "$RUNNER_TEMP/sessions" "$WS/pre-review" 2>/dev/null)
+          done
+          exit $found
 
       - name: Upload review report
         if: always()
