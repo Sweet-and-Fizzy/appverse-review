@@ -208,6 +208,12 @@ def validate(finding, vocab, target):
     base, _, qual = tag.partition(":")
     rule_vocab = vocab[rule]
     if base not in rule_vocab:
+        # A model that files an absent-file tag under the wrong rule follows the
+        # other:<slug> hint into an anchor failure, so point at the right rule.
+        elsewhere = sorted(r for r, v in vocab.items() if r != rule and base in v)
+        if elsewhere:
+            return rule, key, "tag '{}' is in the {} vocabulary, not {}; file it under {}".format(
+                base, " and ".join(elsewhere), rule, " or ".join(elsewhere))
         return rule, key, "tag '{}' not in {} vocabulary; use other:<slug> for a novel defect".format(base, rule)
     if rule_vocab[base] and not qual:
         return rule, key, "tag '{}' requires a qualifier".format(base)

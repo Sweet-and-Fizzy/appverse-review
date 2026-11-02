@@ -679,7 +679,10 @@ jobs:
         # A fresh session with a small context: the two files, the checker's
         # lines, and the repair-review skill, which holds the rules for each
         # line and says to read only the part of a reference a line needs
-        # (#118). It fixes what was listed and nothing else. Weaker models hold a short list far better than
+        # (#118). It fixes what was listed and nothing else. It cannot run the
+        # plugin's scripts: the sandbox applies the references/*.py read deny
+        # to shell commands, so the steps after it rebuild the draft and re-run
+        # the checkers. Weaker models hold a short list far better than
         # the whole review, and the main session may have run out of context
         # exactly here.
         continue-on-error: true
@@ -716,7 +719,8 @@ jobs:
                   "Agent",
                   "Task",
                   "Read(./appverse-review/references/**/*.py)",
-                  "Read(./appverse-review/tests/**)"
+                  "Read(./appverse-review/tests/**)",
+                  "Bash(python3 *appverse-review/references/*)"
                 ]
               }
             }
@@ -744,14 +748,10 @@ jobs:
               repo https://github.com/${{ inputs.target_repo }};
               model ${{ steps.params.outputs.model_id }}
 
-            The two commands that rebuild the draft feedback, in order:
-              python3 ${{ github.workspace }}/appverse-review/references/prepare-feedback.py ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.findings.json ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.meta.json ${{ github.workspace }}/appverse-review/references/checks.json ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.feedback.json
-              python3 ${{ github.workspace }}/appverse-review/references/render-feedback.py ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.md ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.feedback.json
-
-            The checker command:
-              python3 ${{ github.workspace }}/appverse-review/references/check-all.py ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.md ${{ github.workspace }}/review-${{ steps.params.outputs.repo_slug }}.findings.json ${{ github.workspace }}/appverse-review/references/checks.json ${{ github.workspace }}/pre-review --target ${{ github.workspace }}/target-repo
-            Run it once after your fixes; if problems remain, fix those and
-            run it once more, then stop whatever it says.
+            This session cannot run the plugin's scripts. After it ends, the
+            workflow rebuilds the draft feedback from the findings and
+            re-runs the checkers, and a second repair round gets whatever
+            is still listed. Fix the listed lines and stop.
 
       - name: Keep the repair session's log
         if: "!cancelled() && steps.repair.outcome != 'skipped'"

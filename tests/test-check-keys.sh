@@ -107,7 +107,17 @@ check "app-prefixed anchor with app_id root exit 1" 1 "$(run "$TMP/p2.json" --ta
 # STR-07 the anchor passes but the tag does not (run 36477735864 keeps this INVALID).
 printf '[%s]' "$(rec STR-07 form.yml:missing-form)" > "$TMP/q.json"
 check "STR-07 missing-form exit 1" 1 "$(run "$TMP/q.json" --target "$TMP/empty")"
-check "STR-07 missing-form reason is the vocabulary" 1 "$(grep -cF "INVALID STR-07 form.yml:missing-form (tag 'missing-form' not in STR-07 vocabulary; use other:<slug> for a novel defect)" "$TMP/out")"
+check "STR-07 missing-form reason names the rule that owns the tag" 1 "$(grep -cF "INVALID STR-07 form.yml:missing-form (tag 'missing-form' is in the STR-01 vocabulary, not STR-07; file it under STR-01)" "$TMP/out")"
+# The HPCMosaic case: the absent-file anchor check runs before the vocabulary
+# check, so the wrong-rule message must still be what the user sees.
+printf '[%s]' "$(rec STR-07 manifest.yml:missing-manifest)" > "$TMP/q2.json"
+check "STR-07 missing-manifest exit 1" 1 "$(run "$TMP/q2.json" --target "$TMP/empty")"
+check "STR-07 missing-manifest names STR-01" 1 "$(grep -cF "INVALID STR-07 manifest.yml:missing-manifest (tag 'missing-manifest' is in the STR-01 vocabulary, not STR-07; file it under STR-01)" "$TMP/out")"
+printf '[%s]' "$(rec STR-01 manifest.yml:missing-manifest)" > "$TMP/q3.json"
+check "STR-01 missing-manifest stays valid" 0 "$(run "$TMP/q3.json" --target "$TMP/empty")"
+printf '[%s]' "$(rec STR-07 form.yml:no-such-anywhere)" > "$TMP/q4.json"
+check "a tag in no rule keeps the other:<slug> hint" 1 "$(run "$TMP/q4.json")"
+check "unknown-everywhere reason unchanged" 1 "$(grep -cF "(tag 'no-such-anywhere' not in STR-07 vocabulary; use other:<slug> for a novel defect)" "$TMP/out")"
 
 echo "Test 15: monorepo anchors are repo-root-relative and include the app subpath"
 mkdir -p "$TMP/mono/apps/good-app"; touch "$TMP/mono/apps/good-app/form.yml"
