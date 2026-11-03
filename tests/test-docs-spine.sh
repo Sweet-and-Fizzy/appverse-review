@@ -184,7 +184,7 @@ has "$APP_SKILL" "$APP_ID_SENTENCE" "review-app states apps.json app_id = findin
 has "$QUA_SKILL" "$APP_ID_SENTENCE" "review-quality states apps.json app_id = finding app_id"
 has references/security-tools.md "$APP_ID_SENTENCE" "security-tools.md ties app_id to apps.json"
 has references/target-setup.md "Same value as \`apps.json\`'s \`app_id\`" "target-setup.md ties app_id to apps.json"
-has .github/workflows/appverse-review.yaml "references/check-all.py \${{ github.workspace }}/review-\${{ steps.params.outputs.repo_slug }}.md \${{ github.workspace }}/review-\${{ steps.params.outputs.repo_slug }}.findings.json \${{ github.workspace }}/appverse-review/references/checks.json \${{ github.workspace }}/pre-review --target" "workflow prompt gives check-all.py a resolvable plugin path, report path and findings path"
+has .github/workflows/appverse-review.yaml '"Bash(python3 *appverse-review/references/*)"' "the repair session's shell is denied the plugin scripts (the sandbox applies the references read deny to shell commands, #128)"
 has skills/review-app/SKILL.md "check-all.py" "review-app SKILL.md wrap-up step names check-all.py"
 has .github/workflows/appverse-review.yaml "references/checks.json" "workflow prompt names checks.json"
 has .github/workflows/appverse-review.yaml "group: appverse-review-\${{ inputs.target_repo }}" "one review run at a time per target repo (#106)"
@@ -266,7 +266,7 @@ has .github/workflows/appverse-review.yaml 'repair_model_id="${REPAIR_MODEL_ID_I
 has .github/workflows/appverse-review.yaml '"Read(./appverse-review/references/**/*.py)"' "the repair session cannot read the checker scripts"
 has skills/repair-review/SKILL.md "Never read a skill or reference file whole." "the repair skill reads only the section a line needs"
 has .github/workflows/appverse-review.yaml "read its file, \${{ github.workspace }}/appverse-review/skills/repair-review/SKILL.md," "the repair prompt names the skill file for a model that does not invoke the Skill tool"
-has .github/workflows/appverse-review.yaml "run it once more, then stop whatever it says." "the repair prompt keeps its own stop rule"
+has .github/workflows/appverse-review.yaml "Fix the listed lines and stop." "the repair prompt keeps its own stop rule"
 has .github/workflows/appverse-review.yaml 'error|no_result) echo "::warning::the $SESSION session ended on an error' "the log step warns when a session ended on an error"
 has .github/workflows/appverse-review.yaml "model_re='^[A-Za-z0-9][A-Za-z0-9._/:-]*\$'" "a model id cannot start with a dash"
 has .github/workflows/appverse-review.yaml 'if [ "$model_id" = "$DEFAULT_GATEWAY_MODEL" ]; then default_repair="$DEFAULT_GATEWAY_REPAIR_MODEL"' "the default repair model follows the default review model, however it was named"
@@ -444,7 +444,7 @@ echo "$review" | grep -q 'python3 [^ ]*check-all\.py' && bad "the review prompt 
 echo "$review" | grep -qF '"Bash(python3 *check-*.py*)"' && ok "the review session's permissions deny the checkers" || bad "the review session's permissions deny the checkers"
 echo "$review" | grep -q 'the workflow does the finish step after this' && ok "the review prompt ends the session before the skill's finish step" || bad "the review prompt ends the session before the skill's finish step"
 grep -q 'A CI review stops before this step' skills/review-app/SKILL.md && ok "the skill's finish step says a CI review stops before it" || bad "the skill's finish step says a CI review stops before it"
-step "Repair review outputs" | grep -q 'check-all\.py' && ok "the repair prompt still runs check-all.py" || bad "the repair prompt still runs check-all.py"
+step "Repair review outputs" | grep -q 'python3 [^ ]*\(check-all\|prepare-feedback\|render-feedback\)\.py' && bad "the repair prompt tells the session to run a plugin script" || ok "the repair prompt does not tell the session to run a plugin script"
 step "Repair review outputs" | grep -qF 'check-*.py' && bad "the repair session may run the checkers" || ok "the repair session may run the checkers"
 
 echo

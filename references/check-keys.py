@@ -67,8 +67,23 @@ class VocabularyError(Exception):
     """finding-codes.md could not be read; main() reports it and exits 2."""
 
 
-def load_vocabulary(path=FINDING_CODES):
-    """Return {rule: {tag_base: requires_qualifier}} from the mechanism-tag sections."""
+# A model told "qualifier required" will satisfy the check with a filler word
+# (seen in a real run: root:undefined-variable:none). Words like "name" and
+# "value" are left out: they are real keys (manifest.yml name, a form.yml
+# attribute's value), and the tag's own placeholder (var_name) is caught below.
+PLACEHOLDER_QUALIFIERS = frozenset((
+    "none", "null", "nil", "n/a", "na", "unknown", "tbd", "todo", "placeholder",
+    "unspecified", "unnamed", "generic", "various", "multiple", "any", "all",
+    "qualifier",
+))
+
+
+def load_vocabulary(path=FINDING_CODES, placeholders=None):
+    """Return {rule: {tag_base: requires_qualifier}} from the mechanism-tag sections.
+
+    When `placeholders` is a dict it is filled with {tag_base: placeholder_name}
+    (e.g. "undefined-variable": "var_name"); the return shape is unchanged.
+    """
     vocab = {}
     current = None
     try:
@@ -91,6 +106,8 @@ def load_vocabulary(path=FINDING_CODES):
                     # same base (e.g. "missing-field:software") must not
                     # un-require it.
                     vocab[current][base] = vocab[current].get(base, False) or qual.startswith("{")
+                    if placeholders is not None and qual.startswith("{") and qual.endswith("}"):
+                        placeholders[base] = qual[1:-1]
     except OSError as e:
         raise VocabularyError("cannot read {}: {}".format(path, e))
     return vocab
@@ -138,7 +155,7 @@ def anchor_uncited(finding, anchor, tag, app_id):
     return "evidence does not cite the anchor file"
 
 
-def validate(finding, vocab, target):
+def validate(finding, vocab, target, placeholders=None):
     rule = finding.get("rule") or "<missing>"
     key = finding.get("defect_key")
     if not key:
@@ -208,9 +225,21 @@ def validate(finding, vocab, target):
     base, _, qual = tag.partition(":")
     rule_vocab = vocab[rule]
     if base not in rule_vocab:
+        # A model that files an absent-file tag under the wrong rule follows the
+        # other:<slug> hint into an anchor failure, so point at the right rule.
+        elsewhere = sorted(r for r, v in vocab.items() if r != rule and base in v)
+        if elsewhere:
+            return rule, key, "tag '{}' is in the {} vocabulary, not {}; file it under {}".format(
+                base, " and ".join(elsewhere), rule, " or ".join(elsewhere))
         return rule, key, "tag '{}' not in {} vocabulary; use other:<slug> for a novel defect".format(base, rule)
     if rule_vocab[base] and not qual:
         return rule, key, "tag '{}' requires a qualifier".format(base)
+    if rule_vocab[base]:
+        ph_name = (placeholders or {}).get(base)
+        shown = qual.strip().strip("{}\"' \t").lower()
+        if shown in PLACEHOLDER_QUALIFIERS or (ph_name and shown == ph_name.lower()):
+            return rule, key, "qualifier '{}' is a placeholder; name the actual {}".format(
+                qual, "{" + ph_name + "}" if ph_name else "name")
     return rule, key, None
 
 
@@ -234,7 +263,8 @@ def main(argv):
         print("error: findings must be a JSON list of objects", file=sys.stderr)
         return 2
     try:
-        vocab = load_vocabulary(args.vocabulary)
+        placeholders = {}
+        vocab = load_vocabulary(args.vocabulary, placeholders)
     except VocabularyError as e:
         print("error: {}".format(e), file=sys.stderr)
         return 2
@@ -242,7 +272,7 @@ def main(argv):
     unruled = [f for f in findings if f.get("result") == "PASS" and str(f.get("rule") or "").strip() in NO_RULE]
     findings = [f for f in findings if f not in unruled]
     for f in findings:
-        rule, key, reason = validate(f, vocab, args.target)
+        rule, key, reason = validate(f, vocab, args.target, placeholders)
         if reason:
             bad += 1
             print("INVALID {} {} ({})".format(rule, key, reason))
