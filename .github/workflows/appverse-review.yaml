@@ -304,6 +304,25 @@ jobs:
         # see it. Each log step below restores the checkout regardless.
         run: chmod -R a-w "${{ github.workspace }}/appverse-review"
 
+      # The checkers trust the pre-review facts (apps.json's dir_missing,
+      # readme.json's stub, ...) and the target checkout (check-keys and
+      # check-evidence match quoted evidence against it), and the review and
+      # repair sessions may write anywhere in the workspace, so a session
+      # steered by the target repo could edit either to pass a check. No
+      # session writes to them. The digests, kept as step outputs that no
+      # session can write, are the control: "Check the trusted inputs are
+      # unchanged" compares them after the last session. The chmod only makes
+      # a careless write fail where the session sees it; a session with
+      # python3 can undo it, and renaming the directory needs no write on it.
+      - name: Record the inputs the checkers trust
+        id: inputs_lock
+        if: inputs.review_aspects != 'dry-run'
+        run: |
+          WS="${{ github.workspace }}"
+          [ -d "$WS/pre-review" ] && chmod -R a-w "$WS/pre-review"
+          echo "pre_review=$(bash "$WS/appverse-review/references/tree-digest.sh" "$WS/pre-review")" >> "$GITHUB_OUTPUT"
+          echo "target=$(bash "$WS/appverse-review/references/tree-digest.sh" "$WS/target-repo" --git)" >> "$GITHUB_OUTPUT"
+
       - name: Run Appverse review
         id: review
         # The turn limit bounds a review; this only stops a hung endpoint.
@@ -1094,6 +1113,30 @@ jobs:
       # The artifact is public and holds the sessions' full logs, and GitHub
       # masks secrets only in run logs. A file holding a secret is removed
       # before upload and the run fails; paths are printed, never values.
+      # After every session and before the secret scrub, which may delete a
+      # file from pre-review/. Fails only through "Verify review outputs", so
+      # the artifact is still assembled and uploaded for the reviewer. The
+      # script runs from the plugin checkout, which the log steps restore.
+      - name: Check the trusted inputs are unchanged
+        id: inputs_guard
+        if: always() && steps.inputs_lock.outcome == 'success'
+        env:
+          PRE_REVIEW_DIGEST: ${{ steps.inputs_lock.outputs.pre_review }}
+          TARGET_DIGEST: ${{ steps.inputs_lock.outputs.target }}
+        run: |
+          WS="${{ github.workspace }}"
+          pre=$(bash "$WS/appverse-review/references/tree-digest.sh" "$WS/pre-review")
+          target=$(bash "$WS/appverse-review/references/tree-digest.sh" "$WS/target-repo" --git)
+          result=pass
+          if [ "$pre" != "$PRE_REVIEW_DIGEST" ]; then
+            result=fail; echo "::warning::pre-review/ changed after it was recorded ($PRE_REVIEW_DIGEST -> $pre)"
+          fi
+          if [ "$target" != "$TARGET_DIGEST" ]; then
+            result=fail; echo "::warning::target-repo/ changed after it was recorded ($TARGET_DIGEST -> $target)"
+          fi
+          echo "integrity=$result" >> "$GITHUB_OUTPUT"
+          chmod -R u+w "$WS/pre-review" 2>/dev/null || true
+
       - name: Keep secrets out of the artifact
         if: always()
         env:
@@ -1147,12 +1190,20 @@ jobs:
           RECHECK_OUTCOME: ${{ steps.recheck.outcome }}
           RECHECK2_OUTCOME: ${{ steps.recheck2.outcome }}
           FILL_INTEGRITY: ${{ steps.fill_guard.outputs.integrity }}
+          INPUTS_RECORDED: ${{ steps.inputs_lock.outcome }}
+          INPUTS_INTEGRITY: ${{ steps.inputs_guard.outputs.integrity }}
         run: |
           # A failed check stays red, but the steps above still assembled and
           # uploaded the artifact so the reviewer can see what the check saw.
           check_failed=0
           if [ "$FILL_INTEGRITY" = fail ]; then
             echo "::error::The fill session changed files outside feedback.json that the guard relies on; not shipping this run"
+            check_failed=1
+          fi
+          # Fails closed: once the inputs were recorded, anything but a pass
+          # (a fail, or a guard that crashed or did not run) fails the run.
+          if [ "$INPUTS_RECORDED" = success ] && [ "$INPUTS_INTEGRITY" != pass ]; then
+            echo "::error::The pre-review facts or the target checkout the checkers rely on changed during the sessions (or could not be re-checked: '${INPUTS_INTEGRITY}'); not shipping this run"
             check_failed=1
           fi
           final="$CHECKS_OUTCOME"
