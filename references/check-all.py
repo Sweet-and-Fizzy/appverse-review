@@ -88,7 +88,7 @@ CHECKERS = [
     ("catalog", "check-catalog.py",
      lambda a: [a.report, a.pre_review_dir]),
     ("meta", "check-meta.py",
-     lambda a: [a.meta]),
+     lambda a: [a.meta] + ([a.pre_review_dir] if os.path.isdir(a.pre_review_dir) else [])),
     ("decisions", "check-decisions.py",
      lambda a: [a.meta, a.findings]),
     ("sections", "check-sections.py",

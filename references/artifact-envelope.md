@@ -44,7 +44,7 @@ the skills that produce them refer here.
       "name": "App Name",
       "decision": "Accept | Accept with suggestions | Request changes | Reject",
       "assessments": {
-        "documentation": "minimal | adequate | strong | exemplary",
+        "documentation": "minimal | adequate | strong | exemplary | not_assessed",
         "documentation_summary": "one-line evidence phrase",
         "portability": "not_portable | partially_portable | portable",
         "portability_summary": "one-line evidence phrase"

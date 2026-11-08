@@ -154,7 +154,8 @@ signal is not a grade and does not gate listing.
 
 <!-- DERIVE the level from the aspect ratings, do not invent it:
      Portability: Portable = Low; Partially portable = Medium; Not portable = High.
-     Documentation: Strong/Exemplary = Low; Adequate = Medium; Minimal or Below minimal = High.
+     Documentation: Strong/Exemplary = Low; Adequate = Medium; Minimal or Below minimal = High;
+     Not assessed (apps.json dir_missing: no directory at the declared path) = Not assessed.
      Low = good/low-concern; High = most to read. Never invert; never style High as a hazard.
      Monorepo: one Signals block PER app. No repo-level signal aggregate.
      Upkeep (this app): declared monorepos only, from the maintenance aspect's
@@ -268,11 +269,13 @@ Findings are classified under OODT (Open OnDemand App Threats); codes are define
      content: line for each requirement the facts miss. Never claim a rung
      whose evidence line says none. Only when readme.json stub is true does the rating line
      read "Minimal — not supported (stub README; see QUA-01)". In
-     meta.json assessments, Below minimal and a stub are "minimal". -->
+     meta.json assessments, Below minimal and a stub are "minimal". An app
+     apps.json marks dir_missing is rated "Not assessed", its row NOT CHECKED,
+     and its meta.json documentation "not_assessed" (review-quality SKILL.md). -->
 
 | Rule | Check | Result | Severity | Summary | Evidence |
 |---|---|---|---|---|---|
-| QUA-01 | `check: documentation-rating` | PASS/FAIL | ... | <rating; PASS at Adequate or above> | README.md:N |
+| QUA-01 | `check: documentation-rating` | PASS/FAIL/NOT CHECKED | ... | <rating; PASS at Adequate or above; NOT CHECKED when Not assessed> | README.md:N |
 
 ### Code Quality
 <!-- At least one row per manifest check for this app's app_type, ALWAYS, in
@@ -499,7 +502,7 @@ Save to `review-<owner>-<repo>.meta.json`:
       "name": "<app name from manifest/appverse.yml>",
       "decision": "<per-app decision, or same as recommendation for single-app>",
       "assessments": {
-        "documentation": "minimal | adequate | strong | exemplary",
+        "documentation": "minimal | adequate | strong | exemplary | not_assessed",
         "documentation_summary": "<one-line evidence phrase>",
         "portability": "not_portable | partially_portable | portable",
         "portability_summary": "<one-line evidence phrase>"
