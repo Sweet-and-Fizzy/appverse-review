@@ -220,6 +220,15 @@ These rows carry no `check:` marker.
   that line when `stub` is false, whatever your rung evidence says. Flag
   as QUA-01 a README that references another institution's paths, cluster
   names, or module names without saying they must change.
+  An app that `apps.json` marks `dir_missing` (a declared path with no
+  directory; the structure skill files it under STR-07) has no README to
+  rate: write `Rating: Not assessed — no directory at <path>` with no rung
+  evidence lines, put `Not assessed` in its Signals Documentation row, and
+  record the `documentation-rating` row as NOT CHECKED with no QUA-01
+  record. Its meta.json `assessments.documentation` is `not_assessed`
+  (`check-meta.py` checks both directions). Never `Below minimal` for it; `check-rating.py` rejects any
+  other rating there, and rejects `Not assessed` for an app that has its
+  directory.
 - **Code quality** (the `code_quality` entries): error handling
   (`check: error-handling`, QUA-03), form input
   validation (`check: numeric-field-bounds`, QUA-07), no uncommented magic

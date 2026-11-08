@@ -77,7 +77,8 @@ the per-app dirs named in the previous apps.json are removed first):
                  is the repo-relative README, a monorepo app without its own
                  falling back to the root README; null when there is none.
                  An apps[].path outside the target or missing is listed
-                 (app_type unknown) but never read.
+                 (app_type unknown) but never read; a missing one also
+                 carries dir_missing: true.
   <app_id>/readme.json  {file, headings [{level, text, line}], placeholders
                  [{line, text, phrase}] (lines outside code fences
                  containing a phrase from readme-placeholders.txt,
@@ -1350,8 +1351,13 @@ def resolve_apps(target):
             app_id = "root" if path == "." and "root" not in taken else _app_id(path, taken)
         taken.add(app_id)
         if skip:
-            apps.append({"app_id": app_id, "path": path, "app_type": "unknown", "readme": None,
-                         "_dir": None, "_skip": skip})
+            app = {"app_id": app_id, "path": path, "app_type": "unknown", "readme": None,
+                   "_dir": None, "_skip": skip}
+            if skip == MISSING_APP:
+                # Public, unlike _skip: check-rating.py accepts "Not assessed"
+                # for this app's documentation only on this fact.
+                app["dir_missing"] = True
+            apps.append(app)
             continue
         sub = _load_file(target, os.path.join(full, "appverse.yml"), path + "/appverse.yml") or {}
         manifest = _load_file(target, os.path.join(full, "manifest.yml"), path + "/manifest.yml") or {}

@@ -79,4 +79,19 @@ check "a well-typed app upkeep block passes" 0 "$(chk "$TMP/c11.json")"
 check "unreadable: exit 2" 2 "$(chk "$TMP/none.json")"
 printf '[]' > "$TMP/c6.json"; check "not an object: exit 2" 2 "$(chk "$TMP/c6.json")"
 
+echo "Test 7: documentation is not_assessed exactly for an app apps.json marks dir_missing"
+P="$TMP/pre"; mkdir -p "$P"
+printf '[{"app_id":"apps/gone","path":"apps/gone","app_type":"unknown","readme":null,"dir_missing":true},{"app_id":"apps/ok","path":"apps/ok","app_type":"batch_connect","readme":"apps/ok/README.md"}]' > "$P/apps.json"
+meta_docs() { python3 -c "import json,sys; d=json.loads(sys.argv[1]); d.update(sha='a',repo_url='u',apps=[{'app_id':'apps/gone','decision':'Accept','assessments':{'documentation':sys.argv[3]}},{'app_id':'apps/ok','decision':'Accept','assessments':{'documentation':sys.argv[4]}}]); json.dump(d,open(sys.argv[2],'w'))" "$GOOD" "$1" "$2" "$3"; }
+meta_docs "$TMP/c12.json" not_assessed minimal
+check "missing app not_assessed, present app minimal: exit 0" 0 "$(chk "$TMP/c12.json" "$P")"
+meta_docs "$TMP/c13.json" minimal minimal
+check "missing app graded minimal: exit 1" 1 "$(chk "$TMP/c13.json" "$P")"
+check "names it" 1 "$(grep -c "^INVALID meta field: apps\[0\].assessments.documentation 'minimal'; apps.json says apps/gone's directory is missing" "$TMP/out")"
+meta_docs "$TMP/c14.json" not_assessed not_assessed
+check "present app not_assessed: exit 1" 1 "$(chk "$TMP/c14.json" "$P")"
+check "names it" 1 "$(grep -c "^INVALID meta field: apps\[1\].assessments.documentation is not_assessed but apps.json does not say apps/ok's" "$TMP/out")"
+check "without a pre-review dir, not_assessed is rejected" 1 "$(chk "$TMP/c12.json")"
+check "without a pre-review dir, other grades are not checked" 0 "$(chk "$TMP/c13.json")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

@@ -718,4 +718,45 @@ check "QUA-03 WARN" 1 "$(grep -cxF 'MISMATCH root QUA-03 template/script.sh.erb:
 check "QUA-07 WARN" 1 "$(grep -cxF 'MISMATCH root QUA-07 form.yml:missing-min: target (check numeric-field-bounds) recorded as WARN; an unmet target is FAIL' "$TMP/out")"
 check "only those two" "ratings: 2 mismatches" "$(tail -1 "$TMP/out")"
 
+echo "Test 41: a declared app with no directory (apps.json dir_missing) is rated Not assessed, and only it"
+mkdir -p "$TMP/pre-missing" "$TMP/pre-present"
+printf '[{"app_id":"root","path":"apps/x","app_type":"unknown","readme":null,"dir_missing":true}]' > "$TMP/pre-missing/apps.json"
+printf '[{"app_id":"root","path":".","app_type":"batch_connect","readme":"README.md"}]' > "$TMP/pre-present/apps.json"
+echo '[]' > "$TMP/f41.json"
+report "Not assessed" "Not assessed" "" > "$TMP/r41.md"
+check "missing dir, Not assessed rating and signal: exit 0" 0 "$(run "$TMP/r41.md" "$TMP/f41.json" "$TMP/pre-missing")"
+grep -v '^| Documentation |' "$TMP/r41.md" > "$TMP/r41n.md"
+check "missing dir, no Documentation signal row: exit 0" 0 "$(run "$TMP/r41n.md" "$TMP/f41.json" "$TMP/pre-missing")"
+report "Not assessed" "High" "" > "$TMP/r41h.md"
+check "missing dir, a High signal: exit 1" 1 "$(run "$TMP/r41h.md" "$TMP/f41.json" "$TMP/pre-missing")"
+check "signal reason" "MISMATCH root documentation: apps.json says the app directory is missing, so the Documentation signal is \`Not assessed\` or absent (report says High)" "$(head -1 "$TMP/out")"
+report "Below minimal" "High" "  - what it launches: none" > "$TMP/r41b.md"
+check "missing dir, Below minimal (the MultitenantApps failure): exit 1" 1 "$(run "$TMP/r41b.md" "$TMP/f41.json" "$TMP/pre-missing")"
+check "rating reason" "MISMATCH root documentation: apps.json says the app directory is missing, so the rating is \`Not assessed\`" "$(head -1 "$TMP/out")"
+check "Not assessed with the directory present: exit 1" 1 "$(run "$TMP/r41.md" "$TMP/f41.json" "$TMP/pre-present")"
+check "present reason" "MISMATCH root documentation: Not assessed rating but apps.json does not say the app directory is missing" "$(head -1 "$TMP/out")"
+check "Not assessed with no pre-review dir: exit 1" 1 "$(run "$TMP/r41.md" "$TMP/f41.json")"
+# Only the rating line counts: a later "Rating: Not assessed" cannot stand in for an Adequate rating.
+report "Adequate" "Not assessed" "$FULL
+- Rating: Not assessed (quoted)" > "$TMP/r41q.md"
+check "a later Not assessed line does not replace the rating: exit 1" 1 "$(run "$TMP/r41q.md" "$TMP/f41.json" "$TMP/pre-missing")"
+check "later-line reason" "MISMATCH root documentation: apps.json says the app directory is missing, so the rating is \`Not assessed\`" "$(head -1 "$TMP/out")"
+# The documentation-rating row of a missing app is NOT CHECKED.
+python3 - "$TMP/r41.md" "$TMP/r41r.md" <<'PY'
+import sys
+t = open(sys.argv[1]).read()
+t = t.replace("- Evidence per rung:\n", "- Evidence per rung:\n\n| Rule | Check | Result | Severity | Summary | Evidence |\n|---|---|---|---|---|---|\n| QUA-01 | `check: documentation-rating` | PASS | info | Not assessed | apps/x |\n", 1)
+open(sys.argv[2], "w").write(t)
+PY
+check "missing dir, documentation-rating row PASS: exit 1" 1 "$(run "$TMP/r41r.md" "$TMP/f41.json" "$TMP/pre-missing")"
+check "row reason" "MISMATCH root documentation: apps.json says the app directory is missing, so the documentation-rating row is NOT CHECKED (report says PASS)" "$(head -1 "$TMP/out")"
+sed 's/| PASS | info | Not assessed |/| NOT CHECKED | info | Not assessed |/' "$TMP/r41r.md" > "$TMP/r41rn.md"
+check "missing dir, documentation-rating row NOT CHECKED: exit 0" 0 "$(run "$TMP/r41rn.md" "$TMP/f41.json" "$TMP/pre-missing")"
+# A monorepo id: only the app apps.json marks may be Not assessed.
+printf '[{"app_id":"apps/gone","path":"apps/gone","app_type":"unknown","readme":null,"dir_missing":true},{"app_id":"apps/ok","path":"apps/ok","app_type":"batch_connect","readme":"apps/ok/README.md"}]' > "$TMP/pre-missing/apps.json"
+sed 's/^## App: X (root)/## App: Gone (apps\/gone)/' "$TMP/r41.md" > "$TMP/r41g.md"
+sed 's/^## App: X (root)/## App: Ok (apps\/ok)/' "$TMP/r41.md" > "$TMP/r41o.md"
+check "monorepo: the marked app may be Not assessed" 0 "$(run "$TMP/r41g.md" "$TMP/f41.json" "$TMP/pre-missing")"
+check "monorepo: an unmarked app may not" 1 "$(run "$TMP/r41o.md" "$TMP/f41.json" "$TMP/pre-missing")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
