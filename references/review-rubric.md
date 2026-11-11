@@ -96,6 +96,10 @@ Per-app fields resolve in this order:
 2. `<subpath>/appverse.yml`
 3. `<subpath>/manifest.yml` (name and description only)
 
+An app whose declared path has no directory fails the Structure gate
+(STR-07), so it gets at least Request changes. Its Documentation is Not
+assessed, since there is no README to rate.
+
 Directories listed in `shared_paths` are shared code. They are reviewed
 once at repo level and included in the security review. `shared_paths` is
 not a pass/fail criterion.
@@ -134,7 +138,7 @@ share them. An app-level README at a subpath is welcome but not required.
 
 | Check | What to Look For |
 |-------|------------------|
-| `manifest.yml` required fields | `name`, `category`, `role`, `description` at minimum |
+| `manifest.yml` required fields | `name`, `category` and `description` at minimum. A missing `role` is a WARN |
 
 **Declared repos** (root `appverse.yml`), checked per app after the field
 order above. The same fields are required for one app or several:
@@ -144,7 +148,7 @@ order above. The same fields are required for one app or several:
 | `name` | Present (from `appverse.yml`, or a member app's `manifest.yml`) |
 | `description` | Present |
 | `software` | Present. It must also match a Software entry in the catalog. If it doesn't, the reviewer works that out with you |
-| `app_type` | A term from the catalog's app-type list. A near miss, such as a misspelling, fails, and the review suggests the closest term. Each `implementation_tags` entry must also be on its list (see the [appverse.yml reference](https://github.com/Sweet-and-Fizzy/ood-appverse/blob/main/docs/appverse.yml)) |
+| `app_type` | A term from the catalog's app-type list. A near miss, such as a misspelling, fails, and the review suggests the closest term. An `implementation_tags` entry that is not on its list is a WARN (see the [appverse.yml reference](https://github.com/Sweet-and-Fizzy/ood-appverse/blob/main/docs/appverse.yml)) |
 | `maintainer.name` + `maintainer.support_url` | Both present. Without a support URL, deployers have no one to contact |
 | `manifest.yml` at the app's subpath | Required for the app to run inside OOD |
 

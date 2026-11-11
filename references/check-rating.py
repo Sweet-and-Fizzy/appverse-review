@@ -26,7 +26,8 @@ A missing app. When <pre-review-dir>/apps.json marks the app `dir_missing`
 rating line (the section's first `Rating:` line) reads `Rating: Not
 assessed`, the Signals Documentation row is `Not assessed` or absent, and
 the `documentation-rating` row is NOT CHECKED; rules 1, 2 and 6 do not
-apply. Any other rating
+apply. The findings JSON must also hold an STR-07 FAIL record for the
+app (the gate failure that floors it at Request changes). Any other rating
 for such an app is a MISMATCH, and so is `Not assessed` for an app that
 apps.json does not mark (or with no pre-review directory to say so).
 
@@ -194,6 +195,7 @@ MISSING_DIR_RATED = "apps.json says the app directory is missing, so the rating 
 MISSING_DIR_SIGNAL = "apps.json says the app directory is missing, so the Documentation signal is `Not assessed` or absent"
 NOT_ASSESSED_BUT_PRESENT = "Not assessed rating but apps.json does not say the app directory is missing"
 MISSING_DIR_ROW = "apps.json says the app directory is missing, so the documentation-rating row is NOT CHECKED"
+MISSING_DIR_GATE = "apps.json says the app directory is missing, so the findings need an STR-07 FAIL record for it"
 CONTENT_CITE_RE = re.compile(r"(?<![\w-])content:\s*[`*]*([^\s`*:]+):(\d+)")
 NONE_WORDS = {"none", "n/a", "na", "absent", "missing", "not", "no"}
 STUB_LINE = "Minimal \u2014 not supported (stub README; see QUA-01)"  # the form the docs write
@@ -646,17 +648,28 @@ def rated_not_assessed(doc):
     return bool(m and NOT_ASSESSED_RE.match(m.group(0)))
 
 
-def not_assessed_problems(app, dir_missing, not_assessed, body, doc):
+def has_gate_fail(findings, app):
+    """Whether findings hold an STR-07 FAIL record for app, whatever its tag."""
+    ids = record_app_ids(app)
+    return any(r.get("rule") == "STR-07" and r.get("result") == "FAIL"
+               and str(r.get("app_id") or "").strip().strip("/") in ids for r in findings)
+
+
+def not_assessed_problems(app, dir_missing, not_assessed, body, doc, findings):
     """The Documentation rating, signal and documentation-rating row of an
     app whose directory is missing: `Not assessed`, a signal that is absent
     or `Not assessed`, and a NOT CHECKED row (there is no README to rate).
     `Not assessed` for an app that has its directory is a mismatch too,
-    since its README can be rated."""
+    since its README can be rated. A missing directory is also a structure
+    gate failure, and that FAIL is what floors the app at Request changes,
+    so an STR-07 FAIL record for the app is required."""
     if not dir_missing:
         return ["MISMATCH {} documentation: {}".format(app, NOT_ASSESSED_BUT_PRESENT)]
-    if not not_assessed:
-        return ["MISMATCH {} documentation: {}".format(app, MISSING_DIR_RATED)]
     problems = []
+    if not has_gate_fail(findings, app):
+        problems.append("MISMATCH {} structure: {}".format(app, MISSING_DIR_GATE))
+    if not not_assessed:
+        return problems + ["MISMATCH {} documentation: {}".format(app, MISSING_DIR_RATED)]
     signals = subsection(body, "Signals") or ""
     m = re.search(r"^\|\s*(?:\*\*)?Documentation(?:\*\*)?\s*\|\s*([^|]*)\|", signals, flags=re.M)
     if m and not re.match(r"[\s*_]*not assessed\b", m.group(1), re.I):
@@ -722,7 +735,7 @@ def main(argv):
             return 2
         not_assessed = rated_not_assessed(doc)
         if dir_missing or not_assessed:
-            for line in not_assessed_problems(fact_app_id(app_id_of(heading)), dir_missing, not_assessed, body, doc):
+            for line in not_assessed_problems(fact_app_id(app_id_of(heading)), dir_missing, not_assessed, body, doc, findings):
                 problems += 1
                 print(line)
             for line in security_problems(app_id_of(heading), body):
