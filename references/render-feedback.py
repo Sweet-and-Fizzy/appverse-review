@@ -9,9 +9,15 @@ and item `text` filled in. The section is replaced whole: a
 its body, up to the next `## ` heading or the structured-findings ```json
 fence. With no such heading, the section is appended at the end.
 
-The section is the opening, then each non-empty level as a bold label and
-numbered items, numbered straight through, then a feedback-generated marker
-and the feedback-covers checksum of every rendered defect key. An item with
+The section is the greeting and opening on one line, then each non-empty
+level as a bold label and numbered items, numbered straight through, then
+the reminder paragraph when there is one, a feedback-generated marker and
+the feedback-covers checksum of every rendered defect key. When the file has
+a `greeting` key (even an empty one: nothing changed since the last send),
+the greeting is the thank-you, so a leading thank-you sentence the model
+left in `opening` is dropped; a file without the key (an old one) renders
+the opening as written, or the default thank-you when it is empty. A
+`still_open` item is prefixed "Still open from the last review:". An item with
 no text falls back to its findings' summaries, marked feedback-missing, so
 the reviewer still gets a complete draft; the warning names those groups
 (as a GitHub Actions ::warning:: when GITHUB_ACTIONS is set).
@@ -41,6 +47,9 @@ def default_opening(app_name, report):
     return "Thank you for submitting {} to Appverse.".format(name)
 
 
+THANKS_RE = re.compile(r"^\s*(?:thank you|thanks)\b.*?[.!?](?:\s+|$)", re.IGNORECASE)
+
+
 def as_text(value):
     """A string field as one line. A newline the model put in a JSON string
     would end the numbered list, or start a `## ` section of its own that
@@ -66,7 +75,15 @@ def render_section(doc, report):
     # The opening is the one line not led by an item number, so a leading
     # '#' would make it a heading and end the section there.
     opening = as_text(doc.get("opening")).lstrip("# ").strip()
-    lines = [HEADING, "", opening or default_opening(as_text(doc.get("app_name")), report), ""]
+    if "greeting" in doc:
+        # The greeting is the thank-you, so one the model also wrote into the
+        # opening would thank twice (or at all, when nothing changed).
+        greeting = as_text(doc.get("greeting")).lstrip("# ").strip()
+        opening = THANKS_RE.sub("", opening, count=1).strip()
+        first = " ".join(part for part in (greeting, opening) if part)
+    else:
+        first = opening or default_opening(as_text(doc.get("app_name")), report)
+    lines = [HEADING, ""] + ([first, ""] if first else [])
     missing = []
     covers = []
     n = 0
@@ -85,10 +102,16 @@ def render_section(doc, report):
                 summaries = item.get("summaries") if isinstance(item.get("summaries"), list) else []
                 text = (fallback_text(summaries) + " <!-- feedback-missing -->").strip()
                 missing.append(str(item.get("group", "?")))
-            lines.append("{}. {}".format(n, (prefix + " " + text) if prefix else text))
+            body = (prefix + " " + text) if prefix else text
+            if item.get("still_open") is True:
+                body = "Still open from the last review: " + body
+            lines.append("{}. {}".format(n, body))
             keys = item.get("defect_keys") if isinstance(item.get("defect_keys"), list) else []
             covers += [str(k) for k in keys if k]
         lines.append("")
+    reminder = as_text(doc.get("reminder")).lstrip("# ").strip()
+    if reminder:
+        lines += [reminder, ""]
     lines += ["<!-- feedback-generated -->", "<!-- feedback-covers: {} -->".format(", ".join(covers)), ""]
     return "\n".join(lines), missing
 

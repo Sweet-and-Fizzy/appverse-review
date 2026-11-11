@@ -129,6 +129,33 @@ rm -f "$TMP/report.meta.json"
 run >/dev/null
 check "no meta.json: decisions not checked" 1 "$(count '[decisions] decisions: not checked (no meta.json beside the report)')"
 
+echo "Test 7: --baseline reaches the floor checker only; without it the floor line is unchanged"
+cat > "$TMP/findings.json" <<'EOF2'
+[
+ {"app_id":"root","rule":"QUA-03","defect_key":"template/script.sh.erb:no-set-e","aspect":"quality","severity":"low","result":"WARN","summary":"x","evidence":"template/script.sh.erb:1"}
+]
+EOF2
+cat > "$TMP/report.md" <<'EOF2'
+# Appverse Review: x
+## App: X (root)
+### Documentation
+Rating: Minimal
+## Draft feedback — edit before sending
+Nothing here.
+EOF2
+cat > "$TMP/base.json" <<'EOF2'
+{"sha":"abc1234","sent_at":1,"recommendation":"accept","apps":{"root":"accept"},"same_commit":false,"comparable":true,
+ "findings":[{"id":"$ID","app_id":"root","rule":"QUA-03","defect_key":"template/script.sh.erb:no-set-e","result":"WARN","severity":"low","dismissed":false}]}
+EOF2
+ID=$(python3 -c "import sys; sys.path.insert(0,'$SCRIPT_DIR/references'); import review_baseline as b; print(b.stable_id(dict(app_id='root', rule='QUA-03', defect_key='template/script.sh.erb:no-set-e')))")
+sed -i.bak "s/\$ID/$ID/" "$TMP/base.json"
+run >/dev/null
+check "without --baseline: still open finding is missing" 1 "$(count '[floor] MISSING QUA-03 template/script.sh.erb:no-set-e (not in feedback-covers)')"
+check "without --baseline: summary" 1 "$(count '[floor] feedback floor: 0/1 fix-items covered')"
+python3 "$CHECK" "$TMP/report.md" "$TMP/findings.json" "$TMP/checks.json" "$TMP/pre-review" --target "$TMP/target" --baseline "$TMP/base.json" > "$TMP/out" 2>&1
+check "with --baseline: floor line follows the baseline" 1 "$(count '[floor] feedback floor: 0/0 fix-items covered')"
+check "with --baseline: no MISSING line" 0 "$(grep -c '^\[floor\] MISSING' "$TMP/out")"
+
 echo
 echo "Results: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

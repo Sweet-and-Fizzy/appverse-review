@@ -8,8 +8,9 @@
     python3 references/fill-guard.py verify <snapdir> <report.md> \\
         <findings.json> <meta.json> <feedback.json> <before-checks> <after-checks>
 
-needs-fill prints true when feedback.json has an empty opening or an item
-with empty text, otherwise false (also for a missing or malformed file).
+needs-fill prints true when an item of feedback.json has empty text,
+otherwise false, also for a missing or malformed file. An empty opening is a
+valid draft: it holds only the sentences on what the app does well.
 
 snapshot copies each file into snapdir and records in MANIFEST which paths
 existed, so a file the session creates counts as a change too.
@@ -71,7 +72,7 @@ def needs_fill(path):
     if not isinstance(doc, dict):
         return False
     items = doc.get("items") if isinstance(doc.get("items"), list) else []
-    return not filled(doc.get("opening")) or any(isinstance(i, dict) and not filled(i.get("text")) for i in items)
+    return any(isinstance(i, dict) and not filled(i.get("text")) for i in items)
 
 
 def snapshot(snapdir, paths):
