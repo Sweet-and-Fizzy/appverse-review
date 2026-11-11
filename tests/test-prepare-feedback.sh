@@ -209,7 +209,7 @@ mkbase accept 0; prepb >/dev/null
 check "carried-over greeting is replaced" "Thank you for the update to SAS." "$(q 'd["greeting"]')"
 check "carried-over reminder is replaced" "One finding from the last review is still open; it is listed in the full review." "$(q 'd["reminder"]')"
 
-echo "Test 11: the flag works before or after the positionals; a dismissed item is not still open"
+echo "Test 11: the flag works before or after the positionals; a dismissal last time changes nothing"
 mkbase accept 0
 python3 "$PREP" "$TMP/f.json" "$TMP/m.json" "$CHECKS" "$TMP/fb-trail.json" --baseline "$TMP/base.json" > "$TMP/out" 2>&1
 check "trailing flag: exit 0" "0" "$?"
@@ -225,7 +225,7 @@ d = json.load(open(p)); d["findings"][0]["dismissed"] = True
 json.dump(d, open(p, "w"))
 PYEOF2
 prepb >/dev/null
-check "dismissed last time: A is not still_open" "False" "$(q '[i for i in items if "form.yml:missing-pattern" in i["defect_keys"]][0]["still_open"]')"
+check "dismissed last time: A is still_open like B (no dismissal shows in the feedback)" "True" "$(q '[i for i in items if "form.yml:missing-pattern" in i["defect_keys"]][0]["still_open"]')"
 check "dismissed last time: A stays an item" "1" "$(q 'sum("form.yml:missing-pattern" in i["defect_keys"] for i in items)')"
 check "dismissed last time: B is still_open" "True" "$(q '[i for i in items if "b.sh:unsanitized-user-input" in i["defect_keys"]][0]["still_open"]')"
 

@@ -123,12 +123,12 @@ def fold_targets(fix_items):
 
 
 def is_still_open(group_findings, states, baseline):
-    """Every finding was open in the last review, its app was a resubmission,
-    and the reviewer had not dismissed it (a dismissal means it was never
-    asked of the contributor, so "still open from the last review" misleads)."""
+    """Every finding was open in the last review and its app was a
+    resubmission. A reviewer's dismissal last time is deliberately not
+    consulted: anything it changed here would show in the uploaded feedback,
+    so the hub shows dismissals from its own data instead."""
     return all(
         states.get(review_baseline.stable_id(f)) == "still_open"
-        and not review_baseline.dismissed_last_time(f, baseline)
         and review_baseline.kind_for(f.get("app_id"), baseline) == "resubmission"
         for f in group_findings
     )

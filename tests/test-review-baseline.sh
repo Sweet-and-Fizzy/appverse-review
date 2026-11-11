@@ -44,7 +44,9 @@ bad "bad sha" '{"sha":"xyz","sent_at":1,"recommendation":"accept","apps":{}}'
 bad "non-integer sent_at" '{"sha":"abc1234","sent_at":"1","recommendation":"accept","apps":{}}'
 bad "bad app decision" '{"sha":"abc1234","sent_at":1,"recommendation":"accept","apps":{"a":"nope"}}'
 bad "finding result PASS" "$(valid abc1234 ",\"findings\":[${FINDING/FAIL/PASS}]")"
-bad "finding dismissed not bool" "$(valid abc1234 ",\"findings\":[${FINDING/false/\"no\"}]")"
+bad "sent_at before 1970" '{"sha":"abc1234","sent_at":-1,"recommendation":"accept","apps":{}}'
+bad "sent_at past year 9999" '{"sha":"abc1234","sent_at":100000000000000000000,"recommendation":"accept","apps":{}}'
+bad "deeply nested JSON" "$(python3 -c 'print("[" * 100000)')"
 bad "recommendation is a list" '{"sha":"abc1234","sent_at":1,"recommendation":["x"],"apps":{}}'
 bad "app decision is an object" '{"sha":"abc1234","sent_at":1,"recommendation":"accept","apps":{"a":{}}}'
 bad "findings not a list" "$(valid abc1234 ',"findings":{}')"
@@ -102,10 +104,9 @@ PYEOF
 t8() { py "exec(open('$TMP/t8.py').read())
 $1"; }
 check "statuses" "still_open still_open new 3" "$(t8 "s=b.statuses(cur, base()); print(s[b.stable_id(A)], s[b.stable_id(B)], s[b.stable_id(E)], len(s))")"
-check "not_found skips dismissed" "['d']" "$(t8 "print(ids(b.not_found(cur, base())))")"
+check "not_found includes a finding dismissed last time" "['c', 'd']" "$(t8 "print(ids(b.not_found(cur, base())))")"
 check "reviewer_only" "True False False" "$(t8 "bl=base(); print(*[b.reviewer_only(f, bl) for f in (A, B, E)])")"
-check "dismissed_last_time false when not dismissed" "False" "$(t8 "print(b.dismissed_last_time(A, base()))")"
-check "dismissed_last_time true" "True" "$(t8 "bl=base(); bl['findings'][0]['dismissed']=True; print(b.dismissed_last_time(A, bl))")"
+check "a baseline dismissal changes nothing" "same" "$(t8 "bl=base(); [f.update(dismissed=not f.get('dismissed')) for f in bl['findings']]; same=(b.statuses(cur,bl)==b.statuses(cur,base()) and ids(b.not_found(cur,bl))==ids(b.not_found(cur,base())) and [b.reviewer_only(f,bl) for f in cur]==[b.reviewer_only(f,base()) for f in cur]); print('same' if same else 'differ')")"
 check "feedback keeps B and E" "['b', 'e']" "$(t8 "print(ids(b.feedback_findings(cur, base())))")"
 check "reminder one" "One finding from the last review is still open; it is listed in the full review." "$(t8 "print(b.reminder(cur, base()))")"
 check "reminder many" "2 findings from the last review are still open; they are listed in the full review." \
@@ -123,7 +124,6 @@ check "greeting same commit" "" "$(t8 "bl=base(); bl['same_commit']=True; print(
 check "no baseline: feedback is plain fix-items" "['a', 'b', 'e']" "$(t8 "print(ids(b.feedback_findings(cur, None)))")"
 check "PASS row sharing a key: reviewer_only false" "False" "$(t8 "print(b.reviewer_only(dict(A, result='PASS'), base()))")"
 check "PASS row sharing a key: no reminder" "" "$(t8 "print(b.reminder([dict(A, result='PASS')], base()))")"
-check "PASS row sharing a dismissed key: not dismissed" "False" "$(t8 "bl=base(); bl['findings'][0]['dismissed']=True; print(b.dismissed_last_time(dict(A, result='PASS'), bl))")"
 printf '{"sha":"abc' > "$TMP/trunc.json"; echo '[]' > "$TMP/arr.json"
 check "truncated file: one warning" "1" "$(py "b.load('$TMP/trunc.json')" | grep -c '^warning: baseline .* treated as none$')"
 check "truncated file: plain feedback" "True" "$(t8 "print(b.feedback_findings(cur, b.load('$TMP/trunc.json')) == [f for f in cur if f is not PASS])" | tail -1)"

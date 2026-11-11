@@ -60,9 +60,11 @@ def _finding_problem(i, f):
         return "findings[{}].rule is not a string or null".format(i)
     if f.get("result") not in ("FAIL", "WARN"):
         return "findings[{}].result is not FAIL or WARN".format(i)
-    if not isinstance(f.get("dismissed"), bool):
-        return "findings[{}].dismissed is not a boolean".format(i)
     return None
+
+
+# The last second of year 9999, the largest a datetime can format.
+MAX_SENT_AT = 253402300799
 
 
 def _problem(doc):
@@ -73,6 +75,8 @@ def _problem(doc):
         return "sha is not 7-40 hex characters"
     if not isinstance(doc.get("sent_at"), int) or isinstance(doc["sent_at"], bool):
         return "sent_at is not an integer"
+    if not 0 <= doc["sent_at"] <= MAX_SENT_AT:
+        return "sent_at is not a unix time between 1970 and 9999"
     if not _is_decision(doc.get("recommendation")):
         return "recommendation is not a decision"
     apps = doc.get("apps")
@@ -96,7 +100,7 @@ def validate(raw, target_sha):
         return None, None
     try:
         doc = json.loads(raw)
-    except ValueError as e:
+    except (ValueError, RecursionError) as e:
         return None, "not valid JSON ({})".format(e)
     problem = _problem(doc)
     if problem:
@@ -132,7 +136,7 @@ def load(path):
         if problem:
             raise ValueError(problem)
         return doc
-    except (OSError, ValueError) as e:
+    except (OSError, ValueError, RecursionError) as e:
         print(
             "warning: baseline {} unreadable ({}); treated as none".format(path, e),
             file=sys.stderr,
@@ -183,20 +187,13 @@ def statuses(findings, baseline):
 
 
 def not_found(findings, baseline):
-    """Baseline findings no longer present, in baseline order; dismissed ones
-    are left out because the reviewer already dismissed them."""
+    """Baseline findings no longer present, in baseline order."""
     if not baseline or not baseline.get("comparable"):
         return []
     current = _open_ids(findings)
     return [
-        f for f in baseline["findings"] if f["id"] not in current and not f["dismissed"]
+        f for f in baseline["findings"] if f["id"] not in current
     ]
-
-
-def dismissed_last_time(finding, baseline):
-    """The finding is still open and the reviewer dismissed it last time."""
-    entry = _baseline_entries(baseline).get(stable_id(finding))
-    return _is_open(finding) and bool(entry and entry["dismissed"])
 
 
 def reviewer_only(finding, baseline):

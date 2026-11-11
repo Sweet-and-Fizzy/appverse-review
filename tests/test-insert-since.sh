@@ -9,6 +9,7 @@ check() { local name="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then echo "  PASS  $name"; pass=$((pass+1)); else echo "  FAIL  $name: expected '$expected', got '$actual'"; fail=$((fail+1)); fi; }
 
 # Baseline: A (still open, WARN, dismissed), B (still open, FAIL), C (dismissed, absent now),
+# with dismissals the workflow must ignore,
 # F then D (absent now, non-alphabetical; D's key also appears in a current PASS row).
 # Current, in a different order from the baseline: B (empty summary), A (new summary), G and E (new, G first), PASS row on D's key.
 python3 - "$TMP" <<'PYEOF'
@@ -45,10 +46,10 @@ check "exit 0" "0" "$(run "$TMP/base.json")"
 check "heading" "1" "$(grep -cxF '## Since the last review (sent 2023-11-14, commit abc1234)' "$TMP/r.md")"
 check "New count" "1" "$(grep -cxF '**New** (2)' "$TMP/r.md")"
 check "Still open count" "1" "$(grep -cxF '**Still open** (2)' "$TMP/r.md")"
-check "Not found count" "1" "$(grep -cxF '**Not found this time** (2)' "$TMP/r.md")"
+check "Not found count" "1" "$(grep -cxF '**Not found this time** (3)' "$TMP/r.md")"
 check "null rule prints a dash" "1" "$(grep -cxF -- '- — `d`' "$TMP/r.md")"
 check "no dismissal mark in the published section" "0" "$(grep -c 'dismissed last time' "$TMP/r.md")"
-check "dismissed absent finding left out" "0" "$(grep -c '`c`' "$TMP/r.md")"
+check "a finding dismissed last time is listed like any other" "1" "$(grep -c '`c`' "$TMP/r.md")"
 check "PASS row on a baseline key is not listed as current" "1" "$(grep -c '`d`' "$TMP/r.md")"
 check "note" "1" "$(grep -c '^_Not found this time means this run did not record the finding' "$TMP/r.md")"
 check "directly above Overall recommendation" "## Overall recommendation" "$(grep -A2 -F '_Not found this time means' "$TMP/r.md" | tail -1)"
@@ -66,7 +67,8 @@ EXPECTED='## Since the last review (sent 2023-11-14, commit abc1234)
 - OODT-01 `b`
 - QUA-07 `a` — A now
 
-**Not found this time** (2)
+**Not found this time** (3)
+- QUA-02 `c`
 - QUA-05 `f`
 - — `d`
 
@@ -82,12 +84,25 @@ EXPECTED0='## Since the last review (sent 2023-11-14, commit abc1234)
 - OODT-01 `b` — B before
 - QUA-07 `a` — A before
 
-**Not found this time** (2)
+**Not found this time** (3)
+- QUA-02 `c`
 - QUA-05 `f`
 - — `d`
 
 _Not found this time means this run did not record the finding: it may have been fixed, or the review may have varied._'
 check "empty group is its label and (0)" "$EXPECTED0" "$(section "$TMP/r0.md")"
+
+echo "Test 1c: a baseline sent_at no datetime can format is ignored, not a crash"
+python3 - "$TMP" <<'PYEOF'
+import json, sys
+d = json.load(open(sys.argv[1] + "/base.json")); d["sent_at"] = 10**20
+json.dump(d, open(sys.argv[1] + "/huge.json", "w"))
+PYEOF
+printf '%s' "$REPORT" > "$TMP/rh.md"
+python3 "$INS" "$TMP/rh.md" "$TMP/findings.json" --baseline "$TMP/huge.json" >/dev/null 2>"$TMP/huge.err"
+check "huge sent_at: exit 0" "0" "$?"
+check "huge sent_at: no section" "0" "$(grep -c '^## Since the last review' "$TMP/rh.md")"
+check "huge sent_at: warning, not a traceback" "1 0" "$(grep -c 'treated as none' "$TMP/huge.err") $(grep -c Traceback "$TMP/huge.err")"
 
 echo "Test 2: a second run replaces the section"
 python3 "$INS" "$TMP/r.md" "$TMP/findings.json" --baseline "$TMP/base.json" >/dev/null

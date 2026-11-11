@@ -984,7 +984,7 @@ check "case22: block" "r1 def4567 1790812800 update False True" "$(echo "$A22" |
 check "case22: statuses on A, B, E" "['still_open', 'still_open', 'new']" "$(echo "$A22" | jget "[f.get('since_last_review') for f in d['apps'][0]['findings'][:3]]")"
 check "case22: PASS row has no key" "False" "$(echo "$A22" | jget "'since_last_review' in d['apps'][0]['findings'][3]")"
 check "case22: a dismissal is reviewer data, never published (B was dismissed)" "[False, False, False, False]" "$(echo "$A22" | jget "['dismissed_last_time' in f for f in d['apps'][0]['findings']]")"
-check "case22: not_found holds D only" "[{'id': '$D_ID', 'app_id': 'root', 'rule': 'QUA-03', 'defect_key': 'd.sh:d'}]" "$(echo "$A22" | jget "d['since_last_review']['not_found']")"
+check "case22: not_found holds C and D (a dismissal last time does not hide C)" "['c.sh:c', 'd.sh:d']" "$(echo "$A22" | jget "[x['defect_key'] for x in d['since_last_review']['not_found']]")"
 A22B=$(python3 "$ASSEMBLE" --meta "$TMP/meta22.json" --findings "$TMP/findings22.json" --md r.md --baseline "$TMP/base22-nc.json" --plugin-version 0.3.0 2>"$TMP/err22b")
 check "case22: not comparable block" "False []" "$(echo "$A22B" | jget "str(d['since_last_review']['comparable']) + ' ' + str(d['since_last_review']['not_found'])")"
 check "case22: not comparable, no per-finding key" "True" "$(echo "$A22B" | jget "all('since_last_review' not in f and 'dismissed_last_time' not in f for f in d['apps'][0]['findings'])")"

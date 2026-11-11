@@ -111,7 +111,7 @@ def main(argv):
             if not isinstance(findings, list):
                 raise ValueError("not a JSON list")
             new_section = section([f for f in findings if isinstance(f, dict)], baseline)
-        except (OSError, ValueError) as e:
+        except (OSError, ValueError, RecursionError) as e:
             print("warning: findings %s unreadable (%s); no section written" % (findings_path, e), file=sys.stderr)
             comparable = False
     new = place(text, new_section)
