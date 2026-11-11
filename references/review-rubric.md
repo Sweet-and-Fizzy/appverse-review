@@ -51,8 +51,12 @@ evidence, and one of four results:
 - **PASS:** the check ran and found nothing.
 - **NOT CHECKED:** the check could not run.
 
-On a gate, WARN and NOT CHECKED are not passes. The reviewer checks that
-gate by hand, from the cited evidence, before deciding.
+On a gate, WARN is not a failure. It marks an advisory problem, such as a
+missing `role` field or an implementation tag the catalog does not list,
+rated on the severity scale like any other finding, and the app can still
+be accepted. NOT CHECKED is not a pass: the check could not run, so the
+reviewer checks that gate by hand, from the cited evidence, before
+accepting the app.
 
 ### Terms
 
@@ -106,9 +110,10 @@ overall recommendation is the strictest of the per-app decisions.
 ## Structure (gate criteria)
 
 Every row below is a gate. A FAIL on any of them means at least Request
-changes, and the feedback lists it as something to fix. Where the tool
-could not confirm a row, the reviewer checks it by hand. Other structure
-notes the review adds are not gates.
+changes, and the feedback lists it as something to fix. A WARN is advisory
+and is a fix-item when rated Low or above. Where the check could not run,
+the reviewer checks the row by hand. Other structure notes the review adds
+are not gates.
 
 ### Repository structure
 
