@@ -121,7 +121,9 @@ def main(argv):
             with open(tmp, "w", encoding="utf-8") as f:
                 f.write(new)
             os.replace(tmp, report)
-        except OSError as e:
+        except (OSError, UnicodeEncodeError) as e:
+            if os.path.exists(tmp):
+                os.remove(tmp)
             print("error: %s" % e)
             return 2
     print("insert-since: %s" % ("Since the last review section written" if comparable

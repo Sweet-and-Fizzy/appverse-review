@@ -13,6 +13,14 @@ to out.json and prints the repo's kind, `kind: plain|update|resubmission`,
 followed by `, same commit` when the baseline was sent for this commit. A
 malformed input is ignored with a `::warning::` line. Always exits 0: a bad
 baseline must never fail the review.
+
+The document carries `review`, `sha`, `sent_at`, `recommendation`, `apps`
+and, to compare findings, `findings` (each `id`, `app_id`, `rule`,
+`defect_key`, `result`, `severity`). Other fields are dropped before the
+file is written. `findings` must hold every FAIL and WARN finding of the
+sent review, dismissed or not: leaving out the dismissed ones would mark a
+recurring dismissed finding `new` in the uploaded artifact, which reveals
+the dismissal.
 """
 
 import hashlib
@@ -50,13 +58,31 @@ def _is_decision(value):
     return isinstance(value, str) and value in DECISION_KIND
 
 
+def _text(value):
+    """A string that can be written as UTF-8 (a lone surrogate cannot)."""
+    if not isinstance(value, str):
+        return False
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
+# The only fields kept from the hub's document. Anything else it sends, such
+# as a reviewer's dismissals, is dropped before the baseline is written, so it
+# cannot reach a file the run uploads.
+DOC_FIELDS = ("review", "sha", "sent_at", "recommendation", "apps", "findings")
+FINDING_FIELDS = ("id", "app_id", "rule", "defect_key", "result", "severity")
+
+
 def _finding_problem(i, f):
     if not isinstance(f, dict):
         return "findings[{}] is not an object".format(i)
     for field in ("id", "app_id", "defect_key", "severity"):
-        if not isinstance(f.get(field), str):
+        if not _text(f.get(field)):
             return "findings[{}].{} is not a string".format(i, field)
-    if "rule" not in f or not (f["rule"] is None or isinstance(f["rule"], str)):
+    if "rule" not in f or not (f["rule"] is None or _text(f["rule"])):
         return "findings[{}].rule is not a string or null".format(i)
     if f.get("result") not in ("FAIL", "WARN"):
         return "findings[{}].result is not FAIL or WARN".format(i)
@@ -70,6 +96,9 @@ MAX_SENT_AT = 253402300799
 def _problem(doc):
     if not isinstance(doc, dict):
         return "not a JSON object"
+    review = doc.get("review")
+    if not (review is None or _text(review) or (isinstance(review, int) and not isinstance(review, bool))):
+        return "review is not a string, an integer or null"
     sha = doc.get("sha")
     if not isinstance(sha, str) or not _SHA.fullmatch(sha):
         return "sha is not 7-40 hex characters"
@@ -81,7 +110,7 @@ def _problem(doc):
         return "recommendation is not a decision"
     apps = doc.get("apps")
     if not isinstance(apps, dict) or any(
-        not isinstance(k, str) or not _is_decision(v) for k, v in apps.items()
+        not _text(k) or not _is_decision(v) for k, v in apps.items()
     ):
         return "apps is not an object mapping app ids to decisions"
     if "findings" in doc:
@@ -105,6 +134,9 @@ def validate(raw, target_sha):
     problem = _problem(doc)
     if problem:
         return None, problem
+    doc = {k: doc[k] for k in DOC_FIELDS if k in doc}
+    if "findings" in doc:
+        doc["findings"] = [{k: f[k] for k in FINDING_FIELDS if k in f} for f in doc["findings"]]
     a, b = target_sha.lower(), doc["sha"].lower()
     # An empty target would be a prefix of everything.
     doc["same_commit"] = len(a) >= 7 and (a.startswith(b) or b.startswith(a))

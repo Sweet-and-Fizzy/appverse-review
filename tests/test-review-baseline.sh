@@ -46,7 +46,22 @@ bad "bad app decision" '{"sha":"abc1234","sent_at":1,"recommendation":"accept","
 bad "finding result PASS" "$(valid abc1234 ",\"findings\":[${FINDING/FAIL/PASS}]")"
 bad "sent_at before 1970" '{"sha":"abc1234","sent_at":-1,"recommendation":"accept","apps":{}}'
 bad "sent_at past year 9999" '{"sha":"abc1234","sent_at":100000000000000000000,"recommendation":"accept","apps":{}}'
-bad "deeply nested JSON" "$(python3 -c 'print("[" * 100000)')"
+bad "unbalanced deep nesting" "$(python3 -c 'print("[" * 100000)')"
+bad "lone surrogate in a defect_key" "$(valid abc1234 ',"findings":[{"id":"i","app_id":"root","rule":"QUA-02","defect_key":"\ud800bad","result":"FAIL","severity":"high"}]')"
+bad "review is a list" "$(valid abc1234 ',"review":["x"]')"
+check "integer review id is kept" "12345" "$(RAW="$(valid abc1234 ',"review":12345')" py "print(b.validate(raw,'abc1234')[0]['review'])")"
+
+echo "Test 4b: only known fields reach the written baseline"
+EXTRA="$(valid abc1234 ',"notes":"internal","findings":[{"id":"i","app_id":"root","rule":"QUA-02","defect_key":"a:b","result":"FAIL","severity":"high","dismissed":true,"reviewer_note":"x"}]')"
+BASELINE_INPUT="$EXTRA" python3 "$MOD" write "$TMP/extra.json" abc1234 >/dev/null
+check "dismissed, notes and reviewer_note are dropped" "0" "$(grep -c -E 'dismissed|notes|reviewer_note' "$TMP/extra.json")"
+check "known finding fields are kept" "a:b FAIL" "$(python3 -c "import json;f=json.load(open('$TMP/extra.json'))['findings'][0];print(f['defect_key'], f['result'])")"
+# Balanced deep nesting in a field the module does not keep: loads either refuses it
+# (some Python versions) or accepts it, and then the field is dropped. Never a crash.
+NEST="$(python3 -c 'n=5000; print("{\"sha\":\"abc1234\",\"sent_at\":1,\"recommendation\":\"accept\",\"apps\":{},\"deep\":" + "["*n + "]"*n + "}")')"
+BASELINE_INPUT="$NEST" python3 "$MOD" write "$TMP/nest.json" abc1234 >"$TMP/nest.out" 2>"$TMP/nest.err"
+check "deep nesting: exit 0, no traceback" "0 0" "$? $(grep -c Traceback "$TMP/nest.err")"
+check "deep nesting: field not written" "0" "$(cat "$TMP/nest.json" 2>/dev/null | grep -c deep)"
 bad "recommendation is a list" '{"sha":"abc1234","sent_at":1,"recommendation":["x"],"apps":{}}'
 bad "app decision is an object" '{"sha":"abc1234","sent_at":1,"recommendation":"accept","apps":{"a":{}}}'
 bad "findings not a list" "$(valid abc1234 ',"findings":{}')"
