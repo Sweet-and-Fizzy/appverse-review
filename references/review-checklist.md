@@ -189,9 +189,10 @@ you" says which ones. As you go, check that:
 
 1. Required files and metadata are as the gates state: `appverse.yml` or
    `manifest.yml`, `README.md`, a license file, and the standard OOD layout. A gate
-   that warned or was not checked has not passed. Confirm it from the cited
-   evidence, record what you found in an internal note, and add a finding if
-   the gate fails.
+   that was not checked has not passed. Confirm it from the cited evidence,
+   record what you found in an internal note, and add a finding if the gate
+   fails. A gate that warned has not failed. Check the warning like any other
+   finding.
 2. Each security finding is real and correctly classified. The tool checks
    that each cited line exists. It does not check that the line shows the
    problem, so you have to.

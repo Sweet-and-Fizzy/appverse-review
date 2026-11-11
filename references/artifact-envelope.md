@@ -236,7 +236,7 @@ stderr and still assemble.
   `template_syntax` (1.4) is the "template scripts are syntactically correct"
   gate, from STR-05 (ERB balance) and STR-06 (`bash -n`) rows; it is present
   only when the app has such rows, so an app with no templates has none. Values follow the record's result: FAIL → fail,
-  WARN → warn (the tool could not confirm the gate; the reviewer settles it),
+  WARN → warn (an advisory problem; the gate has not failed),
   NOT CHECKED → not_checked, PASS → pass. The worst result wins when several
   records map to one criterion.
 - **`repo_level.criteria.not_archived`** and **`repo_level.criteria.public`**
