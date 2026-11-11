@@ -225,6 +225,16 @@ stderr and still assemble.
   the vocabulary terms it most likely meant, a list that may be empty), `implementation_tags` (`declared`, `known`,
   `unknown`, `note`), and `same_software_apps` (each published app with the
   same Software entry: `title`, `github_url`, `subpath`, `this_repo`).
+  Since 1.7, a `software` whose status is not `match` may carry
+  `suggested`: `{value, source, entry}`, the Software entry whose title the
+  app names as whole words, ignoring case, with `value` the text as
+  written. `source` is where, read in this order: `app_path` (a monorepo
+  app's folder name), `repo_name` (a single-app repo's repository name),
+  `manifest` (the app's `manifest.yml` name), `readme` (the title of the
+  app's own README; a monorepo app never reads the root README).
+  `suggested_same_software_apps` lists the published apps with that entry,
+  in the `same_software_apps` shape, and is empty when there is no
+  suggestion. `same_software_apps` stays a declared match only.
   **`repo_level.catalog`** is where it was read from: `source`, `counts`
   (`software`, `app_types`, `implementation_tags`, `apps`) and `this_repo`.
   Both are absent when the catalog was not read; the report's Catalog checks
@@ -354,3 +364,4 @@ tolerate a missing indicator key (see Indicators), so 1.2's removal of
 | 1.4 | Adds the optional `apps[].criteria.template_syntax`, from STR-05 and STR-06 rows. Before 1.4 an STR-06 result counted under `structure`, so a shell syntax error read as a layout failure. |
 | 1.5 | Adds the optional `apps[].catalog` and `repo_level.catalog`: the pre-review's catalog comparison, so a consumer can show each check's status rather than parse the report's Catalog checks prose. |
 | 1.6 | Adds the optional finding field `path_class` (`outside_install` for findings whose every mentioned path, relative to the app's folder, is in a demo, docs, example or test directory), and `closest` (a list) on an `unknown` `apps[].catalog.app_type`. Both are additive; findings are not filtered. |
+| 1.7 | Adds the optional `suggested` on a non-`match` `apps[].catalog.software` and `apps[].catalog.suggested_same_software_apps`: the Software entry the app's folder or repository name, manifest name or README title names, for repos that do not declare one. Additive; `same_software_apps` is unchanged. |

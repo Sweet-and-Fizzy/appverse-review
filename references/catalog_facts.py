@@ -1,6 +1,8 @@
 """Catalog facts for the pre-review step: read the Appverse catalog's public
 JSON:API, compare each app's declared software, app_type and
-implementation_tags with it, and render the report's Catalog checks block.
+implementation_tags with it, suggest a Software entry from the app's names
+and README when the declared software does not match one, and render the
+report's Catalog checks block.
 
 Used by pre-review.py (check_catalog). Standard library only.
 
@@ -247,9 +249,106 @@ def closest_app_types(value, app_types):
     return [t for d, t in dist if d == best] if best is not None and best <= 3 else []
 
 
-def compare(cat, decl, this_repo):
+MAX_TITLE_LINES = 200  # lines of a README searched for its title
+MAX_TITLE = 300  # characters of a title line read
+# The order an app's names are read for a suggestion; the first with a hit wins.
+SUGGEST_SOURCES = ("app_path", "repo_name", "manifest", "readme")
+SUGGEST_LABELS = {"app_path": "app's folder name", "repo_name": "repository name",
+                  "manifest": "`manifest.yml` name", "readme": "README title"}
+SETEXT_H1 = re.compile(r" {0,3}=+[ \t]*")
+
+
+def strip_markup(line):
+    """One title line without the places a title is named in passing:
+    images and badges, link targets, HTML and comments, bare URLs and code
+    spans. Link text stays. Capped at MAX_TITLE characters first, so every
+    pattern runs on a short string."""
+    line = line[:MAX_TITLE]
+    line = re.sub(r"<!--.*?-->|<[^<>]*>", " ", line)
+    line = re.sub(r"!\[[^\[\]]*\]\([^()]*\)", " ", line)
+    line = re.sub(r"\[([^\[\]]*)\]\([^()]*\)", r"\1", line)
+    line = re.sub(r"(`+).*?\1|https?://\S+", " ", line)
+    return line
+
+
+def readme_title(text):
+    """A README's title: its first level-1 heading (ATX "# " or setext
+    "==="), outside code fences and HTML comments, within the first
+    MAX_TITLE_LINES lines, after strip_markup; None when it has none. The
+    body is not read: against the published apps it named the wrong entry
+    more often than the right one (a cluster called Grace, "visit" for
+    VisIt), while titles and names rarely did. Line by line, so a hostile
+    README costs no more than its first lines."""
+    fence, comment, prev = None, False, None
+    for line in text.splitlines()[:MAX_TITLE_LINES]:
+        bare = line.strip()
+        if comment:
+            comment = "-->" not in bare
+            prev = None
+            continue
+        if fence:
+            fence = None if bare.startswith(fence) else fence
+            continue
+        if bare.startswith(("```", "~~~")):
+            fence, prev = bare[:3], None
+            continue
+        if bare.startswith("<!--") and "-->" not in bare:
+            comment, prev = True, None
+            continue
+        indent = len(line) - len(line.lstrip(" "))
+        if indent <= 3 and (bare == "#" or bare.startswith(("# ", "#\t"))):
+            return strip_markup(bare[1:].strip().rstrip("#").strip()) or None
+        if prev is not None and SETEXT_H1.fullmatch(line[:MAX_TITLE]):
+            return strip_markup(prev.strip()) or None
+        prev = line if bare and indent <= 3 and not bare.startswith("#") else None
+    return None
+
+
+def first_title(text, titles):
+    """(title, text as written) for the catalog title named first in text,
+    as whole words, ignoring case; None if none is. Underscores count as
+    word breaks, so a name like bc_osc_rstudio_server names RStudio. At one
+    place the longest title wins ("Jupyter Notebook" over "Jupyter")."""
+    if not text or not titles:
+        return None
+    by_key = {}
+    for t in sorted(titles, key=lambda t: (-len(t), t)):
+        by_key.setdefault(t.lower(), t)
+    rx = re.compile(r"(?<![^\W_])(%s)(?![^\W_])" % "|".join(re.escape(k) for k in by_key), re.I)
+    m = rx.search(text)
+    return (by_key[m.group(1).lower()], m.group(1)) if m else None
+
+
+def suggest_software(cat, sources):
+    """The Software entry an app most likely implements, for an app whose
+    software status is not match: {value, source, entry}, or None. sources
+    maps a SUGGEST_SOURCES key to its text; they are read in that order and
+    the first with a hit wins. Of the README only its title is read
+    (readme_title). value is the text as written. A suggestion only: same_software_apps stays a declared
+    match, and the reviewer decides."""
+    titles = [s["title"] for s in cat["software"] if s.get("title")]
+    for source in SUGGEST_SOURCES:
+        text = (sources or {}).get(source)
+        if not isinstance(text, str) or not text.strip():
+            continue
+        hit = first_title(readme_title(text) if source == "readme" else text, titles)
+        if hit:
+            return {"value": hit[1], "source": source, "entry": hit[0]}
+    return None
+
+
+def _apps_for(cat, entry, this_repo):
+    sw_id = next((s["id"] for s in cat["software"] if s.get("title") == entry), None) if entry else None
+    return [{"title": a["title"], "github_url": a.get("github_url"), "subpath": a.get("subpath"),
+             "this_repo": bool(this_repo) and repo_key(a.get("github_url")) == this_repo}
+            for a in cat["apps"] if sw_id and a.get("software_id") == sw_id]
+
+
+def compare(cat, decl, this_repo, sources=None):
     """The checks for one app against the catalog. this_repo is the reviewed
-    repo's owner/repo (or None), used to mark its own published apps."""
+    repo's owner/repo (or None), used to mark its own published apps. For an
+    app whose software is not a match, sources (suggest_software) give
+    software.suggested and suggested_same_software_apps."""
     sw_by_name = {s["title"].lower(): s for s in cat["software"] if s.get("title")}
     types = {t.lower() for t in cat["app_types"]}
     tags = {t.lower() for t in cat["implementation_tags"]}
@@ -279,12 +378,11 @@ def compare(cat, decl, this_repo):
         "known": [t for t in decl["implementation_tags"] if t.lower() in tags],
         "unknown": [t for t in decl["implementation_tags"] if t.lower() not in tags],
         "note": decl.get("tags_note")}
-    sw_entry = res["software"].get("entry")
-    sw_id = next((s["id"] for s in cat["software"] if s.get("title") == sw_entry), None) if sw_entry else None
-    res["same_software_apps"] = [
-        {"title": a["title"], "github_url": a.get("github_url"), "subpath": a.get("subpath"),
-         "this_repo": bool(this_repo) and repo_key(a.get("github_url")) == this_repo}
-        for a in cat["apps"] if sw_id and a.get("software_id") == sw_id]
+    res["same_software_apps"] = _apps_for(cat, res["software"].get("entry"), this_repo)
+    suggested = suggest_software(cat, sources) if res["software"]["status"] != "match" else None
+    if suggested:
+        res["software"]["suggested"] = suggested
+    res["suggested_same_software_apps"] = _apps_for(cat, suggested["entry"], this_repo) if suggested else []
     return res
 
 
@@ -336,6 +434,11 @@ def render(cat, per_app, monorepo):
             dup = "no `software` value is declared, so no catalog app can be matched by software."
         else:
             dup = "the `software` value has no catalog entry, so no catalog app can be matched by software."
+        if sw.get("suggested"):
+            sug = sw["suggested"]
+            dup += " The %s suggests the Software entry %s (not a declared match): %s" % (
+                SUGGEST_LABELS.get(sug["source"], sug["source"]), code_span(sug["entry"]),
+                _same_software(sug["entry"], res.get("suggested_same_software_apps") or []))
         lines.append("- %sDuplicate check — %s" % (prefix, dup[0].upper() + dup[1:]))
         lines.append(PLACEHOLDER)
         if sw["status"] == "match":
