@@ -22,7 +22,7 @@ Usage:
 
 If --findings is omitted, the artifact is emitted with empty findings arrays.
 With --baseline (the file review_baseline.py wrote), the artifact also carries
-the comparison with the last review sent to the contributor (schema 1.7).
+the comparison with the last review sent to the contributor (schema 1.8).
 If --plugin-version is omitted, it defaults to "unknown".
 """
 
@@ -39,7 +39,7 @@ from repo_paths import parse_citations, split_reviewed_ok  # noqa: E402
 import review_baseline  # noqa: E402
 
 
-SCHEMA_VERSION = "1.7"
+SCHEMA_VERSION = "1.8"
 
 SOLID = "solid"
 SOME_NOTES = "some_notes"
@@ -425,7 +425,7 @@ def attach_catalog(repo_level, apps, catalog):
 
 
 def attach_since_last_review(artifact, findings, baseline):
-    """Schema 1.7: how this review compares with the last one sent. Per-finding
+    """Schema 1.8: how this review compares with the last one sent. Per-finding
     keys appear only when the baseline carries findings to compare with; the
     block always says whether it did. Looked up by stable_id, as the hub does.
     A reviewer's dismissal is never written here: the artifact is public, and

@@ -376,7 +376,7 @@ EOF
 ART4=$(python3 "$ASSEMBLE" --meta "$TMP/meta-ind.json" --findings "$TMP/findings-ind.json" --md "r.md" --plugin-version "0.3.0" 2> "$TMP/warn4.txt")
 
 SCHEMA=$(echo "$ART4" | jget "d['schema_version']")
-check "schema_version is 1.7" "1.7" "$SCHEMA"
+check "schema_version is 1.8" "1.8" "$SCHEMA"
 
 NO_SEC=$(echo "$ART4" | jget "'security' in d['apps'][0]['indicators']")
 check "no security indicator (schema 1.2)" "False" "$NO_SEC"
@@ -842,7 +842,7 @@ check "case18: software status" "match" "$(echo "$A18" | jget "d['apps'][0]['cat
 check "case18: unknown tags" "['gpu']" "$(echo "$A18" | jget "d['apps'][0]['catalog']['implementation_tags']['unknown']")"
 check "case18: same-software apps" "1" "$(echo "$A18" | jget "len(d['apps'][0]['catalog']['same_software_apps'])")"
 check "case18: repo-level source and counts" "https://openondemand.connectci.org 107" "$(echo "$A18" | jget "d['repo_level']['catalog']['source'] + ' ' + str(d['repo_level']['catalog']['counts']['apps'])")"
-check "case18: schema 1.7" "1.7" "$(echo "$A18" | jget "d['schema_version']")"
+check "case18: schema 1.8" "1.8" "$(echo "$A18" | jget "d['schema_version']")"
 # A catalog that is missing, or that names no matching app, adds nothing.
 A18B=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result1.json" --md r.md --catalog "$TMP/nope.json" --plugin-version 0.3.0 2>"$TMP/err18b")
 check "case18b: missing catalog, no catalog keys" "False False" "$(echo "$A18B" | jget "str('catalog' in d['apps'][0]) + ' ' + str('catalog' in d['repo_level'])")"
@@ -943,7 +943,7 @@ A21B=$(python3 "$ASSEMBLE" --meta "$TMP/meta21.json" --md r.md --metadata "$TMP/
 check "case21b: unreadable metadata keeps meta's name" "rnaseq 3.25.0" "$(echo "$A21B" | jget "d['apps'][0]['name']")"
 check "case21b: unreadable metadata warns" "1" "$(grep -c 'could not load metadata' "$TMP/err21b")"
 
-# --- Test 22: the comparison with the last sent review (schema 1.7) ---
+# --- Test 22: the comparison with the last sent review (schema 1.8) ---
 echo ""
 echo "Test 22: since_last_review"
 cat > "$TMP/meta22.json" << 'EOF'
