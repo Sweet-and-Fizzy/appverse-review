@@ -16,9 +16,11 @@ This repo is also the canonical home of the Appverse
 - **Contributors** — check your own app repo before submitting and get a
   prioritized fix list.
 
-The skills recommend; a human always makes the final call. Two checks require
-catalog access and are always left to the human reviewer: the duplicate check
-and whether the `software` value matches a catalog entry.
+The skills recommend; a human always makes the final call. The review reads
+the catalog and reports whether each app's software, app type and tags are
+known and which published apps share its software. Deciding whether the app
+is a duplicate, and what to do when its software has no catalog entry, is
+left to the human reviewer.
 
 ## Prerequisites
 
@@ -95,8 +97,9 @@ does, runs unsafe-pattern checks, and classifies findings under the OODT (Open
 OnDemand Threat) taxonomy — narrow-baseline anomaly detection for Batch
 Connect apps, transparency profiling for Passenger apps. When static analysis
 tools are installed (shellcheck, bandit, semgrep, trivy), the pre-review step
-runs them before the review, and the security review folds their findings into
-the OODT-classified report as corroborating or additional evidence.
+runs them before the review, and the security review reports their findings
+beside its own: a threat under its OODT type, a hygiene problem (such as an
+unchecked `cd`) under its code-quality or structure rule.
 
 ## CI / GitHub Actions
 
@@ -107,11 +110,15 @@ artifacts.
 
 See [`.github/workflows/appverse-review.yaml`](.github/workflows/appverse-review.yaml)
 for the workflow definition. It supports:
-- `workflow_dispatch` with configurable inputs (target repo, branch, aspects, model)
+- `workflow_dispatch` with configurable inputs (target repo, branch, aspects, model).
+  The model defaults to Qwen on the on-prem gateway; Claude runs on the
+  Anthropic API or on a Claude subscription token, and repair sessions can
+  use a different model (`repair_model_id`)
+- One run at a time per target repo; a second dispatch waits
 - Dry-run mode for pipeline testing without API costs
 - PDF generation via pandoc + typst
 - Machine-readable `review-<slug>.artifact.json` for downstream integration —
-  the schema 1.2 envelope described in
+  the envelope described in
   [`references/artifact-envelope.md`](references/artifact-envelope.md), with
   stable finding IDs and per-app indicator levels
 - Post-review checks that fail the run when the report or findings don't hold
@@ -119,6 +126,8 @@ for the workflow definition. It supports:
   applicable manifest check, and every finding's evidence citation against the
   target repo (see [`references/artifact-envelope.md`](references/artifact-envelope.md)
   for the full script list)
+- A run fails if a review session changed the pre-review facts or the
+  target checkout, since the checkers trust both
 
 ## Checking the catalog by hand
 
@@ -175,11 +184,11 @@ references/
   appverse.yml           Cached schema reference (offline fallback)
   run-pre-review.sh / pre-review.py   Tools and syntax check before the model (summary.json, syntax.json, tool JSON)
   checks.yml / checks.json            Check manifest (checks.json is generated from checks.yml)
-  check-all.py           Runs every report checker in one pass (floor, keys, rating, rows, evidence, catalog, meta, decisions, sections)
+  check-all.py           Runs every report checker in one pass (its docstring lists them)
   insert-catalog.py      Writes the report's Catalog checks section from the pre-review catalog read
   stamp-meta.py          Writes the run's commit, ref, repo URL, shape and model into meta.json
   check-meta.py          Fails a meta.json without the recommendation, gate values or apps the artifact needs
-  check-decisions.py     Fails a decision below the floor its findings set: any gate FAIL, High/Critical security and upkeep (security applies repo-wide)
+  check-decisions.py     Fails a decision below the floor its findings set: any gate FAIL, High/Critical security (repo-wide), and a failed archived or public gate
   check-sections.py      Fails a report missing Upkeep, Review scope or a stated decision, or disagreeing with meta.json
   check-*.py             The report checkers check-all.py runs
   report_parse.py, repo_paths.py, readme_lines.py, row_candidates.py, metadata_facts.py   Shared code the checkers and pre-review import
