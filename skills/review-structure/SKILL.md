@@ -157,6 +157,12 @@ its own finding with the vocabulary tag that fits or `other:`.
 - Batch Connect apps have the standard layout: `form.yml` or `form.yml.erb`,
   `submit.yml.erb`, `template/`. OOD renders `form.yml.erb` at request time,
   so an app shipping only the `.erb` variant is complete.
+- An app that `apps.json` marks `dir_missing` (its declared path has no
+  directory) is an STR-07 FAIL, severity high, `defect_key`
+  `<app_id>:missing-entry-point`, the summary naming the declared path and,
+  when you can see it, the directory the contributor probably meant. No
+  other structure check applies to it. `check-rating.py` requires this
+  record, since it is the gate failure that floors the app.
 - Passenger / companion apps — substitute checks for Batch Connect structure.
   Detect by `manifest.yml` role (`passenger_app`) or by the presence of a
   recognized entry point (`config.ru` for Ruby/Rack, `passenger_wsgi.py` for
