@@ -35,7 +35,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from repo_paths import parse_citations, split_reviewed_ok  # noqa: E402
 
 
-SCHEMA_VERSION = "1.6"
+SCHEMA_VERSION = "1.7"
 
 SOLID = "solid"
 SOME_NOTES = "some_notes"

@@ -3312,9 +3312,33 @@ def check_license(target, out):
     return record("license", "ran", output_file="license.json", files_examined=len(names))
 
 
+def _suggest_sources(target, app, monorepo, this_repo):
+    """The names catalog_facts.suggest_software reads for one app. A
+    monorepo app reads only its own: its folder name, its manifest.yml name
+    and a README in its folder, never the root README, which describes every
+    app in the repo. A single-app repo reads its repository name instead of
+    a folder name."""
+    prefix = "" if app["path"] == "." else app["path"] + "/"
+    manifest = _load_file(target, os.path.join(app["_dir"], "manifest.yml"), prefix + "manifest.yml") or {}
+    sources = {"manifest": manifest.get("name") if isinstance(manifest.get("name"), str) else None}
+    if monorepo and app["path"] != ".":
+        sources["app_path"] = app["path"].rsplit("/", 1)[-1]
+    elif this_repo:
+        sources["repo_name"] = this_repo.split("/", 1)[1]
+    readme = app.get("readme")
+    if readme and (not monorepo or app["path"] == "." or readme.startswith(prefix)):
+        try:
+            sources["readme"] = _read_fact(target, os.path.join(target, readme), readme)
+        except (Refused, OSError):
+            pass
+    return sources
+
+
 def check_catalog(args, target, apps, out):
     """Read the catalog and compare each app's declared software, app_type and
-    implementation_tags with it (references/catalog_facts.py). Writes
+    implementation_tags with it (references/catalog_facts.py); an app whose
+    software is not a match gets a suggestion from its names and README
+    (_suggest_sources, catalog_facts.suggest_software). Writes
     catalog.json (the comparison per app) and catalog-checks.md (the report's
     Catalog checks block, which the orchestrator pastes). Skipped with
     --no-catalog; a catalog that cannot be read in full is failed_to_run, and
@@ -3355,7 +3379,7 @@ def check_catalog(args, target, apps, out):
         sub = _load_file(target, os.path.join(app["_dir"], "appverse.yml"),
                          app["path"] + "/appverse.yml") if monorepo else None
         decl = catalog_facts.declared_values(root_meta, entry, sub, shape)
-        res = catalog_facts.compare(cat, decl, this_repo)
+        res = catalog_facts.compare(cat, decl, this_repo, _suggest_sources(target, app, monorepo, this_repo))
         per_app.append((app["app_id"], res))
         facts.append({"app_id": app["app_id"], "declared": decl, "checks": res})
     _write_json(out, "catalog.json", {
