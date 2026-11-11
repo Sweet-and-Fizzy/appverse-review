@@ -3,7 +3,6 @@
 > **Related Docs:**
 > [Appverse Review Rubric](https://openondemand.connectci.org/appverse-review-rubric) |
 > [Appverse Contributor Guide](https://openondemand.connectci.org/appverse-contributor-documentation) |
-> [Appverse Best Practices](https://openondemand.connectci.org/appverse-best-practices) |
 > [Appverse README Template](https://github.com/tamu-edu/appverse_readme_template)
 
 This page takes you through a review, step by step. The criteria are in the
@@ -53,29 +52,33 @@ Repos awaiting review are on the
 [Manage Appverse Repos](https://openondemand.connectci.org/appverse/manage-repos)
 page. Each repo's card shows the contributor, where the repo is in review,
 and who is assigned. **Open review** takes you to the repo's newest review
-page. **Run AI report** starts an automated review of the repo's latest
-commit. Once a report exists, the button reads **Rerun report**.
+page. **Run automated check** starts an automated review of the repo's
+latest commit. Once a review exists, **Recheck** runs a new one. It is on
+the review page header, and in the card's **Actions** menu.
 
-A repo has one reviewer across all its rounds. Use **Assign to me** on the
-card, or pick a name in the Reviewer box on the review page. If nobody is
-assigned, saving the review assigns you.
+A repo has one reviewer across all its rounds. Pick yourself in the
+**Reviewer** menu on the card, or in the Reviewer box on the review page. If
+nobody is assigned, saving the review assigns you.
 
-You get an email when a repo is submitted or re-submitted. To stop these,
-turn off "Appverse review emails" on your account's edit page. Emails about
-your own reviews, such as an assignment, still come.
+When a repo with no reviewer is submitted, re-submitted or updated by a new
+release, every reviewer gets an email. Once a repo has a reviewer, only that
+reviewer does. To stop the emails about unassigned repos, turn off
+"Appverse review emails" on your account's edit page.
 
 The review page shows the commit the report was run on. If the repo has
-changed since then in a way that matters, click **Rerun report** before you
-write anything. A rerun starts a new review on the latest commit. The old
-review is marked superseded and can't be sent, and nothing you wrote on it
-carries over. Findings from an earlier round are context only. Check each
-finding against the current commit.
+changed since then in a way that matters, click **Recheck** before you
+write anything. A recheck reviews the latest commit as a new review. The
+old review is marked superseded and can't be sent, and nothing you wrote on
+it carries over. While the check runs, the header says so, and it shows
+**New report ready, open it** when the new review lands. Findings from an
+earlier round are context only. Check each finding against the current
+commit.
 
 ## Step 1: Gate the app
 
 Decide whether the app belongs in the catalog before you look at its
-quality. The report checks the public repo and the license for you, as gates
-in the Structure block.
+quality. The report checks the public repo and the license for you, as
+repo gates.
 
 | Question | If no |
 |----------|-------|
@@ -88,12 +91,12 @@ in the Structure block.
 A repo can hold several apps. Answer these questions once for the repo, then
 give each app its own decision.
 
-Each app's Structure block shows **Catalog checks**. They say whether the
-app's software, app type and implementation tags are in the catalog, and
-which published apps from other repos implement the same software. When
-the app type is not in the catalog's list, the check suggests the closest
-term. If a result looks wrong, or the page says the catalog was not read,
-check by hand (see the appendix).
+The report also checks each app against the catalog: whether its software,
+app type and implementation tags are known, and which published apps from
+other repos implement the same software. A problem shows up as a **Catalog
+checks** item in the app's list, and a match is under **Passed checks**. If a
+result looks wrong, or the report says the catalog was not read, check by
+hand (see the appendix).
 
 ### Software entry check
 
@@ -134,17 +137,23 @@ If the software already has apps in the catalog, compare this app with them:
 Choose Request changes instead of Reject when the contributor can make the
 app a meaningfully different approach.
 
-Each app's Structure block has a **Duplicate check**. Record one of its
+Each app has a **Duplicate check**, under its ratings. It compares the app
+with the published apps for the same software, using the Software entry
+assigned to the app, or failing that the `software` value. Record one of
 three outcomes for each app before you accept it: "No other app for this
 software", "Same software, a meaningfully different approach" or "Duplicate
 of an existing app". Give your reason. Name the apps you compared and say
-how this one differs or which one it copies. You can skip the reason only
-when you chose "No other app" and the app matched a Software entry. The
-outcome does not limit your decision. If you accept an app you marked as a
-duplicate, the page warns you but still lets you send.
+how this one differs or which one it copies.
 
-When the catalog shows no other app for this software, the page suggests
-that outcome. You still record it yourself.
+When the page found no other app for the software, it offers **Confirm**,
+which records "No other app" in one click. When there are apps to compare,
+or the page could not tell what the software is, the check is an item in
+the app's list instead, and you choose the outcome and give the reason. If
+the catalog changed after you opened the page, Confirm is refused and the
+page asks you to compare the apps it now lists.
+
+The outcome does not limit your decision. If you accept an app you marked
+as a duplicate, the page warns you but still lets you send.
 
 ## Step 2: Read the review page
 
@@ -153,18 +162,24 @@ run on. A banner appears when a newer review of the repo exists or the
 contributor withdrew the submission. The progress line below it shows which
 round this is, and findings new since the last round are marked **New**.
 
-Each app has five blocks: Structure, Security, Portability, Documentation
-and Code quality. Repo-wide findings and the Upkeep level are under
-Repository. Findings are grouped by severity, worst first, and each links
-its evidence to the reviewed commit on GitHub. A few things are easy to
-misread:
+The page is a set of worklists. **Repository** comes first, with the Upkeep
+level, the repo gates and repo-wide findings. Then each app has its own
+list, with its Portability and Documentation levels and its duplicate
+check. In each list:
 
-- The repo's own gates appear only under the first app.
-- "No findings to review" under Security does not mean the app is safe.
-- The **Potentially malicious** marker on a security finding is shown only
-  to reviewers.
-- **Checked** lists the rows that passed or were not run, so you can confirm
-  them. **Dismissed by the reviewer** lists findings a reviewer set aside.
+- **Blocking** holds the findings that set a decision floor (Step 5).
+- **Findings** holds the rest, worst severity first. Each finding names its
+  section (Structure, Security, Portability, Documentation or Code quality)
+  and links its evidence to the reviewed commit on GitHub.
+- **Passed checks** is folded. It holds the rows that passed and the gates
+  that were not checked, so open it: a gate that was not checked is yours to
+  confirm (Step 3).
+- **Dismissed by the reviewer** lists findings a reviewer set aside.
+
+In a repo with several apps, a finding that blocks every app is listed once,
+where it was found, and the other apps' lists link to it. The **Potentially
+malicious** marker on a security finding is shown only to reviewers. An
+empty Security section does not mean the app is safe.
 
 The sidebar holds each app's **Decision**, the **Email to Contributor**, the
 **Public Summary** and **Internal notes**.
@@ -181,18 +196,21 @@ The rubric defines each level.
 
 ## Step 3: Check the findings
 
-Click **Save draft** as you go. Nothing reaches the contributor until you
-send the decision.
+A finding's **Save**, **+ Add finding** and **Delete finding** save as you
+go, without reloading the page. **Save draft** saves the rest, such as the
+sidebar. If the review changed in another window, a save is refused and
+the page asks you to reload. Your edits, added findings and email reach the
+contributor only when you send the decision.
 
 Check the findings against the repo. "What a review is, and what we ask of
 you" says which ones. As you go, check that:
 
 1. Required files and metadata are as the gates state: `appverse.yml` or
    `manifest.yml`, `README.md`, a license file, and the standard OOD layout. A gate
-   that was not checked has not passed. Confirm it from the cited evidence,
-   record what you found in an internal note, and add a finding if the gate
-   fails. A gate that warned has not failed. Check the warning like any other
-   finding.
+   that was not checked has not passed. Find it under **Passed checks**,
+   confirm it from the cited evidence, record what you found in an internal
+   note, and add a finding if the gate fails. A gate that warned has not
+   failed. Check the warning like any other finding.
 2. Each security finding is real and correctly classified. The tool checks
    that each cited line exists. It does not check that the line shows the
    problem, so you have to.
@@ -227,17 +245,19 @@ matters to a deployer. If it doesn't, mark it
 
 ### Adding a finding
 
-Use **+ Add finding** in the block where the problem belongs. Pick the rule
-code, or Other and type one. Then give a severity, a summary and the
-`file:line` evidence. Your finding is marked **Reviewer** and sets a decision
-floor like any other. You can edit or delete it directly.
+Use **+ Add finding** at the bottom of the list it belongs in, and pick its
+section. **Add a finding here** on any finding opens the same form on that
+finding's section. Pick the rule code, or Other and type one. Then give a
+severity, a summary and the `file:line` evidence. Your finding is marked
+**Reviewer** and sets a decision floor like any other. You can edit or
+delete it directly.
 
 ### Changing a level
 
 Each level starts at the tool's rating. To change one, click the pencil
 beside it, pick the level and give your reason. The page then shows the
-tool's rating beside yours. The contributor sees your reason. It is never
-public.
+tool's rating beside yours. Your reason is for reviewers. The contributor
+and the public see only the level.
 
 ## Step 4: Curate the feedback
 
@@ -258,8 +278,8 @@ the contributor and naming what the app does well; keep that, and make sure
 the praise is true of this app. The fixes follow as one numbered list under
 **Must fix**, **Should fix** and **Suggestions (optional)**, so the
 contributor can see what blocks listing and can refer to an item by number.
-Must fix is exactly what keeps the recommendation from Accept; an item there
-should never be optional. The list is built from the findings, so the same
+Must fix is exactly the findings that set a decision floor, so an item there
+is never optional. The list is built from the findings, so the same
 fix in several files or apps is one item listing them all. Keep that shape
 when you edit. An item that reads like a finding's summary rather than a
 sentence to the contributor is one the tool wrote no sentence for: rewrite
@@ -272,14 +292,16 @@ the right label. You can use Markdown.
 **Poor feedback:**
 > README needs work.
 
-The [Best Practices Guide](https://openondemand.connectci.org/appverse-best-practices)
-has specific recommendations you can share with contributors.
+The [Best Practices](https://openondemand.connectci.org/appverse-contributor-documentation#best-practices)
+section of the Contributor Guide has specific recommendations you can share
+with contributors.
 
 ## Step 5: Decide and send
 
 Use the [Decision rubric](https://openondemand.connectci.org/appverse-review-rubric#decision-rubric)
 to choose Accept, Accept with suggestions, Request changes or Reject for
-each app. The page calls Reject "Decline".
+each app. After you choose Reject, the send button and the repo's status
+say Decline and Declined.
 
 The decision comes from the gate criteria and from a few kinds of finding:
 
@@ -295,14 +317,17 @@ tells deployers what to read before they deploy. It is not a reason to
 reject.
 
 The page does not offer a decision milder than the findings allow. Under
-each app's Decision it names the finding that sets the floor, as "At least
-Request changes:" followed by the finding. The floors are:
+each app's Decision it names the finding that sets the floor, such as "At
+least Changes requested:" followed by the finding, and that finding is
+under **Blocking** in the app's list. The floors are:
 
 - A security failure at High sets at least Request changes, and at Critical
   sets Reject. This applies to every app in the repo, wherever the finding
   is, because installing any app clones the whole repo.
 - A failed Structure gate sets Request changes, at any severity. It applies
-  to its own app, or to every app when the gate is the repo's.
+  to its own app, or to every app when the gate is the repo's. Any other
+  Structure finding sets a floor only at High or Critical, like a security
+  finding.
 - Inactivity sets no floor. Whether an inactive repo is abandoned, and so a
   Reject, is your call.
 - A repo that is archived or not public sets Request changes for every app.
@@ -359,37 +384,41 @@ Contributor replies to the decision email come to your own inbox. Log
 anything decided by email in the internal notes.
 
 - **Update decision** reopens each app's decision, the duplicate check and
-  the Email to Contributor, until the contributor re-submits. The
-  contributor gets an "Updated:" email that replaces the earlier decision.
-  The earlier one stays on record.
+  the Email to Contributor. It is available until the contributor
+  re-submits or a new review starts. The contributor gets an "Updated:"
+  email that replaces the earlier decision. The earlier one stays on record.
 - **Start the next round** re-submits the repo for the contributor. It runs
-  a new AI report on the latest commit and starts a new round. It appears on
-  the newest review while the repo is in Needs changes. Use it when the
-  contributor tells you by email that they have fixed things.
+  a new automated check on the latest commit and starts a new round. It
+  appears on the newest review while the repo is in Needs changes. Use it
+  when the contributor tells you by email that they have fixed things.
 
 A contributor can withdraw a submission before you send a decision, and
-then there is nothing to decide. When a contributor re-submits, the whole
-repo is reviewed again as a new round.
+then there is nothing to decide. A contributor re-submits from their review
+page or their repo's card, and the whole repo is reviewed again as a new
+round.
 
 ## Who sees what, and when
 
-Before you send a decision, only reviewers can see the review. After you
-send, the contributor can read it. The public can see it only while the
-repo is live, that is after an Accept, or after you publish an Accept with
-suggestions.
+As soon as the report lands, the contributor can read the tool's findings
+on their review page, as the tool wrote them, with a note that a reviewer
+will confirm, change or remove them. Your changes, your own findings and
+your email reach them only when you send the decision. The public can see
+the review only while the repo is live, that is after an Accept, or after
+you publish an Accept with suggestions.
 
-| On the review | Contributor, after you send | Public, while the repo is live |
-|---------------|-----------------------------|--------------------------------|
-| Each app's decision and levels | Yes | Yes |
-| Findings, with your own marked Reviewer | Yes | Yes |
-| Public Summary | Yes | Yes |
-| A finding's note to the contributor | Yes | No |
-| Dismissed findings and why | Yes | No |
-| Your reason for changing a level | Yes | No |
-| Email to Contributor | Yes | No |
-| Internal notes | No | No |
-| The tool's suggested decision | No | No |
-| The Potentially malicious marker | No | No |
+| On the review | Contributor, before you send | Contributor, after you send | Public, while the repo is live |
+|---------------|------------------------------|-----------------------------|--------------------------------|
+| The tool's findings | Yes, as the tool wrote them | Yes, with your changes, less the ones you dismissed | Yes, with your changes, less the ones you dismissed |
+| Your own findings, marked Reviewer | No | Yes | Yes |
+| A finding's note to the contributor | No | Yes | No |
+| Each app's decision | No | Yes | Yes |
+| Levels | No | No | Yes |
+| Public Summary | No | No | Yes |
+| Your reason for changing a level | No | No | No |
+| Email to Contributor | No | Yes | No |
+| Internal notes | No | No | No |
+| The tool's suggested decision | No | No | No |
+| The Potentially malicious marker | No | No | No |
 
 On the public page, a severity you changed shows as "Reviewer changed the
 severity from High", and a summary you reworded shows as "Edited by the

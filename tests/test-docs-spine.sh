@@ -289,9 +289,9 @@ while read -r id weight; do
   [ -n "$id" ] || continue
   case "$weight" in
     target)
-      # manifest weight "target": a strong suggestion, worded as recommended
-      # in the feedback; it never sets a decision
-      has "$RUBRIC" "\`check: $id\`) | Strong suggestion |" "$id row: Strong suggestion" ;;
+      # manifest weight "target": a target for inclusion, recorded FAIL at
+      # Low when unmet; a fix-item that never sets a floor
+      has "$RUBRIC" "\`check: $id\`) | Target |" "$id row: Target" ;;
     suggestion)
       has "$RUBRIC" "\`check: $id\`) | Suggestion |" "$id row: Suggestion" ;;
     *) bad "$id has a recognised manifest weight (got '$weight')" ;;
