@@ -286,6 +286,21 @@ case "$STDERR7B" in
   *) check "case7b: stderr warns unrecognized" "yes" "no ($STDERR7B)" ;;
 esac
 
+# An app with no directory at its declared path: documentation not_assessed
+# omits the indicator without the unrecognized-grade warning; portability stays.
+cat > "$TMP/meta-na.json" << 'EOF'
+{
+  "repo_url": "https://github.com/test/app", "sha": "abc123", "ref": "main",
+  "repo_shape": "declared_monorepo", "not_archived": "pass", "public": "pass", "model": "m",
+  "recommendation": {"decision": "Accept", "note": "x"},
+  "apps": [{"app_id": "apps/gone", "name": "Gone", "decision": "Accept",
+            "assessments": {"documentation": "not_assessed", "portability": "portable"}}]
+}
+EOF
+ARTIFACT_NA=$(python3 "$ASSEMBLE" --meta "$TMP/meta-na.json" --md "r.md" --plugin-version "0.3.0" 2>"$TMP/stderr-na.txt")
+check "not_assessed: no documentation indicator, portability kept" "False|solid" "$(echo "$ARTIFACT_NA" | python3 -c "import json,sys; i=json.load(sys.stdin)['apps'][0]['indicators']; print('%s|%s' % ('documentation' in i, i['portability']['level']))")"
+check "not_assessed: no unrecognized-grade warning" "0" "$(grep -c "unrecognized documentation grade" "$TMP/stderr-na.txt")"
+
 cat > "$TMP/meta-result7c.json" << 'EOF'
 {
   "repo_url": "https://github.com/test/app",

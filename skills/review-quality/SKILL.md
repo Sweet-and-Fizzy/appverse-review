@@ -17,7 +17,9 @@ the entries with `dimension` `portability`, `documentation` or
 list; do not add or drop a check from memory of the rubric.
 
 **Setup:** Use the orchestrator's prepared target if provided; otherwise follow
-`${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` first. The pre-review
+`${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` first.
+When the orchestrator dispatched you, return your results to it: dispatch
+no agent and write none of the review's output files. The pre-review
 directory holds `apps.json` (each app's `app_id`, `path`, `app_type`,
 `readme`) and, per app, `<app_id>/readme.json`, `form.json` and
 `template.json`. `apps.json`'s `app_id` is the same `app_id` a finding
@@ -218,6 +220,15 @@ These rows carry no `check:` marker.
   that line when `stub` is false, whatever your rung evidence says. Flag
   as QUA-01 a README that references another institution's paths, cluster
   names, or module names without saying they must change.
+  An app that `apps.json` marks `dir_missing` (a declared path with no
+  directory; the structure skill files it under STR-07) has no README to
+  rate: write `Rating: Not assessed — no directory at <path>` with no rung
+  evidence lines, put `Not assessed` in its Signals Documentation row, and
+  record the `documentation-rating` row as NOT CHECKED with no QUA-01
+  record. Its meta.json `assessments.documentation` is `not_assessed`
+  (`check-meta.py` checks both directions). Never `Below minimal` for it; `check-rating.py` rejects any
+  other rating there, and rejects `Not assessed` for an app that has its
+  directory.
 - **Code quality** (the `code_quality` entries): error handling
   (`check: error-handling`, QUA-03), form input
   validation (`check: numeric-field-bounds`, QUA-07), no uncommented magic

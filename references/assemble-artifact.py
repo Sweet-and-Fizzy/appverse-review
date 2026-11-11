@@ -206,6 +206,9 @@ def _normalize_grade(grade):
 def derive_grade_indicator(axis, app_id, assessments, app_findings, app_index):
     grade = assessments.get(axis)
     level = GRADE_LEVELS[axis].get(_normalize_grade(grade))
+    if level is None and _normalize_grade(grade).startswith("not_assessed"):
+        # An app whose declared directory is missing has nothing to grade.
+        return None
     if level is None:
         _warn("app '{}': unrecognized {} grade '{}'; indicator omitted".format(
             app_id, axis, grade))

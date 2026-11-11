@@ -3,7 +3,6 @@
 > **Related Docs:**
 > [Appverse Reviewer Process](https://openondemand.connectci.org/appverse-reviewer-checklist) |
 > [Appverse Contributor Guide](https://openondemand.connectci.org/appverse-contributor-documentation) |
-> [Appverse Best Practices](https://openondemand.connectci.org/appverse-best-practices) |
 > [Appverse README Template](https://github.com/tamu-edu/appverse_readme_template)
 
 This page sets out how Appverse apps are reviewed. Reviewers apply it, and
@@ -34,8 +33,9 @@ A review has four parts.
 
 The catalog shows each listed app's three levels: Upkeep, Documentation
 and Portability. Beside them is a Security badge. It shows the number of
-FAIL or WARN findings left after the reviewer's changes, or "No findings to
-review". There is no security level, and the count is not a safety rating.
+security (OODT) findings that are FAIL or WARN after the reviewer's
+changes, or "No findings to review". There is no security level, and the
+count is not a safety rating.
 
 The README counts twice. A README that is missing or only a stub fails the
 Structure gate. A real README is then rated for depth as the Documentation
@@ -46,13 +46,16 @@ Critical to Info (see [Rating findings](#rating-findings)), file and line
 evidence, and one of four results:
 
 - **FAIL:** the criterion is not met.
-- **WARN:** the tool could not confirm the criterion, or the problem is
-  advisory.
+- **WARN:** a possible or advisory problem. It is not a failure.
 - **PASS:** the check ran and found nothing.
 - **NOT CHECKED:** the check could not run.
 
-On a gate, WARN and NOT CHECKED are not passes. The reviewer checks that
-gate by hand, from the cited evidence, before deciding.
+On a gate, WARN is not a failure. It marks an advisory problem, such as a
+missing `role` field or an implementation tag the catalog does not list,
+rated on the severity scale like any other finding, and the app can still
+be accepted. NOT CHECKED is not a pass: the check could not run, so the
+reviewer checks that gate by hand, from the cited evidence, before
+accepting the app.
 
 ### Terms
 
@@ -63,8 +66,8 @@ gate by hand, from the cited evidence, before deciding.
 - **Floor:** the mildest decision a reviewer can give, set by certain
   findings. See [Floors](#floors).
 - **Fix-item:** something the feedback to the contributor names as needing
-  a fix. Every gate FAIL is one, and so is every FAIL or WARN finding rated
-  Low or above. An Info finding never is.
+  a fix. Every gate FAIL is one, whatever its severity, and so is every
+  other FAIL or WARN finding rated Low or above.
 - **Brand-new app:** an app whose repo's first commit is less than six
   months old. It is too new to judge on releases, contributors or issues, so
   its Upkeep is Active at most and never counts against it.
@@ -73,7 +76,8 @@ gate by hand, from the cited evidence, before deciding.
   changes. The same software run in a meaningfully different way, such as
   containerized instead of module-based, is not a duplicate. Nor is a
   maintained fork of an abandoned app in the catalog.
-- **Decline:** the portal's word for Reject.
+- **Decline:** the portal's word for Reject on the send button and in the
+  repo's status.
 
 ## Repo shapes
 
@@ -106,9 +110,10 @@ overall recommendation is the strictest of the per-app decisions.
 ## Structure (gate criteria)
 
 Every row below is a gate. A FAIL on any of them means at least Request
-changes, and the feedback lists it as something to fix. Where the tool
-could not confirm a row, the reviewer checks it by hand. Other structure
-notes the review adds are not gates.
+changes, and the feedback lists it as something to fix. A WARN is advisory
+and is a fix-item when rated Low or above. Where the check could not run,
+the reviewer checks the row by hand. Other structure notes the review adds
+are not gates.
 
 ### Repository structure
 
@@ -170,14 +175,17 @@ Passenger and companion apps have their own layout check:
 | `manifest.yml` and `appverse.yml` are valid YAML | Parse without errors |
 | `form.yml` is valid YAML; `form.yml.erb` has balanced ERB tags | `form.yml.erb` cannot be parsed as YAML before rendering, so its `<% %>` tags are checked for balance instead |
 | Template scripts are syntactically correct | Shell scripts pass a syntax check (`bash -n`) and ERB templates render. Recorded as STR-06. Shellcheck warnings alone never fail this row. An error right next to a template's `<% if %>`, `<% else %>` or `<% end %>` tag may come from how the tool reads templates, so it is a WARN for the reviewer to check. An unclosed block, such as a missing `fi` or an unclosed quote, still fails |
-| No obviously broken references | Module names, paths and variables used in `submit.yml.erb` and `template/` exist in `form.yml` or `form.yml.erb` |
+| No obviously broken references | Every form attribute used in `submit.yml.erb` and `template/` is listed under `form:` in `form.yml` or `form.yml.erb`. OOD's own attributes, such as `bc_num_hours`, count when they are listed there |
 
 ## Security
 
 Security is a list of findings, not a rating. When a review finds nothing,
 the catalog shows "No findings to review". That means the checks found
-nothing. It does not mean the app is safe. Each finding gets an OODT threat
-type and a severity. How findings affect the decision is in the
+nothing. It does not mean the app is safe. Each threat gets an OODT threat
+type and a severity. A static-analysis tool also reports hygiene problems,
+such as an unchecked `cd`. Those are filed as Code Quality or Structure
+findings, though the report lists them with the security tools' results.
+How findings affect the decision is in the
 [Decision rubric](#decision-rubric).
 
 ### How the automated review checks security
@@ -206,8 +214,8 @@ no row in either table is FAIL or WARN.
 ### OODT — Open OnDemand App Threats
 
 OODT is local to Appverse review and describes threats specific to the Open
-OnDemand execution model. Every finding is classified under one of these
-eight threat types.
+OnDemand execution model. Every security threat is classified under one of
+these eight types.
 
 The risk level is about blast radius. OOD runs each user's apps under their
 own Per-User Nginx (PUN), which already contains a lot of single-user
@@ -294,7 +302,7 @@ capabilities are found.
 | Framework security features disabled (CSP, host checking) | Removes built-in protections | OODT-08 Insecure Configuration |
 | Debug output to world-readable locations | Leaks paths, usernames, system info | OODT-08 Insecure Configuration |
 | Missing `--cleanenv` with sensitive host environment | Host variables leak into the container | OODT-06 Container Security |
-| A finding from a static-analysis tool such as shellcheck, semgrep or bandit (`check: sec-tool-finding`) | Judged on its own merits | Depends on the finding |
+| A finding from a static-analysis tool such as shellcheck, semgrep or bandit (`check: sec-tool-finding`) | Judged on its own merits | The OODT type of the threat. A hygiene problem is filed as Code Quality (QUA) or Structure (STR) instead |
 
 Binding to all interfaces (`0.0.0.0` or `::`) is not exposure by itself.
 Open OnDemand's proxy reaches the service on the compute node, so the
@@ -318,13 +326,15 @@ Each finding gets one of five severities:
 - **Info:** suggestions, upkeep good-practice signals, positive
   observations. An Info finding is not something the contributor must fix.
 
-Each check has a usual severity, and its findings take it. Where the
-evidence calls for a different severity, the finding says why. Suggestions
-are always Info. Findings no check covers are rated on the scale above.
+Each structure and code-quality check has a usual severity, and its
+findings take it. Where the evidence calls for a different severity, the
+finding says why. Suggestions are always Info. Security findings, and
+findings no check covers, are rated on the scale above each time.
 
 Base the rating on blast radius (cross-user or cross-site outranks
-self-harm) and on how easily the problem is triggered. Tag each finding as
-**unintentional** or **potentially malicious**.
+self-harm) and on how easily the problem is triggered. Tag each security
+finding as **unintentional** or **potentially malicious**. The tag is a
+judgment about intent, so the reviewer confirms it before deciding.
 
 A finding is a capability used unsafely. A capability that is part of the
 app's design is not a finding. A job composer that runs shell commands is
@@ -359,13 +369,15 @@ Where to look: `submit.yml.erb`, `form.yml`, `form.yml.erb` and `template/`
 scripts, for cluster names, partitions, accounts, absolute site paths,
 module versions and container images.
 
-**Named check**, recorded as QUA-02 findings with file and line evidence:
+**Named check**, for Batch Connect apps, recorded as QUA-02 findings with
+file and line evidence:
 
 - `check: hardcoded-site-paths`: a scratch, project or home path, a cluster
   or partition name, or a module version written into a script or template
-  instead of a `form.yml` attribute. A value listed in the README's
-  configuration table passes this check and counts toward Needs site
-  config. An undocumented one counts against it.
+  instead of a `form.yml` attribute. Each one is a WARN: a fix-item that
+  counts against the level but never sets a floor. A value listed in the
+  README's configuration table passes this check and counts toward Needs
+  site config.
 
 ## Documentation
 
@@ -425,20 +437,24 @@ above the first heading. The report's rating line then reads
 ## Code Quality
 
 Findings about how the app is written, with file and line evidence. Error
-handling and input validation are strong suggestions, worded in the
-feedback as recommended. A script that keeps running after an error, or a
-form that accepts any value, fails silently for deployers. The rest are
+handling and input validation are targets for inclusion. A script that
+keeps running after an error, or a form that accepts any value, fails
+silently for deployers. A gap in either is a FAIL at Low: not a floor, but
+a fix-item, so the app gets at most Accept with suggestions. The rest are
 suggestions, rated Info.
 
 | Check | Target |
 |-------|--------|
-| Error handling in job scripts (QUA-03, `check: error-handling`) | Strong suggestion |
-| Input validation on form fields that reach the scheduler (QUA-07, `check: numeric-field-bounds`) | Strong suggestion |
+| Error handling in job scripts (QUA-03, `check: error-handling`) | Target |
+| Input validation on form fields that reach the scheduler (QUA-07, `check: numeric-field-bounds`) | Target |
 | Numbers and literals such as resource limits, tunables, ports, hex colors and module versions have a comment saying what they are (QUA-08, `check: magic-numbers`) | Suggestion |
 | No large blocks of duplicated code (QUA-09, `check: duplicated-blocks`) | Suggestion |
 | No commented-out dead code (QUA-04, `check: dead-code`) | Suggestion |
 | ERB templates handle missing or nil values (QUA-10, `check: erb-missing-value`) | Suggestion |
 | Desktop or panel icon exists on the README's target OS (QUA-06, `check: icon-matches-target-os`) | Suggestion |
+
+Error handling and duplicated blocks are checked in every app. The other
+checks apply to Batch Connect apps only.
 
 **Correctness and polish** defects are also Code Quality findings:
 leftovers from the template an app was cloned from, such as a MATLAB
@@ -462,7 +478,8 @@ Advise rewording it.
   sense, such as 0 cores, is a finding. A `max` is good but is not
   required, since it can come from site config. A free-text field that
   reaches the scheduler needs a `pattern`. Making it `required` is not
-  enough, since it still takes any text.
+  enough, since it still takes any text. Attributes OOD defines and bounds
+  itself, such as `bc_num_hours`, are exempt.
 - `check: icon-matches-target-os`: icons named in desktop and panel
   configuration under `template/` (such as `xfce4-panel.xml` `button-icon`
   or `.desktop` `Icon=`) exist on the OS the README says the app was tested
@@ -492,9 +509,9 @@ Signals about the project's health.
 The good-practice signals are releases, a current CHANGELOG, CI, more than
 one contributor, and answered issues. Each counts once. A repo with no open
 issues is neutral on that last one. Good-practice signals are not
-requirements. A missing one is an Info suggestion. It never fails the
-review, never lowers the level, and is not something the contributor must
-fix.
+requirements. A missing one is an Info suggestion. It can keep a repo from
+Well maintained, but it never drops the level below Active, never fails
+the review, and is not something the contributor must fix.
 
 **Target for inclusion:** active within 12 months. A brand-new app (first
 commit less than six months ago) is Active at most, and the evidence says
@@ -574,7 +591,7 @@ each.
 | Issue | Where it is covered |
 |-------|---------------------|
 | Missing or stub README | Structure gate (STR-01) |
-| No error handling in scripts | Code Quality, strong suggestion |
+| No error handling in scripts | Code Quality, target |
 | Hardcoded paths | Portability |
 | No releases or versioning | Upkeep, good practice |
 | Missing CHANGELOG | Upkeep, good practice |

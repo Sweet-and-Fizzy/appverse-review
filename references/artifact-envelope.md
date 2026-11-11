@@ -26,7 +26,7 @@ Scripts then process these:
 | `compare-runs.py` | findings JSON + report MD + pre-review facts, two or more runs | pairwise Jaccard of fix-item keys, and a per-candidate table: each run's verdict (F/W/P/- with severity) from the report row of the candidate's check, recorded (FAIL or WARN) in n of N, answered in n of N; Jaccard only when no run has fact files |
 | `check-rows.py` | report MD + findings JSON + checks JSON + pre-review dir | exit status: every applicable manifest check has a row, and every pre-review candidate is cited (`MISSING`/`UNCITED` lines) |
 | `check-evidence.py` | findings JSON (+ target checkout, report MD, pre-review dir) | exit status: every finding's `file:line` evidence citation names a real file and an in-range line (`BAD` lines), and every `content: README.md:N` citation names a README content line; a literal value the summary asserts but the cited line lacks is a `NOTE` line that does not change the exit status |
-| `check-all.py` | report MD + findings JSON + checks JSON + pre-review dir + target checkout | runs the five checkers above in one pass, each block prefixed with its name; exit 1 when any failed or the report lacks a section a checker needs, 2 when any could not run or crashed |
+| `check-all.py` | report MD + findings JSON + checks JSON + pre-review dir + target checkout | runs every report checker in one pass (the list is in its docstring), each block prefixed with its name; exit 1 when any failed or the report lacks a section a checker needs, 2 when any could not run or crashed |
 
 The LLM produces the judgment; the scripts produce the structure.
 
@@ -44,7 +44,7 @@ the skills that produce them refer here.
       "name": "App Name",
       "decision": "Accept | Accept with suggestions | Request changes | Reject",
       "assessments": {
-        "documentation": "minimal | adequate | strong | exemplary",
+        "documentation": "minimal | adequate | strong | exemplary | not_assessed",
         "documentation_summary": "one-line evidence phrase",
         "portability": "not_portable | partially_portable | portable",
         "portability_summary": "one-line evidence phrase"
@@ -115,7 +115,7 @@ stderr and still assemble.
 
 ```json
 {
-  "schema_version": "1.3",
+  "schema_version": "1.6",
 
   "reviewed": {
     "repo_url":     "https://github.com/owner/app",
@@ -236,7 +236,7 @@ stderr and still assemble.
   `template_syntax` (1.4) is the "template scripts are syntactically correct"
   gate, from STR-05 (ERB balance) and STR-06 (`bash -n`) rows; it is present
   only when the app has such rows, so an app with no templates has none. Values follow the record's result: FAIL → fail,
-  WARN → warn (the tool could not confirm the gate; the reviewer settles it),
+  WARN → warn (an advisory problem; the gate has not failed),
   NOT CHECKED → not_checked, PASS → pass. The worst result wins when several
   records map to one criterion.
 - **`repo_level.criteria.not_archived`** and **`repo_level.criteria.public`**

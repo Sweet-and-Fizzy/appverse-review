@@ -36,10 +36,13 @@ setup. The subagents read everything else.
 
 Your next action after setup is a single message containing four Agent tool
 calls, one per aspect, in this order: review-structure, review-security,
-review-quality, review-maintenance. Run them in the foreground. Do not start
-any aspect's work yourself first, and do not read anything between setup and
-this message. Each call's description is "Review <aspect> aspect" and its
-prompt is:
+review-quality, review-maintenance. Run them in the foreground. Each call
+sets `subagent_type` to `general-purpose`, never `fork`: a fork inherits
+this conversation, these instructions with it, so it acts as the
+orchestrator and writes the review's files itself. Do not start any aspect's
+work yourself first, and do not read anything between setup and this
+message. Each call's description is "Review <aspect> aspect" and its prompt
+is:
 
 > Read `${CLAUDE_PLUGIN_ROOT}/skills/<aspect>/SKILL.md` and follow it exactly.
 > Read `${CLAUDE_PLUGIN_ROOT}/references/finding-codes.md` for rule codes and
@@ -73,7 +76,9 @@ prompt is:
 > fenced JSON block the skill's Output section specifies (the quality aspect's
 > assessments block, the maintenance aspect's maintenance assessment block and,
 > for a declared monorepo, its per-app `app_maintenance` block).
-> Do not make accept or reject judgments.
+> Do not make accept or reject judgments. You are one aspect reviewer: do
+> not dispatch any agent, and do not write the report, findings, metadata or
+> feedback file; the orchestrator builds those from what you return.
 
 Only if your tool list has no Agent (or Task) tool at all, run the four
 aspect skill files yourself, one at a time, in the order above. When the tool
@@ -149,7 +154,8 @@ signal is not a grade and does not gate listing.
 
 <!-- DERIVE the level from the aspect ratings, do not invent it:
      Portability: Portable = Low; Partially portable = Medium; Not portable = High.
-     Documentation: Strong/Exemplary = Low; Adequate = Medium; Minimal or Below minimal = High.
+     Documentation: Strong/Exemplary = Low; Adequate = Medium; Minimal or Below minimal = High;
+     Not assessed (apps.json dir_missing: no directory at the declared path) = Not assessed.
      Low = good/low-concern; High = most to read. Never invert; never style High as a hazard.
      Monorepo: one Signals block PER app. No repo-level signal aggregate.
      Upkeep (this app): declared monorepos only, from the maintenance aspect's
@@ -263,11 +269,13 @@ Findings are classified under OODT (Open OnDemand App Threats); codes are define
      content: line for each requirement the facts miss. Never claim a rung
      whose evidence line says none. Only when readme.json stub is true does the rating line
      read "Minimal — not supported (stub README; see QUA-01)". In
-     meta.json assessments, Below minimal and a stub are "minimal". -->
+     meta.json assessments, Below minimal and a stub are "minimal". An app
+     apps.json marks dir_missing is rated "Not assessed", its row NOT CHECKED,
+     and its meta.json documentation "not_assessed" (review-quality SKILL.md). -->
 
 | Rule | Check | Result | Severity | Summary | Evidence |
 |---|---|---|---|---|---|
-| QUA-01 | `check: documentation-rating` | PASS/FAIL | ... | <rating; PASS at Adequate or above> | README.md:N |
+| QUA-01 | `check: documentation-rating` | PASS/FAIL/NOT CHECKED | ... | <rating; PASS at Adequate or above; NOT CHECKED when Not assessed> | README.md:N |
 
 ### Code Quality
 <!-- At least one row per manifest check for this app's app_type, ALWAYS, in
@@ -494,7 +502,7 @@ Save to `review-<owner>-<repo>.meta.json`:
       "name": "<app name from manifest/appverse.yml>",
       "decision": "<per-app decision, or same as recommendation for single-app>",
       "assessments": {
-        "documentation": "minimal | adequate | strong | exemplary",
+        "documentation": "minimal | adequate | strong | exemplary | not_assessed",
         "documentation_summary": "<one-line evidence phrase>",
         "portability": "not_portable | partially_portable | portable",
         "portability_summary": "<one-line evidence phrase>"
@@ -620,6 +628,14 @@ externally by the API provider.
   record names an attribute listed under the form's `form:`, and no
   numeric-field-bounds record names one OOD defines and bounds itself
   (`ood` set in `form.json`).
+  `check-tools.py`: a FAIL or WARN record whose only evidence is a
+  static-tool result uses the rule and tag `security-tools.md`'s "Tool
+  finding codes: rule and tag" table gives its code, and an unlisted
+  shellcheck code is never filed under an OODT rule.
+  `check-row-records.py`: every FAIL or WARN row in an app's section is
+  backed by a record for that app (or a repo-level one) of its rule, at its
+  result or worse, whose evidence cites a line the row cites; a
+  `portability-rating` row, which adds no record of its own, is exempt.
   `check-evidence.py`: every `file:line` citation names a real file and
   line, every `content:` citation names a README content line, and a
   literal value the summary asserts is on the cited line is there (within
@@ -642,7 +658,7 @@ externally by the API provider.
   recommendation that states its decision, every app of a monorepo has a
   Per-app decision line, and those decisions match the meta.json.
   Its output groups each checker's problem lines under a `[floor]`/`[keys]`/
-  `[rating]`/`[rows]`/`[metadata]`/`[license]`/`[form]`/`[evidence]`/`[catalog]`/`[meta]`/`[decisions]`/`[sections]` prefix, followed by that checker's
+  `[rating]`/`[rows]`/`[metadata]`/`[license]`/`[form]`/`[tools]`/`[records]`/`[evidence]`/`[catalog]`/`[meta]`/`[decisions]`/`[sections]` prefix, followed by that checker's
   summary line. It exits 1 if any checker failed, including a report
   missing a section a checker needs (`MISSING section: ...`), and 2 if any
   could not run, including a checker that crashed (`crashed: ...`).

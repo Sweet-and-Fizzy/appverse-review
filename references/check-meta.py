@@ -2,7 +2,7 @@
 """Check that a review's meta.json carries what the artifact and the portal
 need.
 
-    python3 references/check-meta.py <meta.json>
+    python3 references/check-meta.py <meta.json> [<pre-review-dir>]
 
 The assembler builds the artifact from meta.json, and the portal refuses an
 artifact without a reviewed commit. This checks the fields the model writes
@@ -10,20 +10,45 @@ artifact without a reviewed commit. This checks the fields the model writes
 outcomes and recommendation.note is not empty; not_archived and public are
 pass, fail or not checked (as the assembler reads them); apps is a non-empty list whose entries have an app_id
 and a decision (one of the four outcomes; check-decisions.py reads them); and,
-after stamp-meta.py, sha and repo_url are present.
+after stamp-meta.py, sha and repo_url are present. With a pre-review
+directory, an app's assessments.documentation is not_assessed exactly when
+apps.json marks it dir_missing (a declared path with no directory): the
+assembler omits the documentation indicator for not_assessed, so a wrong
+value would drop or invent one.
 
 Output: one MISSING or INVALID line per problem, then a summary line.
 Exit 0 when complete, 1 when a field is missing or invalid, 2 when the file
 cannot be read or is not a JSON object.
 """
 import json
+import os
 import sys
 
 from report_parse import positional_args, normalize_decision
 
 
+def missing_app_ids(pre_review_dir):
+    """App ids apps.json marks dir_missing ("root" also as "."), or none
+    without a pre-review directory or apps.json. Raises ValueError when
+    apps.json exists but cannot be read as a list."""
+    if not pre_review_dir:
+        return set()
+    path = os.path.join(pre_review_dir, "apps.json")
+    if not os.path.isfile(path):
+        return set()
+    try:
+        with open(path, encoding="utf-8") as f:
+            apps = json.load(f)
+    except (OSError, ValueError) as e:
+        raise ValueError("cannot read %s (%s)" % (path, e))
+    if not isinstance(apps, list):
+        raise ValueError("%s is not a list" % path)
+    ids = {a["app_id"] for a in apps if isinstance(a, dict) and a.get("dir_missing") is True and a.get("app_id")}
+    return ids | ({"."} if "root" in ids else set())
+
+
 def main(argv):
-    argv = positional_args(argv, ["meta.json"], description=(__doc__ or "").split("\n\n")[0])
+    argv = positional_args(argv, ["meta.json"], ["pre-review-dir"], description=(__doc__ or "").split("\n\n")[0])
     if isinstance(argv, int):
         return argv
     try:
@@ -54,6 +79,11 @@ def main(argv):
             problems.append("MISSING meta field: %s (pass, fail or not checked)" % key)
         elif str(v).strip().lower().replace("_", " ") not in ("pass", "fail", "not checked"):
             problems.append("INVALID meta field: %s %r is not pass, fail or not checked" % (key, v))
+    try:
+        missing = missing_app_ids(argv[2] if len(argv) > 2 else None)
+    except ValueError as e:
+        print("error: %s" % e)
+        return 2
     warnings = []
     apps = meta.get("apps")
     if not isinstance(apps, list) or not apps:
@@ -70,6 +100,14 @@ def main(argv):
             elif normalize_decision(d) is None:
                 problems.append("INVALID meta field: apps[%d].decision %r is not Accept, Accept with "
                                 "suggestions, Request changes or Reject" % (i, d))
+            doc = a["assessments"].get("documentation") if isinstance(a.get("assessments"), dict) else None
+            doc_na = str(doc).strip().lower().replace(" ", "_") == "not_assessed"
+            if a["app_id"] in missing and not doc_na:
+                problems.append("INVALID meta field: apps[%d].assessments.documentation %r; apps.json says %s's "
+                                "directory is missing, so it is not_assessed" % (i, doc, a["app_id"]))
+            elif doc_na and a["app_id"] not in missing:
+                problems.append("INVALID meta field: apps[%d].assessments.documentation is not_assessed but "
+                                "apps.json does not say %s's directory is missing" % (i, a["app_id"]))
             # An app's own upkeep (schema 1.3) feeds a public catalog chip, so
             # its values must be real booleans: "false" would read as active.
             # A warning, not a failure: the assembler skips a mistyped block

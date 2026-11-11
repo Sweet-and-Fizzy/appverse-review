@@ -21,6 +21,15 @@ Per "## App:" section:
 Only Documentation is checked among ratings/signals: there is no Security
 signal (R4); only the Documentation rating and signal are checked.
 
+A missing app. When <pre-review-dir>/apps.json marks the app `dir_missing`
+(a declared apps[].path with no directory), there is no README to rate: the
+rating line (the section's first `Rating:` line) reads `Rating: Not
+assessed`, the Signals Documentation row is `Not assessed` or absent, and
+the `documentation-rating` row is NOT CHECKED; rules 1, 2 and 6 do not
+apply. Any other rating
+for such an app is a MISMATCH, and so is `Not assessed` for an app that
+apps.json does not mark (or with no pre-review directory to say so).
+
 Below minimal. The rating `Below minimal` (no rung supports Minimal and the
 README is not a stub) claims no rung, so rule 1 cannot fail it; it is
 accepted when the findings JSON has a QUA-01 `docs-minimal` record for that
@@ -31,7 +40,7 @@ either way: a stub README takes the stub line below, not Below minimal.
 A stub README. The rating line `Minimal — not supported (stub README; see
 QUA-01)` is accepted in place of rule 1 when the findings JSON has a QUA-01
 FAIL record for that app (its app_id is the section heading's parenthesised
-id) whose defect_key tag is `docs-stub`, and the README is a stub by the
+id, with "." and "root" the same app) whose defect_key tag is `docs-stub`, and the README is a stub by the
 facts. With a pre-review directory, the facts are
 <pre-review-dir>/<app_id>/readme.json's `stub` (app_id "root" when the
 heading has none, or has "."): false is a MISMATCH naming readme.json. When
@@ -180,6 +189,11 @@ STUB_NOT_STUB = "stub rating but readme.json says the README is not a stub"
 STUB_NO_RECORD = "stub rating but no STR-01 readme-not-substantive FAIL record and no readme.json stub fact"
 BELOW_NO_RECORD = "Below minimal rating but no QUA-01 docs-minimal FAIL record"
 BELOW_BUT_STUB = "Below minimal rating but readme.json says the README is a stub (the stub line applies)"
+NOT_ASSESSED_RE = re.compile(r"Rating:[\s*_]*Not assessed\b", re.I)
+MISSING_DIR_RATED = "apps.json says the app directory is missing, so the rating is `Not assessed`"
+MISSING_DIR_SIGNAL = "apps.json says the app directory is missing, so the Documentation signal is `Not assessed` or absent"
+NOT_ASSESSED_BUT_PRESENT = "Not assessed rating but apps.json does not say the app directory is missing"
+MISSING_DIR_ROW = "apps.json says the app directory is missing, so the documentation-rating row is NOT CHECKED"
 CONTENT_CITE_RE = re.compile(r"(?<![\w-])content:\s*[`*]*([^\s`*:]+):(\d+)")
 NONE_WORDS = {"none", "n/a", "na", "absent", "missing", "not", "no"}
 STUB_LINE = "Minimal \u2014 not supported (stub README; see QUA-01)"  # the form the docs write
@@ -280,10 +294,16 @@ def has_record(findings, rule, tag, results, app_ids, single):
     return False
 
 
+def record_app_ids(app_id):
+    """The app_ids a record for a heading's app may carry: a repo-root app's
+    heading may say (.) while its records say root, or the reverse."""
+    return {app_id or "", fact_app_id(app_id)}
+
+
 def has_stub_record(findings, app_id, single):
     """Whether findings hold a QUA-01 FAIL docs-stub record for app_id (or,
     in a single-app report, a record with no app_id)."""
-    return has_record(findings, "QUA-01", "docs-stub", ("FAIL",), {app_id or ""}, single)
+    return has_record(findings, "QUA-01", "docs-stub", ("FAIL",), record_app_ids(app_id), single)
 
 
 def fact_app_id(app_id):
@@ -331,7 +351,7 @@ def stub_problem(findings, app_id, single, pre_review_dir):
         return None
     if fact is False:
         return STUB_NOT_STUB
-    ids = {app_id or "", fact_app_id(app_id), "root"}
+    ids = record_app_ids(app_id) | {"root"}
     if has_record(findings, "STR-01", "readme-not-substantive", ("FAIL",), ids, True):
         return None
     return STUB_NO_RECORD
@@ -597,6 +617,67 @@ def security_claim_mismatch(app_id, security):
     return None
 
 
+def app_dir_missing(pre_review_dir, app_id):
+    """Whether apps.json says the app's declared directory does not exist.
+    False with no pre-review directory or no apps.json (facts written before
+    the key existed). Raises ValueError when apps.json exists but is not a
+    list."""
+    if not pre_review_dir:
+        return False
+    path = os.path.join(pre_review_dir, "apps.json")
+    if not os.path.isfile(path):
+        return False
+    try:
+        with open(path, encoding="utf-8") as f:
+            apps = json.load(f)
+    except (OSError, ValueError) as e:
+        raise ValueError("{}: {}".format(path, e))
+    if not isinstance(apps, list):
+        raise ValueError("{}: not a list".format(path))
+    ids = record_app_ids(app_id)
+    return any(isinstance(a, dict) and a.get("app_id") in ids and a.get("dir_missing") is True for a in apps)
+
+
+def rated_not_assessed(doc):
+    """Whether the section's rating line (its first `Rating:` line, the one
+    RATING_RE reads) says Not assessed. A later or quoted line does not
+    count, so it cannot stand in for the rating."""
+    m = re.search(r"Rating:[^\n]*", doc)
+    return bool(m and NOT_ASSESSED_RE.match(m.group(0)))
+
+
+def not_assessed_problems(app, dir_missing, not_assessed, body, doc):
+    """The Documentation rating, signal and documentation-rating row of an
+    app whose directory is missing: `Not assessed`, a signal that is absent
+    or `Not assessed`, and a NOT CHECKED row (there is no README to rate).
+    `Not assessed` for an app that has its directory is a mismatch too,
+    since its README can be rated."""
+    if not dir_missing:
+        return ["MISMATCH {} documentation: {}".format(app, NOT_ASSESSED_BUT_PRESENT)]
+    if not not_assessed:
+        return ["MISMATCH {} documentation: {}".format(app, MISSING_DIR_RATED)]
+    problems = []
+    signals = subsection(body, "Signals") or ""
+    m = re.search(r"^\|\s*(?:\*\*)?Documentation(?:\*\*)?\s*\|\s*([^|]*)\|", signals, flags=re.M)
+    if m and not re.match(r"[\s*_]*not assessed\b", m.group(1), re.I):
+        problems.append("MISMATCH {} documentation: {} (report says {})".format(app, MISSING_DIR_SIGNAL, m.group(1).strip()))
+    for line in doc.splitlines():
+        cells = split_row(line) if line.lstrip().startswith("|") else []
+        if len(cells) > 2 and "documentation-rating" in cells[1]:
+            result = normalize_result(cells[2])
+            if result != "NOT CHECKED":
+                problems.append("MISMATCH {} documentation: {} (report says {})".format(app, MISSING_DIR_ROW, result or cells[2].strip()))
+    return problems
+
+
+def security_problems(app_id, body):
+    security = subsection(body, "Security")
+    if security is None:
+        return []
+    claim_problem = security_claim_mismatch(fact_app_id(app_id), security)
+    return [claim_problem] if claim_problem else []
+
+
 def signal(body, dim):
     m = re.search(r"^\|\s*(?:\*\*)?" + dim + r"(?:\*\*)?\s*\|\s*(?:\*\*)?(Low|Medium|High)(?:\*\*)?\s*\|",
                   body, flags=re.M)
@@ -634,6 +715,20 @@ def main(argv):
         if doc is None:
             print("error: {} has no '### Documentation' section".format(heading), file=sys.stderr)
             return MALFORMED
+        try:
+            dir_missing = app_dir_missing(pre_review_dir, app_id_of(heading))
+        except ValueError as e:
+            print("error: {}".format(e), file=sys.stderr)
+            return 2
+        not_assessed = rated_not_assessed(doc)
+        if dir_missing or not_assessed:
+            for line in not_assessed_problems(fact_app_id(app_id_of(heading)), dir_missing, not_assessed, body, doc):
+                problems += 1
+                print(line)
+            for line in security_problems(app_id_of(heading), body):
+                problems += 1
+                print(line)
+            continue
         rm = RATING_RE.search(doc)
         if not rm:
             print("error: {} has no Documentation rating".format(heading), file=sys.stderr)
@@ -674,7 +769,7 @@ def main(argv):
                 problems += 1
                 print("MISMATCH {} documentation: {}".format(fact_app_id(app_id), reason))
         elif rating == BELOW_MINIMAL:
-            if not has_record(findings, "QUA-01", "docs-minimal", ("FAIL",), {app_id or ""}, single):
+            if not has_record(findings, "QUA-01", "docs-minimal", ("FAIL",), record_app_ids(app_id), single):
                 problems += 1
                 print("MISMATCH {} documentation: {}".format(fact_app_id(app_id), BELOW_NO_RECORD))
             try:
@@ -711,12 +806,9 @@ def main(argv):
             problems += 1
             print("MISMATCH Documentation signal (report says {}; rating {} maps to {})".format(doc_sig, rating, DOC_SIGNAL[rating]))
 
-        security = subsection(body, "Security")
-        if security is not None:
-            claim_problem = security_claim_mismatch(fact_app_id(app_id), security)
-            if claim_problem:
-                problems += 1
-                print(claim_problem)
+        for line in security_problems(app_id, body):
+            problems += 1
+            print(line)
     if seen == 0:
         print("error: no '## App:' section in report", file=sys.stderr)
         return MALFORMED

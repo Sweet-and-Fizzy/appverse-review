@@ -11,7 +11,9 @@ Criteria: `${CLAUDE_PLUGIN_ROOT}/references/review-rubric.md` — section
 waiver.
 
 **Setup:** Use the orchestrator's prepared target if provided; otherwise follow
-`${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` first. This aspect needs
+`${CLAUDE_PLUGIN_ROOT}/references/target-setup.md` first.
+When the orchestrator dispatched you, return your results to it: dispatch
+no agent and write none of the review's output files. This aspect needs
 `<owner>/<repo>`; in submitter mode derive it from the git remote.
 
 ## Signals
