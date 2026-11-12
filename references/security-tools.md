@@ -354,13 +354,15 @@ own row: a PASS that names the covering row.
 | SC2155 | `local`/`export` and assignment in one statement, masking the command's exit status | QUA-03 | `no-error-check` | no |
 | SC2054 | Comma inside an array element (often Apptainer `--bind a,b` syntax, which is correct) | QUA-06 | `other:array-element-comma` | no |
 | SC2140 | Word of the form `"A"B"C"` (mixed quoting) | QUA-06 | `other:mixed-quoting` | no |
-| SC2034 | Variable assigned but never used | QUA-04 | `other:unused-variable` | no |
-| SC2329 | Function never invoked (a `trap` handler is invoked: PASS) | QUA-04 | `other:uninvoked-function` | no |
+| SC2034 | Variable assigned but never used | QUA-04 | `unused-definition` | no |
+| SC2329 | Function never invoked (a `trap` handler is invoked: PASS) | QUA-04 | `unused-definition` | no |
+| SC2153 | Variable read under a name close to an assigned one (likely misspelled) | QUA-06 | `misspelled-name` | no |
 | SC2154 | Variable referenced but not assigned | STR-04 | `undefined-variable:{var_name}` | in a job-script file, when a sibling `template/before.sh*` assigns it or it is an OOD contract name (`port`, `host`, `display`, `password`, `app_port`, `csrftoken`) |
 | SC2148 | No shebang | QUA-06 | `other:missing-shebang` | in a job-script file |
 | SC1090 | `source` of a non-constant path shellcheck cannot follow | QUA-06 | `other:unfollowed-source` | in a job-script file |
 | SC1091 | `source` of a file shellcheck was not given | QUA-06 | `other:unfollowed-source` | in a job-script file |
 | B602 | `subprocess` call with `shell=True` | OODT-01 | `command-injection` | no |
+| B108 | Hardcoded `/tmp` path; a finding only when the app writes or reads back a predictable shared path another user can pre-create, else PASS | OODT-03 | `other-user-files` | no |
 | B104 | Binding to all interfaces (`0.0.0.0`); a finding only when the service has no authentication, else PASS | OODT-05 | `bind-all-interfaces` | no |
 | B110 | `try`/`except`/`pass` swallowing every error | QUA-03 | `no-error-check` | no |
 
