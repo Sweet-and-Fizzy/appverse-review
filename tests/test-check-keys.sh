@@ -263,11 +263,11 @@ printf '[%s]' "$(rec QUA-02 template/script.sh.erb:no-such-tag | sed 's/"result"
 check "a PASS with a rule is still checked: exit 1" 1 "$(run "$TMP/passbad.json" --target "$TMP/t")"
 
 echo "Test 27: the promoted tags are vocabulary, and an other: slug extending one is INVALID"
-printf '[%s,%s,%s,%s,%s,%s,%s,%s,%s]' "$(rec OODT-02 app/dl.rb:credential-forwarded-on-redirect)" "$(rec OODT-05 app.py:missing-csrf)" "$(rec OODT-08 bin/python:install-at-launch)" \
+printf '[%s,%s,%s,%s,%s,%s,%s,%s,%s,%s]' "$(rec OODT-02 app/dl.rb:credential-forwarded-on-redirect)" "$(rec OODT-05 app.py:missing-csrf)" "$(rec OODT-08 bin/python:install-at-launch)" \
   "$(rec QUA-04 views/x.py:unused-definition)" "$(rec QUA-04 form.yml.static:unused-file)" "$(rec QUA-06 run.rb:wrong-ui-text)" \
-  "$(rec QUA-06 seff.sh:misspelled-name)" "$(rec QUA-06 app.rb:missing-referenced-file)" "$(rec OODT-03 core.py:other-user-files)" > "$TMP/n3.json"
+  "$(rec QUA-06 seff.sh:misspelled-name)" "$(rec QUA-06 app.rb:missing-referenced-file)" "$(rec OODT-03 core.py:other-user-files)" "$(rec QUA-06 apps/x/manifest.yml:manifest-inconsistency)" > "$TMP/n3.json"
 check "exit 0" 0 "$(run "$TMP/n3.json")"
-check "summary" "finding keys: 9/9 valid" "$(tail -1 "$TMP/out")"
+check "summary" "finding keys: 10/10 valid" "$(tail -1 "$TMP/out")"
 printf '[%s]' "$(rec OODT-05 app.py:other:missing-csrf-protection)" > "$TMP/n4.json"
 check "extension exit 1" 1 "$(run "$TMP/n4.json")"
 check "extension reason" 1 "$(grep -cxF "INVALID OODT-05 app.py:other:missing-csrf-protection (other:missing-csrf-protection extends the vocabulary tag 'missing-csrf'; use 'missing-csrf' or a distinct slug)" "$TMP/out")"

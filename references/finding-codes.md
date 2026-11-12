@@ -354,7 +354,8 @@ file.
 **QUA-06:**
 `duplicate-yaml-key:{key_name}`, `wrong-help-text`,
 `incorrect-default`, `readme-inconsistency:{topic}`, `readme-typo`, `icon-os-mismatch`,
-`wrong-ui-text`, `misspelled-name`, `missing-referenced-file`
+`wrong-ui-text`, `misspelled-name`, `missing-referenced-file`,
+`manifest-inconsistency`
 
 `wrong-ui-text` is a user-facing message, label or caption outside the
 form's help text and the README that is wrong, misspelled or
@@ -363,7 +364,12 @@ misspelling of the one it assigned (`$HTMLTEMPLATE` for `HTML_TEMPLATE`,
 shellcheck SC2153), so it expands empty; an attribute the form does not
 define stays STR-04. `missing-referenced-file` is code that loads a repo
 file by path (a view template, a partial, a script) that does not exist,
-so that code path fails when it runs.
+so that code path fails when it runs. `manifest-inconsistency` is an app's
+own `manifest.yml` whose name, description or other fields disagree with
+what `appverse.yml` declares for it, so a deployer's dashboard can differ
+from the catalog listing. It is QUA-06, not an STR gate: the listing
+still works, and a `role` that does not match the layout has its own
+check.
 
 **QUA-07:**
 `missing-min`, `missing-required`, `zero-minimum`, `missing-pattern`, `missing-min-max`
