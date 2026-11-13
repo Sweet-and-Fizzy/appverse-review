@@ -17,12 +17,15 @@ Usage:
         [--pdf  review-owner-repo.pdf] \\
         [--html review-owner-repo.html] \\
         [--baseline baseline.json] \\
+        [--feedback review-owner-repo.feedback.json] \\
         [--plugin-version 0.4.0] \\
         > review-owner-repo.artifact.json
 
 If --findings is omitted, the artifact is emitted with empty findings arrays.
 With --baseline (the file review_baseline.py wrote), the artifact also carries
 the comparison with the last review sent to the contributor (schema 1.8).
+With --feedback (the file prepare-feedback.py wrote and the model filled), the
+artifact also carries the Draft feedback's fix items (schema 1.9).
 If --plugin-version is omitted, it defaults to "unknown".
 """
 
@@ -39,7 +42,7 @@ from repo_paths import parse_citations, split_reviewed_ok  # noqa: E402
 import review_baseline  # noqa: E402
 
 
-SCHEMA_VERSION = "1.8"
+SCHEMA_VERSION = "1.9"
 
 SOLID = "solid"
 SOME_NOTES = "some_notes"
@@ -451,7 +454,40 @@ def attach_since_last_review(artifact, findings, baseline):
     }
 
 
-def assemble(meta, findings, md_path, pdf_path, html_path, plugin_version, catalog=None, metadata=None, baseline=None):
+FEEDBACK_LEVELS = ("must", "should", "suggestion")
+
+
+def feedback_items(doc):
+    """Schema 1.9: the Draft feedback's fix items from feedback.json, each
+    with its level, its text ("" when the model wrote none), whether it was
+    raised before, its locations and the findings it covers, by defect key
+    and by finding id. A meta-gate item (archived, not public) covers no
+    finding. An item that is not well formed is left out with a warning;
+    None when the document has no items list."""
+    if not isinstance(doc, dict) or not isinstance(doc.get("items"), list):
+        return None
+    items = []
+    for n, item in enumerate(doc["items"]):
+        lists = {k: item.get(k, []) if isinstance(item, dict) else None
+                 for k in ("locations", "defect_keys", "finding_ids")}
+        if not isinstance(item, dict) or item.get("level") not in FEEDBACK_LEVELS \
+                or not isinstance(item.get("text", ""), str) \
+                or not all(isinstance(v, list) and all(isinstance(x, str) for x in v) for v in lists.values()):
+            _warn("feedback item {} is not well formed; left out".format(n))
+            continue
+        items.append({
+            "level": item["level"],
+            "text": item.get("text", "").strip(),
+            "still_open": item.get("still_open") is True,
+            "locations": lists["locations"],
+            "defect_keys": lists["defect_keys"],
+            "finding_ids": lists["finding_ids"],
+        })
+    return items
+
+
+def assemble(meta, findings, md_path, pdf_path, html_path, plugin_version, catalog=None, metadata=None, baseline=None,
+             feedback=None):
     classify_paths(findings)
     repo_findings, app_findings_map = split_findings_by_app(findings)
     repo_criteria = derive_repo_criteria(findings, meta)
@@ -598,6 +634,10 @@ def assemble(meta, findings, md_path, pdf_path, html_path, plugin_version, catal
     if baseline:
         attach_since_last_review(artifact, findings, baseline)
 
+    items = feedback_items(feedback)
+    if items is not None:
+        artifact["feedback"] = {"items": items}
+
     return artifact
 
 
@@ -612,6 +652,7 @@ def main():
     parser.add_argument("--catalog", help="Path to the pre-review's catalog.json (optional)")
     parser.add_argument("--baseline", help="Path to the baseline review_baseline.py wrote (optional)")
     parser.add_argument("--metadata", help="Path to the pre-review's metadata.json (optional): app names")
+    parser.add_argument("--feedback", help="Path to the review's feedback.json (optional): the fix items")
     args = parser.parse_args()
 
     with open(args.meta) as f:
@@ -648,9 +689,21 @@ def main():
         except (OSError, json.JSONDecodeError) as e:
             _warn("could not load metadata {}: {}; app names from meta.json".format(args.metadata, e))
 
+    # The fix items are optional: without them the report's Draft feedback
+    # section stands.
+    feedback = None
+    if args.feedback:
+        try:
+            with open(args.feedback, encoding="utf-8") as f:
+                feedback = json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            _warn("could not load feedback {}: {}; fix items omitted".format(args.feedback, e))
+        if feedback is not None and not (isinstance(feedback, dict) and isinstance(feedback.get("items"), list)):
+            _warn("feedback {} has no items list; fix items omitted".format(args.feedback))
+
     try:
         artifact = assemble(meta, findings, args.md, args.pdf, args.html, args.plugin_version,
-                            catalog=catalog, metadata=metadata, baseline=baseline)
+                            catalog=catalog, metadata=metadata, baseline=baseline, feedback=feedback)
     except AssembleError as e:
         print("error: {}".format(e), file=sys.stderr)
         sys.exit(1)

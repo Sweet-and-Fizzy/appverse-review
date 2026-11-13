@@ -19,7 +19,7 @@ Scripts then process these:
 | Script | Input | Output |
 |---|---|---|
 | `compute-ids.py` | findings JSON | findings JSON with stable `id` fields |
-| `assemble-artifact.py` | meta JSON + findings JSON + file paths (+ the pre-review's catalog.json and metadata.json when present, and an optional `--baseline` file) | **artifact JSON** (this contract); each app's `name` comes from metadata.json's resolved name, falling back to meta.json's |
+| `assemble-artifact.py` | meta JSON + findings JSON + file paths (+ the pre-review's catalog.json and metadata.json when present, an optional `--baseline` file, and the review's feedback.json when present) | **artifact JSON** (this contract); each app's `name` comes from metadata.json's resolved name, falling back to meta.json's |
 | `check-feedback-floor.py` | findings JSON + report MD | exit status: every Low+ fix-item named in the Draft Feedback (key in `feedback-covers`, file or repo-wide subject named, defect described in the sentence window) |
 | `check-keys.py` | findings JSON (+ target checkout) | exit status: every `defect_key` is `{anchor}:{tag}` with a real or allowed anchor and a vocabulary tag, and a FAIL/WARN record whose evidence cites files cites its anchor file; a PASS record with no rule (a PASS tool row) is not checked |
 | `check-rating.py` | report MD + findings JSON + pre-review dir | exit status: the rating follows its evidence lines (a ceiling); with `readme.json` `rungs`, a rating below `baseline_rating` carries `(lowered from <baseline>: <reason>)` on its rating line and a rating above it rests only on `content:` lines for the requirements the facts miss; and the Documentation signal follows the rating; no `content:` line serves two rungs; `Below minimal` needs a QUA-01 `docs-minimal` FAIL record and a README that is not a stub; the stub-README line needs a QUA-01 `docs-stub` FAIL record and `readme.json` `stub` true (with no stub fact, a STR-01 `readme-not-substantive` FAIL record); no suggestion-class check or MNT-02..06 signal is FAIL, or FAIL/WARN rated above info; no target check is WARN; the no-tool-detectable-issues sentence never sits under a FAIL/WARN Security row; the repo-level gate table's STR-01 README row is FAIL iff `readme.json`'s `stub` is true; exit 2 when `checks.json` cannot be read |
@@ -198,6 +198,17 @@ stderr and still assemble.
 - **`apps[].findings`** contains structure, OODT (security), and quality
   findings, filtered by `app_id`. There is no security indicator; a consumer
   reads security from these records directly (see Indicators below).
+- **`feedback.items`** (1.9) are the Draft feedback's fix items, in the
+  order the letter lists them: `level` (`must`, `should` or `suggestion`),
+  `text` (what to change, as the model wrote it; `""` when it wrote nothing,
+  where the letter falls back to the findings' summaries), `still_open`
+  (raised in the last review sent and the app was resubmitted), `locations`
+  (`path:lines` or a repo-wide label), and the findings the item covers as
+  `defect_keys` and `finding_ids` (the findings' `id`), in the same order.
+  One item can cover several findings, across apps. A meta-gate item (the
+  repository is archived or not public) covers no finding, so both lists are
+  empty. `feedback` is absent when the review had no feedback file (a
+  partial review).
 - **`path_class`** (1.6, optional, on any finding) is `"outside_install"`
   when every path the finding's evidence mentions sits under a directory a
   site does not install or run: `demo/`, `docs/`, `example/`, `examples/`,
@@ -366,3 +377,4 @@ tolerate a missing indicator key (see Indicators), so 1.2's removal of
 | 1.6 | Adds the optional finding field `path_class` (`outside_install` for findings whose every mentioned path, relative to the app's folder, is in a demo, docs, example or test directory), and `closest` (a list) on an `unknown` `apps[].catalog.app_type`. Both are additive; findings are not filtered. |
 | 1.7 | Adds the optional `suggested` on a non-`match` `apps[].catalog.software` and `apps[].catalog.suggested_same_software_apps`: the Software entry the app's folder or repository name, manifest name or README title names, for repos that do not declare one. Additive; `same_software_apps` is unchanged. |
 | 1.8 | Adds the optional top-level `since_last_review` (`review`, `sha`, `sent_at`, `kind`, `same_commit`, `comparable`, `not_found`) and, on FAIL/WARN findings, `since_last_review` (`new` or `still_open`). A reviewer's dismissal is not carried: the artifact is downloadable by anyone signed in to GitHub, so the hub shows its own. Present only when assembled with `--baseline`, the last review the hub sent to the contributor. `review` is the baseline's review id and may be null; `sent_at` is an integer, unix seconds; `kind` is the repo's kind (`plain`, `update` or `resubmission`); `not_found` lists the earlier findings (`id`, `app_id`, `rule`, `defect_key`) no longer present, and is `[]` when `comparable` is false. Per-finding keys appear only when `comparable` is true. |
+| 1.9 | Adds the optional top-level `feedback.items`: the Draft feedback's fix items (`level`, `text`, `still_open`, `locations`, `defect_keys`, `finding_ids`), so a consumer can show each suggestion under the findings it covers rather than parse the report's letter. Present only when assembled with `--feedback`. |
