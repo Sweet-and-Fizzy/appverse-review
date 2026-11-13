@@ -376,7 +376,7 @@ EOF
 ART4=$(python3 "$ASSEMBLE" --meta "$TMP/meta-ind.json" --findings "$TMP/findings-ind.json" --md "r.md" --plugin-version "0.3.0" 2> "$TMP/warn4.txt")
 
 SCHEMA=$(echo "$ART4" | jget "d['schema_version']")
-check "schema_version is 1.8" "1.8" "$SCHEMA"
+check "schema_version is 1.9" "1.9" "$SCHEMA"
 
 NO_SEC=$(echo "$ART4" | jget "'security' in d['apps'][0]['indicators']")
 check "no security indicator (schema 1.2)" "False" "$NO_SEC"
@@ -842,7 +842,7 @@ check "case18: software status" "match" "$(echo "$A18" | jget "d['apps'][0]['cat
 check "case18: unknown tags" "['gpu']" "$(echo "$A18" | jget "d['apps'][0]['catalog']['implementation_tags']['unknown']")"
 check "case18: same-software apps" "1" "$(echo "$A18" | jget "len(d['apps'][0]['catalog']['same_software_apps'])")"
 check "case18: repo-level source and counts" "https://openondemand.connectci.org 107" "$(echo "$A18" | jget "d['repo_level']['catalog']['source'] + ' ' + str(d['repo_level']['catalog']['counts']['apps'])")"
-check "case18: schema 1.8" "1.8" "$(echo "$A18" | jget "d['schema_version']")"
+check "case18: schema 1.9" "1.9" "$(echo "$A18" | jget "d['schema_version']")"
 # A catalog that is missing, or that names no matching app, adds nothing.
 A18B=$(python3 "$ASSEMBLE" --meta "$TMP/meta-result1.json" --findings "$TMP/findings-result1.json" --md r.md --catalog "$TMP/nope.json" --plugin-version 0.3.0 2>"$TMP/err18b")
 check "case18b: missing catalog, no catalog keys" "False False" "$(echo "$A18B" | jget "str('catalog' in d['apps'][0]) + ' ' + str('catalog' in d['repo_level'])")"
@@ -1004,6 +1004,53 @@ RC22E=$?
 set -e
 check "case22: baseline without review or ref assembles" "0" "$RC22E"
 check "case22: review is null, block keeps its keys" "None 7" "$(echo "$A22E" | jget "str(d['since_last_review']['review']) + ' ' + str(len(d['since_last_review']))")"
+
+# --- Test 23: the Draft feedback's fix items (schema 1.9) ---
+echo ""
+echo "Test 23: feedback items"
+cat > "$TMP/meta23.json" << 'EOF'
+{"repo_url": "https://github.com/test/app", "sha": "abc123", "ref": "main", "repo_shape": "inferred_single",
+ "not_archived": "fail", "public": "pass",
+ "recommendation": {"decision": "Request changes", "note": "n"},
+ "apps": [{"app_id": "root", "name": "Test App", "decision": "Request changes"}]}
+EOF
+cat > "$TMP/findings23.raw.json" << 'EOF'
+[
+  {"app_id":"root","rule":"OODT-01","defect_key":"b.sh:shell-injection","result":"FAIL","severity":"high","summary":"B","evidence":"b.sh:1"},
+  {"app_id":"root","rule":"OODT-01","defect_key":"c.sh:shell-injection","result":"FAIL","severity":"high","summary":"C","evidence":"c.sh:4"},
+  {"app_id":"root","rule":"QUA-07","defect_key":"a.sh:missing-set-e","result":"WARN","severity":"low","summary":"A","evidence":"a.sh:1"}
+]
+EOF
+python3 "$SCRIPT_DIR/references/compute-ids.py" < "$TMP/findings23.raw.json" > "$TMP/findings23.json"
+python3 "$SCRIPT_DIR/references/prepare-feedback.py" "$TMP/findings23.json" "$TMP/meta23.json" \
+  "$SCRIPT_DIR/references/checks.json" "$TMP/feedback23.json" > /dev/null 2>"$TMP/err23p"
+# The model fills one item's text; the other stays empty.
+python3 -c "
+import json, sys
+d = json.load(open(sys.argv[1]))
+for i in d['items']:
+    if i['defect_keys'] == ['b.sh:shell-injection', 'c.sh:shell-injection']:
+        i['text'] = '  Quote the arguments.  '
+json.dump(d, open(sys.argv[1], 'w'))" "$TMP/feedback23.json"
+A23=$(python3 "$ASSEMBLE" --meta "$TMP/meta23.json" --findings "$TMP/findings23.json" --md r.md --feedback "$TMP/feedback23.json" --plugin-version 0.3.0 2>"$TMP/err23")
+check "case23: one item per group, letter order, meta gate first" "['must', 'must', 'suggestion']" "$(echo "$A23" | jget "[i['level'] for i in d['feedback']['items']]")"
+check "case23: the meta-gate item covers no finding" "[] []" "$(echo "$A23" | jget "' '.join(str(d['feedback']['items'][0][k]) for k in ('defect_keys', 'finding_ids'))")"
+check "case23: text trimmed, keys in order" "Quote the arguments.|['b.sh:shell-injection', 'c.sh:shell-injection']" "$(echo "$A23" | jget "d['feedback']['items'][1]['text'] + '|' + str(d['feedback']['items'][1]['defect_keys'])")"
+check "case23: finding_ids are the artifact's finding ids, in key order" "True" "$(echo "$A23" | jget "(lambda ids: [ids[k] for k in d['feedback']['items'][1]['defect_keys']] == d['feedback']['items'][1]['finding_ids'])({f['defect_key']: f['id'] for f in d['apps'][0]['findings']})")"
+check "case23: an unfilled item has empty text" "''" "$(echo "$A23" | jget "repr(d['feedback']['items'][2]['text'])")"
+check "case23: item keys" "['defect_keys', 'finding_ids', 'level', 'locations', 'still_open', 'text']" "$(echo "$A23" | jget "sorted(d['feedback']['items'][1])")"
+python3 -c "
+import json, sys
+d = json.load(open(sys.argv[1])); d['items'][2]['level'] = 'nice to have'
+json.dump(d, open(sys.argv[2], 'w'))" "$TMP/feedback23.json" "$TMP/feedback23-bad.json"
+A23B=$(python3 "$ASSEMBLE" --meta "$TMP/meta23.json" --findings "$TMP/findings23.json" --md r.md --feedback "$TMP/feedback23-bad.json" --plugin-version 0.3.0 2>"$TMP/err23b")
+check "case23: a malformed item is left out with a warning" "2 1" "$(echo "$A23B" | jget "len(d['feedback']['items'])") $(grep -c 'feedback item 2 is not well formed' "$TMP/err23b")"
+A23C=$(python3 "$ASSEMBLE" --meta "$TMP/meta23.json" --findings "$TMP/findings23.json" --md r.md --feedback "$TMP/nope.json" --plugin-version 0.3.0 2>"$TMP/err23c")
+check "case23: a missing file assembles without feedback" "False 1" "$(echo "$A23C" | jget "'feedback' in d") $(grep -c 'fix items omitted' "$TMP/err23c")"
+echo '{"opening": ""}' > "$TMP/feedback23-noitems.json"
+A23D=$(python3 "$ASSEMBLE" --meta "$TMP/meta23.json" --findings "$TMP/findings23.json" --md r.md --feedback "$TMP/feedback23-noitems.json" --plugin-version 0.3.0 2>"$TMP/err23d")
+check "case23: no items list, no feedback" "False 1" "$(echo "$A23D" | jget "'feedback' in d") $(grep -c 'has no items list' "$TMP/err23d")"
+check "case23: no --feedback, no feedback" "False" "$(python3 "$ASSEMBLE" --meta "$TMP/meta23.json" --findings "$TMP/findings23.json" --md r.md --plugin-version 0.3.0 2>/dev/null | jget "'feedback' in d")"
 
 echo ""
 echo "Done: $pass passed, $fail failed."

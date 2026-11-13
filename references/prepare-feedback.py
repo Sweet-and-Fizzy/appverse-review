@@ -9,7 +9,8 @@ Writes feedback.json: {"app_name", "greeting", "opening", "reminder",
 names (review_baseline.feedback_findings: the fix-items, minus the
 reviewer-only ones when a baseline is given) with the same level, rule and
 base tag. Each item has group, level, still_open, locations, defect_keys,
-summaries and text. The model fills `opening` (the sentences on what the app
+finding_ids (review_baseline.stable_id, the findings' `id`), summaries and
+text. The model fills `opening` (the sentences on what the app
 does well; the thank-you is the `greeting`) and each `text`;
 render-feedback.py builds the section from the file. Everything else is
 regenerated on every run, so the model never decides which findings get a
@@ -171,6 +172,7 @@ def build_items(findings, meta, should_at_low, baseline=None):
             "still_open": is_still_open(g["findings"], states, baseline),
             "locations": [p + (":" + ",".join(ls) if ls else "") for p, ls in merged],
             "defect_keys": [str(f.get("defect_key") or "") for f in g["findings"]],
+            "finding_ids": [review_baseline.stable_id(f) for f in g["findings"]],
             "summaries": [str(f.get("summary", "")) for f in g["findings"]],
             "_rank": (LEVELS.index(g["level"]),
                       min(SEVERITY_RANK.get(str(f.get("severity", "")).lower(), 4) for f in g["findings"]),
@@ -179,7 +181,7 @@ def build_items(findings, meta, should_at_low, baseline=None):
     for gate, text in META_GATES:
         if str(meta.get(gate, "")).strip().lower() == "fail":
             items.append({"group": "must:meta:" + gate, "text": text, "level": "must", "still_open": False, "locations": [],
-                          "defect_keys": [], "summaries": [],
+                          "defect_keys": [], "finding_ids": [], "summaries": [],
                           "_rank": (0, SEVERITY_RANK["high"], "META", gate)})
     items.sort(key=lambda i: i["_rank"])
     for item in items:

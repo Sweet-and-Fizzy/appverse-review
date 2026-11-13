@@ -1087,6 +1087,12 @@ jobs:
             if [ -f "${WS}/pre-review/metadata.json" ]; then
               METADATA_ARG="--metadata ${WS}/pre-review/metadata.json"
             fi
+            # The Draft feedback's fix items, so the hub can show each one
+            # under its findings (schema 1.9); absent for a partial review.
+            FEEDBACK_ARG=""
+            if [ -s "${WS}/review-${SLUG}.feedback.json" ]; then
+              FEEDBACK_ARG="--feedback ${WS}/review-${SLUG}.feedback.json"
+            fi
             python3 "${WS}/appverse-review/references/assemble-artifact.py" \
               --meta "$META_FILE" \
               $FINDINGS_ARG \
@@ -1095,6 +1101,7 @@ jobs:
               $HTML_ARG \
               $CATALOG_ARG \
               $METADATA_ARG \
+              $FEEDBACK_ARG \
               --plugin-version "$PLUGIN_VERSION" \
               > "$ARTIFACT_FILE"
             echo "Assembled review artifact: $(wc -c < "$ARTIFACT_FILE") bytes"
