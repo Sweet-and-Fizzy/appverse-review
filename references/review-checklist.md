@@ -139,18 +139,25 @@ app a meaningfully different approach.
 
 Each app has a **Duplicate check**, under its ratings. It compares the app
 with the published apps for the same software, using the Software entry
-assigned to the app, or failing that the `software` value. Record one of
+assigned to the app, then the `software` value, then the Software entry the
+review tool suggests from the app's repository or folder name, manifest name
+or README title. Record one of
 three outcomes for each app before you accept it: "No other app for this
 software", "Same software, a meaningfully different approach" or "Duplicate
 of an existing app". Give your reason. Name the apps you compared and say
 how this one differs or which one it copies.
 
-When the page found no other app for the software, it offers **Confirm**,
-which records "No other app" in one click. When there are apps to compare,
-or the page could not tell what the software is, the check is an item in
-the app's list instead, and you choose the outcome and give the reason. If
-the catalog changed after you opened the page, Confirm is refused and the
-page asks you to compare the apps it now lists.
+When the page found no other app for assigned or declared software, it
+offers **Confirm**, which records "No other app" in one click. When there are
+apps to compare, or the page could not tell what the software is, the check
+is an item in the app's list instead, and you choose the outcome and give
+the reason. If the catalog changed after you opened the page, Confirm is
+refused and the page asks you to compare the apps it now lists.
+
+A suggested Software entry is a guess, and the page says where the tool
+found it. It never gets Confirm: the check is an item in the app's list, and
+"No other app" needs your reason. If the suggestion is wrong, assign the
+right software on the app.
 
 The outcome does not limit your decision. If you accept an app you marked
 as a duplicate, the page warns you but still lets you send.
