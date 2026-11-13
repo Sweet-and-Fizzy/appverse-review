@@ -175,10 +175,19 @@ OODT-XX before hashing.
 
 **OODT-02:**
 `hardcoded-credential`, `credential-file-predictable-path`,
-`token-cli-visible`, `token-in-url`, `secret-in-log`
+`token-cli-visible`, `token-in-url`, `secret-in-log`,
+`credential-forwarded-on-redirect`
+
+`credential-forwarded-on-redirect` is an HTTP client that follows a
+redirect to another host with the original request's credential (an API
+key or `Authorization` header) still attached.
 
 **OODT-03:**
 `permissive-file-mode`, `path-traversal`, `other-user-files`
+
+`other-user-files` also covers a predictable path in a shared directory
+(`/tmp/$USER.map`, bandit B108) that the app reads back or writes, since
+another user can pre-create, replace or read it.
 
 **OODT-04:**
 `unexpected-network-call`, `data-to-external-server`, `binary-in-template`
@@ -186,7 +195,8 @@ OODT-XX before hashing.
 **OODT-05:**
 `bind-all-interfaces`, `cors-wildcard`, `disabled-auth`,
 `disabled-xsrf`, `unescaped-output-html`, `unescaped-output-javascript`,
-`token-in-process-list`, `cdn-without-sri`, `partial-auth-coverage`
+`token-in-process-list`, `cdn-without-sri`, `partial-auth-coverage`,
+`missing-csrf`
 
 `bind-all-interfaces` names a service bound to a non-loopback interface
 (`0.0.0.0`, `::`, `INADDR_ANY`) that answers without authentication. OOD's
@@ -197,6 +207,12 @@ it, a `--NotebookApp.token="$password"`, a proxy in front that checks a
 cookie and no direct port. The evidence is the line where the service
 consumes the password or token; OOD's per-session `password` generated in
 `before.sh` counts only when the service reads it.
+
+`missing-csrf` is a state-changing endpoint (a write, a job submission, a
+script run, or a GET that changes state) with no CSRF token or Origin
+check, so a page on another site can make it act as the signed-in user.
+`disabled-xsrf` is the narrower case of a framework's protection turned
+off.
 
 **OODT-06:**
 `missing-cleanenv`, `fakeroot-misuse`, `privileged-container`,
@@ -209,7 +225,13 @@ consumes the password or token; OOD's per-session `password` generated in
 **OODT-08:**
 `debug-tracing-enabled`, `overly-broad-permissions`, `disabled-ssl`,
 `default-password`, `framework-protection-disabled`,
-`dns-rebinding-relaxed`, `supply-chain-untrusted-index`
+`dns-rebinding-relaxed`, `supply-chain-untrusted-index`,
+`install-at-launch`
+
+`install-at-launch` is an app that installs or upgrades its dependencies
+(`pip`, `npm`, `gem`, `conda`) every time it starts or a job launches, so
+what runs is whatever the package index serves that day. One record on the
+file that runs the install, under OODT-08 only, not also as a QUA finding.
 
 ---
 
@@ -316,14 +338,38 @@ new findings.
 
 **QUA-04:**
 `unused-attribute:{attr_name}`, `dead-branch`, `commented-out-code`,
-`unreachable-lookup-entry`
+`unreachable-lookup-entry`, `unused-definition`, `unused-file`
+
+`unused-definition` is a variable, constant, function or method in code
+that is defined but never used (shellcheck SC2034, SC2329). `unused-file`
+is a committed file the app never reads: a backup or stale copy
+(`*.orig`, `*.org`, `*.bak`, `form.yml.erb.static`), an editor swap file or
+`.DS_Store`, or a sample config nothing loads. It is QUA-04 even when the
+file duplicates a live one, not QUA-09 `duplicated-block`; one record per
+file.
 
 **QUA-05:**
 `wrong-app-reference`, `template-placeholder`, `wrong-app-changelog`
 
 **QUA-06:**
 `duplicate-yaml-key:{key_name}`, `wrong-help-text`,
-`incorrect-default`, `readme-inconsistency:{topic}`, `readme-typo`, `icon-os-mismatch`
+`incorrect-default`, `readme-inconsistency:{topic}`, `readme-typo`, `icon-os-mismatch`,
+`wrong-ui-text`, `misspelled-name`, `missing-referenced-file`,
+`manifest-inconsistency`
+
+`wrong-ui-text` is a user-facing message, label or caption outside the
+form's help text and the README that is wrong, misspelled or
+ungrammatical. `misspelled-name` is code that reads a variable under a
+misspelling of the one it assigned (`$HTMLTEMPLATE` for `HTML_TEMPLATE`,
+shellcheck SC2153), so it expands empty; an attribute the form does not
+define stays STR-04. `missing-referenced-file` is code that loads a repo
+file by path (a view template, a partial, a script) that does not exist,
+so that code path fails when it runs. `manifest-inconsistency` is an app's
+own `manifest.yml` whose name, description or other fields disagree with
+what `appverse.yml` declares for it, so a deployer's dashboard can differ
+from the catalog listing. It is QUA-06, not an STR gate: the listing
+still works, and a `role` that does not match the layout has its own
+check.
 
 **QUA-07:**
 `missing-min`, `missing-required`, `zero-minimum`, `missing-pattern`, `missing-min-max`
