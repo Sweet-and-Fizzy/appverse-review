@@ -143,6 +143,15 @@ defect_key = "{anchor}:{mechanism_tag}"
     is never a finding on its own, since a subpath app falls back to the root
     README and the Documentation rating covers what it lacks, so the anchor
     is always the bare `README.md`, never `<app_id>/README.md`.
+  - Two tags take a fixed anchor though the defect is present. STR-02
+    `missing-field:<field>` anchors on the app, `root` (the app subpath in
+    a monorepo, `apps/a:missing-field:software`), since a catalog field can
+    resolve from `appverse.yml`, an `apps[]` entry or `manifest.yml` and no
+    one file owns its absence. QUA-10 `erb-missing-value-unhandled` anchors
+    on the app's submit file, `submit.yml.erb`, else `submit.yml` (prefixed
+    with the app subpath in a monorepo), never on `form.yml` or a
+    `template/` file, whatever the result; an app with neither file takes
+    `root` or the app subpath.
   - Anything else must be a repo-relative path that exists in the reviewed
     tree.
 - **Prior finding disappears but code unchanged**: flag as "prior finding not

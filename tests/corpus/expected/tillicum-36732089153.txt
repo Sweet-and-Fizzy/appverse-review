@@ -4,7 +4,8 @@
 # note: [evidence] NOTE lines are the cited-value rule in informational mode (precision under 80% on this corpus); they never change the exit code.
 # expected: the [rows] MISSING sec-tool-finding line is the tool-finding check added after this report was produced.
 [floor] feedback floor: 16/16 fix-items covered
-[keys] finding keys: 39/39 valid
+[keys] INVALID STR-02 manifest.yml:missing-field:description (tag 'missing-field' must use anchor 'root' (or the app subpath in a monorepo))
+[keys] finding keys: 38/39 valid
 [rating] MISMATCH root documentation: stub rating but readme.json says the README is not a stub
 [rating] MISMATCH root security: "No tool-detectable issues in the checked tiers." with 4 FAIL/WARN rows above it
 [rating] MISMATCH root QUA-08 template/after.sh:magic-number: suggestion (check magic-numbers) rated low; suggestions are info

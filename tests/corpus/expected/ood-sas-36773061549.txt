@@ -1,5 +1,6 @@
 [floor] feedback floor: 15/15 fix-items covered
-[keys] finding keys: 39/39 valid
+[keys] INVALID STR-02 manifest.yml:missing-field:description (tag 'missing-field' must use anchor 'root' (or the app subpath in a monorepo))
+[keys] finding keys: 38/39 valid
 [rating] MISMATCH root QUA-03 template/script.sh.erb:no-error-check: target (check error-handling) recorded as WARN; an unmet target is FAIL
 [rating] MISMATCH root QUA-04 template/script.sh.erb:commented-out-code: suggestion (check dead-code) rated low; suggestions are info
 [rating] ratings: 2 mismatches

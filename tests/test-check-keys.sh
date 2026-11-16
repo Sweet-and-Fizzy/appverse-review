@@ -58,9 +58,9 @@ check "exit 1 for the vocabulary's own placeholder" 1 "$(run "$TMP/f3.json")"
 check "both rejected" 2 "$(grep -c "is a placeholder; name the actual {var_name}" "$TMP/out")"
 printf '[%s]' "$(rec STR-04 root:undefined-variable:cluster)" > "$TMP/f4.json"
 check "real qualifier stays valid" 0 "$(run "$TMP/f4.json")"
-printf '[%s]' "$(rec STR-02 manifest.yml:missing-field:name)" > "$TMP/f5.json"
+printf '[%s]' "$(rec STR-02 root:missing-field:name)" > "$TMP/f5.json"
 check "missing-field:name is a real field, stays valid" 0 "$(run "$TMP/f5.json")"
-printf '[%s]' "$(rec STR-02 manifest.yml:missing-field:tbd)" > "$TMP/f6.json"
+printf '[%s]' "$(rec STR-02 root:missing-field:tbd)" > "$TMP/f6.json"
 check "missing-field:tbd rejected" 1 "$(run "$TMP/f6.json")"
 printf '[%s]' "$(rec QUA-06 form.yml:duplicate-yaml-key:value)" > "$TMP/f7.json"
 check "duplicate-yaml-key:value is a real form.yml key, stays valid" 0 "$(run "$TMP/f7.json")"
@@ -79,10 +79,10 @@ echo "Test 10: unreadable input is exit 2"
 check "exit 2" 2 "$(run "$TMP/nope.json")"
 
 echo "Test 11: STR-02's qualifier requirement is sticky across the base tag and its bracketed examples"
-printf '[%s]' "$(rec STR-02 manifest.yml:missing-field)" > "$TMP/i.json"
+printf '[%s]' "$(rec STR-02 root:missing-field)" > "$TMP/i.json"
 check "exit 1" 1 "$(run "$TMP/i.json")"
-check "reason" 1 "$(grep -c "INVALID STR-02 manifest.yml:missing-field (tag 'missing-field' requires a qualifier)" "$TMP/out")"
-printf '[%s]' "$(rec STR-02 manifest.yml:missing-field:software)" > "$TMP/j.json"
+check "reason" 1 "$(grep -c "INVALID STR-02 root:missing-field (tag 'missing-field' requires a qualifier)" "$TMP/out")"
+printf '[%s]' "$(rec STR-02 root:missing-field:software)" > "$TMP/j.json"
 check "exit 0" 0 "$(run "$TMP/j.json")"
 check "summary" "finding keys: 1/1 valid" "$(tail -1 "$TMP/out")"
 
@@ -271,5 +271,47 @@ check "summary" "finding keys: 10/10 valid" "$(tail -1 "$TMP/out")"
 printf '[%s]' "$(rec OODT-05 app.py:other:missing-csrf-protection)" > "$TMP/n4.json"
 check "extension exit 1" 1 "$(run "$TMP/n4.json")"
 check "extension reason" 1 "$(grep -cxF "INVALID OODT-05 app.py:other:missing-csrf-protection (other:missing-csrf-protection extends the vocabulary tag 'missing-csrf'; use 'missing-csrf' or a distinct slug)" "$TMP/out")"
+
+echo "Test 28: QUA-10 erb-missing-value-unhandled anchors on the submit file, or the app when it has none"
+mkdir -p "$TMP/q/template" "$TMP/q/apps/y/template" "$TMP/q/apps/z" "$TMP/n"
+touch "$TMP/q/submit.yml.erb" "$TMP/q/submit.yml" "$TMP/q/form.yml" "$TMP/q/template/script.sh.erb" "$TMP/q/apps/y/submit.yml" "$TMP/q/apps/y/template/script.sh.erb" "$TMP/q/apps/z/form.yml" "$TMP/n/form.yml"
+printf '[%s,%s,%s,%s]' \
+  "$(recev root QUA-10 submit.yml.erb:erb-missing-value-unhandled WARN 'submit.yml.erb:6')" \
+  "$(recev apps/y QUA-10 apps/y/submit.yml:erb-missing-value-unhandled WARN 'submit.yml:4')" \
+  "$(recev apps/z QUA-10 apps/z:erb-missing-value-unhandled PASS '')" \
+  "$(recev apps/z QUA-10 apps/z:erb-missing-value-unhandled 'NOT CHECKED' 'form.json error')" > "$TMP/q1.json"
+check "submit.yml.erb, an app's submit.yml, and the app subpath for an app with neither: exit 0" 0 "$(run "$TMP/q1.json" --target "$TMP/q")"
+printf '[%s,%s,%s,%s]' \
+  "$(recev root QUA-10 template/script.sh.erb:erb-missing-value-unhandled WARN 'template/script.sh.erb:9')" \
+  "$(recev root QUA-10 form.yml:erb-missing-value-unhandled PASS '')" \
+  "$(recev root QUA-10 submit.yml:erb-missing-value-unhandled WARN 'submit.yml:4')" \
+  "$(recev apps/y QUA-10 apps/y/template/script.sh.erb:erb-missing-value-unhandled WARN 'template/script.sh.erb:2')" > "$TMP/q2.json"
+check "another file: exit 1" 1 "$(run "$TMP/q2.json" --target "$TMP/q")"
+check "script.sh.erb, a no-candidate PASS on form.yml, and submit.yml beside submit.yml.erb rejected" 3 "$(grep -cF "(tag 'erb-missing-value-unhandled' must use anchor 'submit.yml.erb')" "$TMP/out")"
+check "monorepo reason names the app's submit file" 1 "$(grep -cxF "INVALID QUA-10 apps/y/template/script.sh.erb:erb-missing-value-unhandled (tag 'erb-missing-value-unhandled' must use anchor 'apps/y/submit.yml')" "$TMP/out")"
+printf '[%s,%s]' \
+  "$(recev root QUA-10 root:erb-missing-value-unhandled PASS '')" \
+  "$(recev root QUA-10 submit.yml.erb:erb-missing-value-unhandled PASS '')" > "$TMP/q3.json"
+check "no submit file: root valid, a submit anchor not: exit 1" 1 "$(run "$TMP/q3.json" --target "$TMP/n")"
+check "only the submit anchor rejected" "INVALID QUA-10 submit.yml.erb:erb-missing-value-unhandled (tag 'erb-missing-value-unhandled' must use anchor 'root')" "$(cat "$TMP/out" | head -1)"
+check "an app with a submit file rejects root" 1 "$(run "$TMP/q3.json" --target "$TMP/q")"
+check "root reason" 1 "$(grep -cxF "INVALID QUA-10 root:erb-missing-value-unhandled (tag 'erb-missing-value-unhandled' must use anchor 'submit.yml.erb')" "$TMP/out")"
+printf '[%s,%s]' \
+  "$(recev root QUA-10 form.yml:erb-missing-value-unhandled PASS '')" \
+  "$(recev root QUA-10 submit.yml:erb-missing-value-unhandled PASS '')" > "$TMP/q4.json"
+check "without --target: form.yml rejected, submit.yml accepted" 1 "$(run "$TMP/q4.json")"
+check "without --target reason" "INVALID QUA-10 form.yml:erb-missing-value-unhandled (tag 'erb-missing-value-unhandled' must use anchor 'submit.yml.erb' or 'submit.yml', or 'root' when the app has neither)" "$(head -1 "$TMP/out")"
+
+echo "Test 29: STR-02 missing-field anchors on the app"
+printf '[%s,%s]' \
+  "$(recev root STR-02 root:missing-field:software FAIL 'metadata.json')" \
+  "$(recev apps/y STR-02 apps/y:missing-field:maintainer.name FAIL 'apps/y/appverse.yml:1')" > "$TMP/r1.json"
+check "root, and the app subpath in a monorepo: exit 0" 0 "$(run "$TMP/r1.json" --target "$TMP/q")"
+printf '[%s,%s,%s]' \
+  "$(recev root STR-02 manifest.yml:missing-field:description FAIL 'manifest.yml:1')" \
+  "$(recev apps/y STR-02 apps/y/manifest.yml:missing-field:role WARN 'manifest.yml:1')" \
+  "$(recev apps/y STR-02 root:missing-field:software FAIL 'metadata.json')" > "$TMP/r2.json"
+check "a file, or another app's anchor: exit 1" 1 "$(run "$TMP/r2.json" --target "$TMP/q")"
+check "all three rejected" 3 "$(grep -cF "(tag 'missing-field' must use anchor 'root' (or the app subpath in a monorepo))" "$TMP/out")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
