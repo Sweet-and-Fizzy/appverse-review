@@ -7,8 +7,11 @@ A key is "{anchor}:{tag}". The anchor must be a repo-relative path that
 exists under --target (when given) or one of the allowed pseudo-anchors.
 An absent-file tag (ABSENT_FILE_ANCHORS) instead takes its fixed expected
 anchor, which must be "<app_id>/<anchor>" in a monorepo, and existence is not
-checked; missing-entry-point takes "root", or the app subpath itself in a
-monorepo. The tag must be in the rule's vocabulary (finding-codes.md), carrying
+checked; missing-entry-point and STR-02's missing-field:<field> take "root",
+or the app subpath itself in a monorepo. QUA-10's erb-missing-value-unhandled
+takes the app's submit file (submit.yml.erb, else submit.yml), or the app
+itself when it has neither.
+The tag must be in the rule's vocabulary (finding-codes.md), carrying
 its qualifier where the vocabulary shows one, or "other:<slug>" where the slug
 is neither a vocabulary tag in disguise nor one extended by a suffix. A
 FAIL or WARN record whose evidence cites file:line groups, none of them in
@@ -58,6 +61,40 @@ ABSENT_FILE_ANCHORS = {
     # One key whether or not a CHANGELOG exists.
     "no-changelog": ("CHANGELOG.md",),
 }
+# Tags whose anchor is fixed to a file that exists: the first of these paths
+# the app has (prefixed with the app_id in a monorepo), else the app itself.
+# QUA-10's candidate is an interpolation in the submit file, so another .erb
+# file citing the same form attribute is not a second key, and a no-candidate
+# PASS or NOT CHECKED record keys on the same file rather than form.yml.
+PRESENT_FILE_ANCHORS = {
+    "erb-missing-value-unhandled": ("submit.yml.erb", "submit.yml"),
+}
+# Tags anchored on the app itself ("root", or the app subpath in a monorepo),
+# like missing-entry-point: a catalog field may resolve from appverse.yml, an
+# apps[] entry, or manifest.yml, so no one file owns its absence.
+APP_ANCHORED_TAGS = ("missing-entry-point", "missing-field")
+
+
+def present_file_anchor_problem(tag, anchor, app_id, names, target):
+    """The INVALID reason when a PRESENT_FILE_ANCHORS tag's anchor is not the
+    one its app allows, else None. With --target the anchor is the first of
+    `names` that exists (the pre-review's order), or the app itself ("root",
+    or the app subpath) when none does: a no-candidate PASS or a NOT CHECKED
+    record then has no file to name. Without --target any of them passes."""
+    prefix = "" if app_id == "root" else app_id + "/"
+    paths = [prefix + n for n in names]
+    if target is not None:
+        found = [p for p in paths if exists_case_exact(os.path.realpath(target), p)]
+        want = found[0] if found else app_id
+        if anchor != want:
+            return "tag '{}' must use anchor '{}'".format(tag, want)
+        return None
+    if anchor not in paths + [app_id]:
+        return "tag '{}' must use anchor {}, or '{}' when the app has neither".format(
+            tag, " or ".join("'{}'".format(p) for p in paths), app_id)
+    return None
+
+
 FINDING_CODES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "finding-codes.md")
 RULE_HEADING = re.compile(r"^\*\*([A-Z]{3,4}-\d{2}):\*\*\s*$")
 TAG_TOKEN = re.compile(r"`([^`]+)`")
@@ -171,9 +208,16 @@ def validate(finding, vocab, target, placeholders=None):
     if not_repo_relative(anchor):
         return rule, key, "anchor must be a repo-relative path"
     expected = ABSENT_FILE_ANCHORS.get(tag)
-    if tag == "missing-entry-point":
+    base_tag = tag.partition(":")[0]
+    present = PRESENT_FILE_ANCHORS.get(tag)
+    if present is not None:
+        reason = present_file_anchor_problem(tag, anchor, app_id, present, target)
+        if reason:
+            return rule, key, reason
+    if base_tag in APP_ANCHORED_TAGS:
         if anchor != app_id:
-            return rule, key, "absent-file tag 'missing-entry-point' must use anchor 'root' (or the app subpath in a monorepo)"
+            kind = "absent-file tag" if base_tag in ABSENT_FILE_ANCHORS else "tag"
+            return rule, key, "{} '{}' must use anchor 'root' (or the app subpath in a monorepo)".format(kind, base_tag)
     elif tag == "missing-readme":
         if anchor != "README.md":
             return rule, key, "missing-readme is repo-level; use README.md"
@@ -191,7 +235,7 @@ def validate(finding, vocab, target, placeholders=None):
                     tag, expected[0], expected[0])
             return rule, key, "absent-file tag '{}' must use one of {} (or '<app_id>/<anchor>' in a monorepo)".format(
                 tag, ", ".join("'{}'".format(e) for e in expected))
-    elif anchor not in PSEUDO_ANCHORS:
+    elif anchor not in PSEUDO_ANCHORS and not (present is not None and anchor == app_id):
         looks_like_path = "/" in anchor or "." in anchor
         if target is not None:
             resolved_target = os.path.realpath(target)

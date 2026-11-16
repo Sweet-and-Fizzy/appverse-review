@@ -85,8 +85,11 @@ For each app, and for each manifest entry above in manifest order:
    `{anchor}:{tag}`, the anchor being the candidate's file, and a key
    appears once per app. `erb-missing-value` (QUA-10 `erb-missing-value-unhandled`)
    anchors on the submit file (`submit.yml.erb`, where `submit_lines` cites
-   the interpolation), never on `form.yml`; `numeric-field-bounds`'s QUA-07
-   tags anchor on `form.yml` (the candidate's `file`), never on the submit
+   the interpolation, or `submit.yml` when the app has no `.erb` one), never
+   on `form.yml` or a `template/` file, and its no-candidate PASS and NOT
+   CHECKED records key on that file too (`root` or the app subpath when the
+   app has no submit file); check-keys rejects any other anchor.
+   `numeric-field-bounds`'s QUA-07 tags anchor on `form.yml` (the candidate's `file`), never on the submit
    file. The tag is fixed, not chosen:
 
    | Candidate | Tag |
@@ -109,8 +112,9 @@ For each app, and for each manifest entry above in manifest order:
    the highest; the report's rows stay per candidate regardless. A check
    with no candidates that
    passes gets one PASS record keyed on the file it examined (the form file
-   for the form checks, the main template script otherwise, or `root` / the
-   app subpath when no single file fits) with the manifest tag. The two
+   for the form checks except QUA-10, which keys on the submit file as
+   above, the main template script otherwise, or `root` / the app subpath
+   when no single file fits) with the manifest tag. The two
    rating checks (manifest tag null) get no record of their own: the
    assessments block carries a rating that meets its target, and below
    target see "What each check asks".

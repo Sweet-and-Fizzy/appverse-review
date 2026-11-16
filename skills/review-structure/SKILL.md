@@ -76,7 +76,9 @@ its own finding with the vocabulary tag that fits or `other:`.
   declares none, `manifest.yml` only for a member's name and description),
   with the file each came from. Never judge them from `manifest.yml` alone.
   Each field in an app's `missing` list is a gate failure (STR-02,
-  `missing-field:<name>`), and no other catalog field is; when the root declares no
+  `missing-field:<name>`, anchored on the app: `root:missing-field:software`,
+  or `apps/a:missing-field:software` in a monorepo), and no other catalog
+  field is; when the root declares no
   `maintainer` and no app declares one, record each maintainer field once,
   with `app_id` `root`. A `software_missing` app is its own STR-02 FAIL
   (`missing-field:software`). An app whose `status` is not `declared`
@@ -87,7 +89,8 @@ its own finding with the vocabulary tag that fits or `other:`.
   rather than judging the fields from the files.
   An inferred repo still has the rubric's inferred-repo check: its root `manifest.yml` needs
   `name`, `category`, `role` and `description`, each one absent recorded as
-  STR-02 `missing-field:<name>` as before (a missing `role` is a WARN).
+  STR-02 `missing-field:<name>`, anchored on the app like any other
+  (`root:missing-field:role`; a missing `role` is a WARN).
 - `app_type` and `implementation_tags` are known values. Read the result from
   `<pre-review>/catalog.json` (per app, `checks.app_type` and
   `checks.implementation_tags`, compared with the live vocabularies, ignoring
