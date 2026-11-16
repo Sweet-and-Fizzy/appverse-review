@@ -1,0 +1,10 @@
+[Unit]
+Description=Site news API for the Cluster Desktop form
+
+[Service]
+User=root
+ExecStart=/usr/bin/python3 /var/www/ood/apps/sys/cluster_desktop/service/news_api.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

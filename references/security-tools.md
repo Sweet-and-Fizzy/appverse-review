@@ -271,14 +271,28 @@ why it is acceptable); a candidate is not a finding. The file starts with
 `summary.json["facts"]` is `ran` per app with the non-zero counts in its note.
 
 **Scope.** Batch Connect: `submit.yml(.erb)`, `form.yml(.erb)`,
-`connection.yml(.erb)`, everything under `template/`, and container
-definitions (`Dockerfile*`, `Containerfile*`, `*.def`) anywhere in the app.
-Passenger, companion, widget and unknown apps: every file in the app except
+`connection.yml(.erb)`, the dashboard files (`form.js`, `view.html.erb`,
+`info.html.erb` / `info.md.erb`, `completed.html.erb` / `completed.md.erb`),
+everything under `template/`, container definitions (`Dockerfile*`,
+`Containerfile*`, `*.def`) anywhere in the app, and the rest of the app's
+source on the same terms as below, except CI configuration (`.github/`,
+`.gitlab/`, `.circleci/`, `.buildkite/`, `.gitlab-ci.yml`, `.travis.yml`,
+`Jenkinsfile`, `azure-pipelines.yml`, `.drone.yml`, `.pre-commit-config.yaml`)
+and documentation (`doc/`, `docs/`, `mkdocs.yml`). Passenger, companion, widget and unknown apps: every file in the app except
 `vendor/`, `node_modules/`, `.git/`, docs (`*.md`, `*.txt`, `*.rst`), licences,
 changelogs, images, fonts, lock files and test code (`test/`, `tests/`, `spec/`,
 `*_test.rb`, `test_*.py`, `*_spec.rb`, `*.test.js`). Every app adds the root
 `appverse.yml` `shared_paths`. Files are read under the shell-file rule; a
 refused or (outside `template/`) binary file is listed in `skipped_files`.
+
+**Area.** Every candidate carries `area`, the part of a Batch Connect app the
+file belongs to: `job` (`template/**` and container definitions, run inside
+the user's job), `dashboard` (the submit, form and connection files,
+`manifest.yml` and the dashboard files, which the OOD dashboard renders or runs in the user's
+logged-in session) or `other_source` (anything else in the app, such as an
+install script or a helper service: OOD never loads it, but a site runs it
+when installing the app). Other app types use `app`, and a `shared_paths`
+file is `shared`. A collapsed `tool_finding` candidate has `area` `other_source` when it collapsed from other source, else null.
 
 **Candidate fields.** `kind`, `check` (the manifest check id), `rule`,
 `tag` (the mechanism tag from finding-codes.md that fits the match, or null),
@@ -295,6 +309,7 @@ counts at the start of a string (`["curl", url]`, `"curl ..."`).
 |---|---|---|---|---|
 | `interpolation` | Every line in `submit.yml.erb` or a `template/**/*.erb` file with a `<%= %>` tag that carries a form attribute: the bare name, `context.<name>` or `@<name>`, or a variable or block parameter (`x.split.each do \|opt\|`) assigned from one. `guarded`: the value is sanitised or validated in every such tag: each output reference ends in `.to_i`, `.to_f` or `.shellescape`, or sits in `Shellwords.escape()`, `Integer()` or `Float()`, or an enclosing ERB condition on the attribute validates it (`=~`, `match`, `include?`, `in?`). A presence test is not a guard. `presence_checked`: every such tag has its own presence test (`if`, `unless`, ternary, `\|\|`, `.presence`, `.blank?`, `.present?`, `.empty?`, `.nil?`, `fetch`) or sits under an ERB condition that references the attribute. `quoted`: every such tag is inside quotes on its line (lexical). The note names the widget, the carrying variable, the YAML key in `submit.yml.erb`, the sanitiser, and `quoted (YAML)`, `quoted (shell)` or `unquoted`; shell double quotes add `still expands $(...)`, since they do not stop command substitution | `sec-interpolation` | OODT-01 | `unsanitized-user-input` |
 | `unquoted_expansion` | `$VAR` or `${VAR}` outside quotes in a template shell file, where `VAR` is assigned from a `<%= %>` tag carrying a form attribute (or from such a variable). Plain `X=$VAR` assignments and `[[ ]]` tests are skipped | `sec-interpolation` | OODT-01 | `unquoted-variable` |
+| `unescaped_output` | In a Batch Connect app's `view.html.erb`, `info.*.erb` or `completed.*.erb`, every line with a `<%= %>` tag whose whole value is not one escaping call (`h()`, `u()`, `html_escape()`, `url_encode()`, also as `ERB::Util.<name>`, `CGI.escapeHTML()`, `Rack::Utils.escape_html()`, `Integer()`, `Float()`, or `h x`), a single chain ending in `.to_i`, `.to_f`, `.length`, `.size` or `.count`, or only a value OOD provides. `h(a) + b` and `Integer(x) rescue x` are candidates. OOD-provided: `host`, `port`, `password`, `display`, `app_port`, `csrftoken`, `websocket`, also as `connect.<name>`; in an info or completed view (bound to the session) also `id`, `job_id`, `cluster_id`, `created_at`, `token`, `title`. OOD renders these files as plain ERB, then markdown, and marks the result `html_safe`, so `<%= %>` is not HTML-escaped. In `form.js`: a jQuery or DOM call that parses its argument as HTML (`.html(`, `.append(`, `.prepend(`, `.after(`, `.before(`, `.replaceWith(`, `.replaceAll(`, `.wrap(`, `.wrapAll(`, `.wrapInner(`, `.insertAdjacentHTML(`, `innerHTML =`, `outerHTML =`, `document.write(`), reading the next line when the argument starts there, and a jQuery constructor given HTML built by concatenation (`$('<li>' + x)`). Not a candidate: a plain string literal, an element built or selected from a literal (`$('<div>')`, `$('#id')`, `document.createElement`), a variable every assignment of which is such an element, and `append` / `set` on a FormData or URLSearchParams-style receiver (`params`, `formData`, `form`, `query`, ...). A callback parameter is never assigned, so it is a candidate | `sec-interpolation` | OODT-05 | `unescaped-output-html`; `unescaped-output-javascript` for a tag inside a `<script>` element (lexical: an `onclick=""` attribute counts as HTML) |
 | `eval_exec` | Shell `eval`; `exec`, `source` or `.` of a variable; `sh -c` with a variable; a pipe into a shell (`\| bash`, `base64 -d \| sh`); `source <(curl ...)`; `eval(` / `exec(` / `new Function(`; `os.system` / `os.popen`; a `subprocess` call with `shell=True` (anchored at the call, note gives the `shell=True` line); `child_process.exec`; a Ruby `system` / `Open3` / `IO.popen` string, a backtick command or `%x(...)` with `#{}` | `sec-eval-exec` | OODT-01 | `eval-exec`; `curl-pipe-exec` for a download piped into a shell; `command-injection` for shell-string execution |
 | `network_call` | `curl`, `wget`, `ssh`, `scp`, `sftp`, `nc`, `ncat`, `netcat`, `socat`, `telnet` in command position; HTTP and socket clients (`requests.*`, `urlopen`, `Net::HTTP`, `open-uri`, `TCPSocket`, `fetch("https://...")`, `axios`); a URL. URLs are skipped for local hosts (`localhost`, `127.*`, `unix:`, a variable, `#{}` or ERB host), example and schema hosts, DTD/XSD links, `href` links, `echo` / `printf` / `help:` / `label:` / `description:` lines, form and manifest files, and dependency manifests (`Gemfile`, `package.json`, `pyproject.toml`, ...) | `sec-network-call` | OODT-04 | `unexpected-network-call` |
 | `file_write_outside_job` | A shell redirect, or a `cp` / `mv` / `install` / `ln` / `rsync` destination or `tee` argument, that is `$HOME`, `~`, or an absolute path (except `/dev/` and `/proc/self/`); `crontab` or `systemctl --user enable\|start` in command position; elsewhere, a `crontab` command string, or a write (`open(..., "w")`, `.write`, `File.write`, `FileUtils`, `shutil.copy`, `writeFile`, `>>`) on a line naming `.ssh/`, `authorized_keys`, a shell init file, `/etc/cron`, `.config/systemd/user` or `.config/autostart` | `sec-file-write-outside-job` | OODT-07 | `ssh-key-write` (`.ssh/`, `authorized_keys`), `cron-install` (crontab, `/etc/cron`, `systemd/user`), `dotfile-write` (a dotfile or dot-directory); `write-outside-job` for any other target (`/tmp`, `/usr/local`, `$HOME/<not a dotfile>`) |
@@ -317,7 +332,9 @@ to one per (tool, code) across every file: `lines` then holds `file:line`
 strings (instead of bare line numbers within a single `file`, which is
 `null` on a collapsed candidate), a collapsed candidate is an artefact only
 when every finding in it is, and `security.json`'s
-`counts.tool_finding_collapsed` is `true`. Separately, a candidate's `lines`
+`counts.tool_finding_collapsed` is `true`. A Batch Connect app's
+`other_source` files are counted and collapsed on their own, so a noisy
+helper service never collapses the job and dashboard findings. Separately, a candidate's `lines`
 keeps at most its first 20 entries, with `lines_total` giving the full
 count when it was cut. This keeps a noisy tree from
 producing hundreds of near-duplicate rows; the security skill says once in

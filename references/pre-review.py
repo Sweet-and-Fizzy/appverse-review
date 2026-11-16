@@ -206,14 +206,17 @@ the per-app dirs named in the previous apps.json are removed first):
                  security skill must answer (security-tools.md, "Candidate
                  enumeration"): {counts {kind: n} for every kind in
                  SEC_KINDS order, scope (batch_connect: submit / form /
-                 connection files, template/**, Dockerfile / Containerfile
-                 / *.def anywhere in the app; all_source for any other type:
+                 connection files, the dashboard files (form.js, view /
+                 info / completed ERB), template/**, Dockerfile /
+                 Containerfile / *.def anywhere in the app, and the rest of
+                 the app's source but CI config and docs; all_source for any other type:
                  every file but docs, licences, images, fonts, lock files and
                  test code), plus the root appverse.yml's shared_paths),
                  files (scanned), attributes (form attribute names, from
                  form.json's reading, else the form file's line scan),
                  candidates [{kind, check, rule, tag, file, line, text,
-                 note}] sorted by file, line and kind (interpolation adds
+                 note, area (job, dashboard, other_source; app; shared)}]
+                 sorted by file, line and kind (interpolation adds
                  attributes, guarded (sanitised or validated),
                  presence_checked, quoted), skipped_files [{file,
                  reason}]}. Comment lines are never candidates; text is the
@@ -2250,13 +2253,14 @@ def check_entry_point(target, apps, out):
 
 
 # security.json: the candidate sites the security skill must answer (R4).
-SEC_KINDS = ("interpolation", "unquoted_expansion", "eval_exec", "network_call",
+SEC_KINDS = ("interpolation", "unquoted_expansion", "unescaped_output", "eval_exec", "network_call",
              "file_write_outside_job", "permission_change", "credential_string", "config_flag",
              "binary_in_template", "tool_finding")
 # kind -> (manifest check id, rule, default mechanism tag)
 SEC_KIND = {
     "interpolation": ("sec-interpolation", "OODT-01", "unsanitized-user-input"),
     "unquoted_expansion": ("sec-interpolation", "OODT-01", "unquoted-variable"),
+    "unescaped_output": ("sec-interpolation", "OODT-05", "unescaped-output-html"),
     "eval_exec": ("sec-eval-exec", "OODT-01", "eval-exec"),
     "network_call": ("sec-network-call", "OODT-04", "unexpected-network-call"),
     "file_write_outside_job": ("sec-file-write-outside-job", "OODT-07", "dotfile-write"),
@@ -2289,6 +2293,18 @@ TEXT_CAP = 200
 NO_SCOPE = "no in-scope files"
 BC_FILES = ("submit.yml.erb", "submit.yml", "form.yml", "form.yml.erb", "connection.yml",
             "connection.yml.erb")
+# Files the OOD dashboard itself renders or runs for a Batch Connect app, in
+# the user's logged-in session: form.js is loaded into the form page; the
+# view, info and completed ERB are rendered as plain ERB, then markdown, and
+# marked html_safe, so <%= %> in them is not HTML-escaped.
+DASHBOARD_FILES = ("form.js", "view.html.erb", "info.html.erb", "info.md.erb",
+                   "completed.html.erb", "completed.md.erb")
+DASHBOARD_ERB = tuple(n for n in DASHBOARD_FILES if n.endswith(".erb"))
+# CI configuration and documentation sites are never run by a site
+# installing the app, so a Batch Connect app's other source leaves them out.
+NOT_SITE_SOURCE = re.compile(r"(?:^|/)(?:\.github|\.gitlab|\.circleci|\.buildkite|docs?)/"
+                             r"|(?:^|/)(?:\.gitlab-ci\.ya?ml|\.travis\.ya?ml|Jenkinsfile|azure-pipelines\.ya?ml"
+                             r"|\.drone\.ya?ml|\.pre-commit-config\.ya?ml|mkdocs\.ya?ml)$")
 FORM_FILES = ("form.yml", "form.yml.erb", "manifest.yml", "appverse.yml")
 CONTAINER_DEF = re.compile(r"^(?:Dockerfile|Containerfile)(?:\..*)?$|\.(?:def|dockerfile)$", re.I)
 NOT_SOURCE = re.compile(
@@ -2819,11 +2835,18 @@ def _shared_paths(target):
 
 
 def _security_scope(app_dir, target, app_type, exclude):
-    """(scope, {repo-relative path: absolute path}, [(path, reason)]).
-    batch_connect: submit / form / connection files, template/**, container
-    definitions (Dockerfile, Containerfile, *.def) anywhere in the app;
-    any other type: every file in the app but docs, licences, images, fonts
-    and lock files. Both add the root appverse.yml's shared_paths."""
+    """(scope, {repo-relative path: absolute path}, [(path, reason)],
+    {repo-relative path: area}).
+    batch_connect: submit / form / connection files, the dashboard files
+    (DASHBOARD_FILES), template/**, container definitions (Dockerfile,
+    Containerfile, *.def) anywhere in the app, and the rest of the app's
+    source but CI configuration and docs (NOT_SITE_SOURCE); any other type: every file in the app but
+    docs, licences, images, fonts, lock files and test code. Both add the
+    root appverse.yml's shared_paths. area: batch_connect "job"
+    (template/**, container definitions), "dashboard" (BC_FILES,
+    DASHBOARD_FILES and manifest.yml at the app root) or "other_source" (anything else in the
+    app: install scripts, helper services); any other type "app"; a
+    shared_paths file "shared"."""
     files, skipped = {}, []
 
     def walk(root, relroot, keep):
@@ -2841,7 +2864,7 @@ def _security_scope(app_dir, target, app_type, exclude):
     source = lambda r: not NOT_SOURCE.search(r) and not TEST_PATH.search(r)
     if app_type == "batch_connect":
         scope = "batch_connect"
-        for name in BC_FILES:
+        for name in BC_FILES + DASHBOARD_FILES:
             if os.path.lexists(os.path.join(app_dir, name)):
                 files[prefix + name] = os.path.join(app_dir, name)
         tdir = os.path.join(app_dir, "template")
@@ -2849,10 +2872,20 @@ def _security_scope(app_dir, target, app_type, exclude):
             walk(tdir, prefix + "template/", lambda r: True)
         elif os.path.lexists(tdir):
             skipped.append((prefix + "template", OUTSIDE if os.path.islink(tdir) else NOT_REGULAR))
-        walk(app_dir, prefix, lambda r: bool(CONTAINER_DEF.search(r.rsplit("/", 1)[-1])))
+        walk(app_dir, prefix, lambda r: bool(CONTAINER_DEF.search(r.rsplit("/", 1)[-1]))
+             or (source(r) and not NOT_SITE_SOURCE.search(r) and not r.startswith("template/")))
+
+        def area(r):
+            if r.startswith("template/") or CONTAINER_DEF.search(r.rsplit("/", 1)[-1]):
+                return "job"
+            return "dashboard" if r in BC_FILES + DASHBOARD_FILES + ("manifest.yml",) else "other_source"
     else:
         scope = "all_source"
         walk(app_dir, prefix, source)
+
+        def area(r):
+            return "app"
+    areas = {rel: area(rel[len(prefix):]) for rel in files}
     for rel, why in _shared_paths(target):
         full = os.path.join(target, rel)
         if why:
@@ -2863,7 +2896,9 @@ def _security_scope(app_dir, target, app_type, exclude):
             files[rel] = full
         else:
             skipped.append((rel, _refusal(target, full)))
-    return scope, files, skipped
+    for rel in files:
+        areas.setdefault(rel, "shared")
+    return scope, files, skipped, areas
 
 
 IMAGE_FONT_MAGIC = ((b"\x89PNG\r\n\x1a\n", "png"), (b"\xff\xd8\xff", "jpeg"), (b"GIF87a", "gif"),
@@ -3095,6 +3130,134 @@ def _tool_finding_candidates(files, out, target=None, notes=None):
     return [capped(c) for c in cands]
 
 
+# unescaped_output in a dashboard ERB file: a <%= %> whose whole value is one
+# escaping call (h(x), ERB::Util.html_escape(x), ...), a numeric chain
+# (x.to_i, list.size), or only a value OOD itself provides, is not a
+# candidate. OOD-provided: in view.html.erb (bound to the connection) the
+# connection's host, port, password, ...; in info and completed views (bound to
+# the session) also the session's id, job id, ...
+ESCAPE_CALL = re.compile(r"^\s*(?:h|u|html_escape|url_encode|ERB::Util\.(?:h|u|html_escape|url_encode)"
+                         r"|CGI\.escapeHTML|Rack::Utils\.escape_html|Integer|Float)\s*\(")
+ESCAPE_BARE = re.compile(r"^\s*(?:h|u)\s+[\w@.\[\]'\":]+\s*$")
+NUMERIC_CHAIN = re.compile(r"^\s*[\w@.\[\]'\":]+\.(?:to_i|to_f|length|size|count)\s*$")
+CONNECTION_VARS = OOD_CONTRACT_VARS + ("websocket",)
+SESSION_VARS = ("id", "job_id", "cluster_id", "created_at", "token", "title")
+
+
+def _html_safe_expr(expr):
+    """True when the whole <%= %> expression is escaped or numeric: one
+    escaping call that closes at the end of the expression (h(a) + b is not),
+    h x without parentheses, or a single method chain ending in .to_i, .to_f,
+    .length, .size or .count."""
+    if NUMERIC_CHAIN.match(expr) or ESCAPE_BARE.match(expr):
+        return True
+    m = ESCAPE_CALL.match(expr)
+    if not m:
+        return False
+    depth, i, quote = 1, m.end(), None
+    while i < len(expr) and depth:
+        ch = expr[i]
+        if quote:
+            if ch == "\\":
+                i += 1
+            elif ch == quote:
+                quote = None
+        elif ch in "'\"":
+            quote = ch
+        elif ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+        i += 1
+    return depth == 0 and not expr[i:].strip()
+
+
+def _unescaped_erb(text, view):
+    """[(line, note, tag)]: one per line holding a <%= %> tag in a dashboard
+    ERB file whose value is neither escaped nor only an OOD-provided value
+    (view: view.html.erb, bound to the connection; else an info or completed
+    view, bound to the session). tag is unescaped-output-javascript inside a
+    <script> element (lexical; an onclick="" attribute counts as HTML)."""
+    names = CONNECTION_VARS if view else CONNECTION_VARS + SESSION_VARS
+    provided = re.compile(r"^\s*(?:connect\.)?(?:%s)(?:\.to_s)?\s*$" % "|".join(names))
+    out, seen = [], set()
+    low = text.lower()
+    for kind, start, body, pos in _erb_tags(text):
+        if kind != "out" or start in seen or not body.strip():
+            continue
+        if _html_safe_expr(body) or provided.match(body):
+            continue
+        before = low[:pos]
+        in_script = before.rfind("<script") > before.rfind("</script")
+        seen.add(start)
+        out.append((start, "<%%= %s %%> is not HTML-escaped%s" % (
+            " ".join(body.split())[:80], " (inside <script>)" if in_script else ""),
+            "unescaped-output-javascript" if in_script else "unescaped-output-html"))
+    return out
+
+
+# unescaped_output in form.js: a jQuery or DOM call that parses its argument
+# as HTML, and a jQuery constructor given HTML built by concatenation
+# ($('<li>' + x)). Not a candidate: a plain string literal, an element built
+# or selected from a literal ($('<div>'), $('#id'), document.createElement), a variable every
+# assignment of which is such an element, and append/set on a FormData or
+# URLSearchParams-style receiver (params.append(k, v)).
+DOM_HTML_SINK = re.compile(r"\.(?:html|append|prepend|after|before|replaceWith|replaceAll|wrap"
+                           r"|wrapAll|wrapInner|insertAdjacentHTML)\(\s*(?P<a>.*)"
+                           r"|\b(?:innerHTML|outerHTML)\s*\+?=(?!=)\s*(?P<b>.*)"
+                           r"|\bdocument\.write(?:ln)?\(\s*(?P<c>.*)")
+JQ_HTML_CONCAT = re.compile(r"(?:\$|\bjQuery)\(\s*(['\"`])\s*<[^\n]*?(?:\+|\$\{)")
+ELEMENT_EXPR = re.compile(r"""^(?:\$|jQuery)\(\s*(?:(['"])(?:(?!\1)[^\\])*\1|`[^`$]*`|this|document\.\w+)\s*\)"""
+                          r"""|^document\.(?:createElement|getElementById|querySelector\w*)\(""")
+STRING_LITERAL = re.compile(r"""^(?:(['"])(?:(?!\1)[^\\]|\\.)*\1|`[^`$]*`)\s*(?:[),;]|$)""")
+FORM_DATA_RECEIVER = re.compile(r"(?i)\b(?:params|formdata|fd|form|search|query|headers|body|url|data)\w*"
+                                r"\.(?:append|set)\(\s*$")
+
+
+def _element_var(name, raw):
+    """True when name is assigned in raw and every assignment is an element
+    (ELEMENT_EXPR); a callback parameter or an unassigned name is not."""
+    rhs = [m.group(1).strip() for m in
+           re.finditer(r"(?<![\w$.])%s\s*\+?=(?!=)\s*([^\n;]*)" % re.escape(name), raw)]
+    return bool(rhs) and all(ELEMENT_EXPR.match(r) and not JQ_HTML_CONCAT.search(r) for r in rhs)
+
+
+def _dom_sinks(raw, code_lines):
+    """[(line, note)] for form.js: the lines of HTML-parsing calls whose
+    argument may carry a value from a response or the user. code_lines are
+    the file's lines with comments removed ("" for a comment line). A call
+    whose argument starts on the next line reads that line."""
+    out = []
+    for i, code in enumerate(code_lines):
+        hit = None
+        if JQ_HTML_CONCAT.search(code):
+            hit = "jQuery builds HTML from a concatenated string"
+        for m in DOM_HTML_SINK.finditer(code):
+            if hit:
+                break
+            if FORM_DATA_RECEIVER.search(code[:m.start() + len(m.group(0)) - len(m.group(m.lastgroup))]):
+                continue
+            arg = (m.group(m.lastgroup) or "").strip()
+            if not arg or arg in (")", ");"):
+                if m.group(0).startswith(".") and m.group(0).rstrip().endswith("(") and not arg:
+                    arg = next((c.strip() for c in code_lines[i + 1:] if c.strip()), "")
+                else:
+                    continue
+            if m.group(0).startswith(".insertAdjacentHTML"):
+                arg = arg.split(",", 1)[1].strip() if "," in arg else ""
+            if not arg or arg.startswith(")"):
+                continue
+            ident = re.match(r"^([A-Za-z_$][\w$]*)\s*(?:[),;]|$)", arg)
+            if ident and _element_var(ident.group(1), raw):
+                continue
+            if STRING_LITERAL.match(arg) or (ELEMENT_EXPR.match(arg) and not JQ_HTML_CONCAT.search(arg)):
+                continue
+            hit = "HTML built from a string; any value in it that came from a response or the user is not escaped"
+        if hit:
+            out.append((i + 1, hit))
+    return out
+
+
 def scan_security(app_dir, target, app_type, exclude=None):
     """security.json for one app directory, or None when nothing is in scope.
     Every in-scope file is read under the shell-file rule (refused files are
@@ -3102,7 +3265,7 @@ def scan_security(app_dir, target, app_type, exclude=None):
     binary_in_template candidate, elsewhere it is skipped. exclude doubles as
     the pre-review out-dir: when given, tool_finding candidates are read from
     its shellcheck.json / semgrep.json / bandit.json."""
-    scope, files, skipped = _security_scope(app_dir, target, app_type, exclude)
+    scope, files, skipped, areas = _security_scope(app_dir, target, app_type, exclude)
     prefix = _app_rel(app_dir, target)
     attrs = _form_attrs(target, app_dir)
     tpl = prefix + "template/"
@@ -3112,7 +3275,7 @@ def scan_security(app_dir, target, app_type, exclude=None):
         check, krule, ktag = SEC_KIND[kind]
         cand = {"kind": kind, "check": check, "rule": rule or krule,
                 "tag": tag if tag is not None else ktag, "file": rel, "line": line,
-                "text": text.strip()[:TEXT_CAP], "note": note}
+                "text": text.strip()[:TEXT_CAP], "note": note, "area": areas.get(rel)}
         cand.update(extra)
         cands.append(cand)
 
@@ -3148,6 +3311,15 @@ def scan_security(app_dir, target, app_type, exclude=None):
             for line, found, guarded, presence, quoted, note in _interpolations(raw, family, attrs, paths):
                 add("interpolation", rel, line, raw_lines[line - 1], note=note, attributes=found,
                     guarded=guarded, presence_checked=presence, quoted=quoted)
+        dashboard = areas.get(rel) == "dashboard"
+        if dashboard and name in DASHBOARD_ERB:
+            for line, note, tag in _unescaped_erb(raw, view=name == "view.html.erb"):
+                add("unescaped_output", rel, line, raw_lines[line - 1], tag=tag, note=note)
+        if dashboard and name.endswith(".js"):
+            code_lines = ["" if not l.strip() or _is_comment(l, family, k + 1) else _code_part(l, family)
+                          for k, l in enumerate(lines)]
+            for line, note in _dom_sinks(raw, code_lines):
+                add("unescaped_output", rel, line, raw_lines[line - 1], note=note)
         seen = set()
         for i, line in enumerate(lines):
             if not line.strip() or _is_comment(line, family, i + 1):
@@ -3194,7 +3366,18 @@ def scan_security(app_dir, target, app_type, exclude=None):
     order = {k: n for n, k in enumerate(SEC_KINDS)}
     cands.sort(key=lambda c: (c["file"], c["line"], order[c["kind"]]))
     tool_notes = []
-    tool_cands = _tool_finding_candidates(files, exclude, target, tool_notes)
+    # other_source gets its own tool_finding ceiling, so a noisy helper
+    # service never collapses the job and dashboard findings.
+    tool_cands = []
+    for group in ([r for r in files if areas.get(r) != "other_source"],
+                  [r for r in files if areas.get(r) == "other_source"]):
+        notes = []
+        found = _tool_finding_candidates({r: files[r] for r in group}, exclude, target, notes)
+        for c in found:
+            c["area"] = areas.get(c["file"]) if c["file"] else \
+                ("other_source" if group and areas.get(group[0]) == "other_source" else None)
+        tool_cands += found
+        tool_notes += [n for n in notes if n not in tool_notes]
     collapsed = any(c.get("line") is None for c in tool_cands)
     cands = cands + tool_cands
     if not scanned and not cands and not skipped:
