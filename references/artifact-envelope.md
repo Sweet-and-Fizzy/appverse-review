@@ -242,7 +242,13 @@ stderr and still assemble.
   written. `source` is where, read in this order: `app_path` (a monorepo
   app's folder name), `repo_name` (a single-app repo's repository name),
   `manifest` (the app's `manifest.yml` name), `readme` (the title of the
-  app's own README; a monorepo app never reads the root README).
+  app's own README; a monorepo app never reads the root README),
+  `container` (a container image name the app's submit and form files
+  and its own `template/**` run, from `docker://`, `library://`, `oras://`,
+  `shub://` references and `*.sif` files, comment lines skipped; unlike the
+  other sources the name must be the title once its version and build tags
+  are dropped, so `alphafold_2.3.2` is AlphaFold and `ubuntu-desktop` is
+  not Desktop; a new source value, not a schema change).
   `suggested_same_software_apps` lists the published apps with that entry,
   in the `same_software_apps` shape, and is empty when there is no
   suggestion. `same_software_apps` stays a declared match only.
