@@ -263,6 +263,7 @@ The expected profile is narrow. Anomalies are a strong signal.
 | Binary files in `template/` | Very rare | Most apps |
 | Accessing other users' files | Never | Any file |
 | Bind-mounting sensitive host paths | Never | Container configs |
+| A service or install step the site must run outside the app directory | Rare, documented in the README | Any undocumented setup |
 
 ### Capability baseline: Passenger apps
 
@@ -298,6 +299,7 @@ capabilities are found.
 | Credentials stored in plain text files (YAML, JSON, `.env`) | Readable by anyone with filesystem access | OODT-02 Credential Exposure |
 | `chmod 777` or permissive modes on shared filesystems | Other users can read and write | OODT-03 Unauthorized Access |
 | A network service with no password or token, or one started with `--no-auth` | Other users on the node can connect | OODT-05 Network Exposure |
+| Values from outside the user's own input written unescaped into dashboard HTML (`<%= %>` in `view.html.erb`, `info.*.erb` or `completed.*.erb`, or HTML built in `form.js`) | Script runs in the user's logged-in dashboard session | OODT-05 Network Exposure |
 | CORS open to all origins | Any site can make requests to the app | OODT-05 Network Exposure |
 | State-changing endpoints with no CSRF defense | A page on another site can make writes as the logged-in user, because OOD's cookie auth sends the session automatically | OODT-05 Network Exposure |
 | Authentication enforced on some routes but not all | Endpoints mounted outside the app's auth filter are served without authentication | OODT-05 Network Exposure |

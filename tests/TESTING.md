@@ -38,6 +38,7 @@ fixtures since they have no remote origin. That is expected.
 | [containerized-server](#5-containerized-server) | Batch Connect basic (inferred) | Portability failures + container security | Request changes |
 | [curl-pipe-installer](#6-curl-pipe-installer) | Batch Connect basic (inferred) | Critical security behind polished documentation | Reject |
 | [monorepo-shared-risk](#7-monorepo-shared-risk) | Declared monorepo (2 apps) | A security finding in one app decides every app | Request changes (both apps) |
+| [dashboard-helper-service](#8-dashboard-helper-service) | Batch Connect VNC (declared) | Dashboard files and a helper service outside `template/` | Request changes |
 
 `tests/fixtures/catalog/` is not an app. It is a small offline catalog (three
 Software entries, three app types, three implementation tags, two published
@@ -274,26 +275,83 @@ that differ when the defects are not security.
 
 ---
 
+## 8. dashboard-helper-service
+
+**What it is:** A Batch Connect desktop whose job template is clean. The
+risk is in the files around it: the dashboard files OOD renders in the
+user's logged-in session (`form.js`, `view.html.erb`, `info.md.erb`) and a
+helper service with an install script outside `template/`, which a site
+would run on the OOD host. Before D8-3120 the pre-scanner did not read any
+of these files. Modeled on the shape of the EESSI review (hub review 12415).
+
+**Planted defects:**
+
+| # | Defect | File | Expected aspect | Expected finding |
+|---|--------|------|-----------------|-----------------|
+| 1 | News items from a server response concatenated into HTML and passed to `.html()`; anyone who can change the news feed can run script in every user's dashboard | `form.js:6`, `form.js:8` | Security | WARN — OODT-05 `unescaped-output-html`, Medium (the feed is the site's own service, so FAIL only if its source is writable by users) |
+| 2 | A file in a shared project directory read into the connection view unescaped | `view.html.erb:4` | Security | FAIL — OODT-05 `unescaped-output-html`, Medium |
+| 3 | `install.sh` pipes a downloaded script into `sudo bash` | `install.sh:4` | Security | FAIL — OODT-01 `curl-pipe-exec`, High |
+| 4 | Helper service binds `0.0.0.0` with no authentication | `service/news_api.py:19` | Security | FAIL — OODT-05 `bind-all-interfaces`, Medium |
+| 5 | Helper service allows every origin (`CORS(app)`) | `service/news_api.py:9` | Security | FAIL — OODT-05 `cors-wildcard`, Low |
+| 6 | Helper service runs as root, and the README never mentions the service or `install.sh` | `service/news-api.service:5`, `install.sh:5–6` | Security / Quality | WARN — a root service the site must set up, undocumented (rubric capability baseline). `install.sh:5` is a `write-outside-job` candidate, but nothing flags `User=root` at `service/news-api.service:5`; the review has to read that file |
+| 7 | form.js fetches from a hardcoded site host | `form.js:3` | Quality | WARN — QUA-02 `hardcoded-path` (check `hardcoded-site-paths`) |
+
+**Candidates that should PASS:**
+
+- `info.md.erb:1` shows the user's own `desktop_label` unescaped; only the
+  user can set it, so it is the user attacking their own session.
+- `service/news_api.py:14` uses `shell=True` with a constant command and no
+  input.
+- `submit.yml.erb:7` and `:9` are sanitised with `.to_i`.
+- `view.html.erb:2–3` (`password`, `host`, `websocket`) are values OOD
+  provides and are not candidates at all, and neither is the element built
+  at `form.js:10`.
+
+**Other candidates and how they fold into the findings above:**
+
+- `form.js:3` (`network_call`): the call is to the app's own news service,
+  so PASS for OODT-04; the hardcoded host is defect 7.
+- `install.sh:4` (`network_call`) is the same line as defect 3 and is
+  answered by it.
+- `install.sh:5` (`file_write_outside_job`, `write-outside-job`) installs
+  the unit file into `/etc/systemd/system/`; it belongs to defect 6.
+- bandit `B404` (`service/news_api.py:3`, subprocess import) and `B607`
+  (`:14`, partial executable path) are PASS or Low notes; `B602` (`:14`)
+  goes with the `shell=True` PASS above and `B104` (`:19`) with defect 4.
+
+**Key behavior to verify:**
+
+- `security.json` lists `form.js`, `view.html.erb`, `info.md.erb`,
+  `install.sh` and both `service/` files in `files`, with `area`
+  `dashboard` or `other_source` on their candidates.
+- The bandit findings in `service/news_api.py` (B104, B602) reach the
+  review as `tool_finding` candidates instead of being filtered out.
+- The report says what a site would have to run on the OOD host (a root
+  systemd service, an open port) for defects 3 to 6.
+- Expected decision: **Request changes**.
+
+---
+
 ## Coverage matrix
 
 Each fixture targets a different combination of aspects and severity levels.
 Together they ensure the skill exercises all four aspects and all major OODT
 categories.
 
-| Aspect | broken-app | monorepo | vnc-stale | passenger | container | curl-pipe | shared-risk |
-|--------|-----------|----------|-----------|-----------|-----------|-----------|-------------|
-| **Structure** | FAIL (LICENSE, YAML) | FAIL (metadata) | PASS | FAIL (no form) | WARN (ext attrs) | PASS | PASS |
-| **Security (top severity)** | High (secret, 0.0.0.0) | PASS | PASS | Critical (injection) | High (CORS, 0.0.0.0) | Critical (curl\|bash, eval) | High (secret in one app, decides both) |
-| **Quality** | Minimal docs, Not portable | PASS / mixed | Minimal docs (no Known Limitations), Not portable, copy-paste artifacts | Below-minimal docs, Not portable | Minimal docs, Not portable | Adequate docs, meh quality | PASS |
-| **Maintenance** | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED |
+| Aspect | broken-app | monorepo | vnc-stale | passenger | container | curl-pipe | shared-risk | dash-svc |
+|--------|-----------|----------|-----------|-----------|-----------|-----------|-------------|----------|
+| **Structure** | FAIL (LICENSE, YAML) | FAIL (metadata) | PASS | FAIL (no form) | WARN (ext attrs) | PASS | PASS | PASS |
+| **Security (top severity)** | High (secret, 0.0.0.0) | PASS | PASS | Critical (injection) | High (CORS, 0.0.0.0) | Critical (curl\|bash, eval) | High (secret in one app, decides both) | High (curl\|sudo bash in install.sh) |
+| **Quality** | Minimal docs, Not portable | PASS / mixed | Minimal docs (no Known Limitations), Not portable, copy-paste artifacts | Below-minimal docs, Not portable | Minimal docs, Not portable | Adequate docs, meh quality | PASS | Undocumented helper service, hardcoded host |
+| **Maintenance** | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED | NOT CHECKED |
 
 | OODT Category | Covered by |
 |-------------|-----------|
-| OODT-01 Arbitrary Code Execution | curl-pipe-installer (curl\|bash, eval), passenger-flask-app (subprocess injection) |
+| OODT-01 Arbitrary Code Execution | curl-pipe-installer (curl\|bash, eval), passenger-flask-app (subprocess injection), dashboard-helper-service (curl\|sudo bash in install.sh) |
 | OODT-02 Credential Exposure | broken-app (committed API key), passenger-flask-app (/tmp tokens), monorepo-shared-risk (committed token in one app of two) |
 | OODT-03 Unauthorized Persistence | (not explicitly planted — stretch goal for future fixtures) |
 | OODT-04 Data Exfiltration | (not explicitly planted) |
-| OODT-05 Network Exposure | broken-app (unauthenticated 0.0.0.0), containerized-server (CORS, unauthenticated 0.0.0.0), curl-pipe-installer (CORS, disabled auth, so its 0.0.0.0 is unauthenticated) |
+| OODT-05 Network Exposure | broken-app (unauthenticated 0.0.0.0), containerized-server (CORS, unauthenticated 0.0.0.0), curl-pipe-installer (CORS, disabled auth, so its 0.0.0.0 is unauthenticated), dashboard-helper-service (unescaped dashboard output, unauthenticated helper service) |
 | OODT-06 Isolation Weakening | (not explicitly planted) |
 | OODT-07 Resource Abuse | (not explicitly planted) |
 | OODT-08 Supply Chain | curl-pipe-installer (custom PyPI index) |

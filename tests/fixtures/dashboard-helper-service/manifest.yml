@@ -1,0 +1,5 @@
+name: Cluster Desktop
+category: Interactive Apps
+subcategory: Desktops
+role: batch_connect
+description: Launch an XFCE desktop on a compute node, with the latest site news shown on the form.

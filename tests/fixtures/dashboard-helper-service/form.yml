@@ -1,0 +1,15 @@
+cluster: "summit"
+form:
+  - desktop_label
+  - bc_num_hours
+  - num_cores
+attributes:
+  desktop_label:
+    widget: text_field
+    label: "Session label"
+    help: "Shown on the session card"
+  num_cores:
+    widget: number_field
+    min: 1
+    max: 28
+    value: 1

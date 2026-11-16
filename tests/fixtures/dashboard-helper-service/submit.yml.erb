@@ -1,0 +1,9 @@
+---
+batch_connect:
+  template: "vnc"
+script:
+  native:
+    - "-n"
+    - "<%= num_cores.to_i %>"
+    - "-t"
+    - "<%= bc_num_hours.to_i %>:00:00"

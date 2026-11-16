@@ -1141,7 +1141,7 @@ sc() { px "d=pr.scan_security(A[0], A[1], A[2]); r=$4" "$1" "$2" "$3"; }
 sco() { px "d=pr.scan_security(A[0], A[1], A[2], A[3]); r=$5" "$1" "$2" "$3" "$4"; }
 CL="','.join('%s:%s:%s' % (c['kind'], c['file'], c['line']) for c in d['candidates'])"
 NZ="','.join('%s=%s' % kv for kv in d['counts'].items() if kv[1])"
-KINDS="interpolation,unquoted_expansion,eval_exec,network_call,file_write_outside_job,permission_change,credential_string,config_flag,binary_in_template,tool_finding"
+KINDS="interpolation,unquoted_expansion,unescaped_output,eval_exec,network_call,file_write_outside_job,permission_change,credential_string,config_flag,binary_in_template,tool_finding"
 BY="[c for c in d['candidates'] if c['kind']=="
 IF="[c for c in d['candidates'] if c['kind']=='interpolation' and c['file']=="
 FL3="'|'.join('%s:%s:%s:%s' % (c['line'], ','.join(c['attributes']), c['guarded'], c['quoted']) for c in"
@@ -1152,7 +1152,7 @@ check "broken-app credential shape" "credential_string|sec-credential-string|OOD
 check "broken-app bind is OODT-05 bind-all-interfaces" "OODT-05|bind-all-interfaces" "$(sc "$D" "$D" batch_connect "'%s|%s' % (d['candidates'][1]['rule'], d['candidates'][1]['tag'])")"
 check "the bind note says the bind alone is not the finding" "True" "$(sc "$D" "$D" batch_connect "'non-loopback' in d['candidates'][1]['note'] and 'no authentication' in d['candidates'][1]['note']")"
 check "broken-app: an unparseable form still names its attributes" "['modules']" "$(sc "$D" "$D" batch_connect "d['attributes']")"
-check "broken-app scope and files" "batch_connect|form.yml,submit.yml.erb,template/script.sh.erb" "$(sc "$D" "$D" batch_connect "d['scope'] + '|' + ','.join(d['files'])")"
+check "broken-app scope and files" "batch_connect|form.yml,manifest.yml,submit.yml.erb,template/script.sh.erb" "$(sc "$D" "$D" batch_connect "d['scope'] + '|' + ','.join(d['files'])")"
 D="$FIX/curl-pipe-installer"
 check "curl-pipe candidates" "interpolation:submit.yml.erb:7,interpolation:submit.yml.erb:9,interpolation:template/script.sh.erb:7,interpolation:template/script.sh.erb:9,interpolation:template/script.sh.erb:10,interpolation:template/script.sh.erb:15,eval_exec:template/script.sh.erb:15,interpolation:template/script.sh.erb:20,config_flag:template/script.sh.erb:20,interpolation:template/script.sh.erb:25,interpolation:template/script.sh.erb:26,eval_exec:template/script.sh.erb:26,network_call:template/script.sh.erb:26,config_flag:template/script.sh.erb:32,config_flag:template/script.sh.erb:34,config_flag:template/script.sh.erb:35,config_flag:template/script.sh.erb:36,config_flag:template/script.sh.erb:37" "$(sc "$D" "$D" batch_connect "$CL")"
 check "curl-pipe counts" "interpolation=9,eval_exec=2,network_call=1,config_flag=6" "$(sc "$D" "$D" batch_connect "$NZ")"
@@ -1210,12 +1210,13 @@ echo 1000 > /proc/self/oom_score_adj
 CPP_FILE="<%= session.staged_root %>/.vscode/c.json"
 SH
 printf '<?xml version="1.0"?>\n<!DOCTYPE Menu PUBLIC "-//freedesktop//DTD Menu 1.0//EN"\n "http://www.freedesktop.org/standards/menu-spec/1.0/menu.dtd">\n<Menu/>\n' > "$T/template/menu.xml"
+printf '<p><%%= note %%></p>\n' > "$T/view.html.erb"
 O45="$TMP/o45"; mkdir -p "$O45"
 printf '[{"file": "template/script.sh.erb", "line": 4, "endLine": 4, "column": 1, "endColumn": 1, "level": "warning", "code": 2164, "message": "Use %s in case cd fails."}]' "'cd ... || exit'" > "$O45/shellcheck.json"
-check "every kind once, by file then line" "binary_in_template:template/bin/tool:1,interpolation:template/script.sh.erb:3,unquoted_expansion:template/script.sh.erb:4,network_call:template/script.sh.erb:5,eval_exec:template/script.sh.erb:6,file_write_outside_job:template/script.sh.erb:7,permission_change:template/script.sh.erb:8,credential_string:template/script.sh.erb:9,config_flag:template/script.sh.erb:10,tool_finding:template/script.sh.erb:4" "$(sco "$T" "$T" batch_connect "$O45" "$CL")"
+check "every kind once, by file then line" "binary_in_template:template/bin/tool:1,interpolation:template/script.sh.erb:3,unquoted_expansion:template/script.sh.erb:4,network_call:template/script.sh.erb:5,eval_exec:template/script.sh.erb:6,file_write_outside_job:template/script.sh.erb:7,permission_change:template/script.sh.erb:8,credential_string:template/script.sh.erb:9,config_flag:template/script.sh.erb:10,unescaped_output:view.html.erb:1,tool_finding:template/script.sh.erb:4" "$(sco "$T" "$T" batch_connect "$O45" "$CL")"
 check "counts all 1" "$(echo "$KINDS" | tr ',' '\n' | sed 's/$/=1/' | paste -sd, -)" "$(sco "$T" "$T" batch_connect "$O45" "$NZ")"
-check "rules and checks by kind" "OODT-04:sec-binary-in-template,OODT-01:sec-interpolation,OODT-01:sec-interpolation,OODT-04:sec-network-call,OODT-01:sec-eval-exec,OODT-07:sec-file-write-outside-job,OODT-03:sec-permissive-mode,OODT-02:sec-credential-string,OODT-05:sec-config-flag,None:sec-tool-finding" "$(sco "$T" "$T" batch_connect "$O45" "','.join('%s:%s' % (c['rule'], c['check']) for c in d['candidates'])")"
-check "tags by kind" "binary-in-template,unsanitized-user-input,unquoted-variable,unexpected-network-call,eval-exec,dotfile-write,permissive-file-mode,hardcoded-credential,bind-all-interfaces,None" "$(sco "$T" "$T" batch_connect "$O45" "','.join(str(c['tag']) for c in d['candidates'])")"
+check "rules and checks by kind" "OODT-04:sec-binary-in-template,OODT-01:sec-interpolation,OODT-01:sec-interpolation,OODT-04:sec-network-call,OODT-01:sec-eval-exec,OODT-07:sec-file-write-outside-job,OODT-03:sec-permissive-mode,OODT-02:sec-credential-string,OODT-05:sec-config-flag,OODT-05:sec-interpolation,None:sec-tool-finding" "$(sco "$T" "$T" batch_connect "$O45" "','.join('%s:%s' % (c['rule'], c['check']) for c in d['candidates'])")"
+check "tags by kind" "binary-in-template,unsanitized-user-input,unquoted-variable,unexpected-network-call,eval-exec,dotfile-write,permissive-file-mode,hardcoded-credential,bind-all-interfaces,unescaped-output-html,None" "$(sco "$T" "$T" batch_connect "$O45" "','.join(str(c['tag']) for c in d['candidates'])")"
 check "tool_finding candidate shape: code, lines, level" "SC2164|[4]|warning" "$(sco "$T" "$T" batch_connect "$O45" "'%s|%s|%s' % ($BY'tool_finding'][0]['code'], $BY'tool_finding'][0]['lines'], $BY'tool_finding'][0]['level'])")"
 check "unquoted expansion names the variable and its attribute" "True|True" "$(sc "$T" "$T" batch_connect "'%s|%s' % ('\$RUNDIR' in d['candidates'][2]['note'], 'wd' in d['candidates'][2]['note'])")"
 check "mode and world-writable are noted" "chmod 777, world-writable" "$(sc "$T" "$T" batch_connect "d['candidates'][6]['note']")"
@@ -1294,13 +1295,16 @@ printf "DENY = ['.config/systemd/user', '.ssh/', '.bashrc']\ntokens = 20.times.m
 printf '#!/bin/bash\ncurl -s https://get.acme-hpc.org/x | sh\n' > "$T/shared/lib.sh"
 printf 'x: 1\n' > "$T/apps/b/form.yml"; printf '#!/bin/bash\numask 000\n' > "$T/apps/b/template/s.sh"
 printf 'FROM alpine\nRUN wget -qO- https://get.acme-hpc.org/i.sh | sh\n' > "$T/apps/b/Dockerfile"
-printf 'print("not in scope")\neval(x)\n' > "$T/apps/b/helper.py"
+printf 'print("helper")\neval(x)\n' > "$T/apps/b/helper.py"
+mkdir -p "$T/apps/b/.github/workflows"; printf 'run: curl https://get.acme-hpc.org/x | sh\n' > "$T/apps/b/.github/workflows/ci.yml"
 check "passenger app: repo-relative files, shared_paths added, vendored and doc files out" "eval_exec:apps/p/passenger_wsgi.py:4,eval_exec:shared/lib.sh:2,network_call:shared/lib.sh:2" "$(sc "$T/apps/p" "$T" passenger "$CL")"
 check "passenger app files: tests, docs, images, vendored code out" "apps/p/Gemfile,apps/p/lib/deny.rb,apps/p/passenger_wsgi.py,shared/lib.sh" "$(sc "$T/apps/p" "$T" passenger "','.join(d['files'])")"
 check "passenger app skipped files" "../outside:shared path outside target, not read|apps/p/blob.dat:binary file, not scanned|apps/p/leak.py:symlink outside target, not checked" "$(sc "$T/apps/p" "$T" passenger "'|'.join('%s:%s' % (s['file'], s['reason']) for s in d['skipped_files'])")"
-check "batch connect app: template, Dockerfile and shared_paths; other source out" "eval_exec:apps/b/Dockerfile:2,network_call:apps/b/Dockerfile:2,permission_change:apps/b/template/s.sh:2,eval_exec:shared/lib.sh:2,network_call:shared/lib.sh:2" "$(sc "$T/apps/b" "$T" batch_connect "$CL")"
+check "batch connect app: template, Dockerfile, other source and shared_paths; CI config out" "eval_exec:apps/b/Dockerfile:2,network_call:apps/b/Dockerfile:2,eval_exec:apps/b/helper.py:2,permission_change:apps/b/template/s.sh:2,eval_exec:shared/lib.sh:2,network_call:shared/lib.sh:2" "$(sc "$T/apps/b" "$T" batch_connect "$CL")"
+check "batch connect areas: job, dashboard, other_source, shared" "apps/b/Dockerfile:job,apps/b/helper.py:other_source,apps/b/template/s.sh:job,shared/lib.sh:shared" "$(sc "$T/apps/b" "$T" batch_connect "','.join(sorted(set(c['file'] + ':' + c['area'] for c in d['candidates'])))")"
+check "passenger candidates are area app" "app" "$(sc "$T/apps/p" "$T" passenger "','.join(sorted({c['area'] for c in d['candidates'] if c['file'].startswith('apps/p/')}))")"
 check "umask 000 is world-writable" "umask 000, world-writable" "$(sc "$T/apps/b" "$T" batch_connect "$BY'permission_change'][0]['note']")"
-check "record: ran per app, counts in the note" "ran|{'apps/p': 'ran', 'apps/b': 'ran'}|apps/p: eval_exec 2, network_call 1; apps/b: eval_exec 2, network_call 2, permission_change 1|<app_id>/security.json" "$(rec security "$T" "$TMP/o47" "'%s|%s|%s|%s' % (c['status'], c['per_app'], c['note'], c['output_file'])")"
+check "record: ran per app, counts in the note" "ran|{'apps/p': 'ran', 'apps/b': 'ran'}|apps/p: eval_exec 2, network_call 1; apps/b: eval_exec 3, network_call 2, permission_change 1|<app_id>/security.json" "$(rec security "$T" "$TMP/o47" "'%s|%s|%s|%s' % (c['status'], c['per_app'], c['note'], c['output_file'])")"
 check "security.json written per app" "True|True" "$(yn test -e "$TMP/o47/apps/p/security.json")|$(yn test -e "$TMP/o47/apps/b/security.json")"
 T="$TMP/t47b"; mkdir -p "$T"; printf 'name: x\n' > "$T/manifest.yml"; printf '# x\n' > "$T/README.md"
 check "an app with nothing to flag: ran, no candidates" "ran|root: no candidates" "$(rec security "$T" "$TMP/o47b" "'%s|%s' % (c['status'], c['note'])")"
@@ -1972,5 +1976,104 @@ check "defined still means declared under attributes:" "False|True" "$(fm "$T" "
 check "a plain value under attributes: is fixed, as OOD makes it; others are not" "True|False|False" "$(fm "$T" "'%s|%s|%s' % ($A'fixed_hours'][0]['fixed'], $A'custom_text'][0]['fixed'], $A'custom_thing'][0]['fixed'])")"
 check "numeric-field-bounds: the form's own free-text fields in form: (declared or not) are candidates; OOD's, a fixed one and one not in form: are not" "custom_text,custom_thing" \
   "$(px "import sys; sys.path.insert(0, A[1]); import row_candidates as rc; d=pr.scan_form(A[0], A[0]); c=[x[0] for x in rc.form_candidates('numeric-field-bounds', d, '')]; r=','.join(a['name'] for a in d['attributes'] if 'form.yml:%s' % a['line'] in c)" "$T" "$SCRIPT_DIR/references")"
+
+echo "Test: D8-3120 dashboard files and other source in a Batch Connect app's scope"
+T="$TMP/t3120"; mkdir -p "$T/template" "$T/service"
+printf -- '---\nform:\n  - name\n' > "$T/form.yml"
+printf '#!/bin/bash\necho hi\n' > "$T/template/script.sh"
+cat > "$T/view.html.erb" <<'ERB'
+<form action="/vnc" method="get">
+  <input type="hidden" name="password" value="<%= password %>">
+  <input type="hidden" name="port" value="<%= connect.port %>">
+  <p>Session <%= id %> on <%= host %></p>
+  <p>Note: <%= note %></p>
+  <p>Safe: <%= h(note) %> <%= ERB::Util.html_escape(note) %> <%= count.to_i %></p>
+  <%# <%= commented %> %>
+  <script>var label = "<%= label %>";</script>
+</form>
+ERB
+cat > "$T/info.md.erb" <<'ERB'
+Running <%= user_context["name"] %>
+ERB
+cat > "$T/form.js" <<'JS'
+const box = $('#box');
+let row = `<li>${item}</li>`;
+box.append(row);
+box.append($('<li>'));
+box.html('<b>static</b>');
+box.after(box);
+el.innerHTML = data.items.join('');
+el.insertAdjacentHTML('beforeend', '<i>ok</i>');
+el.insertAdjacentHTML('beforeend', res.text);
+// box.html(row);
+const n = box.html();
+JS
+printf 'from flask import Flask\napp = Flask(__name__)\napp.run(host="0.0.0.0")\n' > "$T/service/api.py"
+printf '[Service]\nUser=root\nExecStart=/usr/bin/python3 api.py\n' > "$T/service/api.service"
+UO="'|'.join('%s:%s:%s' % (c['file'], c['line'], c['tag']) for c in d['candidates'] if c['kind']=='unescaped_output')"
+check "dashboard ERB: unescaped <%= %> is a candidate; escaped, numeric, OOD-provided (host, password; not a session id in a view) and comment tags are not; <script> is the javascript tag" \
+  "form.js:3:unescaped-output-html|form.js:7:unescaped-output-html|form.js:9:unescaped-output-html|info.md.erb:1:unescaped-output-html|view.html.erb:4:unescaped-output-html|view.html.erb:5:unescaped-output-html|view.html.erb:8:unescaped-output-javascript" \
+  "$(sc "$T" "$T" batch_connect "$UO")"
+check "unescaped_output is a sec-interpolation candidate under OODT-05" "sec-interpolation:OODT-05" \
+  "$(sc "$T" "$T" batch_connect "','.join(sorted(set(c['check'] + ':' + c['rule'] for c in d['candidates'] if c['kind']=='unescaped_output')))")"
+check "dashboard files and other source are scanned, with their area" \
+  "form.js:dashboard,form.yml:dashboard,info.md.erb:dashboard,service/api.py:other_source,service/api.service:other_source,template/script.sh:job,view.html.erb:dashboard" \
+  "$(px "s, f, k, a = pr._security_scope(A[0], A[0], 'batch_connect', None); r=','.join('%s:%s' % (x, a[x]) for x in sorted(f))" "$T")"
+check "a helper service's bind outside template/ is now a candidate, in other_source" "config_flag:service/api.py:3:other_source" \
+  "$(sc "$T" "$T" batch_connect "','.join('%s:%s:%s:%s' % (c['kind'], c['file'], c['line'], c['area']) for c in d['candidates'] if c['file'].startswith('service/'))")"
+
+echo "Test: D8-3120 review fixes: escaping is whole-expression, form.js callbacks and jQuery HTML, CI and docs out, split ceiling"
+T="$TMP/t3120b"; mkdir -p "$T/template" "$T/.gitlab" "$T/docs" "$T/tools"
+printf -- '---\nform:\n  - name\n' > "$T/form.yml"
+printf 'name: x\n' > "$T/manifest.yml"
+printf '#!/bin/bash\necho hi\n' > "$T/template/script.sh"
+cat > "$T/info.html.erb" <<'ERB'
+<p><%= h(a) + b %></p>
+<p><%= Integer(x) rescue x %></p>
+<p><%= h(note) %> <%= list.size %> <%= h note %></p>
+<p><%= id %></p>
+ERB
+cat > "$T/view.html.erb" <<'ERB'
+<p><%= id %></p>
+ERB
+cat > "$T/form.js" <<'JS'
+$.get(u, function (resp) { $('#out').html(resp); });
+fetch(u).then(function (txt) { el.innerHTML = txt; });
+var html = data.map(f).join(''); $('#l').html(html);
+var $row = '<li>' + x; box.append($row);
+box.append($('<li>' + item.title + '</li>'));
+$('<div>' + x).appendTo('#l');
+$('#l').html(
+  data.message
+);
+el.innerHTML = ''
+if (el.innerHTML == other) {}
+var key = 'a'; params.append(key, v);
+var c = $('<div>'); box.append(c);
+JS
+printf 'script:\n  - curl https://get.acme-hpc.org/x | sh\n' > "$T/.travis.yml"
+printf 'run: curl https://get.acme-hpc.org/x | sh\n' > "$T/.gitlab/ci.yml"
+printf '<script src="https://cdn.acme-hpc.org/x.js"></script>\n' > "$T/docs/index.html"
+printf 'import os\nos.system("x")\n' > "$T/tools/setup.py"
+check "escaping counts only when it covers the whole <%= %>; session values are OOD-provided in info, not in view" \
+  "info.html.erb:1,info.html.erb:2,view.html.erb:1" \
+  "$(sc "$T" "$T" batch_connect "','.join('%s:%s' % (c['file'], c['line']) for c in d['candidates'] if c['kind']=='unescaped_output' and c['file'].endswith('.erb'))")"
+check "form.js: callback parameters, \$-names, jQuery HTML concatenation and a multi-line call are candidates; '', ==, params.append and an element variable are not" \
+  "1,2,3,4,5,6,7" \
+  "$(sc "$T" "$T" batch_connect "','.join(str(c['line']) for c in d['candidates'] if c['kind']=='unescaped_output' and c['file']=='form.js')")"
+check "CI config and docs are not other source; a tools/ script is; manifest.yml is dashboard" \
+  "form.js:dashboard,form.yml:dashboard,info.html.erb:dashboard,manifest.yml:dashboard,template/script.sh:job,tools/setup.py:other_source,view.html.erb:dashboard" \
+  "$(px "s, f, k, a = pr._security_scope(A[0], A[0], 'batch_connect', None); r=','.join(x + ':' + a[x] for x in sorted(f))" "$T")"
+O="$TMP/o3120b"; mkdir -p "$O"
+python3 -c '
+import json, sys
+out = [{"filename": "tools/h%d.py" % i, "line_number": 1, "test_id": "B%03d" % i, "issue_severity": "LOW", "issue_text": "x"} for i in range(20)]
+out.append({"filename": "template/script.sh", "line_number": 2, "test_id": "B999", "issue_severity": "LOW", "issue_text": "x"})
+json.dump({"results": out}, open(sys.argv[1] + "/bandit.json", "w"))' "$O"
+for i in $(seq 0 19); do printf 'x = 1\n' > "$T/tools/h$i.py"; done
+printf '#!/bin/bash\necho hi\n' > "$T/template/script.sh"
+check "other_source tool findings collapse on their own; the template's stay per file" \
+  "template/script.sh:job:B999|other_source:20" \
+  "$(sco "$T" "$T" batch_connect "$O" "'%s|%s' % (','.join('%s:%s:%s' % (c['file'], c['area'], c['code']) for c in d['candidates'] if c['kind']=='tool_finding' and c['file']), '%s:%d' % (','.join(sorted(set(c['area'] for c in d['candidates'] if c['kind']=='tool_finding' and not c['file']))), sum(1 for c in d['candidates'] if c['kind']=='tool_finding' and not c['file'])))")"
 
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]

@@ -1,0 +1,6 @@
+<form action="/pun/sys/dashboard/noVNC-1.3.0/vnc.html" method="get" target="_blank">
+  <input type="hidden" name="password" value="<%= password %>">
+  <input type="hidden" name="path" value="rnode/<%= host %>/<%= websocket %>/websockify">
+  <div class="banner"><%= File.read("/fs/project/desktop/banner.html") rescue "" %></div>
+  <button class="btn btn-primary" type="submit">Launch Desktop</button>
+</form>

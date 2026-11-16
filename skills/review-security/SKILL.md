@@ -51,7 +51,9 @@ candidate sites, not verdicts. Security has no rating: the rows are the output.
    `role` / declared `app_type` and the entry-point files; confirm it against
    the manifest. The capability baseline differs by type.
 2. Identify in-scope files. Batch Connect: `form.yml(.erb)`, `submit.yml.erb`,
-   `template/**`, `connection.yml`, container definitions. Passenger: the full
+   `template/**`, `connection.yml`, container definitions, the dashboard
+   files (`form.js`, `view.html.erb`, `info.*.erb`, `completed.*.erb`), and
+   the rest of the app's source (install scripts, helper services). Passenger: the full
    application source (routes, controllers, views, config, scripts). Always
    include `shared_paths`. `security.json`'s `scope` and `files` are the
    scanner's view of the same set, and its `skipped_files` are the files it
@@ -69,7 +71,7 @@ candidate sites, not verdicts. Security has no rating: the rows are the output.
 
    | Check | Candidate kinds |
    |---|---|
-   | `sec-interpolation` | `interpolation`, `unquoted_expansion` |
+   | `sec-interpolation` | `interpolation`, `unquoted_expansion`, `unescaped_output` |
    | `sec-eval-exec` | `eval_exec` |
    | `sec-credential-string` | `credential_string` |
    | `sec-permissive-mode` | `permission_change` |
@@ -123,6 +125,19 @@ candidate sites, not verdicts. Security has no rating: the rows are the output.
      a value was supplied, it does not sanitise it, so a candidate that is
      `presence_checked` but not `guarded` is judged the same as one with
      neither.
+   - Read each candidate's `area` for who runs the line. `job` runs inside
+     the user's batch job. `dashboard` runs in the OOD dashboard in the
+     user's logged-in session, where injected script can act as that user.
+     `other_source` is code OOD never loads, such as an install script or a
+     helper service; a site runs it when installing the app, often as root,
+     so judge it as something the site admin is asked to run, and say what
+     it would need (a root service, an open port) in the finding.
+   - An `unescaped_output` candidate is a value written into the dashboard's
+     HTML unescaped. FAIL or WARN when the value can come from someone other
+     than the user (a response from a server, a file another user can
+     write, an admin-set value shown to every user); PASS when only the
+     user's own form input or job output reaches it, saying so, since that
+     is the user attacking their own session.
    - A `bind-all-interfaces` candidate (`0.0.0.0`, `::`, `INADDR_ANY`, or
      bandit B104) is not a finding by itself: OOD's node proxy reaches the
      service on the compute node, so it must bind a non-loopback interface.

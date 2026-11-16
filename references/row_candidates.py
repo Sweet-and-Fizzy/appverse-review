@@ -14,7 +14,7 @@ class InputError(Exception):
 
 
 SECURITY_KINDS = {
-    "sec-interpolation": ("interpolation", "unquoted_expansion"),
+    "sec-interpolation": ("interpolation", "unquoted_expansion", "unescaped_output"),
     "sec-eval-exec": ("eval_exec",),
     "sec-credential-string": ("credential_string",),
     "sec-permissive-mode": ("permission_change",),
