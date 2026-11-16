@@ -3314,10 +3314,10 @@ def check_license(target, out):
 
 def _suggest_sources(target, app, monorepo, this_repo):
     """The names catalog_facts.suggest_software reads for one app. A
-    monorepo app reads only its own: its folder name, its manifest.yml name
-    and a README in its folder, never the root README, which describes every
-    app in the repo. A single-app repo reads its repository name instead of
-    a folder name."""
+    monorepo app reads only its own: its folder name, its manifest.yml name,
+    a README in its folder and the container images its own files run, never
+    the root README, which describes every app in the repo. A single-app
+    repo reads its repository name instead of a folder name."""
     prefix = "" if app["path"] == "." else app["path"] + "/"
     manifest = _load_file(target, os.path.join(app["_dir"], "manifest.yml"), prefix + "manifest.yml") or {}
     sources = {"manifest": manifest.get("name") if isinstance(manifest.get("name"), str) else None}
@@ -3331,7 +3331,66 @@ def _suggest_sources(target, app, monorepo, this_repo):
             sources["readme"] = _read_fact(target, os.path.join(target, readme), readme)
         except (Refused, OSError):
             pass
+    images = _container_images(target, app["_dir"], prefix)
+    if images:
+        sources["container"] = "\n".join(images)
     return sources
+
+
+CONTAINER_REF = re.compile(r"\b(?:docker|library|oras|shub)://([\w.\-/:@]+)", re.I)
+SIF_SUFFIX = re.compile(r"\.sif\b", re.I)
+SIF_NAME = re.compile(r"(?<![\w.+\-])([A-Za-z][\w.+\-]{0,120})$")
+COMMENT_LINE = re.compile(r"^\s*(?:#|//|<%#)")
+MAX_IMAGES = 20
+IMAGE_TEXT_CAP = 262144  # characters of each file searched for images
+MAX_SIF_HITS = 200  # .sif suffixes looked at per file
+
+
+def _container_images(target, app_dir, prefix):
+    """The container image names the app runs, for a software suggestion:
+    the last path part of each docker:// / library:// / oras:// / shub://
+    reference without its registry, tag or digest, and each *.sif file name,
+    in the app's submit and form files and its own template/** (not a
+    template/ that is a symlink, nor a file that resolves outside the app's
+    folder), read under the shell-file rule. Comment lines are skipped, a
+    file is searched in its first IMAGE_TEXT_CAP characters, and a .sif name
+    is read back from its suffix, so a long line costs no more than its
+    length. At most MAX_IMAGES names, in order, without repeats."""
+    files = [(os.path.join(app_dir, n), prefix + n)
+             for n in ("submit.yml.erb", "submit.yml", "form.yml.erb", "form.yml")]
+    tdir = os.path.join(app_dir, "template")
+    if os.path.isdir(tdir) and not os.path.islink(tdir) and _inside(target, tdir):
+        files += [(os.path.join(tdir, r), prefix + "template/" + r) for r in _walk(tdir)]
+    app_real = os.path.realpath(app_dir)
+    out = []
+    for full, rel in files:
+        if len(out) >= MAX_IMAGES:
+            break
+        if not os.path.isfile(full) or not os.path.realpath(full).startswith(app_real + os.sep):
+            continue
+        try:
+            text = _read_fact(target, full, rel)
+        except (Refused, OSError):
+            continue
+        if "\x00" in text[:8192]:
+            continue
+        text = "\n".join(l for l in text[:IMAGE_TEXT_CAP].split("\n") if not COMMENT_LINE.match(l))
+        names = []
+        for m in CONTAINER_REF.finditer(text):
+            ref = m.group(1).split("@", 1)[0].rstrip("/")
+            names.append(ref.rsplit("/", 1)[-1].split(":", 1)[0])
+        for k, m in enumerate(SIF_SUFFIX.finditer(text)):
+            if k >= MAX_SIF_HITS:
+                break
+            start = max(0, m.start() - 122)
+            n = SIF_NAME.search(text[start:m.start()])
+            # a name that fills the window started before it: too long to be one
+            if n and not (start > 0 and n.start() == 0):
+                names.append(n.group(1))
+        for n in names:
+            if n and n not in out:
+                out.append(n)
+    return out[:MAX_IMAGES]
 
 
 def check_catalog(args, target, apps, out):

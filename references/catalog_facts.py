@@ -252,9 +252,19 @@ def closest_app_types(value, app_types):
 MAX_TITLE_LINES = 200  # lines of a README searched for its title
 MAX_TITLE = 300  # characters of a title line read
 # The order an app's names are read for a suggestion; the first with a hit wins.
-SUGGEST_SOURCES = ("app_path", "repo_name", "manifest", "readme")
+# container is the image names the app's submit and form files and job
+# template run (docker://, library://, oras://, shub:// references and *.sif
+# files), one per line, read last. Unlike the other sources an image name
+# must be the title itself once its version and build tags are dropped
+# (alphafold_2.3.2 is AlphaFold), not merely contain it: ubuntu-desktop is
+# not Desktop. Against the published apps it found AlphaFold for an app the
+# names miss, and named no wrong entry. The manifest description, module
+# loads and a VNC desktop template were measured too and add no right
+# suggestion as a fallback, so they are not read.
+SUGGEST_SOURCES = ("app_path", "repo_name", "manifest", "readme", "container")
 SUGGEST_LABELS = {"app_path": "app's folder name", "repo_name": "repository name",
-                  "manifest": "`manifest.yml` name", "readme": "README title"}
+                  "manifest": "`manifest.yml` name", "readme": "README title",
+                  "container": "container image name"}
 SETEXT_H1 = re.compile(r" {0,3}=+[ \t]*")
 
 
@@ -319,6 +329,26 @@ def first_title(text, titles):
     return (by_key[m.group(1).lower()], m.group(1)) if m else None
 
 
+IMAGE_SUFFIX = re.compile(r"(?:[_\-.:](?:v?\d[\w.\-]*|latest|stable|x86(?:_64)?|amd64|arm64|aarch64"
+                          r"|cpu|gpu|cuda\w*))+$", re.I)
+
+
+def _norm_title(text):
+    return re.sub(r"[\s_.\-]+", " ", text.lower()).strip()
+
+
+def image_entry(name, titles):
+    """The catalog title an image name is, once its version and build tags
+    (_2.3.2, -latest, _x86, :cpu) are dropped and -, _ and . read as
+    spaces, ignoring case; None when it is no title exactly."""
+    if not isinstance(name, str) or len(name) > MAX_TITLE:
+        return None
+    key = _norm_title(IMAGE_SUFFIX.sub("", name.strip()))
+    if not key:
+        return None
+    return next((t for t in titles if _norm_title(t) == key), None)
+
+
 def suggest_software(cat, sources):
     """The Software entry an app most likely implements, for an app whose
     software status is not match: {value, source, entry}, or None. sources
@@ -330,6 +360,12 @@ def suggest_software(cat, sources):
     for source in SUGGEST_SOURCES:
         text = (sources or {}).get(source)
         if not isinstance(text, str) or not text.strip():
+            continue
+        if source == "container":
+            for name in text.splitlines()[:MAX_TITLE_LINES]:
+                entry = image_entry(name, titles)
+                if entry:
+                    return {"value": name.strip(), "source": source, "entry": entry}
             continue
         hit = first_title(readme_title(text) if source == "readme" else text, titles)
         if hit:
