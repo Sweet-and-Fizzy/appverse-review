@@ -141,7 +141,9 @@ Each app has a **Duplicate check**, under its ratings. It compares the app
 with the published apps for the same software, using the Software entry
 assigned to the app, then the `software` value, then the Software entry the
 review tool suggests from the app's repository or folder name, manifest name,
-README title or container image name. Record one of
+README title or container image name. A Software entry's "Also known as"
+names count as its title, so an app named Code Server is matched to Visual
+Studio Code. Record one of
 three outcomes for each app before you accept it: "No other app for this
 software", "Same software, a meaningfully different approach" or "Duplicate
 of an existing app". Give your reason. Name the apps you compared and say

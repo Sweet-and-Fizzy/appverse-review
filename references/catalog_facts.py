@@ -10,7 +10,8 @@ The source is either an http(s) base URL (the live catalog,
 https://openondemand.connectci.org by default) or a local directory holding
 one JSON file per resource, for tests and offline runs:
 
-    software.json             [{"id": ..., "title": ...}, ...]
+    software.json             [{"id": ..., "title": ..., "aliases": [...]}, ...]
+                              (aliases optional: the entry's "Also known as" names)
     app_types.json            ["batch-connect-basic", ...]
     implementation_tags.json  ["gpu-enabled", ...]
     apps.json                 [{"id": ..., "title": ..., "github_url": ...,
@@ -40,12 +41,16 @@ MAX_PAGES = 20
 PAGE_LIMIT = 50
 MAX_VALUE = 80
 MAX_REPOS = 10
+MAX_ALIASES = 20  # other names read per Software entry
 PLACEHOLDER = ("  - **Duplicate-check rationale:** _<reviewer fills in — the outcome and why, "
                "per the Reviewer Process's Duplicate check; edit before pasting into the issue or email>_")
 
 # resource key -> (JSON:API path, sparse-fieldset type, fields)
 RESOURCES = {
-    "software": ("node/appverse_software", "node--appverse_software", "title"),
+    # field_appverse_software_aliases ("Also known as") is read when the
+    # catalog has it; JSON:API ignores a sparse-fieldset field it lacks.
+    "software": ("node/appverse_software", "node--appverse_software",
+                 "title,field_appverse_software_aliases"),
     "app_types": ("taxonomy_term/appverse_app_type", "taxonomy_term--appverse_app_type", "name"),
     "implementation_tags": ("taxonomy_term/appverse_implementation_tags",
                             "taxonomy_term--appverse_implementation_tags", "name"),
@@ -111,12 +116,22 @@ def _fetch_resource(base, key, deadline):
     return items, pages
 
 
+def _aliases(value):
+    """An entry's other names as a list of strings, whitespace collapsed,
+    blanks dropped, at most MAX_ALIASES: from a list, a single string, or
+    nothing."""
+    values = value if isinstance(value, list) else [value] if isinstance(value, str) else []
+    out = [" ".join(v.split()) for v in values if isinstance(v, str)]
+    return [v for v in out if v][:MAX_ALIASES]
+
+
 def _flatten(key, items):
     out = []
     for x in items:
         a = x.get("attributes") or {}
         if key == "software":
-            out.append({"id": x.get("id"), "title": a.get("title") or ""})
+            out.append({"id": x.get("id"), "title": a.get("title") or "",
+                        "aliases": _aliases(a.get("field_appverse_software_aliases"))})
         elif key in ("app_types", "implementation_tags"):
             if a.get("name"):
                 out.append(a["name"])
@@ -151,6 +166,9 @@ def read_catalog(source):
             with open(os.path.join(source, key + ".json"), encoding="utf-8") as f:
                 cat[key] = json.load(f)
             cat["pages"][key] = 1
+        for sw in cat["software"] if isinstance(cat["software"], list) else []:
+            if isinstance(sw, dict):
+                sw["aliases"] = _aliases(sw.get("aliases"))
     elif source.startswith(("http://", "https://")):
         deadline = time.monotonic() + DEADLINE
         for key in RESOURCES:
@@ -317,16 +335,28 @@ def readme_title(text):
 def first_title(text, titles):
     """(title, text as written) for the catalog title named first in text,
     as whole words, ignoring case; None if none is. Underscores count as
-    word breaks, so a name like bc_osc_rstudio_server names RStudio. At one
+    word breaks, so a name like bc_osc_rstudio_server names RStudio, and a
+    space, - or _ in a name matches any of them, so drona-composer names
+    Drona Composer and "code server" names code-server. At one
     place the longest title wins ("Jupyter Notebook" over "Jupyter")."""
     if not text or not titles:
         return None
     by_key = {}
     for t in sorted(titles, key=lambda t: (-len(t), t)):
         by_key.setdefault(t.lower(), t)
-    rx = re.compile(r"(?<![^\W_])(%s)(?![^\W_])" % "|".join(re.escape(k) for k in by_key), re.I)
+    rx = re.compile(r"(?<![^\W_])(%s)(?![^\W_])" % "|".join(
+        re.sub(r"(?:\\ |\\-|_)+", lambda _: r"[\s_-]+", re.escape(k)) for k in by_key), re.I)
     m = rx.search(text)
-    return (by_key[m.group(1).lower()], m.group(1)) if m else None
+    if not m:
+        return None
+    gap = lambda t: re.sub(r"[\s_-]+", " ", t)
+    by_gap = {}
+    for k, v in by_key.items():
+        by_gap.setdefault(gap(k), v)
+    # re.I folds a few characters str.lower() does not (the long s matches
+    # s), so a hit can miss both lookups; that is no hit.
+    title = by_key.get(m.group(1).lower()) or by_gap.get(gap(m.group(1).lower()))
+    return (title, m.group(1)) if title else None
 
 
 IMAGE_SUFFIX = re.compile(r"(?:[_\-.:](?:v?\d[\w.\-]*|latest|stable|x86(?:_64)?|amd64|arm64|aarch64"
@@ -337,10 +367,25 @@ def _norm_title(text):
     return re.sub(r"[\s_.\-]+", " ", text.lower()).strip()
 
 
+def software_names(cat):
+    """{name, lowercased: Software entry title} for every entry's title and
+    its other names (aliases). A title wins over another entry's alias of
+    the same name, and the first entry wins between two aliases."""
+    names = {}
+    for sw in cat["software"]:
+        if sw.get("title"):
+            names[sw["title"].lower()] = sw["title"]
+    for sw in cat["software"]:
+        for alias in sw.get("aliases") or []:
+            if sw.get("title") and isinstance(alias, str) and alias.strip():
+                names.setdefault(alias.strip().lower(), sw["title"])
+    return names
+
+
 def image_entry(name, titles):
-    """The catalog title an image name is, once its version and build tags
-    (_2.3.2, -latest, _x86, :cpu) are dropped and -, _ and . read as
-    spaces, ignoring case; None when it is no title exactly."""
+    """The catalog name (title or alias) an image name is, once its version
+    and build tags (_2.3.2, -latest, _x86, :cpu) are dropped and -, _ and .
+    read as spaces, ignoring case; None when it is no name exactly."""
     if not isinstance(name, str) or len(name) > MAX_TITLE:
         return None
     key = _norm_title(IMAGE_SUFFIX.sub("", name.strip()))
@@ -355,21 +400,23 @@ def suggest_software(cat, sources):
     maps a SUGGEST_SOURCES key to its text; they are read in that order and
     the first with a hit wins. Of the README only its title is read
     (readme_title). value is the text as written. A suggestion only: same_software_apps stays a declared
-    match, and the reviewer decides."""
-    titles = [s["title"] for s in cat["software"] if s.get("title")]
+    match, and the reviewer decides. A Software entry's other names
+    (aliases) count as its title: a hit on one suggests the entry."""
+    names = software_names(cat)
+    keys = list(names)
     for source in SUGGEST_SOURCES:
         text = (sources or {}).get(source)
         if not isinstance(text, str) or not text.strip():
             continue
         if source == "container":
             for name in text.splitlines()[:MAX_TITLE_LINES]:
-                entry = image_entry(name, titles)
-                if entry:
-                    return {"value": name.strip(), "source": source, "entry": entry}
+                hit = image_entry(name, keys)
+                if hit:
+                    return {"value": name.strip(), "source": source, "entry": names[hit.lower()]}
             continue
-        hit = first_title(readme_title(text) if source == "readme" else text, titles)
+        hit = first_title(readme_title(text) if source == "readme" else text, keys)
         if hit:
-            return {"value": hit[1], "source": source, "entry": hit[0]}
+            return {"value": hit[1], "source": source, "entry": names[hit[0].lower()]}
     return None
 
 
@@ -386,6 +433,7 @@ def compare(cat, decl, this_repo, sources=None):
     app whose software is not a match, sources (suggest_software) give
     software.suggested and suggested_same_software_apps."""
     sw_by_name = {s["title"].lower(): s for s in cat["software"] if s.get("title")}
+    names = software_names(cat)
     types = {t.lower() for t in cat["app_types"]}
     tags = {t.lower() for t in cat["implementation_tags"]}
     res = {"shape": decl["status"]}
@@ -394,8 +442,8 @@ def compare(cat, decl, this_repo, sources=None):
         res["software"] = {"status": decl["status"]}
     elif not sw:
         res["software"] = {"status": "not_declared"}
-    elif sw.lower() in sw_by_name:
-        res["software"] = {"status": "match", "value": sw, "entry": sw_by_name[sw.lower()]["title"]}
+    elif sw.lower() in names:
+        res["software"] = {"status": "match", "value": sw, "entry": names[sw.lower()]}
     else:
         near = sorted((_levenshtein(sw.lower(), k), k) for k in sw_by_name)
         res["software"] = {"status": "no_match", "value": sw,
