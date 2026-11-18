@@ -237,9 +237,11 @@ stderr and still assemble.
   `unknown`, `note`), and `same_software_apps` (each published app with the
   same Software entry: `title`, `github_url`, `subpath`, `this_repo`).
   Since 1.7, a `software` whose status is not `match` may carry
-  `suggested`: `{value, source, entry}`, the Software entry whose title the
-  app names as whole words, ignoring case, with `value` the text as
-  written. `source` is where, read in this order: `app_path` (a monorepo
+  `suggested`: `{value, source, entry}`, the Software entry whose title or
+  other name (the catalog's "Also known as" aliases) the app names as whole
+  words, ignoring case, a space in the name also matching `-` or `_`, with
+  `value` the text as written. A declared `software` value that is an
+  entry's alias is a `match` on that entry. `source` is where, read in this order: `app_path` (a monorepo
   app's folder name), `repo_name` (a single-app repo's repository name),
   `manifest` (the app's `manifest.yml` name), `readme` (the title of the
   app's own README; a monorepo app never reads the root README),
