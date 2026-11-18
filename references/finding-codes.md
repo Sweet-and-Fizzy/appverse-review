@@ -208,7 +208,8 @@ another user can pre-create, replace or read it.
 `missing-csrf`
 
 `bind-all-interfaces` names a service bound to a non-loopback interface
-(`0.0.0.0`, `::`, `INADDR_ANY`) that answers without authentication. OOD's
+(`0.0.0.0`, `::`, `INADDR_ANY`, or the compute node's own address, `$host`)
+that answers without authentication. OOD's
 node proxy (`/node/`, `/rnode/`) reaches the service on the compute node, so
 the bind alone is not exposure: a bind whose service requires a password or
 token is PASS: code-server with `--auth password` and `PASSWORD` exported to

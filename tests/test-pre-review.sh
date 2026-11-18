@@ -2076,4 +2076,27 @@ check "other_source tool findings collapse on their own; the template's stay per
   "template/script.sh:job:B999|other_source:20" \
   "$(sco "$T" "$T" batch_connect "$O" "'%s|%s' % (','.join('%s:%s:%s' % (c['file'], c['area'], c['code']) for c in d['candidates'] if c['kind']=='tool_finding' and c['file']), '%s:%d' % (','.join(sorted(set(c['area'] for c in d['candidates'] if c['kind']=='tool_finding' and not c['file']))), sum(1 for c in d['candidates'] if c['kind']=='tool_finding' and not c['file'])))")"
 
+echo "Test: D8-3134 a server bound to the compute node's address is a bind-all-interfaces candidate"
+T="$TMP/t3134"; mkdir -p "$T/template"
+printf -- '---\nform:\n  - x\n' > "$T/form.yml"
+cat > "$T/template/script.sh.erb" <<'SH'
+#!/bin/bash
+tensorboard --logdir . --host "${OOD_APP_BIND_HOST:-${host}}" --port "${port}"
+bokeh serve app --address "${host}" --port "${port}"
+mlflow ui --host=$host
+server --bind ${host}:${port}
+server --www-address=$(hostname -f)
+server --listen $HOSTNAME
+server --host 127.0.0.1
+apptainer exec --bind ${host_dir}:/x img.sif run
+apptainer exec --bind "${HOSTNAME_DIR}":/y img.sif run
+curl "http://${host}:${port}/health"
+# server --host "${host}"
+SH
+BIND="','.join(str(c['line']) for c in d['candidates'] if c['kind']=='config_flag' and c['tag']=='bind-all-interfaces')"
+check "node-address binds: --host/--address/--bind/--www-address/--listen with \$host, \${host}, a :- default, \$(hostname) or \$HOSTNAME; not 127.0.0.1, a longer variable name, a URL or a comment" \
+  "2,3,4,5,6,7" "$(sc "$T" "$T" batch_connect "$BIND")"
+check "the node-address bind note says it is a fact to judge" "True" \
+  "$(sc "$T" "$T" batch_connect "all('reachable from other nodes' in c['note'] and 'only when the service has no authentication' in c['note'] for c in d['candidates'] if c['kind']=='config_flag' and c['line'] in (2, 3))")"
+
 echo; echo "Done: $pass passed, $fail failed."; [ "$fail" -eq 0 ]
