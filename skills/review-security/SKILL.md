@@ -138,8 +138,9 @@ candidate sites, not verdicts. Security has no rating: the rows are the output.
      write, an admin-set value shown to every user); PASS when only the
      user's own form input or job output reaches it, saying so, since that
      is the user attacking their own session.
-   - A `bind-all-interfaces` candidate (`0.0.0.0`, `::`, `INADDR_ANY`, or
-     bandit B104) is not a finding by itself: OOD's node proxy reaches the
+   - A `bind-all-interfaces` candidate (`0.0.0.0`, `::`, `INADDR_ANY`, a
+     server started on the compute node's own address such as
+     `--host "${host}"`, or bandit B104) is not a finding by itself: OOD's node proxy reaches the
      service on the compute node, so it must bind a non-loopback interface.
      The finding is a service other users can reach without authentication.
      PASS when the service requires a password or token, citing the line

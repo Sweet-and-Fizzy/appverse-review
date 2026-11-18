@@ -2398,6 +2398,14 @@ CONFIG_FLAGS = [
                 r"[\"'\[]*::\]?(?![\w:.])|\b(?:listen|bind|serve)\s*\([^)]*[\"']::[\"']"),
      "OODT-05", "bind-all-interfaces", "binds all interfaces; OOD's node proxy needs a non-loopback "
      "bind, so this is a finding only when the service has no authentication", False),
+    # A server bound to the compute node's own address is as reachable from
+    # other nodes as one bound to 0.0.0.0: OOD's variable ($host / ${host},
+    # also as a ${VAR:-${host}} default), $(hostname ...) or $HOSTNAME as
+    # the value of a server's listen flag (D8-3134).
+    (re.compile(r"--(?:host|ip|bind|bind-addr|listen|address|www-address)(?:=|\s+)[\"']?[^\s\"']*?"
+                r"(?:\$\{?host\b|\$\(hostname\b|\$\{?HOSTNAME\b)"),
+     "OODT-05", "bind-all-interfaces", "binds the compute node's address, reachable from other nodes; "
+     "OOD's node proxy needs it, so this is a finding only when the service has no authentication", True),
     (re.compile(r"(?i)Access-Control-Allow-Origin[\"']?\s*[:,]?\s*[\"']?\*|\ballow_origin\s*=\s*[\"']\*"
                 r"|\b(?:origins?|allow_origins?|cors_origins?|cors_allowed_origins)\s*[:=]\s*\[?\s*[\"']\*[\"']"
                 r"|\bCORS_(?:ORIGIN_ALLOW_ALL|ALLOW_ALL_ORIGINS)\s*=\s*True|\bCORS\(\s*app\s*\)|\bcors\(\s*\)"),
